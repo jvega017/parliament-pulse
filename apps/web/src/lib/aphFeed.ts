@@ -23,23 +23,21 @@ export interface FeedResult {
   lastPoll: Date;
 }
 
+// Verified working APH RSS feeds (audit 2026-04-24).
+// Seven feeds that are listed on https://www.aph.gov.au/Help/RSS_feeds
+// currently return empty containers and have been removed from the poll.
+// If APH restores content, they can be re-added:
+//   house/rss/divisions, house/rss/todays_hearings, house/rss/daily_program,
+//   senate/rss/red, house/rss/house_inquiries, house/rss/joint_inquiries,
+//   house/rss/house_news
+// The legacy parlinfo ;matrix-parameter Bills Digests feed also fails via
+// the proxy and should not be re-added until APH publishes a stable URL.
 export const APH_FEED_URLS: FeedMeta[] = [
-  { url: "https://www.aph.gov.au/house/rss/divisions", label: "House Divisions", kind: "division" },
-  { url: "https://www.aph.gov.au/house/rss/todays_hearings", label: "Today's House hearings", kind: "hearing" },
-  { url: "https://www.aph.gov.au/house/rss/daily_program", label: "House Daily Program", kind: "program" },
-  { url: "https://www.aph.gov.au/senate/rss/red", label: "Today's Senate hearings", kind: "hearing" },
   { url: "https://www.aph.gov.au/senate/rss/new_inquiries", label: "New Senate inquiries", kind: "inquiry" },
   { url: "https://www.aph.gov.au/senate/rss/reports", label: "Senate reports tabled", kind: "report" },
   { url: "https://www.aph.gov.au/senate/rss/upcoming_hearings", label: "Upcoming Senate hearings", kind: "hearing" },
-  { url: "https://www.aph.gov.au/house/rss/house_inquiries", label: "House inquiries", kind: "inquiry" },
-  { url: "https://www.aph.gov.au/house/rss/joint_inquiries", label: "Joint inquiries", kind: "inquiry" },
+  { url: "https://www.aph.gov.au/senate/rss/senators_details", label: "Senators' details updates", kind: "signal" },
   { url: "https://www.aph.gov.au/house/rss/media_releases", label: "House media releases", kind: "signal" },
-  { url: "https://www.aph.gov.au/house/rss/house_news", label: "About the House News", kind: "signal" },
-  {
-    url: "https://parlinfo.aph.gov.au/parlInfo/feeds/rss.w3p;adv=yes;orderBy=date-eFirst;page=0;query=Date%3AthisYear%20Dataset%3Abillsdgs;resCount=100",
-    label: "Bills Digests",
-    kind: "digest",
-  },
 ];
 
 function parseRssXml(xml: string, feed: FeedMeta): FeedItem[] {
@@ -86,6 +84,84 @@ export async function fetchFeedViaProxy(
   const text = await res.text();
   return parseRssXml(text, feed);
 }
+
+// --------- AUSParliamentLive YouTube resolver ---------
+// The @AUSParliamentLive channel does not run a single persistent live stream.
+// Each sitting session and committee hearing is a separately scheduled stream
+// with its own video id, so the /embed/live_stream?channel=<id> endpoint
+// resolves to an offline placeholder. We work around that by reading the
+// channel's public RSS feed and picking the most recent entry whose title
+// matches the requested chamber.
+
+export type YtChamber = "house" | "senate" | "federation";
+
+export interface LiveVideo {
+  videoId: string;
+  title: string;
+  publishedAt: Date;
+}
+
+const APH_YT_CHANNEL = "UCvO8Qfr3etT6khGA9Zln8WA";
+const APH_YT_RSS = `https://www.youtube.com/feeds/videos.xml?channel_id=${APH_YT_CHANNEL}`;
+
+interface YtEntry {
+  videoId: string;
+  title: string;
+  published: Date;
+}
+
+function parseYtFeed(xml: string): YtEntry[] {
+  const doc = new DOMParser().parseFromString(xml, "application/xml");
+  const entries: YtEntry[] = [];
+  doc.querySelectorAll("entry").forEach((entry) => {
+    const videoId = entry.getElementsByTagName("yt:videoId")[0]?.textContent?.trim();
+    const title = entry.querySelector("title")?.textContent?.trim();
+    const pub = entry.querySelector("published")?.textContent?.trim();
+    if (!videoId || !title) return;
+    const published = pub ? new Date(pub) : new Date(0);
+    entries.push({ videoId, title, published });
+  });
+  return entries;
+}
+
+function matchChamber(entry: YtEntry, chamber: YtChamber): boolean {
+  const t = entry.title.toLowerCase();
+  switch (chamber) {
+    case "house":
+      return /house of representatives/.test(t);
+    case "senate":
+      // Match "senate" as a whole word/phrase to avoid false-positive on words like "senator"
+      return /\bsenate\b/.test(t) && !/federation/.test(t);
+    case "federation":
+      return /federation chamber/.test(t);
+  }
+}
+
+export async function resolveLiveVideo(
+  apiBase: string,
+  chamber: YtChamber,
+  signal?: AbortSignal,
+): Promise<LiveVideo | null> {
+  const proxied = `${apiBase.replace(/\/$/, "")}/rss?u=${encodeURIComponent(APH_YT_RSS)}`;
+  try {
+    const res = await fetch(proxied, { signal });
+    if (!res.ok) return null;
+    const xml = await res.text();
+    const entries = parseYtFeed(xml);
+    if (entries.length === 0) return null;
+
+    entries.sort((a, b) => b.published.getTime() - a.published.getTime());
+    const match = entries.find((e) => matchChamber(e, chamber)) ?? entries[0];
+    if (!match) return null;
+    return { videoId: match.videoId, title: match.title, publishedAt: match.published };
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") return null;
+    console.warn("Failed to resolve live video", err);
+    return null;
+  }
+}
+
+// --------- APH RSS poller ---------
 
 export async function fetchAllFeeds(
   apiBase: string,

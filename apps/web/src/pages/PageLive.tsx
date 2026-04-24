@@ -1,12 +1,29 @@
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "../icons";
 import { useStore } from "../store/useStore";
-import { APH_FEED_URLS, fetchAllFeeds, type FeedItem, type FeedResult } from "../lib/aphFeed";
+import {
+  APH_FEED_URLS,
+  fetchAllFeeds,
+  resolveLiveVideo,
+  type FeedItem,
+  type FeedResult,
+  type LiveVideo,
+  type YtChamber,
+} from "../lib/aphFeed";
 
 const APH_YT_CHANNEL = "UCvO8Qfr3etT6khGA9Zln8WA";
-const YT_EMBED = `https://www.youtube.com/embed/live_stream?channel=${APH_YT_CHANNEL}&autoplay=1&mute=1`;
 
-type Chamber = "house" | "senate" | "federation";
+function buildEmbed(videoId: string | null): string {
+  if (videoId) {
+    return `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&rel=0`;
+  }
+  // Fallback: the channel's live_stream endpoint. This almost never resolves
+  // because AUSParliamentLive uses scheduled individual streams, but retry
+  // does not hurt.
+  return `https://www.youtube.com/embed/live_stream?channel=${APH_YT_CHANNEL}&autoplay=1&mute=1`;
+}
+
+type Chamber = YtChamber;
 
 const CHAMBERS: Record<Chamber, { label: string; program: string }> = {
   house: {
@@ -48,6 +65,8 @@ export function PageLive(): JSX.Element {
 
   const [result, setResult] = useState<FeedResult | null>(null);
   const [loading, setLoading] = useState(true);
+  const [liveVideo, setLiveVideo] = useState<LiveVideo | null>(null);
+  const [videoResolved, setVideoResolved] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   const apiBase = import.meta.env.VITE_API_BASE ?? "";
@@ -55,6 +74,29 @@ export function PageLive(): JSX.Element {
   useEffect(() => {
     setMode("embed");
   }, [which]);
+
+  // Resolve the current live-or-most-recent AUSParliamentLive video id for
+  // the selected chamber by reading the channel RSS feed via aph-proxy.
+  // Refreshes every 5 minutes and when the chamber tab changes.
+  useEffect(() => {
+    let cancelled = false;
+    const ctrl = new AbortController();
+
+    async function resolve(): Promise<void> {
+      const video = await resolveLiveVideo(apiBase, which, ctrl.signal);
+      if (!cancelled) {
+        setLiveVideo(video);
+        setVideoResolved(true);
+      }
+    }
+    resolve();
+    const id = window.setInterval(resolve, 300_000);
+    return () => {
+      cancelled = true;
+      ctrl.abort();
+      window.clearInterval(id);
+    };
+  }, [apiBase, which, nonce]);
 
   useEffect(() => {
     let cancelled = false;
@@ -133,17 +175,28 @@ export function PageLive(): JSX.Element {
           <div className="live-wrap">
             {mode === "embed" && (
               <iframe
-                key={`${which}-${nonce}`}
-                src={YT_EMBED}
-                title={`AUSParliamentLive — ${cfg.label}`}
+                key={`${which}-${nonce}-${liveVideo?.videoId ?? "none"}`}
+                src={buildEmbed(liveVideo?.videoId ?? null)}
+                title={liveVideo?.title ?? `AUSParliamentLive — ${cfg.label}`}
                 allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
                 allowFullScreen
                 referrerPolicy="strict-origin-when-cross-origin"
               />
             )}
-            {mode === "embed" && (
-              <div className="live-badge">
-                <span className="pulse" /> LIVE · {cfg.label.toUpperCase()}
+            {mode === "embed" && liveVideo && (
+              <div className="live-badge" title={liveVideo.title}>
+                <span className="pulse" />{" "}
+                {liveVideo.title.length > 48
+                  ? `${liveVideo.title.slice(0, 48).toUpperCase()}...`
+                  : liveVideo.title.toUpperCase()}
+              </div>
+            )}
+            {mode === "embed" && !liveVideo && videoResolved && (
+              <div
+                className="live-badge"
+                style={{ background: "var(--ink-4)", boxShadow: "none" }}
+              >
+                <span className="pulse" /> NO RECENT STREAM
               </div>
             )}
             {mode === "embed" && (

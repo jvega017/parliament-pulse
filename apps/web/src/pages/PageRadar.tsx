@@ -1,4 +1,5 @@
 import { Att } from "../shell/common";
+import { DemoBanner } from "../shell/DemoBanner";
 import { useStore } from "../store/useStore";
 import { RADAR } from "../data/fixtures";
 
@@ -7,6 +8,7 @@ export function PageRadar(): JSX.Element {
 
   return (
     <div className="page-fade">
+      <DemoBanner />
       <div className="page-head">
         <div>
           <div className="page-kicker">Today</div>

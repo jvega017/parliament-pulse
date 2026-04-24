@@ -1,5 +1,6 @@
 import { Icon } from "../icons";
 import { Att } from "../shell/common";
+import { DemoBanner } from "../shell/DemoBanner";
 import { useStore } from "../store/useStore";
 import { COMMITTEE_ITEMS } from "../data/fixtures";
 import { committeeIdFromName } from "../data/entities";
@@ -67,6 +68,7 @@ export function PageCommittees(): JSX.Element {
 
   return (
     <div className="page-fade">
+      <DemoBanner />
       <div className="page-head">
         <div>
           <div className="page-kicker">Parliament</div>

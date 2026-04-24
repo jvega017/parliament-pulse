@@ -40,7 +40,7 @@ export const SIGNALS: Signal[] = [
     date: "24 Apr 2026",
     source: "Senate New Inquiries RSS",
     sourceGroup: "Senate",
-    title: "New Senate inquiry into digital government procurement governance",
+    title: "[Sample] New Senate inquiry into digital government procurement governance",
     summary:
       "The Senate Finance and Public Administration References Committee has opened an inquiry examining procurement governance across large-scale digital programs, with submissions due 19 May.",
     tags: [
@@ -58,9 +58,9 @@ export const SIGNALS: Signal[] = [
     sourceAuthority: "Official",
     humanReview: "Required",
     evidence: [
-      { label: "Senate inquiry listing", url: "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Finance_and_Public_Administration" },
-      { label: "Finance & PA Committee page", url: "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Finance_and_Public_Administration/Digital_Procurement" },
-      { label: "Senate New Inquiries RSS", url: "https://www.aph.gov.au/Parliamentary_Business/Committees/RSS_Feeds/new_inquiries" },
+      { label: "Finance & PA Committee (APH)", url: "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Finance_and_Public_Administration" },
+      { label: "Senate New Inquiries RSS", url: "https://www.aph.gov.au/senate/rss/new_inquiries" },
+      { label: "APH RSS feed directory", url: "https://www.aph.gov.au/Help/RSS_feeds" },
     ],
     score: { authority: 0.95, portfolio: 0.9, novelty: 0.9, momentum: 0.4, time: 0.6, scrutiny: 0.85, ops: 0.7 },
     provenance: [
@@ -83,7 +83,7 @@ export const SIGNALS: Signal[] = [
     date: "24 Apr 2026",
     source: "House Media Releases RSS",
     sourceGroup: "House",
-    title: "Speaker announces procedural changes to Wednesday sittings",
+    title: "[Sample] Speaker announces procedural changes to Wednesday sittings",
     summary:
       "The Speaker has confirmed adjusted sitting order for private members' business on Wednesdays, effective next sitting week.",
     tags: [{ l: "Procedural" }, { l: "House" }],
@@ -115,7 +115,7 @@ export const SIGNALS: Signal[] = [
     date: "24 Apr 2026",
     source: "Bills Digests RSS",
     sourceGroup: "Library",
-    title: "Bills Digest published: Digital ID Amendment (Assurance) Bill 2026",
+    title: "[Sample] Bills Digest published: Digital ID Amendment (Assurance) Bill 2026",
     summary:
       "Parliamentary Library Bills Digest provides background, purpose and key provisions for the Digital ID Amendment (Assurance) Bill, with notes on scope of accreditation and consumer safeguards.",
     tags: [
@@ -133,9 +133,9 @@ export const SIGNALS: Signal[] = [
     sourceAuthority: "Official",
     humanReview: "Required",
     evidence: [
-      { label: "Bills Digest (Parliamentary Library)", url: "https://www.aph.gov.au/Parliamentary_Business/Bills_LEGislation/bd/bd2526a" },
-      { label: "Bill homepage — Digital ID Amendment", url: "https://www.aph.gov.au/Parliamentary_Business/Bills_Legislation/Bills_Search_Results/Result?bId=r6890" },
-      { label: "Bills Digests RSS", url: "https://www.aph.gov.au/About_Parliament/Parliamentary_departments/Parliamentary_Library/pubs/BillsDigests/RSS" },
+      { label: "Bills Digests index (Parliamentary Library)", url: "https://www.aph.gov.au/Parliamentary_Business/Bills_Legislation/Bills_Search_Results" },
+      { label: "Bills Legislation landing", url: "https://www.aph.gov.au/Parliamentary_Business/Bills_Legislation" },
+      { label: "Parliamentary Library", url: "https://www.aph.gov.au/About_Parliament/Parliamentary_departments/Parliamentary_Library" },
     ],
     score: { authority: 0.95, portfolio: 0.85, novelty: 0.8, momentum: 0.55, time: 0.5, scrutiny: 0.7, ops: 0.7 },
     provenance: [
@@ -154,7 +154,7 @@ export const SIGNALS: Signal[] = [
     date: "24 Apr 2026",
     source: "Today's Senate Hearings RSS",
     sourceGroup: "Senate",
-    title: "Today: Legal & Constitutional — AI assurance in regulated services",
+    title: "[Sample] Today: Legal & Constitutional, AI assurance in regulated services",
     summary:
       "Hearing scheduled 10:00 AEST. Witnesses include Dept. of Industry, OAIC, and two industry peak bodies. Related to ongoing AI assurance inquiry.",
     tags: [
@@ -171,8 +171,8 @@ export const SIGNALS: Signal[] = [
     sourceAuthority: "Official",
     humanReview: "Required",
     evidence: [
-      { label: "Today's hearing program", url: "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Legal_and_Constitutional_Affairs/AIAssurance/Public_Hearings" },
       { label: "Committee home page", url: "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Legal_and_Constitutional_Affairs" },
+      { label: "Today's Senate hearings RSS", url: "https://www.aph.gov.au/senate/rss/red" },
     ],
     score: { authority: 0.95, portfolio: 0.85, novelty: 0.4, momentum: 0.7, time: 0.95, scrutiny: 0.9, ops: 0.6 },
     provenance: [
@@ -190,7 +190,7 @@ export const SIGNALS: Signal[] = [
     date: "24 Apr 2026",
     source: "House Daily Program RSS",
     sourceGroup: "House",
-    title: "House daily program: Cyber Security Legislation Amendment listed for 2nd reading",
+    title: "[Sample] House daily program: Cyber Security Legislation Amendment listed for 2nd reading",
     summary:
       "Program shows second reading debate scheduled for Cyber Security Legislation Amendment Bill 2026. Private members' business follows at 4:30pm.",
     tags: [
@@ -206,8 +206,8 @@ export const SIGNALS: Signal[] = [
     sourceAuthority: "Official",
     humanReview: "Optional",
     evidence: [
-      { label: "House daily program — 24 Apr", url: "https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/HoR_chamber_documents/Daily_program" },
-      { label: "Cyber Security Bill 2026", url: "https://www.aph.gov.au/Parliamentary_Business/Bills_Legislation/Bills_Search_Results/Result?bId=r6883" },
+      { label: "House daily program", url: "https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/HoR_chamber_documents/Daily_program" },
+      { label: "Bills Legislation search", url: "https://www.aph.gov.au/Parliamentary_Business/Bills_Legislation/Bills_Search_Results" },
     ],
     score: { authority: 0.95, portfolio: 0.75, novelty: 0.35, momentum: 0.5, time: 0.85, scrutiny: 0.7, ops: 0.55 },
     provenance: [
@@ -225,7 +225,7 @@ export const SIGNALS: Signal[] = [
     date: "24 Apr 2026",
     source: "Library Publications RSS",
     sourceGroup: "Library",
-    title: "FlagPost: Trust, automation, and the next phase of Digital ID",
+    title: "[Sample] FlagPost: Trust, automation, and the next phase of Digital ID",
     summary:
       "Research commentary on governance frameworks for automated identity assurance and implications for public-sector service delivery.",
     tags: [
@@ -240,8 +240,8 @@ export const SIGNALS: Signal[] = [
     sourceAuthority: "Official",
     humanReview: "Optional",
     evidence: [
-      { label: "FlagPost — Trust, automation, and Digital ID", url: "https://www.aph.gov.au/About_Parliament/Parliamentary_departments/Parliamentary_Library/FlagPost" },
-      { label: "Library Publications RSS", url: "https://www.aph.gov.au/About_Parliament/Parliamentary_departments/Parliamentary_Library/Publications_Archive/RSS" },
+      { label: "FlagPost (Parliamentary Library)", url: "https://www.aph.gov.au/About_Parliament/Parliamentary_departments/Parliamentary_Library/FlagPost" },
+      { label: "Parliamentary Library landing", url: "https://www.aph.gov.au/About_Parliament/Parliamentary_departments/Parliamentary_Library" },
     ],
     score: { authority: 0.8, portfolio: 0.7, novelty: 0.6, momentum: 0.5, time: 0.3, scrutiny: 0.4, ops: 0.3 },
     provenance: [

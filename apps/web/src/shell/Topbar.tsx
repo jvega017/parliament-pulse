@@ -211,8 +211,8 @@ export function Topbar(): JSX.Element {
           />{" "}
           Parliament live
         </button>
-        <span className="chip">
-          <span className="dot" /> 14/15 sources
+        <span className="chip" title="Sample feeds marked live">
+          <span className="dot" /> {APH_FEEDS.filter((f) => f.status === "live").length}/{APH_FEEDS.length} sources
         </span>
         <button
           type="button"

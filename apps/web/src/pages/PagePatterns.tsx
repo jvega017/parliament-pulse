@@ -1,4 +1,5 @@
 import { Icon } from "../icons";
+import { DemoBanner } from "../shell/DemoBanner";
 import { useStore } from "../store/useStore";
 import { QON_PATTERN } from "../data/fixtures";
 
@@ -13,6 +14,7 @@ export function PagePatterns(): JSX.Element {
 
   return (
     <div className="page-fade">
+      <DemoBanner />
       <div className="page-head">
         <div>
           <div className="page-kicker">Parliament · Scrutiny</div>

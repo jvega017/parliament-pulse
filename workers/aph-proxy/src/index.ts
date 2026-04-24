@@ -15,6 +15,9 @@ const ALLOWED_HOSTS = new Set<string>([
   "www.aph.gov.au",
   "aph.gov.au",
   "parlinfo.aph.gov.au",
+  // Proxied so the browser can read the YouTube channel RSS feed used to
+  // resolve the current AUSParliamentLive scheduled-stream video id.
+  "www.youtube.com",
 ]);
 
 function corsHeaders(origin: string, allowed: string): HeadersInit {

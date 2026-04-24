@@ -1,4 +1,5 @@
 import { Icon } from "../icons";
+import { DemoBanner } from "../shell/DemoBanner";
 import { useStore } from "../store/useStore";
 import { APH_FEEDS } from "../data/fixtures";
 import type { Feed } from "../types";
@@ -18,6 +19,7 @@ export function PageSources(): JSX.Element {
 
   return (
     <div className="page-fade">
+      <DemoBanner />
       <div className="page-head">
         <div>
           <div className="page-kicker">Admin</div>

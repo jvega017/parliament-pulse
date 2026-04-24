@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Icon } from "../icons";
+import { DemoBanner } from "../shell/DemoBanner";
 import { useStore } from "../store/useStore";
 
 const BRIEFS = [
@@ -16,6 +17,7 @@ export function PageBriefings(): JSX.Element {
 
   return (
     <div className="page-fade">
+      <DemoBanner />
       <div className="page-head">
         <div>
           <div className="page-kicker">Workflow</div>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Icon } from "../icons";
 import { SignalCard } from "../shell/SignalCard";
+import { DemoBanner } from "../shell/DemoBanner";
 import { useStore } from "../store/useStore";
 import {
   APH_FEEDS,
@@ -10,8 +11,6 @@ import {
 } from "../data/fixtures";
 
 function formatAEST(d: Date): string {
-  // Render in Australian Eastern time. Browsers that do not know the zone
-  // fall back to local time; the timezone suffix tells the user which.
   try {
     return d.toLocaleTimeString("en-AU", {
       hour: "2-digit",
@@ -21,6 +20,25 @@ function formatAEST(d: Date): string {
     });
   } catch {
     return d.toLocaleTimeString("en-AU", { hour: "2-digit", minute: "2-digit" });
+  }
+}
+
+function formatAESTDate(d: Date): string {
+  try {
+    return d.toLocaleDateString("en-AU", {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      timeZone: "Australia/Brisbane",
+    });
+  } catch {
+    return d.toLocaleDateString("en-AU", {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
   }
 }
 
@@ -38,26 +56,48 @@ export function PageOverview(): JSX.Element {
   const rest = SIGNALS.filter(
     (s) => s.attention !== "high" && !state.archived[s.id],
   );
+  const totalVisible = priority.length + rest.length;
+  const healthyFeeds = APH_FEEDS.filter((f) => f.status === "live").length;
 
   return (
     <div className="page-fade">
+      <DemoBanner />
       <div className="page-head">
         <div>
-          <div className="page-kicker">Fri 24 Apr 2026 · Sitting day</div>
+          <div className="page-kicker">{formatAESTDate(now)} · AEST</div>
           <h1 className="page-title">Today's signal</h1>
           <div className="page-sub">
-            12 new official items overnight. 3 classified as priority. No broken
-            sources. Your watchlists matched 19 items this week.
+            {totalVisible} sample signals loaded. {priority.length} classified
+            as priority. {healthyFeeds} of {APH_FEEDS.length} sample sources
+            marked live.
           </div>
         </div>
         <div style={{ display: "flex", gap: 10 }}>
-          <button type="button" className="btn" disabled>
+          <button
+            type="button"
+            className="btn"
+            title="Coming soon"
+            disabled
+            aria-disabled="true"
+          >
             <Icon name="filter" size={13} /> Filter
           </button>
-          <button type="button" className="btn" disabled>
+          <button
+            type="button"
+            className="btn"
+            title="Coming soon"
+            disabled
+            aria-disabled="true"
+          >
             <Icon name="download" size={13} /> Export
           </button>
-          <button type="button" className="btn primary" disabled>
+          <button
+            type="button"
+            className="btn primary"
+            title="Coming soon"
+            disabled
+            aria-disabled="true"
+          >
             <Icon name="brief" size={13} /> Generate daily brief
           </button>
         </div>
@@ -84,7 +124,7 @@ export function PageOverview(): JSX.Element {
               fontWeight: 600,
             }}
           >
-            LIVE · AEST {formatAEST(now)}
+            {formatAEST(now)} AEST · LIVE PAGE POLLS APH
           </span>
         </div>
         <div
@@ -98,7 +138,7 @@ export function PageOverview(): JSX.Element {
           }}
         >
           <div>
-            Current chamber activity is sourced from the{" "}
+            Chamber activity is pulled from the{" "}
             <a
               href="https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/HoR_chamber_documents/Daily_program"
               target="_blank"
@@ -148,35 +188,28 @@ export function PageOverview(): JSX.Element {
 
       <div className="grid g-4" style={{ marginBottom: 18 }}>
         <div className="panel stat">
-          <div className="stat-label">New signals today</div>
-          <div className="stat-value">{SIGNALS.length}</div>
-          <div className="stat-meta">
-            <span style={{ color: "var(--ok)" }}>▲ 3</span> vs yesterday
-          </div>
+          <div className="stat-label">Sample signals</div>
+          <div className="stat-value">{totalVisible}</div>
+          <div className="stat-meta">Archive with drawer to remove</div>
         </div>
         <div className="panel stat">
-          <div className="stat-label">Priority signals</div>
+          <div className="stat-label">Priority</div>
           <div className="stat-value" style={{ color: "var(--brass)" }}>
             {priority.length}
           </div>
           <div className="stat-meta">Watchlist-matched · requires review</div>
         </div>
         <div className="panel stat">
-          <div className="stat-label">Committee activity</div>
-          <div className="stat-value">
-            7<span className="unit">items</span>
-          </div>
-          <div className="stat-meta">2 hearings · 1 new inquiry · 1 report</div>
+          <div className="stat-label">Committee items</div>
+          <div className="stat-value">7</div>
+          <div className="stat-meta">Sample hearings, inquiries, reports</div>
         </div>
         <div className="panel stat">
           <div className="stat-label">Source health</div>
           <div className="stat-value">
-            14/15<span className="unit">live</span>
+            {healthyFeeds}/{APH_FEEDS.length}<span className="unit">live</span>
           </div>
-          <div className="stat-meta">
-            <span style={{ color: "var(--caution)" }}>FlagPost</span> needs
-            validation
-          </div>
+          <div className="stat-meta">Derived from sample feed statuses</div>
         </div>
       </div>
 

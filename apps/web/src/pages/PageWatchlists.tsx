@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Icon } from "../icons";
+import { DemoBanner } from "../shell/DemoBanner";
 import { useStore } from "../store/useStore";
 import { WATCHLISTS } from "../data/fixtures";
 
@@ -10,6 +11,7 @@ export function PageWatchlists(): JSX.Element {
 
   return (
     <div className="page-fade">
+      <DemoBanner />
       <div className="page-head">
         <div>
           <div className="page-kicker">Workflow</div>
