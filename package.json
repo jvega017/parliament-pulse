@@ -1,0 +1,20 @@
+{
+  "name": "parliament-pulse",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Parliament Pulse — policy intelligence dashboard for the Australian Parliament, by Prometheus Policy Lab.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22",
+    "pnpm": ">=9"
+  },
+  "scripts": {
+    "dev:web": "pnpm --filter web dev",
+    "dev:worker": "pnpm --filter aph-proxy dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "deploy:worker": "pnpm --filter aph-proxy deploy"
+  },
+  "packageManager": "pnpm@9.15.9"
+}

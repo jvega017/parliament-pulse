@@ -1,0 +1,44 @@
+/* Parliament Pulse — restrained institutional palette.
+   One ink, one elevation, two accents. Everything else is a tint of those. */
+
+:root {
+  --bg: #0a1017;
+  --bg-2: #0e1620;
+  --panel: #141d28;
+  --panel-2: #1a2431;
+  --panel-hi: #22304260;
+  --line: #ffffff08;
+  --line-2: #ffffff12;
+  --line-bright: #ffffff20;
+
+  --ink: #eef0ea;
+  --ink-2: #c2cad4;
+  --ink-3: #8794a5;
+  --ink-4: #5a6778;
+
+  /* Primary accent: Prometheus ember. Used for brand, priority, live signals. */
+  --brass: #e09359;
+  --brass-2: #f0ab75;
+  --brass-soft: #8a5430;
+  --brass-ink: #1a0e05;
+
+  /* Secondary accent: verified / connected / healthy data. */
+  --teal: #4eaea2;
+  --teal-soft: #2e7068;
+
+  /* Functional status — used sparingly, only where required. */
+  --info: #7ba0d4;
+  --caution: #d9a94a;
+  --escalate: #d06a5e;
+  --ok: #6fb085;
+
+  --r-sm: 4px;
+  --r: 8px;
+  --r-lg: 14px;
+
+  --shadow: 0 1px 0 #00000050, 0 24px 60px -24px #00000080;
+
+  --sans: "Inter", system-ui, sans-serif;
+  --serif: "Fraunces", Georgia, serif;
+  --mono: "JetBrains Mono", ui-monospace, monospace;
+}
