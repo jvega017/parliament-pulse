@@ -5,7 +5,7 @@ import { APH_FEEDS, SIGNALS } from "../data/fixtures";
 import { ENTITIES } from "../data/entities";
 
 export function Topbar(): JSX.Element {
-  const { openModal, openSignal, toast, goto, liveSignals, openBrief } = useStore();
+  const { openModal, openSignal, goto, liveSignals, openBrief, triggerRefresh } = useStore();
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const [activeIdx, setActiveIdx] = useState(0);
@@ -216,17 +216,10 @@ export function Topbar(): JSX.Element {
         <button
           type="button"
           className="btn ghost sm"
-          title="Refresh all feeds"
-          onClick={() => toast("Feeds refreshed")}
+          title="Force a fresh poll of all APH feeds"
+          onClick={triggerRefresh}
         >
           <Icon name="refresh" size={13} /> Refresh
-        </button>
-        <button
-          type="button"
-          className="btn sm"
-          onClick={() => toast("3 new alerts")}
-        >
-          <Icon name="bell" size={13} /> Alerts
         </button>
         <button
           type="button"

@@ -2,18 +2,25 @@ import { useState } from "react";
 import { Icon } from "../icons";
 import { DemoBanner } from "../shell/DemoBanner";
 import { useStore } from "../store/useStore";
-
+// Briefing queue is keyed to a sample signal each so PDF / Send / Approve
+// have a real target. PDF opens the print-ready brief; Send and Approve
+// write status into the store and update the queue label.
 const BRIEFS = [
-  { type: "Daily Signal Brief", for: "DDG Digital", status: "Drafted" as const },
-  { type: "Committee Brief", for: "Procurement lead", status: "Awaiting review" as const },
-  { type: "Bill Digest Note", for: "Identity policy", status: "Drafted" as const },
-  { type: "Estimates Monitor Note", for: "Estimates pack", status: "In progress" as const },
+  { type: "Daily Signal Brief", for: "DDG Digital", signalId: "CS-0412" },
+  { type: "Committee Brief", for: "Procurement lead", signalId: "CS-0409" },
+  { type: "Bill Digest Note", for: "Identity policy", signalId: "CS-0410" },
+  { type: "Estimates Monitor Note", for: "Estimates pack", signalId: "CS-0408" },
 ];
 
 export function PageBriefings(): JSX.Element {
   const [sel, setSel] = useState(0);
-  const { toast } = useStore();
+  const { openBrief, briefStatus, setBriefStatus, liveSignals } = useStore();
   const current = BRIEFS[sel]!;
+  const status =
+    briefStatus[current.signalId] ??
+    (current.signalId === "CS-0412" ? "draft" : "draft");
+  const topLiveHigh =
+    liveSignals.find((s) => s.attention === "high") ?? liveSignals[0] ?? null;
 
   return (
     <div className="page-fade">
@@ -30,9 +37,17 @@ export function PageBriefings(): JSX.Element {
         <button
           type="button"
           className="btn primary"
-          onClick={() => toast("New brief opened", "brass")}
+          disabled={!topLiveHigh}
+          title={
+            topLiveHigh
+              ? "Open a new brief from the top live high-attention signal"
+              : "Waiting for live signals"
+          }
+          onClick={() => {
+            if (topLiveHigh) openBrief(topLiveHigh.id);
+          }}
         >
-          <Icon name="plus" size={13} /> New brief
+          <Icon name="plus" size={13} /> New brief from top live
         </button>
       </div>
 
@@ -43,46 +58,52 @@ export function PageBriefings(): JSX.Element {
             <span className="panel-kicker">4 pending</span>
           </div>
           <div>
-            {BRIEFS.map((b, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => setSel(i)}
-                style={{
-                  padding: "12px 14px",
-                  borderBottom: "1px solid var(--line)",
-                  cursor: "pointer",
-                  background: sel === i ? "#e093590c" : "transparent",
-                  borderLeft:
-                    sel === i ? "2px solid var(--brass)" : "2px solid transparent",
-                  width: "100%",
-                  textAlign: "left",
-                  font: "inherit",
-                  color: "inherit",
-                }}
-                aria-current={sel === i ? "true" : undefined}
-              >
-                <div style={{ fontSize: 13, fontWeight: 500 }}>{b.type}</div>
-                <div style={{ fontSize: 11.5, color: "var(--ink-3)" }}>For {b.for}</div>
-                <div
-                  className="mono"
+            {BRIEFS.map((b, i) => {
+              const itemStatus = briefStatus[b.signalId] ?? "draft";
+              const statusColour =
+                itemStatus === "approved"
+                  ? "var(--brass)"
+                  : itemStatus === "sent"
+                    ? "var(--teal)"
+                    : "var(--info)";
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setSel(i)}
                   style={{
-                    fontSize: 10.5,
-                    marginTop: 4,
-                    color:
-                      b.status === "Drafted"
-                        ? "var(--ok)"
-                        : b.status === "In progress"
-                          ? "var(--caution)"
-                          : "var(--info)",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.12em",
+                    padding: "12px 14px",
+                    borderBottom: "1px solid var(--line)",
+                    cursor: "pointer",
+                    background: sel === i ? "#e093590c" : "transparent",
+                    borderLeft:
+                      sel === i ? "2px solid var(--brass)" : "2px solid transparent",
+                    width: "100%",
+                    textAlign: "left",
+                    font: "inherit",
+                    color: "inherit",
                   }}
+                  aria-current={sel === i ? "true" : undefined}
                 >
-                  {b.status}
-                </div>
-              </button>
-            ))}
+                  <div style={{ fontSize: 13, fontWeight: 500 }}>{b.type}</div>
+                  <div style={{ fontSize: 11.5, color: "var(--ink-3)" }}>
+                    For {b.for}
+                  </div>
+                  <div
+                    className="mono"
+                    style={{
+                      fontSize: 10.5,
+                      marginTop: 4,
+                      color: statusColour,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.12em",
+                    }}
+                  >
+                    {itemStatus}
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -94,21 +115,24 @@ export function PageBriefings(): JSX.Element {
               <button
                 type="button"
                 className="btn ghost sm"
-                onClick={() => toast("PDF exported")}
+                title="Open the print-ready brief and use the browser to save as PDF"
+                onClick={() => openBrief(current.signalId)}
               >
-                <Icon name="download" size={12} /> PDF
+                <Icon name="download" size={12} /> Open / Save PDF
               </button>
               <button
                 type="button"
                 className="btn sm"
-                onClick={() => toast("Brief sent")}
+                disabled={status === "sent" || status === "approved"}
+                onClick={() => setBriefStatus(current.signalId, "sent")}
               >
                 Send
               </button>
               <button
                 type="button"
                 className="btn primary sm"
-                onClick={() => toast("Brief approved", "brass")}
+                disabled={status === "approved"}
+                onClick={() => setBriefStatus(current.signalId, "approved")}
               >
                 Approve
               </button>
@@ -117,7 +141,15 @@ export function PageBriefings(): JSX.Element {
           <div className="panel-body">
             <div className="brief">
               <div className="meta">
-                PARLIAMENT PULSE · {current.type.toUpperCase()} · 24 APR 2026 · 08:20
+                PARLIAMENT PULSE · {current.type.toUpperCase()} ·{" "}
+                {new Date().toLocaleString("en-AU", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  hour12: false,
+                })}
               </div>
               <h3>New Senate inquiry: Digital procurement governance</h3>
               <h5>What happened</h5>

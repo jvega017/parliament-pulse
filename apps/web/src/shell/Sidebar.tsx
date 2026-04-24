@@ -8,17 +8,22 @@ interface NavItem {
   live?: boolean;
 }
 
+// Counts removed where they would lie. Only show counts that derive from
+// real data; for the rest, leave count null. Briefings moved to Today
+// because brief production is part of the morning workflow, not back-office.
+// Parliament item renamed to 'Today in chamber' to distinguish it from
+// the broader Parliament group label.
 const NAV: NavItem[] = [
-  { id: "overview", label: "Overview", group: "Today", count: 12 },
+  { id: "overview", label: "Overview", group: "Today", count: null },
   { id: "live", label: "Live parliament", group: "Today", count: null, live: true },
-  { id: "radar", label: "Attention radar", group: "Today", count: 6 },
-  { id: "committees", label: "Committees", group: "Parliament", count: 7 },
-  { id: "bills", label: "Bills intelligence", group: "Parliament", count: 5 },
-  { id: "parliament", label: "Parliament", group: "Parliament", count: 3 },
-  { id: "patterns", label: "QON patterns", group: "Parliament", count: 1 },
-  { id: "briefings", label: "Briefings", group: "Workflow", count: 4 },
-  { id: "watchlists", label: "Watchlists", group: "Workflow", count: 12 },
-  { id: "sources", label: "Sources", group: "Admin", count: 15 },
+  { id: "radar", label: "Attention radar", group: "Today", count: null },
+  { id: "briefings", label: "Briefings", group: "Today", count: null },
+  { id: "parliament", label: "Today in chamber", group: "Parliament", count: null },
+  { id: "committees", label: "Committees", group: "Parliament", count: null },
+  { id: "bills", label: "Bills intelligence", group: "Parliament", count: null },
+  { id: "patterns", label: "QON patterns", group: "Parliament", count: null },
+  { id: "watchlists", label: "Watchlists", group: "Workflow", count: null },
+  { id: "sources", label: "Sources", group: "Admin", count: null },
 ];
 
 const ICONS: Record<string, IconName> = {

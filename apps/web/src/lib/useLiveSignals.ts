@@ -24,6 +24,7 @@ export type { FeedResult };
 export function useLiveSignals(
   apiBase: string,
   watchlists: Watchlist[] = WATCHLISTS,
+  refreshTick = 0,
 ): LiveSignalsState {
   const [feedResult, setFeedResult] = useState<FeedResult | null>(null);
   const [loading, setLoading] = useState(true);
@@ -60,7 +61,7 @@ export function useLiveSignals(
       abortRef.current?.abort();
       window.clearInterval(id);
     };
-  }, [apiBase]);
+  }, [apiBase, refreshTick]);
 
   const signals: Signal[] = feedResult
     ? feedResult.items

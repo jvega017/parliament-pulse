@@ -17,6 +17,7 @@ export interface StoreValue {
   liveSignals: Signal[];
   liveLoading: boolean;
   liveFeedResult: FeedResult | null;
+  refreshTick: number;
 
   toast: (msg: string, kind?: Toast["kind"]) => void;
   openModal: (modal: ModalState) => void;
@@ -28,6 +29,13 @@ export interface StoreValue {
   openBrief: (signalId: string | null) => void;
   briefSignalId: string | null;
   closeBrief: () => void;
+  triggerRefresh: () => void;
+  briefStatus: Record<string, "draft" | "sent" | "approved">;
+  setBriefStatus: (signalId: string, status: "draft" | "sent" | "approved") => void;
+  connectorRequests: Record<string, true>;
+  requestConnector: (name: string) => void;
+  clusterStatus: "open" | "tracking" | "coordinated" | "coincidence";
+  setClusterStatus: (status: "open" | "tracking" | "coordinated" | "coincidence") => void;
 
   assignOwner: (entityId: string, owner: string) => void;
   saveFeedback: (signalId: string, label: string, reason?: string) => void;

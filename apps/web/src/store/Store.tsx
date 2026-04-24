@@ -64,6 +64,10 @@ export function StoreProvider({
   const [liveLoading, setLiveLoading] = useState<boolean>(true);
   const [liveFeedResult, setLiveFeedResult] = useState<import("../lib/aphFeed").FeedResult | null>(null);
   const [briefSignalId, setBriefSignalId] = useState<string | null>(null);
+  const [refreshTick, setRefreshTick] = useState<number>(0);
+  const [briefStatus, setBriefStatusState] = useState<Record<string, "draft" | "sent" | "approved">>({});
+  const [connectorRequests, setConnectorRequests] = useState<Record<string, true>>({});
+  const [clusterStatus, setClusterStatusState] = useState<"open" | "tracking" | "coordinated" | "coincidence">("open");
   const toastSeq = useRef(0);
 
   useEffect(() => {
@@ -103,6 +107,31 @@ export function StoreProvider({
   );
   const openBrief = useCallback((id: string | null) => setBriefSignalId(id), []);
   const closeBrief = useCallback(() => setBriefSignalId(null), []);
+  const triggerRefresh = useCallback(() => {
+    setRefreshTick((t) => t + 1);
+    toast("Refreshing feeds", "brass");
+  }, [toast]);
+  const setBriefStatus = useCallback(
+    (sid: string, status: "draft" | "sent" | "approved") => {
+      setBriefStatusState((s) => ({ ...s, [sid]: status }));
+      toast(`Brief ${status}`, status === "approved" ? "brass" : "ok");
+    },
+    [toast],
+  );
+  const requestConnector = useCallback(
+    (name: string) => {
+      setConnectorRequests((s) => ({ ...s, [name]: true }));
+      toast(`Connector requested: ${name}`, "brass");
+    },
+    [toast],
+  );
+  const setClusterStatus = useCallback(
+    (status: "open" | "tracking" | "coordinated" | "coincidence") => {
+      setClusterStatusState(status);
+      toast(`Cluster marked ${status}`, status === "coordinated" ? "brass" : "ok");
+    },
+    [toast],
+  );
 
   const assignOwner = useCallback(
     (entityId: string, owner: string) => {
@@ -210,6 +239,14 @@ export function StoreProvider({
       setLiveSignals,
       openBrief,
       closeBrief,
+      refreshTick,
+      triggerRefresh,
+      briefStatus,
+      setBriefStatus,
+      connectorRequests,
+      requestConnector,
+      clusterStatus,
+      setClusterStatus,
       assignOwner,
       saveFeedback,
       archive,
@@ -230,6 +267,10 @@ export function StoreProvider({
       liveLoading,
       liveFeedResult,
       briefSignalId,
+      refreshTick,
+      briefStatus,
+      connectorRequests,
+      clusterStatus,
       toast,
       openModal,
       closeModal,
@@ -239,6 +280,10 @@ export function StoreProvider({
       setLiveSignals,
       openBrief,
       closeBrief,
+      triggerRefresh,
+      setBriefStatus,
+      requestConnector,
+      setClusterStatus,
       assignOwner,
       saveFeedback,
       archive,

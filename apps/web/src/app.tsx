@@ -45,16 +45,17 @@ export function App(): JSX.Element {
 }
 
 function LiveSignalsPump(): null {
-  // Single app-wide poll pushed into the store so every page reads from
-  // the same live-signal list. User watchlists merged with fixture watchlists
-  // so user-created ones actually contribute to scoring.
   const apiBase = import.meta.env.VITE_API_BASE ?? "";
-  const { state, setLiveSignals } = useStore();
+  const { state, setLiveSignals, refreshTick } = useStore();
   const mergedWatchlists = useMemo(
     () => [...WATCHLISTS, ...state.watchlistCreated],
     [state.watchlistCreated],
   );
-  const { signals, loading, feedResult } = useLiveSignals(apiBase, mergedWatchlists);
+  const { signals, loading, feedResult } = useLiveSignals(
+    apiBase,
+    mergedWatchlists,
+    refreshTick,
+  );
   useEffect(() => {
     setLiveSignals(signals, loading, feedResult);
   }, [signals, loading, feedResult, setLiveSignals]);

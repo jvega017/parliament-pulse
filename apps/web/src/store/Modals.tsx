@@ -56,7 +56,9 @@ function ModalBody({ modal }: { modal: ModalState }): JSX.Element {
 
 function CommitteeDetail({ id }: { id: string }): JSX.Element {
   const committee = ENTITIES.committees[id];
-  const { openModal, closeModal, toast } = useStore();
+  const { openModal, closeModal, addWatchlist, state } = useStore();
+  const watchlistKey = `committee:${id}`;
+  const watching = !!state.watchlistAdds[watchlistKey];
   if (!committee) {
     return <ModalHead kicker="Committee" title="Not found" onClose={closeModal} />;
   }
@@ -149,22 +151,23 @@ function CommitteeDetail({ id }: { id: string }): JSX.Element {
         </Section>
       </div>
       <div className="modal-foot">
-        <button
-          type="button"
+        <a
+          href={committee.url}
+          target="_blank"
+          rel="noopener noreferrer"
           className="btn primary"
-          onClick={() => {
-            toast("Committee prep pack queued", "brass");
-            closeModal();
-          }}
+          style={{ textDecoration: "none" }}
         >
-          <Icon name="brief" size={13} /> Prep pack
-        </button>
+          <Icon name="ext" size={13} /> Open APH committee page
+        </a>
         <button
           type="button"
-          className="btn"
-          onClick={() => toast("Committee added to watchlist", "brass")}
+          className={`btn${watching ? " primary" : ""}`}
+          aria-pressed={watching}
+          disabled={watching}
+          onClick={() => addWatchlist(watchlistKey)}
         >
-          <Icon name="watch" size={13} /> Watch committee
+          <Icon name="watch" size={13} /> {watching ? "Watching" : "Watch committee"}
         </button>
         <button
           type="button"
@@ -179,12 +182,41 @@ function CommitteeDetail({ id }: { id: string }): JSX.Element {
   );
 }
 
+// ICS calendar file download — pure client, no backend.
+function downloadIcs(filename: string, summary: string, description: string): void {
+  const dt = new Date();
+  const stamp = dt.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+  const ics = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//Parliament Pulse//EN",
+    "BEGIN:VEVENT",
+    `UID:${stamp}-${Math.random().toString(36).slice(2)}@parliament-pulse`,
+    `DTSTAMP:${stamp}`,
+    `DTSTART:${stamp}`,
+    `SUMMARY:${summary.replace(/\n/g, " ")}`,
+    `DESCRIPTION:${description.replace(/\n/g, "\\n")}`,
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ].join("\r\n");
+  const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 function HearingDetail({
   data,
 }: {
   data: Hearing & { committee: string };
 }): JSX.Element {
-  const { closeModal, toast } = useStore();
+  const { closeModal, toast, openBrief, liveSignals } = useStore();
+  const topLiveHigh = liveSignals.find((s) => s.attention === "high") ?? liveSignals[0] ?? null;
   return (
     <>
       <ModalHead kicker="Hearing" title={data.topic} onClose={closeModal} />
@@ -215,7 +247,7 @@ function HearingDetail({
             <li>Industry peak body</li>
           </ul>
         </Section>
-        <Section title="Likely questions (AI-suggested)">
+        <Section title="Suggested briefing questions (templates)">
           <ol style={{ margin: 0, paddingLeft: 18, color: "var(--ink-2)" }}>
             <li>
               How does the department assure AI models against bias in high-risk
@@ -225,8 +257,21 @@ function HearingDetail({
               Which programs currently use automated decision-making for benefit
               eligibility?
             </li>
-            <li>What is the escalation pathway when assurance fails in production?</li>
+            <li>
+              What is the escalation pathway when assurance fails in production?
+            </li>
           </ol>
+          <div
+            style={{
+              marginTop: 8,
+              fontSize: 12,
+              color: "var(--ink-3)",
+              fontStyle: "italic",
+            }}
+          >
+            Templates only. Replace with portfolio-specific questions before
+            issuing the prep note.
+          </div>
         </Section>
       </div>
       <div className="modal-foot">
@@ -234,16 +279,26 @@ function HearingDetail({
           type="button"
           className="btn primary"
           onClick={() => {
-            toast("Added to calendar", "brass");
-            closeModal();
+            downloadIcs(
+              `hearing-${data.when.replace(/[^a-z0-9]/gi, "-")}.ics`,
+              `${data.committee}: ${data.topic}`,
+              `Hearing room ${data.room}. Source: APH.`,
+            );
+            toast("Calendar file downloaded (.ics)", "brass");
           }}
         >
-          Add to calendar
+          <Icon name="download" size={13} /> Add to calendar (.ics)
         </button>
         <button
           type="button"
           className="btn"
-          onClick={() => toast("Prep note generated", "brass")}
+          disabled={!topLiveHigh}
+          onClick={() => {
+            if (topLiveHigh) {
+              openBrief(topLiveHigh.id);
+              closeModal();
+            }
+          }}
         >
           <Icon name="brief" size={13} /> Generate prep note
         </button>
@@ -335,12 +390,13 @@ function InquiryDetail({ name }: { name: string }): JSX.Element {
 
 function BillDetail({ id }: { id: string }): JSX.Element {
   const bill = ENTITIES.bills[id];
-  const { closeModal, toast, state, assignOwner, openModal } = useStore();
-  // Correct precedence: prefer a persisted owner; else fall back to bill.owner
-  // unless that placeholder is "—"; else empty string.
+  const { closeModal, state, assignOwner, openModal, addWatchlist, openBrief, liveSignals } = useStore();
   const initialOwner =
     state.owners[id] ?? (bill && bill.owner !== "—" ? bill.owner : "");
   const [owner, setOwner] = useState(initialOwner);
+  const watchlistKey = `bill:${id}`;
+  const watching = !!state.watchlistAdds[watchlistKey];
+  const topLiveHigh = liveSignals.find((s) => s.attention === "high") ?? liveSignals[0] ?? null;
 
   if (!bill) {
     return <ModalHead kicker="Bill" title="Not found" onClose={closeModal} />;
@@ -444,19 +500,24 @@ function BillDetail({ id }: { id: string }): JSX.Element {
         <button
           type="button"
           className="btn primary"
+          disabled={!topLiveHigh}
           onClick={() => {
-            toast("Bill brief drafted", "brass");
-            closeModal();
+            if (topLiveHigh) {
+              openBrief(topLiveHigh.id);
+              closeModal();
+            }
           }}
         >
           <Icon name="brief" size={13} /> Draft bill brief
         </button>
         <button
           type="button"
-          className="btn"
-          onClick={() => toast("Bill added to watchlist", "brass")}
+          className={`btn${watching ? " primary" : ""}`}
+          aria-pressed={watching}
+          disabled={watching}
+          onClick={() => addWatchlist(watchlistKey)}
         >
-          <Icon name="watch" size={13} /> Track bill
+          <Icon name="watch" size={13} /> {watching ? "Tracking" : "Track bill"}
         </button>
       </div>
     </>
@@ -465,10 +526,12 @@ function BillDetail({ id }: { id: string }): JSX.Element {
 
 function MemberDetail({ id }: { id: string }): JSX.Element {
   const m = ENTITIES.members[id];
-  const { closeModal, toast } = useStore();
+  const { closeModal, addWatchlist, state } = useStore();
   if (!m) {
     return <ModalHead kicker="Member" title="Not found" onClose={closeModal} />;
   }
+  const watchlistKey = `member:${id}`;
+  const watching = !!state.watchlistAdds[watchlistKey];
   return (
     <>
       <ModalHead
@@ -516,13 +579,12 @@ function MemberDetail({ id }: { id: string }): JSX.Element {
       <div className="modal-foot">
         <button
           type="button"
-          className="btn primary"
-          onClick={() => {
-            toast("Tracking member", "brass");
-            closeModal();
-          }}
+          className={`btn${watching ? " primary" : ""}`}
+          aria-pressed={watching}
+          disabled={watching}
+          onClick={() => addWatchlist(watchlistKey)}
         >
-          Track member
+          <Icon name="watch" size={13} /> {watching ? "Tracking" : "Track member"}
         </button>
       </div>
     </>
@@ -650,7 +712,7 @@ function DivisionDetail({ data }: { data: Division }): JSX.Element {
 
 function FeedDetail({ id }: { id: string }): JSX.Element {
   const f = APH_FEEDS.find((x) => x.id === id);
-  const { closeModal, toast } = useStore();
+  const { closeModal, triggerRefresh } = useStore();
   if (!f) {
     return <ModalHead kicker="Feed" title="Not found" onClose={closeModal} />;
   }
@@ -711,17 +773,19 @@ function FeedDetail({ id }: { id: string }): JSX.Element {
         <button
           type="button"
           className="btn primary"
-          onClick={() => toast(`${f.name} re-fetched`, "brass")}
+          onClick={triggerRefresh}
         >
-          <Icon name="refresh" size={13} /> Re-fetch now
+          <Icon name="refresh" size={13} /> Re-fetch all feeds
         </button>
-        <button
-          type="button"
+        <a
+          href={f.url}
+          target="_blank"
+          rel="noopener noreferrer"
           className="btn"
-          onClick={() => toast("Parser test queued")}
+          style={{ textDecoration: "none" }}
         >
-          Test parser
-        </button>
+          <Icon name="ext" size={13} /> Open raw feed
+        </a>
         <button
           type="button"
           className="btn ghost"
@@ -900,7 +964,8 @@ function WatchlistDetail({ name }: { name: string }): JSX.Element {
 
 function RadarDetail({ issue }: { issue: string }): JSX.Element {
   const r = RADAR.find((x) => x.issue === issue);
-  const { closeModal, toast } = useStore();
+  const { closeModal, openBrief, liveSignals } = useStore();
+  const topLiveHigh = liveSignals.find((s) => s.attention === "high") ?? liveSignals[0] ?? null;
   if (!r) {
     return <ModalHead kicker="Issue" title="Not found" onClose={closeModal} />;
   }
@@ -936,9 +1001,12 @@ function RadarDetail({ issue }: { issue: string }): JSX.Element {
         <button
           type="button"
           className="btn primary"
+          disabled={!topLiveHigh}
           onClick={() => {
-            toast("Issue brief drafted", "brass");
-            closeModal();
+            if (topLiveHigh) {
+              openBrief(topLiveHigh.id);
+              closeModal();
+            }
           }}
         >
           <Icon name="brief" size={13} /> Draft issue brief

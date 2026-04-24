@@ -13,7 +13,7 @@ const NOT_YET_CONNECTED = [
 ];
 
 export function PageSources(): JSX.Element {
-  const { openModal, state, toast } = useStore();
+  const { openModal, state, triggerRefresh, requestConnector, connectorRequests } = useStore();
 
   const allFeeds: Feed[] = [...APH_FEEDS, ...state.feeds];
 
@@ -33,7 +33,8 @@ export function PageSources(): JSX.Element {
           <button
             type="button"
             className="btn"
-            onClick={() => toast("Feeds refreshed")}
+            title="Force a fresh poll of all APH feeds"
+            onClick={triggerRefresh}
           >
             <Icon name="refresh" size={13} /> Refresh all
           </button>
@@ -163,9 +164,10 @@ export function PageSources(): JSX.Element {
                   <button
                     type="button"
                     className="btn ghost sm"
-                    onClick={() => toast(`Request logged for ${x.name}`, "brass")}
+                    disabled={!!connectorRequests[x.name]}
+                    onClick={() => requestConnector(x.name)}
                   >
-                    Request
+                    {connectorRequests[x.name] ? "Requested" : "Request"}
                   </button>
                 </div>
               ))}

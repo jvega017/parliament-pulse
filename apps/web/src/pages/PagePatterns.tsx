@@ -10,7 +10,8 @@ function memberIdFor(who: string): string {
 }
 
 export function PagePatterns(): JSX.Element {
-  const { openModal, toast } = useStore();
+  const { openModal, clusterStatus, setClusterStatus, openBrief, liveSignals } = useStore();
+  const topLiveHigh = liveSignals.find((s) => s.attention === "high") ?? liveSignals[0] ?? null;
 
   return (
     <div className="page-fade">
@@ -118,35 +119,59 @@ export function PagePatterns(): JSX.Element {
           ))}
         </div>
 
-        <div style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap", alignItems: "center" }}>
           <button
             type="button"
             className="btn primary"
-            onClick={() => toast("Estimates monitor note drafted", "brass")}
+            disabled={!topLiveHigh}
+            title={
+              topLiveHigh
+                ? "Open a print-ready Estimates monitor note from the top live signal"
+                : "No live high-attention signal available yet"
+            }
+            onClick={() => {
+              if (topLiveHigh) openBrief(topLiveHigh.id);
+            }}
           >
             <Icon name="brief" size={13} /> Draft Estimates monitor note
           </button>
           <button
             type="button"
-            className="btn"
-            onClick={() => toast("Cluster tracked", "brass")}
+            className={`btn${clusterStatus === "tracking" ? " primary" : ""}`}
+            aria-pressed={clusterStatus === "tracking"}
+            onClick={() => setClusterStatus("tracking")}
           >
             <Icon name="watch" size={13} /> Track cluster
           </button>
           <button
             type="button"
-            className="btn"
-            onClick={() => toast("Cluster confirmed as coordinated", "brass")}
+            className={`btn${clusterStatus === "coordinated" ? " primary" : ""}`}
+            aria-pressed={clusterStatus === "coordinated"}
+            onClick={() => setClusterStatus("coordinated")}
           >
             <Icon name="check" size={13} /> Confirm as coordinated
           </button>
           <button
             type="button"
-            className="btn ghost"
-            onClick={() => toast("Marked as coincidence")}
+            className={`btn ghost${clusterStatus === "coincidence" ? " primary" : ""}`}
+            aria-pressed={clusterStatus === "coincidence"}
+            onClick={() => setClusterStatus("coincidence")}
           >
             Mark as coincidence
           </button>
+          {clusterStatus !== "open" && (
+            <span
+              className="mono"
+              style={{
+                fontSize: 10.5,
+                color: "var(--ink-3)",
+                textTransform: "uppercase",
+                letterSpacing: "0.12em",
+              }}
+            >
+              Cluster · {clusterStatus}
+            </span>
+          )}
         </div>
       </div>
     </div>
