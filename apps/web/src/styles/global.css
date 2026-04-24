@@ -984,6 +984,37 @@ table.ds td.num {
   }
 }
 
+/* Respect prefers-reduced-motion per WCAG 2.3.3 / 2.2.2.
+   Kill all indefinite animations and collapse transitions. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Skip to main content — visually hidden until focused. */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 8px;
+  background: var(--brass);
+  color: var(--brass-ink);
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-weight: 600;
+  text-decoration: none;
+  z-index: 100;
+  transition: top 0.15s;
+}
+.skip-link:focus {
+  top: 8px;
+}
+
 .feed-test {
   background: #0c141d;
   border: 1px solid var(--line-2);

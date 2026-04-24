@@ -347,7 +347,13 @@ export function PageLive(): JSX.Element {
           <div className="panel" style={{ marginTop: 16 }}>
             <div className="panel-head">
               <h3 className="panel-title">Currently on program</h3>
-              <span className="panel-kicker">{cfg.label}</span>
+              <span
+                className="panel-kicker"
+                style={{ color: "var(--caution)" }}
+                title="This panel is a sample illustration, not live data"
+              >
+                Sample · {cfg.label}
+              </span>
               <a
                 href={cfg.program}
                 target="_blank"
@@ -359,10 +365,16 @@ export function PageLive(): JSX.Element {
                   textDecoration: "none",
                 }}
               >
-                Open daily program <Icon name="ext" size={11} />
+                Open real daily program <Icon name="ext" size={11} />
               </a>
             </div>
-            <div className="panel-body">
+            <div
+              className="panel-body"
+              style={{
+                background:
+                  "repeating-linear-gradient(135deg, transparent, transparent 14px, #d9a94a08 14px, #d9a94a08 15px)",
+              }}
+            >
               <div className="timeline">
                 <div className="tl-item">
                   <div className="tl-time">12:00</div>
@@ -452,7 +464,13 @@ export function PageLive(): JSX.Element {
                 : `${items.length} items · ${liveCount}/${totalFeeds} feeds`}
             </span>
           </div>
-          <div className="panel-body" style={{ maxHeight: 720, overflowY: "auto" }}>
+          <div
+            className="panel-body"
+            style={{ maxHeight: 720, overflowY: "auto" }}
+            role="feed"
+            aria-busy={loading}
+            aria-live="polite"
+          >
             {loading && items.length === 0 && (
               <div
                 style={{
@@ -552,7 +570,7 @@ export function PageLive(): JSX.Element {
             style={{ flexDirection: "column", alignItems: "flex-start", gap: 4 }}
           >
             <span className="mono" style={{ fontSize: 10.5, color: "var(--ink-3)" }}>
-              Live RSS · aph.gov.au via aph-proxy Worker · refreshes every 2 min
+              Source: Parliament of Australia website · via aph-proxy Worker · refreshes every 2 min
             </span>
             <span className="mono" style={{ fontSize: 10.5, color: "var(--ink-3)" }}>
               Last poll: {result?.lastPoll ? fmtTime(result.lastPoll) : "—"} · click any item to open source

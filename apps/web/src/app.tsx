@@ -20,13 +20,16 @@ export function App(): JSX.Element {
 
   return (
     <StoreProvider page={page} setPage={setPage}>
+      <a href="#main-content" className="skip-link">
+        Skip to main content
+      </a>
       <div className="app">
         <Sidebar page={page} onNavigate={setPage} />
         <div className="main">
           <Topbar />
-          <div className="content">
+          <main id="main-content" className="content" tabIndex={-1}>
             <PageSwitch page={page} />
-          </div>
+          </main>
         </div>
         <Drawer />
         <DetailModal />

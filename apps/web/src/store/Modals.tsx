@@ -11,13 +11,14 @@ export function DetailModal(): JSX.Element | null {
   if (!modal) return null;
 
   return (
-    <div
-      className="modal-back"
-      role="dialog"
-      aria-modal="true"
-      onClick={closeModal}
-    >
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-back" onClick={closeModal} aria-hidden="true">
+      <div
+        className="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-title"
+        onClick={(e) => e.stopPropagation()}
+      >
         <ModalBody modal={modal} />
       </div>
     </div>

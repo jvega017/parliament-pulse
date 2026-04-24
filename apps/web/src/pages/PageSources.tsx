@@ -42,26 +42,30 @@ export function PageSources(): JSX.Element {
 
       <div className="grid g-4" style={{ marginBottom: 18 }}>
         <div className="panel stat">
-          <div className="stat-label">Active feeds</div>
+          <div className="stat-label">Connected feeds</div>
           <div className="stat-value">{allFeeds.length}</div>
-          <div className="stat-meta">3 bundles · Senate · House · Library</div>
+          <div className="stat-meta">Verified polling via aph-proxy</div>
         </div>
         <div className="panel stat">
           <div className="stat-label">Healthy</div>
           <div className="stat-value" style={{ color: "var(--ok)" }}>
-            13
+            {allFeeds.filter((f) => f.status === "live").length}
           </div>
-          <div className="stat-meta">1 delayed · 1 needs review</div>
+          <div className="stat-meta">
+            {allFeeds.filter((f) => f.status !== "live").length === 0
+              ? "All feeds live"
+              : `${allFeeds.filter((f) => f.status !== "live").length} not live`}
+          </div>
         </div>
         <div className="panel stat">
-          <div className="stat-label">Items ingested · today</div>
-          <div className="stat-value">24</div>
-          <div className="stat-meta">5 matched a watchlist</div>
+          <div className="stat-label">Items today</div>
+          <div className="stat-value" style={{ color: "var(--ink-3)" }}>—</div>
+          <div className="stat-meta">Counter not wired yet</div>
         </div>
         <div className="panel stat">
-          <div className="stat-label">Avg. false positive</div>
-          <div className="stat-value">8%</div>
-          <div className="stat-meta">Trending down · last 30 days</div>
+          <div className="stat-label">False positive rate</div>
+          <div className="stat-value" style={{ color: "var(--ink-3)" }}>—</div>
+          <div className="stat-meta">Requires human feedback loop</div>
         </div>
       </div>
 

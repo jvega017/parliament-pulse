@@ -50,12 +50,13 @@ export function ModalHead({ kicker, title, onClose }: ModalHeadProps): JSX.Eleme
         >
           {kicker}
         </div>
-        <div
+        <h2
+          id="modal-title"
           className="serif"
-          style={{ fontSize: 22, marginTop: 4, fontWeight: 500, lineHeight: 1.25 }}
+          style={{ fontSize: 22, margin: "4px 0 0", fontWeight: 500, lineHeight: 1.25 }}
         >
           {title}
-        </div>
+        </h2>
       </div>
       <button
         type="button"

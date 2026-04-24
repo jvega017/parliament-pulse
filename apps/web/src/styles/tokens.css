@@ -13,8 +13,8 @@
 
   --ink: #eef0ea;
   --ink-2: #c2cad4;
-  --ink-3: #8794a5;
-  --ink-4: #5a6778;
+  --ink-3: #a4aebc; /* bumped from #8794a5 for headings at 10-11px */
+  --ink-4: #8794a5; /* bumped from #5a6778 to pass WCAG AA (4.5:1) on --panel */
 
   /* Primary accent: Prometheus ember. Used for brand, priority, live signals. */
   --brass: #e09359;

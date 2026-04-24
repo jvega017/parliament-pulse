@@ -15,22 +15,22 @@ import type {
   Watchlist,
 } from "../types";
 
+// Feeds shown on the Sources table. Only the five below are actually wired
+// to the live poller (see lib/aphFeed.APH_FEED_URLS). Seven APH feeds have
+// been removed from this table because they currently return empty RSS
+// containers and showing them as "live" would be dishonest. When APH
+// restores them, restore these rows and add them back to APH_FEED_URLS.
+//   Removed: house_news, house_inquiries, joint_inquiries, daily_program,
+//            todays_hearings, divisions, senate red (today's hearings)
+//   Removed: Bills Digests parlinfo matrix-param URL (returns 502)
+//   Removed: Library Publications matrix-param URL (returns 502)
+//   Removed: FlagPost HTML endpoint (not RSS, parser needs validation)
 export const APH_FEEDS: Feed[] = [
-  { id: "s-new-inquiries", group: "Senate", name: "New Senate committee inquiries", url: "https://www.aph.gov.au/senate/rss/new_inquiries", status: "live", last: "08:15", today: 2, fpr: "Low", modules: ["Committees", "Emerging Issues"], parser: "Valid", authority: "Official", confidence: "High" },
-  { id: "s-reports", group: "Senate", name: "Senate committee reports tabled", url: "https://www.aph.gov.au/senate/rss/reports", status: "live", last: "07:42", today: 1, fpr: "Low", modules: ["Committees", "Briefings"], parser: "Valid", authority: "Official", confidence: "High" },
-  { id: "s-today-hearings", group: "Senate", name: "Today's Senate committee hearings", url: "https://www.aph.gov.au/senate/rss/red", status: "live", last: "08:02", today: 4, fpr: "Low", modules: ["Today's Signal", "Committees"], parser: "Valid", authority: "Official", confidence: "High" },
-  { id: "s-upcoming", group: "Senate", name: "Upcoming Senate committee hearings", url: "https://www.aph.gov.au/senate/rss/upcoming_hearings", status: "live", last: "07:58", today: 6, fpr: "Low", modules: ["Committees", "Briefing Queue"], parser: "Valid", authority: "Official", confidence: "High" },
-  { id: "s-senators", group: "Senate", name: "Updates to Senators' details", url: "https://www.aph.gov.au/senate/rss/senators_details", status: "delayed", last: "yesterday", today: 0, fpr: "Low", modules: ["Source archive"], parser: "Warning", authority: "Official", confidence: "Medium" },
-  { id: "h-news", group: "House", name: "About the House News", url: "https://www.aph.gov.au/house/rss/house_news", status: "live", last: "08:04", today: 1, fpr: "Med", modules: ["Parliament"], parser: "Valid", authority: "Official", confidence: "Medium" },
-  { id: "h-media", group: "House", name: "House Media Releases", url: "https://www.aph.gov.au/house/rss/media_releases", status: "live", last: "08:11", today: 3, fpr: "Med", modules: ["Today's Signal"], parser: "Valid", authority: "Official", confidence: "Medium" },
-  { id: "h-inquiries", group: "House", name: "House Inquiries", url: "https://www.aph.gov.au/house/rss/house_inquiries", status: "live", last: "07:55", today: 1, fpr: "Low", modules: ["Committees"], parser: "Valid", authority: "Official", confidence: "High" },
-  { id: "h-joint", group: "House", name: "Joint Inquiries", url: "https://www.aph.gov.au/house/rss/joint_inquiries", status: "live", last: "07:51", today: 0, fpr: "Low", modules: ["Committees"], parser: "Valid", authority: "Official", confidence: "High" },
-  { id: "h-program", group: "House", name: "House Daily Program", url: "https://www.aph.gov.au/house/rss/daily_program", status: "live", last: "08:10", today: 1, fpr: "Low", modules: ["Parliament", "Today's Signal"], parser: "Valid", authority: "Official", confidence: "High" },
-  { id: "h-today", group: "House", name: "Today's House hearings", url: "https://www.aph.gov.au/house/rss/todays_hearings", status: "live", last: "08:09", today: 2, fpr: "Low", modules: ["Committees"], parser: "Valid", authority: "Official", confidence: "High" },
-  { id: "h-div", group: "House", name: "House Divisions", url: "https://www.aph.gov.au/house/rss/divisions", status: "live", last: "08:12", today: 0, fpr: "Low", modules: ["Parliament", "Bills"], parser: "Valid", authority: "Official", confidence: "High" },
-  { id: "l-bills", group: "Library", name: "Bills Digests", url: "https://parlinfo.aph.gov.au/parlInfo/feeds/rss.w3p;adv=yes;orderBy=date-eFirst;page=0;query=Date%3AthisYear%20Dataset%3Abillsdgs;resCount=100", status: "live", last: "06:30", today: 2, fpr: "Low", modules: ["Bills", "Briefings"], parser: "Valid", authority: "Official", confidence: "High" },
-  { id: "l-pubs", group: "Library", name: "Library Publications", url: "https://parlinfo.aph.gov.au/parlInfo/feeds/rss.w3p;adv=yes;orderBy=date-eFirst;page=0;query=Dataset%3Aprspub;resCount=100", status: "live", last: "06:30", today: 1, fpr: "Low", modules: ["Emerging Issues"], parser: "Valid", authority: "Official", confidence: "High" },
-  { id: "l-flag", group: "Library", name: "FlagPost", url: "https://www.aph.gov.au/About_Parliament/Parliamentary_departments/Parliamentary_Library/FlagPost/Blog_entries", status: "review", last: "—", today: null, fpr: "—", modules: ["Emerging Issues"], parser: "Needs validation", authority: "Official", confidence: "Medium" },
+  { id: "s-new-inquiries", group: "Senate", name: "New Senate committee inquiries", url: "https://www.aph.gov.au/senate/rss/new_inquiries", status: "live", last: "just polled", today: 0, fpr: "Low", modules: ["Committees", "Emerging Issues"], parser: "Valid", authority: "Official", confidence: "High" },
+  { id: "s-reports", group: "Senate", name: "Senate committee reports tabled", url: "https://www.aph.gov.au/senate/rss/reports", status: "live", last: "just polled", today: 0, fpr: "Low", modules: ["Committees", "Briefings"], parser: "Valid", authority: "Official", confidence: "High" },
+  { id: "s-upcoming", group: "Senate", name: "Upcoming Senate committee hearings", url: "https://www.aph.gov.au/senate/rss/upcoming_hearings", status: "live", last: "just polled", today: 0, fpr: "Low", modules: ["Committees", "Briefing Queue"], parser: "Valid", authority: "Official", confidence: "High" },
+  { id: "s-senators", group: "Senate", name: "Senators' details updates", url: "https://www.aph.gov.au/senate/rss/senators_details", status: "live", last: "just polled", today: 0, fpr: "Low", modules: ["Source archive"], parser: "Valid", authority: "Official", confidence: "High" },
+  { id: "h-media", group: "House", name: "House Media Releases", url: "https://www.aph.gov.au/house/rss/media_releases", status: "live", last: "just polled", today: 0, fpr: "Med", modules: ["Today's Signal"], parser: "Valid", authority: "Official", confidence: "Medium" },
 ];
 
 export const SIGNALS: Signal[] = [
