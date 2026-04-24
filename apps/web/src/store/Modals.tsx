@@ -518,7 +518,7 @@ function BillDetail({ id }: { id: string }): JSX.Element {
           disabled={watching}
           onClick={() => addWatchlist(watchlistKey)}
         >
-          <Icon name="watch" size={13} /> {watching ? "Tracking" : "Track bill"}
+          <Icon name="watch" size={13} /> {watching ? "Watching" : "Watch bill"}
         </button>
       </div>
     </>
@@ -585,7 +585,7 @@ function MemberDetail({ id }: { id: string }): JSX.Element {
           disabled={watching}
           onClick={() => addWatchlist(watchlistKey)}
         >
-          <Icon name="watch" size={13} /> {watching ? "Tracking" : "Track member"}
+          <Icon name="watch" size={13} /> {watching ? "Watching" : "Watch member"}
         </button>
       </div>
     </>
@@ -776,7 +776,7 @@ function FeedDetail({ id }: { id: string }): JSX.Element {
           className="btn primary"
           onClick={triggerRefresh}
         >
-          <Icon name="refresh" size={13} /> Re-fetch all feeds
+          <Icon name="refresh" size={13} /> Refresh all
         </button>
         <a
           href={f.url}
@@ -910,8 +910,8 @@ function WatchlistDetail({ name }: { name: string }): JSX.Element {
             <div
               style={{ fontSize: 12, color: "var(--ink-3)", fontStyle: "italic" }}
             >
-              Fixture watchlist; edit in <code>data/fixtures.ts</code> or copy
-              to a user watchlist to customise.
+              Built-in watchlist. Create a new watchlist on the Watchlists page
+              to customise terms.
             </div>
           )}
         </Section>

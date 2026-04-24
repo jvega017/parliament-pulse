@@ -105,16 +105,17 @@ body {
   height: 100vh;
 }
 .brand {
-  padding: 18px 18px 14px;
+  padding: 8px 18px;
   border-bottom: 1px solid var(--line);
   display: flex;
   align-items: center;
   gap: 10px;
+  min-height: 46px;
 }
 .brand-mark {
   width: 30px;
   height: 30px;
-  border-radius: 7px;
+  border-radius: 8px;
   background: radial-gradient(circle at 35% 30%, #2a1f14 0%, #0d0806 80%);
   display: flex;
   align-items: center;
@@ -174,6 +175,9 @@ body {
 .nav-item:focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: -2px;
+}
+.nav-item:active {
+  background: #ffffff0d;
 }
 .nav-item.active {
   background: linear-gradient(90deg, #e0935918, #e0935904);
@@ -268,6 +272,14 @@ body {
   font-size: 13px;
   width: 100%;
 }
+.search:focus-within {
+  outline: 2px solid var(--brass);
+  outline-offset: 1px;
+}
+textarea:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 1px;
+}
 .kbd {
   font-family: var(--mono);
   font-size: 10px;
@@ -332,6 +344,10 @@ body {
 .btn:focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 2px;
+}
+.btn:active {
+  transform: translateY(1px);
+  filter: brightness(0.95);
 }
 .btn.primary {
   background: linear-gradient(180deg, var(--brass-2), var(--brass));
@@ -463,12 +479,14 @@ body {
   font-weight: 500;
   margin-top: 4px;
   letter-spacing: -0.01em;
+  line-height: 1;
 }
 .stat-value .unit {
   font-size: 14px;
   color: var(--ink-3);
   margin-left: 6px;
   font-family: var(--mono);
+  vertical-align: baseline;
 }
 .stat-meta {
   margin-top: 6px;
@@ -497,6 +515,10 @@ body {
   border-color: var(--line-bright);
   background: linear-gradient(180deg, #1e2d41 0%, #1b2a3d 100%);
   box-shadow: 0 4px 16px #00000040;
+}
+.signal:active {
+  transform: translateY(1px);
+  box-shadow: none;
 }
 .signal:focus-visible {
   outline: 2px solid var(--brass);
@@ -797,7 +819,7 @@ table.ds td.num {
   flex: 1;
 }
 .drawer-foot {
-  padding: 12px 20px;
+  padding: 16px 20px;
   border-top: 1px solid var(--line);
   display: flex;
   gap: 10px;
@@ -854,10 +876,18 @@ table.ds td.num {
   border: 1px solid var(--line-2);
   background: #ffffff04;
   color: var(--ink-2);
+  transition: background 0.12s, color 0.12s;
 }
 .fb:hover {
   background: #ffffff0a;
   color: var(--ink);
+}
+.fb:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+.fb:active {
+  transform: scale(0.97);
 }
 .fb.on {
   background: #e0935914;
@@ -917,15 +947,23 @@ table.ds td.num {
 .wl {
   border: 1px solid var(--line-2);
   border-radius: 10px;
-  padding: 12px 14px;
+  padding: 12px 16px;
   background: #ffffff03;
   display: flex;
   flex-direction: column;
   gap: 6px;
   cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
 }
 .wl:hover {
   border-color: var(--line-bright);
+}
+.wl:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+.wl:active {
+  background: #ffffff07;
 }
 .wl-name {
   font-weight: 500;
@@ -1159,7 +1197,7 @@ hr.sep {
   flex: 1;
 }
 .modal-foot {
-  padding: 12px 22px;
+  padding: 16px 22px;
   border-top: 1px solid var(--line);
   display: flex;
   gap: 10px;
@@ -1242,6 +1280,11 @@ hr.sep {
 .clk:hover {
   background: #ffffff08;
 }
+.clk:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
 
 /* Toast */
 .toast-wrap {
@@ -1267,6 +1310,7 @@ hr.sep {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  max-width: min(560px, 90vw);
 }
 @keyframes toastIn {
   from {
@@ -1317,6 +1361,10 @@ hr.sep {
 .sr-item:hover {
   background: #ffffff06;
 }
+.sr-item:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: -2px;
+}
 .sr-item .k {
   font-family: var(--mono);
   font-size: 10.5px;
@@ -1364,8 +1412,9 @@ hr.sep {
 }
 .brief-print-kicker {
   font-family: "Inter", sans-serif;
-  font-size: 10.5px;
-  color: #666;
+  font-size: 12px;
+  color: #2a2a2a;
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.16em;
 }
@@ -1494,5 +1543,13 @@ hr.sep {
   border: 1px solid var(--line-2);
   border-left: 3px solid var(--escalate);
   border-radius: 10px;
-  flex-wrap: wrap;
+}
+@media (max-width: 900px) {
+  .live-strip {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .live-strip > * {
+    justify-self: start;
+  }
 }

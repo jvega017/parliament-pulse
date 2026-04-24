@@ -50,6 +50,27 @@ export function BriefPrint(): JSX.Element | null {
   }, [briefSignalId, closeBrief]);
 
   const signal = briefSignalId ? findSignal(briefSignalId, liveSignals) : null;
+
+  // If a deep-link refers to a signal id that does not exist after a poll,
+  // close and strip the URL param rather than render a blank overlay.
+  useEffect(() => {
+    if (!briefSignalId || signal) return;
+    const t = window.setTimeout(() => {
+      if (briefSignalId && !signal) {
+        toast(`Brief target ${briefSignalId} not found`, "warn");
+        closeBrief();
+        try {
+          const url = new URL(window.location.href);
+          url.searchParams.delete("brief");
+          window.history.replaceState({}, "", url.toString());
+        } catch {
+          // ignore
+        }
+      }
+    }, 4000);
+    return () => window.clearTimeout(t);
+  }, [briefSignalId, signal, closeBrief, toast]);
+
   if (!signal) return null;
 
   const isLive = liveSignals.some((s) => s.id === signal.id);
@@ -92,7 +113,7 @@ export function BriefPrint(): JSX.Element | null {
             className="btn primary"
             onClick={() => window.print()}
           >
-            <Icon name="download" size={13} /> Print / save as PDF
+            <Icon name="print" size={13} /> Print / save as PDF
           </button>
           <button
             type="button"
@@ -107,11 +128,14 @@ export function BriefPrint(): JSX.Element | null {
 
       <article className="brief-print">
         <header className="brief-print-head">
-          <div className="brief-print-kicker">Parliament Pulse · Prometheus Policy Lab</div>
+          <div className="brief-print-kicker">
+            Parliament Pulse · Executive brief · {isLive ? "From live APH RSS" : "Sample data"}
+          </div>
           <h1 id="brief-title">{signal.title.replace(/^\[Sample\]\s*/, "")}</h1>
           <div className="brief-print-meta">
-            {today()} · Executive brief · {signal.id} ·{" "}
-            Confidence {signal.confidence}/5 · Attention {signal.attention.toUpperCase()}
+            {today()} · {signal.id} · Confidence {signal.confidence}/5 ·
+            Attention {signal.attention.toUpperCase()} ·
+            {isLive ? " LIVE" : " SAMPLE — NOT FOR ISSUE"}
           </div>
         </header>
 

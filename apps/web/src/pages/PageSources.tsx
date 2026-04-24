@@ -61,12 +61,12 @@ export function PageSources(): JSX.Element {
         <div className="panel stat">
           <div className="stat-label">Items today</div>
           <div className="stat-value" style={{ color: "var(--ink-3)" }}>—</div>
-          <div className="stat-meta">Counter not wired yet</div>
+          <div className="stat-meta">Not yet available</div>
         </div>
         <div className="panel stat">
           <div className="stat-label">False positive rate</div>
           <div className="stat-value" style={{ color: "var(--ink-3)" }}>—</div>
-          <div className="stat-meta">Requires human feedback loop</div>
+          <div className="stat-meta">Requires feedback data</div>
         </div>
       </div>
 

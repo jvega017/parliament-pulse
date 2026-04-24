@@ -452,22 +452,42 @@ export function PageLive(): JSX.Element {
                 Fetching live RSS from aph.gov.au via the aph-proxy Worker...
               </div>
             )}
-            {!loading && items.length === 0 && (
-              <div style={{ padding: "14px 8px", fontSize: 12.5, color: "var(--ink-3)" }}>
-                <div
-                  style={{
-                    color: "var(--caution)",
-                    fontWeight: 500,
-                    marginBottom: 6,
-                  }}
-                >
-                  No items returned
+            {!loading && items.length === 0 && (() => {
+              // Distinguish legitimate quiet (every feed succeeded with 0 items)
+              // from an error condition (some feed reported ok=false).
+              const allOk = Object.values(feedStatus).every((s) => s.ok);
+              const cleanQuiet = allOk && Object.keys(feedStatus).length > 0;
+              if (cleanQuiet) {
+                return (
+                  <div style={{ padding: "14px 8px", fontSize: 12.5, color: "var(--ink-3)" }}>
+                    <div
+                      style={{ color: "var(--ok)", fontWeight: 500, marginBottom: 6 }}
+                    >
+                      Feeds quiet
+                    </div>
+                    All {Object.keys(feedStatus).length} APH feeds returned no
+                    new items in the latest poll. This is normal during recess
+                    or outside sitting hours.
+                  </div>
+                );
+              }
+              return (
+                <div style={{ padding: "14px 8px", fontSize: 12.5, color: "var(--ink-3)" }}>
+                  <div
+                    style={{
+                      color: "var(--caution)",
+                      fontWeight: 500,
+                      marginBottom: 6,
+                    }}
+                  >
+                    No items returned
+                  </div>
+                  Some feeds did not respond. This can happen if APH is rate
+                  limiting the proxy or a feed is temporarily down. Click the
+                  feed names in the Sources page to open the raw URLs.
                 </div>
-                The aph-proxy Worker returned no items. This can happen if APH
-                is rate-limiting the proxy or a feed is temporarily down. Links
-                below still open the raw feeds.
-              </div>
-            )}
+              );
+            })()}
             {items.map((e, i) => (
               <a
                 key={i}

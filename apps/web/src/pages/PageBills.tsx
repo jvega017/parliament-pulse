@@ -20,7 +20,13 @@ export function PageBills(): JSX.Element {
           </div>
         </div>
         <div style={{ display: "flex", gap: 10 }}>
-          <button type="button" className="btn" disabled>
+          <button
+            type="button"
+            className="btn"
+            disabled
+            aria-disabled="true"
+            title="Bills register export not yet available"
+          >
             <Icon name="download" size={13} /> Export register
           </button>
           <button

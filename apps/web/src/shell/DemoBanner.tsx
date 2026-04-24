@@ -7,8 +7,8 @@ const BUILD_SHA = (import.meta.env.VITE_COMMIT_SHA ?? "dev").slice(0, 7);
 
 export function DemoBanner(): JSX.Element {
   return (
-    <div
-      role="note"
+    <aside
+      aria-label="Sample data notice"
       style={{
         display: "flex",
         alignItems: "center",
@@ -26,9 +26,8 @@ export function DemoBanner(): JSX.Element {
       <Icon name="flag" size={14} stroke="var(--caution)" />
       <span style={{ flex: 1 }}>
         <strong style={{ color: "var(--caution)" }}>Sample data.</strong> Members,
-        ministers, bills, committees and counts on this page are sample
-        personas for design review. Only the Live parliament page polls real
-        APH RSS feeds and the AUSParliamentLive broadcast.
+        ministers, bills, committees and figures on this page are sample data
+        only. Live APH RSS appears on the Overview and Live parliament pages.
       </span>
       <span
         className="mono"
@@ -41,6 +40,6 @@ export function DemoBanner(): JSX.Element {
       >
         build {BUILD_SHA}
       </span>
-    </div>
+    </aside>
   );
 }

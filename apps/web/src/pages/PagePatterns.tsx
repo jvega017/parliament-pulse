@@ -43,9 +43,9 @@ export function PagePatterns(): JSX.Element {
       >
         <Icon name="flag" size={14} stroke="var(--info)" />
         <span>
-          <strong>Design-state module.</strong> Direct QON feed not yet
-          connected. The pattern below uses sample scrutiny data. Status visible
-          on Sources page.
+          <strong>Sample data only.</strong> The QON feed is not yet connected.
+          The pattern below uses sample scrutiny data. Status visible on the
+          Sources page.
         </span>
       </div>
 

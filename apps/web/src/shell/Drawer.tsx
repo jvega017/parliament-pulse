@@ -51,6 +51,29 @@ export function Drawer(): JSX.Element {
     );
   }, [signalId, liveSignals]);
 
+  // Deep-link with a non-existent signal id should not leave a blank
+  // drawer open. Wait until live signals have arrived (or 4 s pass) before
+  // declaring the id missing, then close and clean the URL.
+  const { toast } = useStore();
+  useEffect(() => {
+    if (!signalId || signal) return;
+    // If liveSignals is still loading, wait one cycle.
+    const t = window.setTimeout(() => {
+      if (signalId && !signal) {
+        toast(`Signal ${signalId} not found`, "warn");
+        closeSignal();
+        try {
+          const url = new URL(window.location.href);
+          url.searchParams.delete("signal");
+          window.history.replaceState({}, "", url.toString());
+        } catch {
+          // ignore
+        }
+      }
+    }, 4000);
+    return () => window.clearTimeout(t);
+  }, [signalId, signal, closeSignal, toast]);
+
   const [fb, setFb] = useState<string | null>(null);
   const [note, setNote] = useState("");
 

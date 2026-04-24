@@ -1,10 +1,11 @@
+import { useId } from "react";
 import { Icon, type IconName } from "../icons";
 import { useStore } from "../store/useStore";
 
 interface NavItem {
   id: string;
   label: string;
-  group: "Today" | "Parliament" | "Workflow" | "Admin";
+  group: "Today" | "Intelligence" | "Configuration";
   count: number | null;
   live?: boolean;
 }
@@ -14,17 +15,21 @@ interface NavItem {
 // because brief production is part of the morning workflow, not back-office.
 // Parliament item renamed to 'Today in chamber' to distinguish it from
 // the broader Parliament group label.
+// Three groups, each with a distinct purpose. The previous "Today / Parliament"
+// split caused a naming collision with "Live parliament" and "Today in chamber".
+// Groups are now: Today (morning workflow), Intelligence (analysis surfaces),
+// Configuration (admin and tool setup).
 const NAV: NavItem[] = [
   { id: "overview", label: "Overview", group: "Today", count: null },
   { id: "live", label: "Live parliament", group: "Today", count: null, live: true },
   { id: "radar", label: "Attention radar", group: "Today", count: null },
   { id: "briefings", label: "Briefings", group: "Today", count: null },
-  { id: "parliament", label: "Today in chamber", group: "Parliament", count: null },
-  { id: "committees", label: "Committees", group: "Parliament", count: null },
-  { id: "bills", label: "Bills intelligence", group: "Parliament", count: null },
-  { id: "patterns", label: "QON patterns", group: "Parliament", count: null },
-  { id: "watchlists", label: "Watchlists", group: "Workflow", count: null },
-  { id: "sources", label: "Sources", group: "Admin", count: null },
+  { id: "parliament", label: "Today in chamber", group: "Intelligence", count: null },
+  { id: "committees", label: "Committees", group: "Intelligence", count: null },
+  { id: "bills", label: "Bills intelligence", group: "Intelligence", count: null },
+  { id: "patterns", label: "QON patterns", group: "Intelligence", count: null },
+  { id: "watchlists", label: "Watchlists", group: "Configuration", count: null },
+  { id: "sources", label: "Sources", group: "Configuration", count: null },
 ];
 
 const ICONS: Record<string, IconName> = {
@@ -46,8 +51,11 @@ interface SidebarProps {
 }
 
 export function Sidebar({ page, onNavigate }: SidebarProps): JSX.Element {
-  const groups: NavItem["group"][] = ["Today", "Parliament", "Workflow", "Admin"];
+  const groups: NavItem["group"][] = ["Today", "Intelligence", "Configuration"];
   const { mobileNavOpen, closeMobileNav } = useStore();
+  // useId ensures the SVG gradient id is unique per render so concurrent
+  // sidebar instances (mobile overlay + desktop) do not share a defs id.
+  const flameId = `flame-${useId()}`;
 
   return (
     <>
@@ -67,7 +75,7 @@ export function Sidebar({ page, onNavigate }: SidebarProps): JSX.Element {
           <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
             <path
               d="M11 2 C 7 5, 6 9, 8 12 C 5 11, 4 13, 5 15 C 6 17, 9 18, 11 18 C 13 18, 16 17, 17 15 C 18 13, 17 11, 14 12 C 16 9, 15 5, 11 2 Z"
-              fill="url(#flame)"
+              fill={`url(#${flameId})`}
               opacity="0.92"
             />
             <path
@@ -76,7 +84,7 @@ export function Sidebar({ page, onNavigate }: SidebarProps): JSX.Element {
               opacity="0.9"
             />
             <defs>
-              <linearGradient id="flame" x1="0" y1="0" x2="0" y2="1">
+              <linearGradient id={flameId} x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="#f5b36a" />
                 <stop offset="100%" stopColor="#e09359" />
               </linearGradient>

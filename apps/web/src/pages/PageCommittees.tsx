@@ -79,7 +79,13 @@ export function PageCommittees(): JSX.Element {
           </div>
         </div>
         <div style={{ display: "flex", gap: 10 }}>
-          <button type="button" className="btn" disabled>
+          <button
+            type="button"
+            className="btn"
+            disabled
+            aria-disabled="true"
+            title="Committee filter coming in a later wave"
+          >
             <Icon name="filter" size={13} /> Filter
           </button>
         </div>

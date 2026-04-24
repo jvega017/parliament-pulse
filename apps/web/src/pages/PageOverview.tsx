@@ -218,10 +218,7 @@ export function PageOverview(): JSX.Element {
           <div className="stat-label" style={{ color: "var(--brass)" }}>
             High attention
           </div>
-          <div
-            className="stat-value"
-            style={{ color: "var(--brass)", fontSize: 40 }}
-          >
+          <div className="stat-value" style={{ color: "var(--brass)" }}>
             {liveHigh.length}
           </div>
           <div className="stat-meta">Review before the morning brief</div>

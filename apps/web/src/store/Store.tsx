@@ -37,12 +37,21 @@ function loadState(): PersistedState {
   }
 }
 
+// Track whether we have already warned the user about a persist failure
+// so we do not spam them on every state change once quota is hit.
+let persistWarned = false;
+let persistOnError: (() => void) | null = null;
+
 function persistState(state: PersistedState): void {
   if (typeof localStorage === "undefined") return;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch (err) {
     console.warn("Failed to persist state", err);
+    if (!persistWarned) {
+      persistWarned = true;
+      persistOnError?.();
+    }
   }
 }
 
@@ -101,6 +110,18 @@ export function StoreProvider({
     }, 2800);
   }, []);
 
+  // Wire the persistState quota-warning callback so it can fire a toast.
+  useEffect(() => {
+    persistOnError = () =>
+      toast(
+        "Local storage full. Notes and feedback will not persist this session.",
+        "warn",
+      );
+    return () => {
+      persistOnError = null;
+    };
+  }, [toast]);
+
   const openModal = useCallback<StoreValue["openModal"]>((m) => setModal(m), []);
   const closeModal = useCallback(() => setModal(null), []);
   const openSignal = useCallback((id: string) => setSignalId(id), []);
@@ -118,7 +139,7 @@ export function StoreProvider({
   const closeBrief = useCallback(() => setBriefSignalId(null), []);
   const triggerRefresh = useCallback(() => {
     setRefreshTick((t) => t + 1);
-    toast("Refreshing feeds", "brass");
+    toast("Feed refresh triggered", "brass");
   }, [toast]);
   const setBriefStatus = useCallback(
     (sid: string, status: "draft" | "sent" | "approved") => {

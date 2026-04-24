@@ -2,23 +2,42 @@ import { useState } from "react";
 import { Icon } from "../icons";
 import { DemoBanner } from "../shell/DemoBanner";
 import { useStore } from "../store/useStore";
-// Briefing queue is keyed to a sample signal each so PDF / Send / Approve
-// have a real target. PDF opens the print-ready brief; Send and Approve
-// write status into the store and update the queue label.
-const BRIEFS = [
-  { type: "Daily Signal Brief", for: "DDG Digital", signalId: "CS-0412" },
-  { type: "Committee Brief", for: "Procurement lead", signalId: "CS-0409" },
-  { type: "Bill Digest Note", for: "Identity policy", signalId: "CS-0410" },
-  { type: "Estimates Monitor Note", for: "Estimates pack", signalId: "CS-0408" },
+interface BriefRow {
+  type: string;
+  for: string;
+  signalId: string;
+  isLive: boolean;
+}
+
+// Static queue templates; signalId is filled in dynamically below from
+// liveSignals when available, so the queue stays connected to real data
+// instead of permanently pointing at the same fixture ids.
+const QUEUE_TEMPLATE = [
+  { type: "Daily Signal Brief", for: "DDG Digital" },
+  { type: "Committee Brief", for: "Procurement lead" },
+  { type: "Bill Digest Note", for: "Identity policy" },
+  { type: "Estimates Monitor Note", for: "Estimates pack" },
 ];
+
+const SAMPLE_FALLBACK_IDS = ["CS-0412", "CS-0409", "CS-0410", "CS-0408"];
 
 export function PageBriefings(): JSX.Element {
   const [sel, setSel] = useState(0);
   const { openBrief, briefStatus, setBriefStatus, liveSignals } = useStore();
-  const current = BRIEFS[sel]!;
-  const status =
-    briefStatus[current.signalId] ??
-    (current.signalId === "CS-0412" ? "draft" : "draft");
+
+  // Build the queue from live signals where possible; fall back to the
+  // sample fixture ids so the page renders before the first poll lands.
+  const liveByAttention = [...liveSignals].sort((a, b) => {
+    const rank = { high: 0, med: 1, low: 2 } as const;
+    return rank[a.attention] - rank[b.attention];
+  });
+  const briefs: BriefRow[] = QUEUE_TEMPLATE.map((t, i) => {
+    const live = liveByAttention[i];
+    if (live) return { ...t, signalId: live.id, isLive: true };
+    return { ...t, signalId: SAMPLE_FALLBACK_IDS[i] ?? SAMPLE_FALLBACK_IDS[0]!, isLive: false };
+  });
+  const current = briefs[sel]!;
+  const status = briefStatus[current.signalId] ?? "draft";
   const topLiveHigh =
     liveSignals.find((s) => s.attention === "high") ?? liveSignals[0] ?? null;
 
@@ -58,7 +77,7 @@ export function PageBriefings(): JSX.Element {
             <span className="panel-kicker">4 pending</span>
           </div>
           <div>
-            {BRIEFS.map((b, i) => {
+            {briefs.map((b, i) => {
               const itemStatus = briefStatus[b.signalId] ?? "draft";
               const statusColour =
                 itemStatus === "approved"
@@ -87,7 +106,10 @@ export function PageBriefings(): JSX.Element {
                 >
                   <div style={{ fontSize: 13, fontWeight: 500 }}>{b.type}</div>
                   <div style={{ fontSize: 11.5, color: "var(--ink-3)" }}>
-                    For {b.for}
+                    For {b.for} ·{" "}
+                    <span style={{ color: b.isLive ? "var(--teal)" : "var(--ink-4)" }}>
+                      {b.isLive ? "live signal" : "sample"}
+                    </span>
                   </div>
                   <div
                     className="mono"

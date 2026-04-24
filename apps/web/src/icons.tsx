@@ -24,7 +24,8 @@ export type IconName =
   | "ext"
   | "clock"
   | "flag"
-  | "book";
+  | "book"
+  | "print";
 
 export interface IconProps extends Omit<SVGProps<SVGSVGElement>, "name" | "size"> {
   name: IconName;
@@ -223,6 +224,14 @@ export function Icon({
         <svg {...props}>
           <path d="M4 5a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2z" />
           <path d="M4 19V5" />
+        </svg>
+      );
+    case "print":
+      return (
+        <svg {...props}>
+          <path d="M6 9V3h12v6" />
+          <rect x="6" y="14" width="12" height="7" />
+          <path d="M6 17H4a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-2" />
         </svg>
       );
     default:
