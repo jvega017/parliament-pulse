@@ -43,8 +43,8 @@ jobs:
           VITE_API_BASE: ${{ vars.VITE_API_BASE }}
 
       - name: Publish to Cloudflare Pages
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy apps/web/dist --project-name=parliament-pulse --branch=main
+        working-directory: workers/aph-proxy
+        run: pnpm exec wrangler pages deploy ../../apps/web/dist --project-name=parliament-pulse --branch=main
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
