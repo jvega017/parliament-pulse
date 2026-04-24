@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../icons";
-import { useStore } from "../store/Store";
+import { useStore } from "../store/useStore";
 import { APH_FEEDS, SIGNALS } from "../data/fixtures";
 import { ENTITIES } from "../data/entities";
 

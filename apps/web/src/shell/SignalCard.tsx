@@ -1,5 +1,5 @@
 import { Icon } from "../icons";
-import { useStore } from "../store/Store";
+import { useStore } from "../store/useStore";
 import type { Signal } from "../types";
 import { Att, Conf } from "./common";
 

@@ -1,69 +1,63 @@
-import { useEffect, useState } from "react";
-
-interface ProxyHealth {
-  ok: boolean;
-  base: string;
-  error?: string;
-  items?: number;
-}
-
-async function checkProxy(base: string): Promise<ProxyHealth> {
-  if (!base) {
-    return { ok: false, base, error: "VITE_API_BASE not set" };
-  }
-  try {
-    const res = await fetch(
-      `${base}/rss?u=${encodeURIComponent("https://www.aph.gov.au/senate/rss/new_inquiries")}`,
-      { headers: { Accept: "application/xml" } },
-    );
-    if (!res.ok) return { ok: false, base, error: `HTTP ${res.status}` };
-    const text = await res.text();
-    const items = (text.match(/<item/g) ?? []).length;
-    return { ok: true, base, items };
-  } catch (err) {
-    return { ok: false, base, error: err instanceof Error ? err.message : "unknown" };
-  }
-}
+import { useState } from "react";
+import { Sidebar } from "./shell/Sidebar";
+import { Topbar } from "./shell/Topbar";
+import { Drawer } from "./shell/Drawer";
+import { StoreProvider } from "./store/Store";
+import { DetailModal } from "./store/Modals";
+import { PageOverview } from "./pages/PageOverview";
+import { PageLive } from "./pages/PageLive";
+import { PageCommittees } from "./pages/PageCommittees";
+import { PageBills } from "./pages/PageBills";
+import { PageParliament } from "./pages/PageParliament";
+import { PagePatterns } from "./pages/PagePatterns";
+import { PageBriefings } from "./pages/PageBriefings";
+import { PageWatchlists } from "./pages/PageWatchlists";
+import { PageRadar } from "./pages/PageRadar";
+import { PageSources } from "./pages/PageSources";
 
 export function App(): JSX.Element {
-  const base = import.meta.env.VITE_API_BASE ?? "";
-  const [health, setHealth] = useState<ProxyHealth | null>(null);
-
-  useEffect(() => {
-    checkProxy(base).then(setHealth);
-  }, [base]);
+  const [page, setPage] = useState<string>("overview");
 
   return (
-    <main className="splash">
-      <div className="splash-card">
-        <div className="splash-kicker">Prometheus Policy Lab</div>
-        <h1 className="splash-title serif">Parliament Pulse</h1>
-        <p className="splash-sub">
-          Policy intelligence dashboard for the Australian Parliament. Migration in progress
-          from the JSX-in-browser prototype to a production Vite plus Cloudflare build.
-        </p>
-
-        <span className="splash-status">
-          <span className="dot" /> Scaffold deployed · full port in progress
-        </span>
-
-        <dl className="splash-meta">
-          <dt>Proxy base</dt>
-          <dd>
-            <code>{base || "(not configured)"}</code>
-          </dd>
-          <dt>Proxy health</dt>
-          <dd>
-            {health === null && "Checking..."}
-            {health && health.ok && `Reachable, ${health.items ?? 0} items in sample feed`}
-            {health && !health.ok && `Unreachable: ${health.error}`}
-          </dd>
-          <dt>Build</dt>
-          <dd>
-            <code>{import.meta.env.MODE}</code>
-          </dd>
-        </dl>
+    <StoreProvider page={page} setPage={setPage}>
+      <div className="app">
+        <Sidebar page={page} onNavigate={setPage} />
+        <div className="main">
+          <Topbar />
+          <div className="content">
+            <PageSwitch page={page} />
+          </div>
+        </div>
+        <Drawer />
+        <DetailModal />
       </div>
-    </main>
+    </StoreProvider>
   );
+}
+
+function PageSwitch({ page }: { page: string }): JSX.Element {
+  switch (page) {
+    case "overview":
+      return <PageOverview />;
+    case "live":
+      return <PageLive />;
+    case "sources":
+      return <PageSources />;
+    case "committees":
+      return <PageCommittees />;
+    case "bills":
+      return <PageBills />;
+    case "parliament":
+      return <PageParliament />;
+    case "patterns":
+      return <PagePatterns />;
+    case "briefings":
+      return <PageBriefings />;
+    case "watchlists":
+      return <PageWatchlists />;
+    case "radar":
+      return <PageRadar />;
+    default:
+      return <PageOverview />;
+  }
 }

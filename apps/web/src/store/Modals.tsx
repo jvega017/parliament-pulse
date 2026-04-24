@@ -3,7 +3,7 @@ import { Icon } from "../icons";
 import { Att, ModalHead } from "../shell/common";
 import { APH_FEEDS, DIVISIONS, SIGNALS, WATCHLISTS, RADAR } from "../data/fixtures";
 import { ENTITIES } from "../data/entities";
-import { useStore } from "./Store";
+import { useStore } from "./useStore";
 import type { Division, Hearing, ModalState } from "../types";
 
 export function DetailModal(): JSX.Element | null {
@@ -739,7 +739,12 @@ function WatchlistDetail({ name }: { name: string }): JSX.Element {
   const max = Math.max(...w.trend, 1);
   const lower = w.name.toLowerCase();
   const matches = SIGNALS.filter((s) =>
-    s.tags.some((t) => t.l.toLowerCase().split(/\s|\&/).some((tok) => lower.includes(tok) && tok.length > 3)),
+    s.tags.some((t) =>
+      t.l
+        .toLowerCase()
+        .split(/[\s&]/)
+        .some((tok) => tok.length > 3 && lower.includes(tok)),
+    ),
   ).slice(0, 3);
 
   return (

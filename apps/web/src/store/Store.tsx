@@ -1,15 +1,14 @@
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useRef,
   useState,
   type ReactNode,
 } from "react";
-import type { Feed, ModalState, PersistedState, Watchlist } from "../types";
+import type { Feed, PersistedState, Watchlist } from "../types";
 import { Icon } from "../icons";
+import { StoreContext, type StoreValue, type Toast } from "./context";
 
 const STORAGE_KEY = "pp-state-v1";
 
@@ -42,47 +41,8 @@ function persistState(state: PersistedState): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch (err) {
-    // Quota exceeded or storage disabled.
     console.warn("Failed to persist state", err);
   }
-}
-
-export interface Toast {
-  id: string;
-  msg: string;
-  kind: "ok" | "brass" | "warn";
-}
-
-export interface StoreValue {
-  state: PersistedState;
-  toasts: Toast[];
-  modal: ModalState | null;
-  signalId: string | null;
-  page: string;
-
-  toast: (msg: string, kind?: Toast["kind"]) => void;
-  openModal: (modal: ModalState) => void;
-  closeModal: () => void;
-  openSignal: (id: string) => void;
-  closeSignal: () => void;
-  goto: (page: string) => void;
-
-  assignOwner: (entityId: string, owner: string) => void;
-  saveFeedback: (signalId: string, label: string, reason?: string) => void;
-  archive: (signalId: string) => void;
-  addWatchlist: (key: string) => void;
-  createWatchlist: (name: string) => void;
-  generateBrief: (signalId: string, type: string) => void;
-  addFeed: (feed: Feed) => void;
-  saveNote: (signalId: string, text: string) => void;
-}
-
-const StoreCtx = createContext<StoreValue | null>(null);
-
-export function useStore(): StoreValue {
-  const ctx = useContext(StoreCtx);
-  if (!ctx) throw new Error("useStore must be used within <StoreProvider>");
-  return ctx;
 }
 
 interface StoreProviderProps {
@@ -91,10 +51,14 @@ interface StoreProviderProps {
   setPage: (p: string) => void;
 }
 
-export function StoreProvider({ children, page, setPage }: StoreProviderProps): JSX.Element {
+export function StoreProvider({
+  children,
+  page,
+  setPage,
+}: StoreProviderProps): JSX.Element {
   const [state, setState] = useState<PersistedState>(() => loadState());
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const [modal, setModal] = useState<ModalState | null>(null);
+  const [modal, setModal] = useState<StoreValue["modal"]>(null);
   const [signalId, setSignalId] = useState<string | null>(null);
   const toastSeq = useRef(0);
 
@@ -102,7 +66,6 @@ export function StoreProvider({ children, page, setPage }: StoreProviderProps): 
     persistState(state);
   }, [state]);
 
-  // Close modal / drawer on Escape — prototype forgot this.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
@@ -121,7 +84,7 @@ export function StoreProvider({ children, page, setPage }: StoreProviderProps): 
     }, 2800);
   }, []);
 
-  const openModal = useCallback((m: ModalState) => setModal(m), []);
+  const openModal = useCallback<StoreValue["openModal"]>((m) => setModal(m), []);
   const closeModal = useCallback(() => setModal(null), []);
   const openSignal = useCallback((id: string) => setSignalId(id), []);
   const closeSignal = useCallback(() => setSignalId(null), []);
@@ -240,7 +203,7 @@ export function StoreProvider({ children, page, setPage }: StoreProviderProps): 
   );
 
   return (
-    <StoreCtx.Provider value={value}>
+    <StoreContext.Provider value={value}>
       {children}
       <div className="toast-wrap" role="status" aria-live="polite">
         {toasts.map((t) => (
@@ -248,12 +211,18 @@ export function StoreProvider({ children, page, setPage }: StoreProviderProps): 
             <Icon
               name="check"
               size={14}
-              stroke={t.kind === "brass" ? "var(--brass)" : t.kind === "warn" ? "var(--caution)" : "var(--ok)"}
+              stroke={
+                t.kind === "brass"
+                  ? "var(--brass)"
+                  : t.kind === "warn"
+                    ? "var(--caution)"
+                    : "var(--ok)"
+              }
             />
             <span>{t.msg}</span>
           </div>
         ))}
       </div>
-    </StoreCtx.Provider>
+    </StoreContext.Provider>
   );
 }
