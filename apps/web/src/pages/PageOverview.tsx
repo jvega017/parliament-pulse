@@ -43,33 +43,42 @@ function formatAESTDate(d: Date): string {
 }
 
 export function PageOverview(): JSX.Element {
-  const { openModal, state, goto } = useStore();
+  const { openModal, state, goto, liveSignals, liveLoading, openBrief } = useStore();
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const id = window.setInterval(() => setNow(new Date()), 30_000);
     return () => window.clearInterval(id);
   }, []);
 
-  const priority = SIGNALS.filter(
+  const liveHigh = liveSignals.filter(
     (s) => s.attention === "high" && !state.archived[s.id],
   );
-  const rest = SIGNALS.filter(
+  const liveMed = liveSignals.filter(
+    (s) => s.attention === "med" && !state.archived[s.id],
+  );
+  const liveLow = liveSignals.filter(
+    (s) => s.attention === "low" && !state.archived[s.id],
+  );
+  const samplePriority = SIGNALS.filter(
+    (s) => s.attention === "high" && !state.archived[s.id],
+  );
+  const sampleRest = SIGNALS.filter(
     (s) => s.attention !== "high" && !state.archived[s.id],
   );
-  const totalVisible = priority.length + rest.length;
+  const totalLive = liveSignals.length;
   const healthyFeeds = APH_FEEDS.filter((f) => f.status === "live").length;
+  const topLiveId = liveSignals[0]?.id ?? null;
 
   return (
     <div className="page-fade">
-      <DemoBanner />
       <div className="page-head">
         <div>
           <div className="page-kicker">{formatAESTDate(now)} · AEST</div>
           <h1 className="page-title">Today's signal</h1>
           <div className="page-sub">
-            {totalVisible} sample signals loaded. {priority.length} classified
-            as priority. {healthyFeeds} of {APH_FEEDS.length} sample sources
-            marked live.
+            {totalLive} live signals scored from official APH RSS.{" "}
+            {liveHigh.length} high, {liveMed.length} medium, {liveLow.length} low.
+            {liveLoading && " Polling..."}
           </div>
         </div>
         <div style={{ display: "flex", gap: 10 }}>
@@ -94,9 +103,15 @@ export function PageOverview(): JSX.Element {
           <button
             type="button"
             className="btn primary"
-            title="Coming soon"
-            disabled
-            aria-disabled="true"
+            disabled={!topLiveId}
+            title={
+              topLiveId
+                ? "Open print-ready brief for the top live signal"
+                : "Waiting for live signals"
+            }
+            onClick={() => {
+              if (topLiveId) openBrief(topLiveId);
+            }}
           >
             <Icon name="brief" size={13} /> Generate daily brief
           </button>
@@ -188,28 +203,30 @@ export function PageOverview(): JSX.Element {
 
       <div className="grid g-4" style={{ marginBottom: 18 }}>
         <div className="panel stat">
-          <div className="stat-label">Sample signals</div>
-          <div className="stat-value">{totalVisible}</div>
-          <div className="stat-meta">Archive with drawer to remove</div>
+          <div className="stat-label">Live signals (scored)</div>
+          <div className="stat-value">{totalLive}</div>
+          <div className="stat-meta">From 5 APH RSS feeds via aph-proxy</div>
         </div>
         <div className="panel stat">
-          <div className="stat-label">Priority</div>
+          <div className="stat-label">High attention</div>
           <div className="stat-value" style={{ color: "var(--brass)" }}>
-            {priority.length}
+            {liveHigh.length}
           </div>
           <div className="stat-meta">Watchlist-matched · requires review</div>
         </div>
         <div className="panel stat">
-          <div className="stat-label">Committee items</div>
-          <div className="stat-value">7</div>
-          <div className="stat-meta">Sample hearings, inquiries, reports</div>
+          <div className="stat-label">Medium</div>
+          <div className="stat-value" style={{ color: "var(--caution)" }}>
+            {liveMed.length}
+          </div>
+          <div className="stat-meta">Contextual reinforcement</div>
         </div>
         <div className="panel stat">
           <div className="stat-label">Source health</div>
           <div className="stat-value">
             {healthyFeeds}/{APH_FEEDS.length}<span className="unit">live</span>
           </div>
-          <div className="stat-meta">Derived from sample feed statuses</div>
+          <div className="stat-meta">Derived from connected feeds</div>
         </div>
       </div>
 
@@ -217,28 +234,64 @@ export function PageOverview(): JSX.Element {
         <div>
           <div className="panel" style={{ marginBottom: 16 }}>
             <div className="panel-head">
-              <h3 className="panel-title">Priority signals</h3>
-              <span className="panel-kicker">
-                {priority.length} items · human review required
+              <h3 className="panel-title">Live priority signals</h3>
+              <span
+                className="panel-kicker"
+                style={{ color: liveHigh.length > 0 ? "var(--brass)" : undefined }}
+              >
+                {liveHigh.length} live items · scored from APH RSS
               </span>
             </div>
             <div className="panel-body">
-              {priority.map((s) => (
+              {liveLoading && liveHigh.length === 0 && (
+                <div className="empty">Polling APH RSS for live content...</div>
+              )}
+              {!liveLoading && liveHigh.length === 0 && (
+                <div className="empty">
+                  No high-attention live items in the current poll. Medium and
+                  low items are listed below.
+                </div>
+              )}
+              {liveHigh.map((s) => (
                 <SignalCard key={s.id} s={s} />
               ))}
-              {priority.length === 0 && (
-                <div className="empty">All priority signals actioned.</div>
+            </div>
+          </div>
+
+          <div className="panel" style={{ marginBottom: 16 }}>
+            <div className="panel-head">
+              <h3 className="panel-title">All live signals</h3>
+              <span className="panel-kicker">
+                {liveMed.length + liveLow.length} medium and low
+              </span>
+            </div>
+            <div className="panel-body">
+              {[...liveMed, ...liveLow].map((s) => (
+                <SignalCard key={s.id} s={s} />
+              ))}
+              {liveMed.length + liveLow.length === 0 && !liveLoading && (
+                <div className="empty">No further live items.</div>
               )}
             </div>
           </div>
 
+          <DemoBanner />
+
           <div className="panel">
             <div className="panel-head">
-              <h3 className="panel-title">All signals · last 24h</h3>
-              <span className="panel-kicker">{rest.length} items</span>
+              <h3 className="panel-title">Sample priority signals</h3>
+              <span className="panel-kicker">
+                {samplePriority.length} sample items (not live)
+              </span>
             </div>
             <div className="panel-body">
-              {rest.map((s) => (
+              {samplePriority.map((s) => (
+                <SignalCard key={s.id} s={s} />
+              ))}
+              {samplePriority.length === 0 && (
+                <div className="empty">All sample priority signals archived.</div>
+              )}
+              {sampleRest.map((s) => (
                 <SignalCard key={s.id} s={s} />
               ))}
             </div>

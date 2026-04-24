@@ -279,19 +279,21 @@ export const DIVISIONS: Division[] = [
   { when: "22 Apr, 12:05", chamber: "House", q: "Second reading — CDR Expansion Bill", result: "Agreed (81-58)", bill: "BILL-2026-037" },
 ];
 
+// Watchlist terms actually drive the live scoring engine (see lib/scoring.ts).
+// Each `terms` entry is matched case-insensitively against incoming RSS titles.
 export const WATCHLISTS: Watchlist[] = [
-  { name: "Digital government", keywords: 24, matches: 11, trend: [3, 4, 5, 4, 6, 8, 11] },
-  { name: "AI & automation", keywords: 18, matches: 7, trend: [2, 2, 3, 5, 4, 6, 7] },
-  { name: "Cyber security", keywords: 21, matches: 9, trend: [6, 5, 7, 8, 6, 9, 9] },
-  { name: "Digital identity", keywords: 14, matches: 6, trend: [1, 2, 3, 4, 5, 5, 6] },
-  { name: "Data sharing & privacy", keywords: 19, matches: 5, trend: [3, 3, 4, 4, 5, 5, 5] },
-  { name: "Procurement", keywords: 16, matches: 8, trend: [4, 4, 5, 6, 7, 7, 8] },
-  { name: "Service delivery", keywords: 17, matches: 3, trend: [2, 2, 2, 3, 3, 3, 3] },
-  { name: "Infrastructure & connectivity", keywords: 15, matches: 4, trend: [2, 3, 3, 4, 4, 4, 4] },
-  { name: "Health digital systems", keywords: 12, matches: 2, trend: [1, 1, 2, 2, 2, 2, 2] },
-  { name: "Parliamentary scrutiny", keywords: 22, matches: 10, trend: [6, 7, 8, 9, 9, 10, 10] },
-  { name: "Estimates preparation", keywords: 11, matches: 4, trend: [2, 2, 3, 3, 4, 4, 4] },
-  { name: "Queensland federal signals", keywords: 13, matches: 2, trend: [1, 1, 1, 2, 2, 2, 2] },
+  { name: "Digital government", keywords: 7, terms: ["digital", "service delivery", "mygov", "apsc", "dta", "ict", "government services"], matches: 0, trend: [3, 4, 5, 4, 6, 8, 11] },
+  { name: "AI & automation", keywords: 6, terms: ["artificial intelligence", "ai assurance", "automation", "algorithm", "machine learning", "automated decision"], matches: 0, trend: [2, 2, 3, 5, 4, 6, 7] },
+  { name: "Cyber security", keywords: 6, terms: ["cyber", "ransomware", "critical infrastructure", "data breach", "information security", "essential services"], matches: 0, trend: [6, 5, 7, 8, 6, 9, 9] },
+  { name: "Digital identity", keywords: 5, terms: ["digital id", "identity", "biometric", "credential", "accreditation"], matches: 0, trend: [1, 2, 3, 4, 5, 5, 6] },
+  { name: "Data sharing & privacy", keywords: 6, terms: ["privacy", "data sharing", "consumer data right", "cdr", "oaic", "personal information"], matches: 0, trend: [3, 3, 4, 4, 5, 5, 5] },
+  { name: "Procurement", keywords: 6, terms: ["procurement", "contract", "tender", "consultancy", "anao", "audit"], matches: 0, trend: [4, 4, 5, 6, 7, 7, 8] },
+  { name: "Service delivery", keywords: 4, terms: ["services australia", "centrelink", "medicare", "social services"], matches: 0, trend: [2, 2, 2, 3, 3, 3, 3] },
+  { name: "Infrastructure & connectivity", keywords: 5, terms: ["telecommunications", "broadband", "nbn", "spectrum", "regional connectivity"], matches: 0, trend: [2, 3, 3, 4, 4, 4, 4] },
+  { name: "Health digital systems", keywords: 4, terms: ["my health record", "digital health", "health systems", "aged care digital"], matches: 0, trend: [1, 1, 2, 2, 2, 2, 2] },
+  { name: "Parliamentary scrutiny", keywords: 5, terms: ["inquiry", "committee", "hearing", "report tabled", "submissions"], matches: 0, trend: [6, 7, 8, 9, 9, 10, 10] },
+  { name: "Estimates preparation", keywords: 3, terms: ["estimates", "question on notice", "qon"], matches: 0, trend: [2, 2, 3, 3, 4, 4, 4] },
+  { name: "Queensland federal signals", keywords: 3, terms: ["queensland", "brisbane", "qld"], matches: 0, trend: [1, 1, 1, 2, 2, 2, 2] },
 ];
 
 export const RADAR: RadarIssue[] = [

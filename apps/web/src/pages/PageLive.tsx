@@ -1,12 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Icon } from "../icons";
 import { useStore } from "../store/useStore";
 import {
   APH_FEED_URLS,
-  fetchAllFeeds,
   resolveLiveVideo,
   type FeedItem,
-  type FeedResult,
   type LiveVideo,
   type YtChamber,
 } from "../lib/aphFeed";
@@ -58,16 +56,13 @@ function fmtTime(d: Date | null): string {
 }
 
 export function PageLive(): JSX.Element {
-  const { toast, openModal } = useStore();
+  const { toast, openModal, liveFeedResult, liveLoading } = useStore();
   const [which, setWhich] = useState<Chamber>("house");
   const [nonce, setNonce] = useState(0);
   const [mode, setMode] = useState<"embed" | "offline">("embed");
 
-  const [result, setResult] = useState<FeedResult | null>(null);
-  const [loading, setLoading] = useState(true);
   const [liveVideo, setLiveVideo] = useState<LiveVideo | null>(null);
   const [videoResolved, setVideoResolved] = useState(false);
-  const abortRef = useRef<AbortController | null>(null);
 
   const apiBase = import.meta.env.VITE_API_BASE ?? "";
 
@@ -98,35 +93,9 @@ export function PageLive(): JSX.Element {
     };
   }, [apiBase, which, nonce]);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function poll(initial: boolean): Promise<void> {
-      if (initial) setLoading(true);
-      abortRef.current?.abort();
-      const ctrl = new AbortController();
-      abortRef.current = ctrl;
-      try {
-        const r = await fetchAllFeeds(apiBase, ctrl.signal);
-        if (!cancelled) {
-          setResult(r);
-          setLoading(false);
-        }
-      } catch (err) {
-        if (!cancelled && !(err instanceof DOMException && err.name === "AbortError")) {
-          setLoading(false);
-        }
-      }
-    }
-
-    poll(true);
-    const id = window.setInterval(() => poll(false), 120_000);
-    return () => {
-      cancelled = true;
-      abortRef.current?.abort();
-      window.clearInterval(id);
-    };
-  }, [apiBase]);
+  // Live RSS comes from the app-wide pump in App.tsx.
+  const result = liveFeedResult;
+  const loading = liveLoading;
 
   const cfg = CHAMBERS[which];
   const items: FeedItem[] = result?.items ?? [];

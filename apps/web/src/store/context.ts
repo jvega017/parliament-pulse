@@ -1,5 +1,6 @@
 import { createContext } from "react";
-import type { Feed, ModalState, PersistedState } from "../types";
+import type { FeedResult } from "../lib/aphFeed";
+import type { Feed, ModalState, PersistedState, Signal } from "../types";
 
 export interface Toast {
   id: string;
@@ -13,6 +14,9 @@ export interface StoreValue {
   modal: ModalState | null;
   signalId: string | null;
   page: string;
+  liveSignals: Signal[];
+  liveLoading: boolean;
+  liveFeedResult: FeedResult | null;
 
   toast: (msg: string, kind?: Toast["kind"]) => void;
   openModal: (modal: ModalState) => void;
@@ -20,6 +24,10 @@ export interface StoreValue {
   openSignal: (id: string) => void;
   closeSignal: () => void;
   goto: (page: string) => void;
+  setLiveSignals: (signals: Signal[], loading: boolean, feedResult: FeedResult | null) => void;
+  openBrief: (signalId: string | null) => void;
+  briefSignalId: string | null;
+  closeBrief: () => void;
 
   assignOwner: (entityId: string, owner: string) => void;
   saveFeedback: (signalId: string, label: string, reason?: string) => void;

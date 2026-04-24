@@ -1269,6 +1269,143 @@ hr.sep {
   color: var(--ink-3);
 }
 
+/* ---------- Brief print overlay ---------- */
+.brief-overlay {
+  position: fixed;
+  inset: 0;
+  background: #0a1017;
+  z-index: 80;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+.brief-overlay-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line-2);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.brief-print {
+  background: #ffffff;
+  color: #111111;
+  max-width: 760px;
+  margin: 24px auto 48px;
+  padding: 48px 56px;
+  box-shadow: 0 20px 60px #00000050;
+  font-family: "Fraunces", Georgia, serif;
+  font-size: 14px;
+  line-height: 1.55;
+  border-radius: 4px;
+}
+.brief-print header.brief-print-head {
+  border-bottom: 2px solid #1a1a1a;
+  padding-bottom: 12px;
+  margin-bottom: 18px;
+}
+.brief-print-kicker {
+  font-family: "Inter", sans-serif;
+  font-size: 10.5px;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+}
+.brief-print h1 {
+  font-size: 26px;
+  font-weight: 600;
+  margin: 6px 0 4px;
+  line-height: 1.15;
+}
+.brief-print-meta {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: #666;
+}
+.brief-print section {
+  margin: 16px 0;
+  page-break-inside: avoid;
+}
+.brief-print h2 {
+  font-family: "Inter", sans-serif;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: #7a5a22;
+  margin: 0 0 6px;
+  font-weight: 600;
+}
+.brief-print p,
+.brief-print li {
+  margin: 4px 0;
+}
+.brief-print ul {
+  margin: 4px 0 0;
+  padding-left: 20px;
+}
+.brief-print-url {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: #446;
+  word-break: break-all;
+}
+.brief-print-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-family: "Inter", sans-serif;
+}
+.brief-print-table th,
+.brief-print-table td {
+  padding: 4px 8px;
+  border-bottom: 1px solid #e5e5e5;
+  text-align: left;
+}
+.brief-print-table th {
+  background: #f4efe4;
+}
+.brief-print-foot {
+  margin-top: 24px;
+  padding-top: 10px;
+  border-top: 1px solid #bbb;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10.5px;
+  color: #666;
+}
+
+@media print {
+  /* Only the brief prints. Everything else is hidden. */
+  body > * {
+    display: none !important;
+  }
+  body > .brief-overlay,
+  body > #root > .brief-overlay {
+    display: block !important;
+  }
+  .brief-overlay {
+    position: static;
+    background: #ffffff;
+  }
+  .no-print,
+  .brief-overlay-bar {
+    display: none !important;
+  }
+  .brief-print {
+    box-shadow: none;
+    margin: 0;
+    padding: 0;
+    max-width: none;
+  }
+  /* Ensure print shows a full-bleed brief */
+  @page {
+    size: A4;
+    margin: 20mm;
+  }
+}
+
 /* scrollbar */
 ::-webkit-scrollbar {
   width: 10px;

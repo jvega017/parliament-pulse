@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../icons";
 import { useStore } from "../store/useStore";
 import { SIGNALS } from "../data/fixtures";
 import { ENTITIES } from "../data/entities";
+import { useFocusTrap } from "../lib/useFocusTrap";
 import { Att, Conf } from "./common";
 
 const FEEDBACK_LABELS = [
@@ -31,17 +32,23 @@ export function Drawer(): JSX.Element {
     signalId,
     closeSignal,
     state,
+    liveSignals,
     saveFeedback,
     archive,
-    generateBrief,
     addWatchlist,
     saveNote,
     openModal,
+    openBrief,
   } = useStore();
 
-  const signal = useMemo(() => SIGNALS.find((s) => s.id === signalId) ?? null, [
-    signalId,
-  ]);
+  const signal = useMemo(() => {
+    if (!signalId) return null;
+    return (
+      liveSignals.find((s) => s.id === signalId) ??
+      SIGNALS.find((s) => s.id === signalId) ??
+      null
+    );
+  }, [signalId, liveSignals]);
 
   const [fb, setFb] = useState<string | null>(null);
   const [note, setNote] = useState("");
@@ -53,6 +60,8 @@ export function Drawer(): JSX.Element {
   }, [signalId, state.feedback, state.notes]);
 
   const on = !!signal;
+  const drawerRef = useRef<HTMLElement>(null);
+  useFocusTrap(drawerRef, on);
 
   return (
     <>
@@ -62,6 +71,7 @@ export function Drawer(): JSX.Element {
         aria-hidden="true"
       />
       <aside
+        ref={drawerRef}
         className={`drawer${on ? " on" : ""}`}
         role="dialog"
         aria-modal="true"
@@ -437,7 +447,10 @@ export function Drawer(): JSX.Element {
               <button
                 type="button"
                 className="btn primary"
-                onClick={() => generateBrief(signal.id, "Executive brief")}
+                onClick={() => {
+                  openBrief(signal.id);
+                  closeSignal();
+                }}
               >
                 <Icon name="brief" size={13} /> Generate brief
               </button>

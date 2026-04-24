@@ -1,18 +1,22 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Icon } from "../icons";
 import { Att, ModalHead } from "../shell/common";
 import { APH_FEEDS, DIVISIONS, SIGNALS, WATCHLISTS, RADAR } from "../data/fixtures";
 import { ENTITIES } from "../data/entities";
+import { useFocusTrap } from "../lib/useFocusTrap";
 import { useStore } from "./useStore";
 import type { Division, Hearing, ModalState } from "../types";
 
 export function DetailModal(): JSX.Element | null {
   const { modal, closeModal } = useStore();
+  const modalRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(modalRef, !!modal);
   if (!modal) return null;
 
   return (
     <div className="modal-back" onClick={closeModal} aria-hidden="true">
       <div
+        ref={modalRef}
         className="modal"
         role="dialog"
         aria-modal="true"

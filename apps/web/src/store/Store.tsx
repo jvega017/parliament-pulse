@@ -6,7 +6,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { Feed, PersistedState, Watchlist } from "../types";
+import type { Feed, PersistedState, Signal, Watchlist } from "../types";
 import { Icon } from "../icons";
 import { StoreContext, type StoreValue, type Toast } from "./context";
 
@@ -60,6 +60,10 @@ export function StoreProvider({
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [modal, setModal] = useState<StoreValue["modal"]>(null);
   const [signalId, setSignalId] = useState<string | null>(null);
+  const [liveSignals, setLiveSignalsState] = useState<Signal[]>([]);
+  const [liveLoading, setLiveLoading] = useState<boolean>(true);
+  const [liveFeedResult, setLiveFeedResult] = useState<import("../lib/aphFeed").FeedResult | null>(null);
+  const [briefSignalId, setBriefSignalId] = useState<string | null>(null);
   const toastSeq = useRef(0);
 
   useEffect(() => {
@@ -89,6 +93,16 @@ export function StoreProvider({
   const openSignal = useCallback((id: string) => setSignalId(id), []);
   const closeSignal = useCallback(() => setSignalId(null), []);
   const goto = useCallback((p: string) => setPage(p), [setPage]);
+  const setLiveSignals = useCallback(
+    (signals: Signal[], loading: boolean, feedResult: import("../lib/aphFeed").FeedResult | null) => {
+      setLiveSignalsState(signals);
+      setLiveLoading(loading);
+      setLiveFeedResult(feedResult);
+    },
+    [],
+  );
+  const openBrief = useCallback((id: string | null) => setBriefSignalId(id), []);
+  const closeBrief = useCallback(() => setBriefSignalId(null), []);
 
   const assignOwner = useCallback(
     (entityId: string, owner: string) => {
@@ -127,7 +141,7 @@ export function StoreProvider({
 
   const createWatchlist = useCallback(
     (name: string) => {
-      const wl: Watchlist = { name, keywords: 0, matches: 0, trend: [0, 0, 0, 0, 0, 0, 0] };
+      const wl: Watchlist = { name, keywords: 0, terms: [], matches: 0, trend: [0, 0, 0, 0, 0, 0, 0] };
       setState((s) => ({ ...s, watchlistCreated: [...s.watchlistCreated, wl] }));
       toast(`Watchlist "${name}" created`, "brass");
     },
@@ -164,12 +178,19 @@ export function StoreProvider({
       modal,
       signalId,
       page,
+      liveSignals,
+      liveLoading,
+      liveFeedResult,
+      briefSignalId,
       toast,
       openModal,
       closeModal,
       openSignal,
       closeSignal,
       goto,
+      setLiveSignals,
+      openBrief,
+      closeBrief,
       assignOwner,
       saveFeedback,
       archive,
@@ -185,12 +206,19 @@ export function StoreProvider({
       modal,
       signalId,
       page,
+      liveSignals,
+      liveLoading,
+      liveFeedResult,
+      briefSignalId,
       toast,
       openModal,
       closeModal,
       openSignal,
       closeSignal,
       goto,
+      setLiveSignals,
+      openBrief,
+      closeBrief,
       assignOwner,
       saveFeedback,
       archive,

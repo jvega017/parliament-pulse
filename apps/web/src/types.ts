@@ -174,7 +174,8 @@ export interface Division {
 
 export interface Watchlist {
   name: string;
-  keywords: number;
+  keywords: number; // count — shown in UI
+  terms: string[]; // actual terms used for live scoring
   matches: number;
   trend: number[];
 }
