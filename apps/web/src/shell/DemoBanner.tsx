@@ -1,9 +1,10 @@
 import { Icon } from "../icons";
 
-// Top-of-page banner that makes the beta status of fixture-backed modules
-// explicit. Shown on every page except Live (which polls real APH feeds).
-// Visible reminder that members, ministers, bills and statistics are sample
-// personas, not real parliamentarians.
+// Build SHA injected at build time via Vite env. Allows beta testers to
+// reference an exact deployed commit when filing feedback. Falls back to
+// "dev" in local dev where the env var is not set.
+const BUILD_SHA = (import.meta.env.VITE_COMMIT_SHA ?? "dev").slice(0, 7);
+
 export function DemoBanner(): JSX.Element {
   return (
     <div
@@ -23,11 +24,22 @@ export function DemoBanner(): JSX.Element {
       }}
     >
       <Icon name="flag" size={14} stroke="var(--caution)" />
-      <span>
+      <span style={{ flex: 1 }}>
         <strong style={{ color: "var(--caution)" }}>Sample data.</strong> Members,
         ministers, bills, committees and counts on this page are sample
         personas for design review. Only the Live parliament page polls real
         APH RSS feeds and the AUSParliamentLive broadcast.
+      </span>
+      <span
+        className="mono"
+        style={{
+          fontSize: 10.5,
+          color: "var(--ink-3)",
+          letterSpacing: "0.08em",
+        }}
+        title="Deployed build (commit SHA, first 7 chars)"
+      >
+        build {BUILD_SHA}
       </span>
     </div>
   );

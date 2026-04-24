@@ -2,8 +2,19 @@ import { useEffect, useRef } from "react";
 import { Icon } from "../icons";
 import { useStore } from "../store/useStore";
 import { useFocusTrap } from "../lib/useFocusTrap";
+import { buildBriefMarkdown } from "../lib/export";
 import { SIGNALS } from "../data/fixtures";
 import type { Signal } from "../types";
+
+const SCORE_LABELS: Record<string, string> = {
+  authority: "Source authority",
+  portfolio: "Portfolio relevance",
+  novelty: "Novelty",
+  momentum: "Momentum",
+  time: "Time sensitivity",
+  scrutiny: "Scrutiny relevance",
+  ops: "Operational impact",
+};
 
 function findSignal(id: string, live: Signal[]): Signal | null {
   return live.find((s) => s.id === id) ?? SIGNALS.find((s) => s.id === id) ?? null;
@@ -69,12 +80,12 @@ export function BriefPrint(): JSX.Element | null {
             className="btn"
             onClick={() => {
               navigator.clipboard
-                ?.writeText(buildBriefText(signal))
-                .then(() => toast("Brief copied to clipboard", "brass"))
+                ?.writeText(buildBriefMarkdown(signal, SCORE_LABELS))
+                .then(() => toast("Brief copied to clipboard as Markdown", "brass"))
                 .catch(() => toast("Copy failed"));
             }}
           >
-            <Icon name="download" size={13} /> Copy text
+            <Icon name="download" size={13} /> Copy Markdown
           </button>
           <button
             type="button"
@@ -143,7 +154,7 @@ export function BriefPrint(): JSX.Element | null {
             <tbody>
               {Object.entries(signal.score).map(([k, v]) => (
                 <tr key={k}>
-                  <th scope="row">{k}</th>
+                  <th scope="row">{SCORE_LABELS[k] ?? k}</th>
                   <td>{Math.round(v * 100)} / 100</td>
                 </tr>
               ))}
@@ -201,28 +212,5 @@ export function BriefPrint(): JSX.Element | null {
   );
 }
 
-function buildBriefText(signal: Signal): string {
-  const lines = [
-    `PARLIAMENT PULSE — EXECUTIVE BRIEF`,
-    `${today()} · ${signal.id}`,
-    ``,
-    `TITLE`,
-    signal.title,
-    ``,
-    `SUMMARY`,
-    signal.summary,
-    ``,
-    `WHY IT MATTERS`,
-    signal.attentionReason,
-    ``,
-    `RECOMMENDED ACTION`,
-    `${signal.action}. ${signal.actionReason}`,
-    ``,
-    `EVIDENCE`,
-    ...signal.evidence.map((e) => `- ${e.label}: ${e.url}`),
-    ``,
-    `ATTENTION ${signal.attention.toUpperCase()} · CONFIDENCE ${signal.confidence}/5`,
-    `Source authority: ${signal.sourceAuthority} · Human review: ${signal.humanReview}`,
-  ];
-  return lines.join("\n");
-}
+// buildBriefText replaced by buildBriefMarkdown (lib/export.ts) which
+// emits Markdown so the clipboard paste preserves structure in Word.

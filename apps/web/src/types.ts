@@ -241,6 +241,7 @@ export interface PersistedState {
   feedback: Record<string, { label: string; reason: string; ts: number }>;
   archived: Record<string, true>;
   briefsGenerated: Record<string, { ts: number; type: string }>;
+  briefStatus: Record<string, "draft" | "sent" | "approved">;
   watchlistAdds: Record<string, true>;
   watchlistCreated: Watchlist[];
   feeds: Feed[];

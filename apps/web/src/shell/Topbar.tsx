@@ -5,7 +5,7 @@ import { APH_FEEDS, SIGNALS } from "../data/fixtures";
 import { ENTITIES } from "../data/entities";
 
 export function Topbar(): JSX.Element {
-  const { openModal, openSignal, goto, liveSignals, openBrief, triggerRefresh } = useStore();
+  const { openModal, openSignal, goto, liveSignals, openBrief, triggerRefresh, toggleMobileNav } = useStore();
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const [activeIdx, setActiveIdx] = useState(0);
@@ -19,8 +19,9 @@ export function Topbar(): JSX.Element {
         inputRef.current?.focus();
         setOpen(true);
       } else if (e.key === "Escape" && open) {
+        // Per ARIA combobox pattern: collapse the listbox but retain
+        // focus on the input so the user can edit or retype.
         setOpen(false);
-        inputRef.current?.blur();
       }
     };
     window.addEventListener("keydown", handler);
@@ -133,6 +134,11 @@ export function Topbar(): JSX.Element {
     } else if (e.key === "Enter") {
       e.preventDefault();
       flat[activeIdx]?.action();
+    } else if (e.key === "Tab") {
+      // Close the dropdown on Tab so aria-expanded does not lie about
+      // dropdown state once focus has moved on. Default Tab behaviour
+      // (move to next focusable) is preserved.
+      setOpen(false);
     }
   };
 
@@ -143,6 +149,14 @@ export function Topbar(): JSX.Element {
 
   return (
     <div className="topbar">
+      <button
+        type="button"
+        className="mobile-toggle"
+        aria-label="Toggle navigation"
+        onClick={toggleMobileNav}
+      >
+        <Icon name="filter" size={18} />
+      </button>
       <div className="search" ref={containerRef}>
         <Icon name="search" size={14} stroke="var(--ink-3)" />
         <input

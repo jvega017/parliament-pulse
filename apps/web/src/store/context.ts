@@ -36,6 +36,9 @@ export interface StoreValue {
   requestConnector: (name: string) => void;
   clusterStatus: "open" | "tracking" | "coordinated" | "coincidence";
   setClusterStatus: (status: "open" | "tracking" | "coordinated" | "coincidence") => void;
+  mobileNavOpen: boolean;
+  toggleMobileNav: () => void;
+  closeMobileNav: () => void;
 
   assignOwner: (entityId: string, owner: string) => void;
   saveFeedback: (signalId: string, label: string, reason?: string) => void;

@@ -4,6 +4,7 @@ import { Att, ModalHead } from "../shell/common";
 import { APH_FEEDS, DIVISIONS, SIGNALS, WATCHLISTS, RADAR } from "../data/fixtures";
 import { ENTITIES } from "../data/entities";
 import { useFocusTrap } from "../lib/useFocusTrap";
+import { exportSignalsDigestCsv } from "../lib/export";
 import { useStore } from "./useStore";
 import type { Division, Hearing, ModalState } from "../types";
 
@@ -942,12 +943,16 @@ function WatchlistDetail({ name }: { name: string }): JSX.Element {
         <button
           type="button"
           className="btn primary"
+          disabled={matches.length === 0}
           onClick={() => {
-            toast("Watchlist digest sent", "brass");
-            closeModal();
+            exportSignalsDigestCsv(
+              `watchlist-${w.name.toLowerCase().replace(/\s+/g, "-")}-digest.csv`,
+              matches,
+            );
+            toast("Digest CSV downloaded", "brass");
           }}
         >
-          Send digest
+          <Icon name="download" size={13} /> Download digest CSV
         </button>
         <button
           type="button"

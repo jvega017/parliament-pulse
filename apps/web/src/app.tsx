@@ -19,8 +19,13 @@ import { useLiveSignals } from "./lib/useLiveSignals";
 import { WATCHLISTS } from "./data/fixtures";
 import { useStore } from "./store/useStore";
 
+function readPageParam(): string {
+  if (typeof window === "undefined") return "overview";
+  return new URLSearchParams(window.location.search).get("page") ?? "overview";
+}
+
 export function App(): JSX.Element {
-  const [page, setPage] = useState<string>("overview");
+  const [page, setPage] = useState<string>(readPageParam);
 
   return (
     <StoreProvider page={page} setPage={setPage}>

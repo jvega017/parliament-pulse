@@ -1,4 +1,5 @@
 import { Icon, type IconName } from "../icons";
+import { useStore } from "../store/useStore";
 
 interface NavItem {
   id: string;
@@ -46,9 +47,21 @@ interface SidebarProps {
 
 export function Sidebar({ page, onNavigate }: SidebarProps): JSX.Element {
   const groups: NavItem["group"][] = ["Today", "Parliament", "Workflow", "Admin"];
+  const { mobileNavOpen, closeMobileNav } = useStore();
 
   return (
-    <aside className="side" aria-label="Primary navigation">
+    <>
+      {mobileNavOpen && (
+        <div
+          className="mobile-overlay"
+          onClick={closeMobileNav}
+          aria-hidden="true"
+        />
+      )}
+      <aside
+        className={`side${mobileNavOpen ? " mobile-open" : ""}`}
+        aria-label="Primary navigation"
+      >
       <div className="brand">
         <div className="brand-mark" aria-hidden="true">
           <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
@@ -119,10 +132,11 @@ export function Sidebar({ page, onNavigate }: SidebarProps): JSX.Element {
           <div
             style={{ fontFamily: "var(--mono)", fontSize: 10.5, color: "var(--ink-3)" }}
           >
-            Senior analyst · Digital
+            Demo user
           </div>
         </div>
       </div>
     </aside>
+    </>
   );
 }

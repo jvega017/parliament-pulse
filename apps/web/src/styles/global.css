@@ -36,6 +36,57 @@ body {
   font-family: var(--serif);
 }
 
+/* ---------- Type scale utility classes ----------
+   Replaces ad-hoc inline `fontSize` values across pages and modals. */
+.t-xs { font-size: 10.5px; }
+.t-sm { font-size: 12px; }
+.t-md { font-size: 13px; }
+.t-lg { font-size: 14px; }
+.t-xl { font-size: 18px; }
+.t-2xl { font-size: 22px; }
+.t-3xl { font-size: 28px; }
+.t-display { font-size: 34px; }
+
+/* ---------- Mobile nav ---------- */
+.mobile-toggle { display: none; }
+@media (max-width: 780px) {
+  .mobile-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: var(--panel);
+    border: 1px solid var(--line-2);
+    border-radius: 6px;
+    color: var(--ink);
+    cursor: pointer;
+    margin-right: 8px;
+  }
+  .side {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 80vw;
+    max-width: 320px;
+    z-index: 60;
+    transform: translateX(-100%);
+    transition: transform 0.22s cubic-bezier(0.2, 0.7, 0.2, 1);
+    box-shadow: 6px 0 30px #00000060;
+  }
+  .side.mobile-open {
+    transform: translateX(0);
+  }
+  .mobile-overlay {
+    position: fixed;
+    inset: 0;
+    background: #00000080;
+    z-index: 55;
+    backdrop-filter: blur(2px);
+  }
+}
+
 /* ---------- Layout ---------- */
 .app {
   display: grid;
@@ -1331,6 +1382,12 @@ hr.sep {
 }
 .brief-print section {
   margin: 16px 0;
+  page-break-inside: avoid;
+}
+.brief-print-table {
+  page-break-inside: avoid;
+}
+.brief-print-table tr {
   page-break-inside: avoid;
 }
 .brief-print h2 {

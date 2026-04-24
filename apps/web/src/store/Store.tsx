@@ -17,6 +17,7 @@ const INITIAL_STATE: PersistedState = {
   feedback: {},
   archived: {},
   briefsGenerated: {},
+  briefStatus: {},
   watchlistAdds: {},
   watchlistCreated: [],
   feeds: [],
@@ -59,15 +60,23 @@ export function StoreProvider({
   const [state, setState] = useState<PersistedState>(() => loadState());
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [modal, setModal] = useState<StoreValue["modal"]>(null);
-  const [signalId, setSignalId] = useState<string | null>(null);
+  // Deep-link: ?signal=<id> opens the drawer on load, ?brief=<id> opens the brief overlay.
+  const initialDeepLink = (() => {
+    if (typeof window === "undefined") return { signal: null, brief: null };
+    const p = new URLSearchParams(window.location.search);
+    return { signal: p.get("signal"), brief: p.get("brief") };
+  })();
+  const [signalId, setSignalId] = useState<string | null>(initialDeepLink.signal);
   const [liveSignals, setLiveSignalsState] = useState<Signal[]>([]);
   const [liveLoading, setLiveLoading] = useState<boolean>(true);
   const [liveFeedResult, setLiveFeedResult] = useState<import("../lib/aphFeed").FeedResult | null>(null);
-  const [briefSignalId, setBriefSignalId] = useState<string | null>(null);
+  const [briefSignalId, setBriefSignalId] = useState<string | null>(initialDeepLink.brief);
   const [refreshTick, setRefreshTick] = useState<number>(0);
-  const [briefStatus, setBriefStatusState] = useState<Record<string, "draft" | "sent" | "approved">>({});
+  // briefStatus mirrors state.briefStatus for callers that already use it.
+  // Persisted via PersistedState so Send/Approve survive page reload.
   const [connectorRequests, setConnectorRequests] = useState<Record<string, true>>({});
   const [clusterStatus, setClusterStatusState] = useState<"open" | "tracking" | "coordinated" | "coincidence">("open");
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const toastSeq = useRef(0);
 
   useEffect(() => {
@@ -113,7 +122,7 @@ export function StoreProvider({
   }, [toast]);
   const setBriefStatus = useCallback(
     (sid: string, status: "draft" | "sent" | "approved") => {
-      setBriefStatusState((s) => ({ ...s, [sid]: status }));
+      setState((s) => ({ ...s, briefStatus: { ...s.briefStatus, [sid]: status } }));
       toast(`Brief ${status}`, status === "approved" ? "brass" : "ok");
     },
     [toast],
@@ -132,6 +141,8 @@ export function StoreProvider({
     },
     [toast],
   );
+  const toggleMobileNav = useCallback(() => setMobileNavOpen((o) => !o), []);
+  const closeMobileNav = useCallback(() => setMobileNavOpen(false), []);
 
   const assignOwner = useCallback(
     (entityId: string, owner: string) => {
@@ -241,12 +252,15 @@ export function StoreProvider({
       closeBrief,
       refreshTick,
       triggerRefresh,
-      briefStatus,
+      briefStatus: state.briefStatus,
       setBriefStatus,
       connectorRequests,
       requestConnector,
       clusterStatus,
       setClusterStatus,
+      mobileNavOpen,
+      toggleMobileNav,
+      closeMobileNav,
       assignOwner,
       saveFeedback,
       archive,
@@ -268,9 +282,9 @@ export function StoreProvider({
       liveFeedResult,
       briefSignalId,
       refreshTick,
-      briefStatus,
       connectorRequests,
       clusterStatus,
+      mobileNavOpen,
       toast,
       openModal,
       closeModal,
@@ -284,6 +298,8 @@ export function StoreProvider({
       setBriefStatus,
       requestConnector,
       setClusterStatus,
+      toggleMobileNav,
+      closeMobileNav,
       assignOwner,
       saveFeedback,
       archive,

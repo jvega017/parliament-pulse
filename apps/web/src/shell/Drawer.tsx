@@ -4,6 +4,7 @@ import { useStore } from "../store/useStore";
 import { SIGNALS } from "../data/fixtures";
 import { ENTITIES } from "../data/entities";
 import { useFocusTrap } from "../lib/useFocusTrap";
+import { exportSignalCsv } from "../lib/export";
 import { Att, Conf } from "./common";
 
 const FEEDBACK_LABELS = [
@@ -457,6 +458,20 @@ export function Drawer(): JSX.Element {
                 }}
               >
                 <Icon name="brief" size={13} /> Generate brief
+              </button>
+              <button
+                type="button"
+                className="btn"
+                onClick={() =>
+                  exportSignalCsv(
+                    signal,
+                    state.owners[signal.id],
+                    state.feedback[signal.id]?.label,
+                  )
+                }
+                title="Download evidence + score matrix as CSV"
+              >
+                <Icon name="download" size={13} /> CSV
               </button>
               <button
                 type="button"

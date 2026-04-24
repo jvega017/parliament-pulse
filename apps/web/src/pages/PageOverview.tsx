@@ -379,7 +379,10 @@ export function PageOverview(): JSX.Element {
           <div className="panel" style={{ marginBottom: 16 }}>
             <div className="panel-head">
               <h3 className="panel-title">Briefing queue</h3>
-              <span className="panel-kicker">4 pending</span>
+              <span className="panel-kicker">
+                {BRIEFING_QUEUE.filter((b) => !b.ready).length} pending ·{" "}
+                {BRIEFING_QUEUE.length} total
+              </span>
             </div>
             <div className="panel-body" style={{ paddingTop: 6 }}>
               {BRIEFING_QUEUE.map((b, i) => (
@@ -423,7 +426,7 @@ export function PageOverview(): JSX.Element {
           <div className="panel">
             <div className="panel-head">
               <h3 className="panel-title">Source health</h3>
-              <span className="panel-kicker">14/15 live</span>
+              <span className="panel-kicker">{healthyFeeds}/{APH_FEEDS.length} live</span>
             </div>
             <div className="panel-body">
               {APH_FEEDS.slice(0, 6).map((f) => (
