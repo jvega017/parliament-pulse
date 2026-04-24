@@ -7,6 +7,7 @@ import { WATCHLISTS } from "../data/fixtures";
 export function PageWatchlists(): JSX.Element {
   const { openModal, createWatchlist, state } = useStore();
   const [newName, setNewName] = useState("");
+  const [newTerms, setNewTerms] = useState("");
   const all = [...WATCHLISTS, ...state.watchlistCreated];
 
   return (
@@ -21,23 +22,36 @@ export function PageWatchlists(): JSX.Element {
             configuration.
           </div>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
           <input
             placeholder="New watchlist name"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             className="search"
-            style={{ padding: "7px 10px" }}
+            style={{ padding: "7px 10px", minWidth: 180 }}
             aria-label="New watchlist name"
+          />
+          <input
+            placeholder="Terms: ai, automation, mygov"
+            value={newTerms}
+            onChange={(e) => setNewTerms(e.target.value)}
+            className="search"
+            style={{ padding: "7px 10px", minWidth: 240 }}
+            aria-label="Comma-separated terms to match in RSS titles"
           />
           <button
             type="button"
             className="btn primary"
             onClick={() => {
-              if (newName.trim()) {
-                createWatchlist(newName.trim());
-                setNewName("");
-              }
+              const name = newName.trim();
+              if (!name) return;
+              const terms = newTerms
+                .split(",")
+                .map((t) => t.trim().toLowerCase())
+                .filter(Boolean);
+              createWatchlist(name, terms);
+              setNewName("");
+              setNewTerms("");
             }}
           >
             <Icon name="plus" size={13} /> Create

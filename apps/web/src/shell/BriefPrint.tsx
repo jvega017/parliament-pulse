@@ -1,6 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Icon } from "../icons";
 import { useStore } from "../store/useStore";
+import { useFocusTrap } from "../lib/useFocusTrap";
 import { SIGNALS } from "../data/fixtures";
 import type { Signal } from "../types";
 
@@ -25,7 +26,8 @@ function today(): string {
  */
 export function BriefPrint(): JSX.Element | null {
   const { briefSignalId, liveSignals, closeBrief, toast } = useStore();
-  const signal = briefSignalId ? findSignal(briefSignalId, liveSignals) : null;
+  const overlayRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(overlayRef, !!briefSignalId);
 
   useEffect(() => {
     if (!briefSignalId) return;
@@ -36,12 +38,14 @@ export function BriefPrint(): JSX.Element | null {
     return () => window.removeEventListener("keydown", h);
   }, [briefSignalId, closeBrief]);
 
+  const signal = briefSignalId ? findSignal(briefSignalId, liveSignals) : null;
   if (!signal) return null;
 
   const isLive = liveSignals.some((s) => s.id === signal.id);
 
   return (
     <div
+      ref={overlayRef}
       className="brief-overlay"
       role="dialog"
       aria-modal="true"
@@ -101,13 +105,10 @@ export function BriefPrint(): JSX.Element | null {
         </header>
 
         <section>
-          <h2>Summary</h2>
-          <p>{signal.summary}</p>
-        </section>
-
-        <section>
-          <h2>What happened</h2>
-          <p>{signal.title}. Retrieved from {signal.source} on {signal.date}.</p>
+          <h2>Recommended action (BLUF)</h2>
+          <p>
+            <strong>{signal.action}.</strong> {signal.actionReason}
+          </p>
         </section>
 
         <section>
@@ -116,10 +117,13 @@ export function BriefPrint(): JSX.Element | null {
         </section>
 
         <section>
-          <h2>Recommended action</h2>
-          <p>
-            <strong>{signal.action}.</strong> {signal.actionReason}
-          </p>
+          <h2>Summary</h2>
+          <p>{signal.summary}</p>
+        </section>
+
+        <section>
+          <h2>What happened</h2>
+          <p>{signal.title}. Retrieved from {signal.source} on {signal.date}.</p>
         </section>
 
         <section>

@@ -67,7 +67,9 @@ export function PageOverview(): JSX.Element {
   );
   const totalLive = liveSignals.length;
   const healthyFeeds = APH_FEEDS.filter((f) => f.status === "live").length;
-  const topLiveId = liveSignals[0]?.id ?? null;
+  // Prefer the top high-attention signal; fall back to top-ranked only if none high.
+  const topLiveId = liveHigh[0]?.id ?? liveSignals[0]?.id ?? null;
+  const topLiveTitle = liveHigh[0]?.title ?? liveSignals[0]?.title ?? null;
 
   return (
     <div className="page-fade">
@@ -145,34 +147,41 @@ export function PageOverview(): JSX.Element {
         <div
           style={{
             display: "flex",
-            gap: 18,
-            fontSize: 12.5,
+            gap: 12,
+            fontSize: 13,
             color: "var(--ink-2)",
             alignItems: "center",
             flexWrap: "wrap",
+            minWidth: 0,
           }}
         >
-          <div>
-            Chamber activity is pulled from the{" "}
-            <a
-              href="https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/HoR_chamber_documents/Daily_program"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ color: "var(--teal)", textDecoration: "none" }}
+          {topLiveTitle ? (
+            <div
+              style={{
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                maxWidth: "100%",
+              }}
+              title={topLiveTitle}
             >
-              House Daily Program
-            </a>{" "}
-            and{" "}
-            <a
-              href="https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/Senate_chamber_documents/Dynamic_Red"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ color: "var(--teal)", textDecoration: "none" }}
-            >
-              Senate Dynamic Red
-            </a>
-            .
-          </div>
+              <strong style={{ color: "var(--brass)" }}>Top live:</strong>{" "}
+              <button
+                type="button"
+                className="clk"
+                style={{ padding: 0, color: "var(--ink)", fontSize: 13 }}
+                onClick={() => {
+                  if (topLiveId) openBrief(topLiveId);
+                }}
+              >
+                {topLiveTitle}
+              </button>
+            </div>
+          ) : (
+            <div style={{ color: "var(--ink-3)" }}>
+              Polling APH feeds for live content...
+            </div>
+          )}
         </div>
         <a
           href="https://www.aph.gov.au/Parliamentary_Business/Hansard"
@@ -202,17 +211,25 @@ export function PageOverview(): JSX.Element {
       </div>
 
       <div className="grid g-4" style={{ marginBottom: 18 }}>
+        <div
+          className="panel stat"
+          style={{ borderLeft: "3px solid var(--brass)" }}
+        >
+          <div className="stat-label" style={{ color: "var(--brass)" }}>
+            High attention
+          </div>
+          <div
+            className="stat-value"
+            style={{ color: "var(--brass)", fontSize: 40 }}
+          >
+            {liveHigh.length}
+          </div>
+          <div className="stat-meta">Review before the morning brief</div>
+        </div>
         <div className="panel stat">
           <div className="stat-label">Live signals (scored)</div>
           <div className="stat-value">{totalLive}</div>
           <div className="stat-meta">From 5 APH RSS feeds via aph-proxy</div>
-        </div>
-        <div className="panel stat">
-          <div className="stat-label">High attention</div>
-          <div className="stat-value" style={{ color: "var(--brass)" }}>
-            {liveHigh.length}
-          </div>
-          <div className="stat-meta">Watchlist-matched · requires review</div>
         </div>
         <div className="panel stat">
           <div className="stat-label">Medium</div>

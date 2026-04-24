@@ -33,7 +33,8 @@ export interface StoreValue {
   saveFeedback: (signalId: string, label: string, reason?: string) => void;
   archive: (signalId: string) => void;
   addWatchlist: (key: string) => void;
-  createWatchlist: (name: string) => void;
+  createWatchlist: (name: string, terms?: string[]) => void;
+  updateWatchlistTerms: (name: string, terms: string[]) => void;
   generateBrief: (signalId: string, type: string) => void;
   addFeed: (feed: Feed) => void;
   saveNote: (signalId: string, text: string) => void;

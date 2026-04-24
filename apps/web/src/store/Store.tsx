@@ -140,10 +140,29 @@ export function StoreProvider({
   );
 
   const createWatchlist = useCallback(
-    (name: string) => {
-      const wl: Watchlist = { name, keywords: 0, terms: [], matches: 0, trend: [0, 0, 0, 0, 0, 0, 0] };
+    (name: string, terms: string[] = []) => {
+      const wl: Watchlist = {
+        name,
+        keywords: terms.length,
+        terms,
+        matches: 0,
+        trend: [0, 0, 0, 0, 0, 0, 0],
+      };
       setState((s) => ({ ...s, watchlistCreated: [...s.watchlistCreated, wl] }));
       toast(`Watchlist "${name}" created`, "brass");
+    },
+    [toast],
+  );
+
+  const updateWatchlistTerms = useCallback(
+    (name: string, terms: string[]) => {
+      setState((s) => ({
+        ...s,
+        watchlistCreated: s.watchlistCreated.map((w) =>
+          w.name === name ? { ...w, terms, keywords: terms.length } : w,
+        ),
+      }));
+      toast(`Watchlist "${name}" terms updated`, "brass");
     },
     [toast],
   );
@@ -196,6 +215,7 @@ export function StoreProvider({
       archive,
       addWatchlist,
       createWatchlist,
+      updateWatchlistTerms,
       generateBrief,
       addFeed,
       saveNote,
@@ -224,6 +244,7 @@ export function StoreProvider({
       archive,
       addWatchlist,
       createWatchlist,
+      updateWatchlistTerms,
       generateBrief,
       addFeed,
       saveNote,

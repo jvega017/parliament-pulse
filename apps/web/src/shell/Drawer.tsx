@@ -357,13 +357,17 @@ export function Drawer(): JSX.Element {
               )}
 
               <div className="drawer-section">
-                <h4>Analyst note</h4>
+                <label htmlFor="analyst-note" style={{ display: "block" }}>
+                  <h4>Analyst note</h4>
+                </label>
                 <textarea
+                  id="analyst-note"
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                   onBlur={() => saveNote(signal.id, note)}
                   placeholder="Private notes (auto-saved)"
                   rows={3}
+                  aria-label={`Analyst note for signal ${signal.id}`}
                   style={{
                     width: "100%",
                     background: "var(--panel)",

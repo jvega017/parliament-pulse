@@ -5,9 +5,10 @@ import { APH_FEEDS, SIGNALS } from "../data/fixtures";
 import { ENTITIES } from "../data/entities";
 
 export function Topbar(): JSX.Element {
-  const { openModal, openSignal, toast, goto } = useStore();
+  const { openModal, openSignal, toast, goto, liveSignals, openBrief } = useStore();
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
+  const [activeIdx, setActiveIdx] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -36,37 +37,109 @@ export function Topbar(): JSX.Element {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const results = useMemo(() => {
-    if (!q.trim()) return null;
+  // Flattened list of results so arrow keys can move through any group.
+  const flat = useMemo(() => {
+    if (!q.trim()) return [] as Array<{
+      kind: "live" | "sig" | "bill" | "comm" | "mem" | "feed";
+      id: string;
+      label: string;
+      sub: string;
+      action: () => void;
+    }>;
     const term = q.toLowerCase();
-    return {
-      sig: SIGNALS.filter(
+    const liveMatches = liveSignals
+      .filter(
         (s) =>
           s.title.toLowerCase().includes(term) ||
-          s.summary.toLowerCase().includes(term) ||
-          s.id.toLowerCase().includes(term),
-      ),
-      bills: Object.values(ENTITIES.bills).filter(
-        (b) =>
-          b.title.toLowerCase().includes(term) || b.ref.toLowerCase().includes(term),
-      ),
-      comm: Object.values(ENTITIES.committees).filter((c) =>
-        c.name.toLowerCase().includes(term),
-      ),
-      mem: Object.values(ENTITIES.members).filter((m) =>
-        m.name.toLowerCase().includes(term),
-      ),
-      feeds: APH_FEEDS.filter((f) => f.name.toLowerCase().includes(term)),
-    };
-  }, [q]);
+          s.summary.toLowerCase().includes(term),
+      )
+      .slice(0, 4);
+    const sigMatches = SIGNALS.filter(
+      (s) =>
+        s.title.toLowerCase().includes(term) ||
+        s.summary.toLowerCase().includes(term) ||
+        s.id.toLowerCase().includes(term),
+    ).slice(0, 4);
+    const bills = Object.values(ENTITIES.bills).filter(
+      (b) =>
+        b.title.toLowerCase().includes(term) || b.ref.toLowerCase().includes(term),
+    );
+    const comm = Object.values(ENTITIES.committees).filter((c) =>
+      c.name.toLowerCase().includes(term),
+    );
+    const mem = Object.values(ENTITIES.members).filter((m) =>
+      m.name.toLowerCase().includes(term),
+    );
+    const feeds = APH_FEEDS.filter((f) => f.name.toLowerCase().includes(term));
 
-  const empty =
-    results &&
-    !results.sig.length &&
-    !results.bills.length &&
-    !results.comm.length &&
-    !results.mem.length &&
-    !results.feeds.length;
+    return [
+      ...liveMatches.map((s) => ({
+        kind: "live" as const,
+        id: `live-${s.id}`,
+        label: s.title,
+        sub: `LIVE · ${s.id}`,
+        action: () => { openSignal(s.id); setOpen(false); },
+      })),
+      ...sigMatches.map((s) => ({
+        kind: "sig" as const,
+        id: `sig-${s.id}`,
+        label: s.title,
+        sub: s.id,
+        action: () => { openSignal(s.id); setOpen(false); },
+      })),
+      ...bills.map((b) => ({
+        kind: "bill" as const,
+        id: `bill-${b.ref}`,
+        label: b.title,
+        sub: b.ref,
+        action: () => { openModal({ kind: "bill", id: b.ref }); setOpen(false); },
+      })),
+      ...comm.map((c) => ({
+        kind: "comm" as const,
+        id: `comm-${c.id}`,
+        label: c.name,
+        sub: c.chamber,
+        action: () => { openModal({ kind: "committee", id: c.id }); setOpen(false); },
+      })),
+      ...mem.map((m) => ({
+        kind: "mem" as const,
+        id: `mem-${m.id}`,
+        label: m.name,
+        sub: m.party,
+        action: () => { openModal({ kind: "member", id: m.id }); setOpen(false); },
+      })),
+      ...feeds.slice(0, 4).map((f) => ({
+        kind: "feed" as const,
+        id: `feed-${f.id}`,
+        label: f.name,
+        sub: f.group,
+        action: () => { openModal({ kind: "feed", id: f.id }); setOpen(false); },
+      })),
+    ];
+  }, [q, liveSignals, openSignal, openModal]);
+
+  useEffect(() => { setActiveIdx(0); }, [q]);
+
+  const empty = q.trim().length > 0 && flat.length === 0;
+
+  const onInputKey = (e: React.KeyboardEvent<HTMLInputElement>): void => {
+    if (flat.length === 0) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIdx((i) => (i + 1) % flat.length);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIdx((i) => (i - 1 + flat.length) % flat.length);
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      flat[activeIdx]?.action();
+    }
+  };
+
+  const topLiveHighId =
+    liveSignals.find((s) => s.attention === "high")?.id ??
+    liveSignals[0]?.id ??
+    null;
 
   return (
     <div className="topbar">
@@ -80,117 +153,43 @@ export function Topbar(): JSX.Element {
             setOpen(true);
           }}
           onFocus={() => setOpen(true)}
-          placeholder="Search signals, bills, committees, members, feeds..."
+          onKeyDown={onInputKey}
+          role="combobox"
+          aria-expanded={open && flat.length > 0}
+          aria-controls="search-results"
+          aria-activedescendant={flat[activeIdx]?.id}
+          aria-autocomplete="list"
+          placeholder="Search live + sample signals, bills, committees, members, feeds..."
           aria-label="Global search"
         />
         <span className="kbd" aria-hidden="true">
           Ctrl+K
         </span>
-        {open && results && (
-          <div className="search-results" role="listbox">
-            {results.sig.length > 0 && (
-              <>
-                <div className="sr-group">Signals</div>
-                {results.sig.slice(0, 4).map((s) => (
-                  <button
-                    key={s.id}
-                    type="button"
-                    className="sr-item"
-                    onClick={() => {
-                      openSignal(s.id);
-                      setOpen(false);
-                    }}
-                  >
-                    <span className="k">{s.id}</span>
-                    <span>{s.title}</span>
-                  </button>
-                ))}
-              </>
-            )}
-            {results.bills.length > 0 && (
-              <>
-                <div className="sr-group">Bills</div>
-                {results.bills.map((b) => (
-                  <button
-                    key={b.ref}
-                    type="button"
-                    className="sr-item"
-                    onClick={() => {
-                      openModal({ kind: "bill", id: b.ref });
-                      setOpen(false);
-                    }}
-                  >
-                    <span className="k">{b.ref}</span>
-                    <span>{b.title}</span>
-                  </button>
-                ))}
-              </>
-            )}
-            {results.comm.length > 0 && (
-              <>
-                <div className="sr-group">Committees</div>
-                {results.comm.map((c) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    className="sr-item"
-                    onClick={() => {
-                      openModal({ kind: "committee", id: c.id });
-                      setOpen(false);
-                    }}
-                  >
-                    <span className="k">{c.chamber}</span>
-                    <span>{c.name}</span>
-                  </button>
-                ))}
-              </>
-            )}
-            {results.mem.length > 0 && (
-              <>
-                <div className="sr-group">Members</div>
-                {results.mem.map((m) => (
-                  <button
-                    key={m.id}
-                    type="button"
-                    className="sr-item"
-                    onClick={() => {
-                      openModal({ kind: "member", id: m.id });
-                      setOpen(false);
-                    }}
-                  >
-                    <span className="k">{m.party}</span>
-                    <span>{m.name}</span>
-                  </button>
-                ))}
-              </>
-            )}
-            {results.feeds.length > 0 && (
-              <>
-                <div className="sr-group">Sources</div>
-                {results.feeds.slice(0, 4).map((f) => (
-                  <button
-                    key={f.id}
-                    type="button"
-                    className="sr-item"
-                    onClick={() => {
-                      openModal({ kind: "feed", id: f.id });
-                      setOpen(false);
-                    }}
-                  >
-                    <span className="k">{f.group}</span>
-                    <span>{f.name}</span>
-                  </button>
-                ))}
-              </>
-            )}
-            {empty && (
-              <div
+        {open && flat.length > 0 && (
+          <div id="search-results" className="search-results" role="listbox">
+            {flat.map((item, i) => (
+              <button
+                key={item.id}
+                id={item.id}
+                type="button"
+                role="option"
+                aria-selected={i === activeIdx}
                 className="sr-item"
-                style={{ color: "var(--ink-3)", cursor: "default" }}
+                style={i === activeIdx ? { background: "#ffffff08" } : undefined}
+                onClick={item.action}
+                onMouseEnter={() => setActiveIdx(i)}
               >
-                No matches for "{q}"
-              </div>
-            )}
+                <span className="k">{item.sub}</span>
+                <span>{item.label}</span>
+              </button>
+            ))}
+          </div>
+        )}
+        {open && empty && (
+          <div id="search-results" className="search-results" role="listbox">
+            <div className="sr-item" style={{ color: "var(--ink-3)", cursor: "default" }}>
+              No matches for "{q}"
+            </div>
           </div>
         )}
       </div>
@@ -232,7 +231,15 @@ export function Topbar(): JSX.Element {
         <button
           type="button"
           className="btn primary sm"
-          onClick={() => toast("Brief generator opened", "brass")}
+          disabled={!topLiveHighId}
+          title={
+            topLiveHighId
+              ? "Open print-ready brief for the top live signal"
+              : "Waiting for live signals"
+          }
+          onClick={() => {
+            if (topLiveHighId) openBrief(topLiveHighId);
+          }}
         >
           <Icon name="plus" size={13} /> New brief
         </button>

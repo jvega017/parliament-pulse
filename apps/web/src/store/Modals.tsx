@@ -736,8 +736,13 @@ function FeedDetail({ id }: { id: string }): JSX.Element {
 }
 
 function WatchlistDetail({ name }: { name: string }): JSX.Element {
-  const w = WATCHLISTS.find((x) => x.name === name);
-  const { closeModal, toast } = useStore();
+  const { closeModal, toast, state, updateWatchlistTerms } = useStore();
+  // User-created watchlists take precedence over fixture ones of the same name.
+  const w =
+    state.watchlistCreated.find((x) => x.name === name) ??
+    WATCHLISTS.find((x) => x.name === name);
+  const userOwned = state.watchlistCreated.some((x) => x.name === name);
+  const [termsInput, setTermsInput] = useState(w?.terms.join(", ") ?? "");
   if (!w) {
     return <ModalHead kicker="Watchlist" title="Not found" onClose={closeModal} />;
   }
@@ -778,6 +783,74 @@ function WatchlistDetail({ name }: { name: string }): JSX.Element {
             </div>
           </div>
         </div>
+        <Section title="Terms used for live scoring">
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 6,
+              marginBottom: 10,
+            }}
+          >
+            {w.terms.length === 0 ? (
+              <span className="empty" style={{ padding: 0 }}>
+                No terms configured yet.
+              </span>
+            ) : (
+              w.terms.map((t, i) => (
+                <span key={i} className="tag brass">
+                  {t}
+                </span>
+              ))
+            )}
+          </div>
+          {userOwned ? (
+            <>
+              <label
+                className="mono"
+                htmlFor="watchlist-terms"
+                style={{
+                  fontSize: 10.5,
+                  color: "var(--ink-3)",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.14em",
+                }}
+              >
+                Edit terms (comma-separated)
+              </label>
+              <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                <input
+                  id="watchlist-terms"
+                  value={termsInput}
+                  onChange={(e) => setTermsInput(e.target.value)}
+                  className="search"
+                  style={{ flex: 1, padding: "7px 10px" }}
+                />
+                <button
+                  type="button"
+                  className="btn primary"
+                  onClick={() => {
+                    const terms = termsInput
+                      .split(",")
+                      .map((t) => t.trim().toLowerCase())
+                      .filter(Boolean);
+                    updateWatchlistTerms(w.name, terms);
+                  }}
+                >
+                  Save terms
+                </button>
+              </div>
+            </>
+          ) : (
+            <div
+              style={{ fontSize: 12, color: "var(--ink-3)", fontStyle: "italic" }}
+            >
+              Fixture watchlist; edit in <code>data/fixtures.ts</code> or copy
+              to a user watchlist to customise.
+            </div>
+          )}
+        </Section>
+
         <Section title="Matching signals">
           {matches.length === 0 && <div className="empty">No recent matches.</div>}
           {matches.map((s) => (
@@ -814,10 +887,11 @@ function WatchlistDetail({ name }: { name: string }): JSX.Element {
         </button>
         <button
           type="button"
-          className="btn"
-          onClick={() => toast("Configuration saved")}
+          className="btn ghost"
+          style={{ marginLeft: "auto" }}
+          onClick={closeModal}
         >
-          Edit
+          Close
         </button>
       </div>
     </>

@@ -128,9 +128,8 @@ function matchChamber(entry: YtEntry, chamber: YtChamber): boolean {
   const t = entry.title.toLowerCase();
   switch (chamber) {
     case "house":
-      return /house of representatives/.test(t);
+      return /house of representatives|\bhor\b|\bhouse\b/.test(t) && !/senate/.test(t);
     case "senate":
-      // Match "senate" as a whole word/phrase to avoid false-positive on words like "senator"
       return /\bsenate\b/.test(t) && !/federation/.test(t);
     case "federation":
       return /federation chamber/.test(t);
@@ -151,7 +150,9 @@ export async function resolveLiveVideo(
     if (entries.length === 0) return null;
 
     entries.sort((a, b) => b.published.getTime() - a.published.getTime());
-    const match = entries.find((e) => matchChamber(e, chamber)) ?? entries[0];
+    // Strict chamber match — never fall back to an unrelated chamber's stream.
+    // The caller renders a clear "no recent stream" state when we return null.
+    const match = entries.find((e) => matchChamber(e, chamber));
     if (!match) return null;
     return { videoId: match.videoId, title: match.title, publishedAt: match.published };
   } catch (err) {

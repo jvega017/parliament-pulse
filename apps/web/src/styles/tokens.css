@@ -32,6 +32,15 @@
   --escalate: #d06a5e;
   --ok: #6fb085;
 
+  /* Extended brass tints used in gradient and border contexts */
+  --brass-border: #8f7648;
+  --brass-tint-bg: #e093591a;
+  --brass-tint-border: #e0935955;
+
+  /* High-attention surface — darker, more saturated red for AA body contrast */
+  --escalate-bg: #3a161222;
+  --escalate-border: #d06a5e60;
+
   --r-sm: 4px;
   --r: 8px;
   --r-lg: 14px;

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Sidebar } from "./shell/Sidebar";
 import { Topbar } from "./shell/Topbar";
 import { Drawer } from "./shell/Drawer";
@@ -16,6 +16,7 @@ import { PageWatchlists } from "./pages/PageWatchlists";
 import { PageRadar } from "./pages/PageRadar";
 import { PageSources } from "./pages/PageSources";
 import { useLiveSignals } from "./lib/useLiveSignals";
+import { WATCHLISTS } from "./data/fixtures";
 import { useStore } from "./store/useStore";
 
 export function App(): JSX.Element {
@@ -45,10 +46,15 @@ export function App(): JSX.Element {
 
 function LiveSignalsPump(): null {
   // Single app-wide poll pushed into the store so every page reads from
-  // the same live-signal list. Mounted inside StoreProvider so useStore works.
+  // the same live-signal list. User watchlists merged with fixture watchlists
+  // so user-created ones actually contribute to scoring.
   const apiBase = import.meta.env.VITE_API_BASE ?? "";
-  const { signals, loading, feedResult } = useLiveSignals(apiBase);
-  const { setLiveSignals } = useStore();
+  const { state, setLiveSignals } = useStore();
+  const mergedWatchlists = useMemo(
+    () => [...WATCHLISTS, ...state.watchlistCreated],
+    [state.watchlistCreated],
+  );
+  const { signals, loading, feedResult } = useLiveSignals(apiBase, mergedWatchlists);
   useEffect(() => {
     setLiveSignals(signals, loading, feedResult);
   }, [signals, loading, feedResult, setLiveSignals]);

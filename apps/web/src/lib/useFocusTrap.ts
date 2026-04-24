@@ -18,8 +18,8 @@ const FOCUSABLE_SELECTOR = [
  *
  * Call with `active=true` while the dialog / drawer is open.
  */
-export function useFocusTrap(
-  containerRef: RefObject<HTMLElement | null>,
+export function useFocusTrap<T extends HTMLElement>(
+  containerRef: RefObject<T | null>,
   active: boolean,
 ): void {
   useEffect(() => {
