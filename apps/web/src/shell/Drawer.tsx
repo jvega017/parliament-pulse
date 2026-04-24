@@ -1,0 +1,475 @@
+import { useEffect, useMemo, useState } from "react";
+import { Icon } from "../icons";
+import { useStore } from "../store/Store";
+import { SIGNALS } from "../data/fixtures";
+import { ENTITIES } from "../data/entities";
+import { Att, Conf } from "./common";
+
+const FEEDBACK_LABELS = [
+  "Correct priority",
+  "Too high",
+  "Too low",
+  "Wrong topic",
+  "Wrong portfolio",
+  "Duplicate",
+  "Noise",
+  "Needs human review",
+];
+
+const SCORE_LABELS: Record<string, string> = {
+  authority: "Source authority",
+  portfolio: "Portfolio relevance",
+  novelty: "Novelty",
+  momentum: "Momentum",
+  time: "Time sensitivity",
+  scrutiny: "Scrutiny relevance",
+  ops: "Operational impact",
+};
+
+export function Drawer(): JSX.Element {
+  const {
+    signalId,
+    closeSignal,
+    state,
+    saveFeedback,
+    archive,
+    generateBrief,
+    addWatchlist,
+    saveNote,
+    openModal,
+  } = useStore();
+
+  const signal = useMemo(() => SIGNALS.find((s) => s.id === signalId) ?? null, [
+    signalId,
+  ]);
+
+  const [fb, setFb] = useState<string | null>(null);
+  const [note, setNote] = useState("");
+
+  useEffect(() => {
+    if (!signalId) return;
+    setFb(state.feedback[signalId]?.label ?? null);
+    setNote(state.notes[signalId] ?? "");
+  }, [signalId, state.feedback, state.notes]);
+
+  const on = !!signal;
+
+  return (
+    <>
+      <div
+        className={`drawer-back${on ? " on" : ""}`}
+        onClick={closeSignal}
+        aria-hidden="true"
+      />
+      <aside
+        className={`drawer${on ? " on" : ""}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="drawer-title"
+        aria-hidden={!on}
+      >
+        {signal && (
+          <>
+            <div className="drawer-head">
+              <div>
+                <div
+                  className="mono"
+                  style={{
+                    fontSize: 10.5,
+                    color: "var(--ink-3)",
+                    letterSpacing: "0.16em",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  {signal.id} · {signal.date}
+                </div>
+                <div
+                  id="drawer-title"
+                  className="serif"
+                  style={{
+                    fontSize: 20,
+                    marginTop: 4,
+                    maxWidth: 460,
+                    lineHeight: 1.25,
+                  }}
+                >
+                  {signal.title}
+                </div>
+              </div>
+              <button
+                type="button"
+                className="btn ghost sm"
+                style={{ marginLeft: "auto" }}
+                onClick={closeSignal}
+                aria-label="Close signal drawer"
+              >
+                <Icon name="close" size={14} />
+              </button>
+            </div>
+
+            <div className="drawer-body">
+              <div className="drawer-section">
+                <h4>Summary</h4>
+                <p>{signal.summary}</p>
+              </div>
+
+              <div className="drawer-section">
+                <h4>Signal metadata</h4>
+                <dl className="kv">
+                  <dt>Source</dt>
+                  <dd>{signal.source}</dd>
+                  <dt>Source group</dt>
+                  <dd>{signal.sourceGroup}</dd>
+                  <dt>Authority</dt>
+                  <dd>{signal.sourceAuthority}</dd>
+                  <dt>Attention</dt>
+                  <dd>
+                    <Att level={signal.attention} />
+                  </dd>
+                  <dt>Confidence</dt>
+                  <dd>
+                    <Conf n={signal.confidence} />
+                    <span
+                      style={{
+                        color: "var(--ink-3)",
+                        marginLeft: 8,
+                        fontFamily: "var(--mono)",
+                        fontSize: 11,
+                      }}
+                    >
+                      {signal.confidence}/5
+                    </span>
+                  </dd>
+                  <dt>Human review</dt>
+                  <dd>{signal.humanReview}</dd>
+                </dl>
+              </div>
+
+              <div className="drawer-section">
+                <h4>Why it matters</h4>
+                <p>{signal.attentionReason}</p>
+              </div>
+
+              <div className="drawer-section">
+                <h4>Recommended action</h4>
+                <div
+                  style={{
+                    padding: "12px 14px",
+                    border: "1px solid #e0935944",
+                    borderRadius: 8,
+                    background: "#e093590d",
+                  }}
+                >
+                  <div style={{ fontWeight: 600, color: "var(--brass)" }}>
+                    {signal.action}
+                  </div>
+                  <div
+                    style={{ color: "var(--ink-2)", fontSize: 13, marginTop: 4 }}
+                  >
+                    {signal.actionReason}
+                  </div>
+                </div>
+              </div>
+
+              <div className="drawer-section">
+                <h4>Attention score breakdown</h4>
+                {Object.entries(signal.score).map(([k, v]) => (
+                  <div
+                    key={k}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "160px 1fr 40px",
+                      gap: 10,
+                      alignItems: "center",
+                      padding: "4px 0",
+                    }}
+                  >
+                    <div style={{ fontSize: 12.5, color: "var(--ink-2)" }}>
+                      {SCORE_LABELS[k] ?? k}
+                    </div>
+                    <div className="bar">
+                      <div className="fill" style={{ width: `${v * 100}%` }} />
+                    </div>
+                    <div
+                      className="mono"
+                      style={{
+                        fontSize: 11,
+                        color: "var(--ink-3)",
+                        textAlign: "right",
+                      }}
+                    >
+                      {Math.round(v * 100)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="drawer-section">
+                <h4>Evidence · open the actual source</h4>
+                {signal.evidence.map((e, i) => (
+                  <a
+                    key={i}
+                    href={e.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      padding: "10px 12px",
+                      border: "1px solid var(--line-2)",
+                      borderRadius: 8,
+                      color: "var(--ink)",
+                      textDecoration: "none",
+                      marginBottom: 6,
+                      fontSize: 13,
+                    }}
+                  >
+                    <Icon name="link" size={14} stroke="var(--teal)" />
+                    <span>{e.label}</span>
+                    <span
+                      className="mono"
+                      style={{
+                        color: "var(--ink-3)",
+                        fontSize: 11,
+                        marginLeft: "auto",
+                        maxWidth: 240,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {e.url.replace(/^https?:\/\//, "")}
+                    </span>
+                    <Icon name="ext" size={12} stroke="var(--ink-3)" />
+                  </a>
+                ))}
+              </div>
+
+              {signal.provenance.length > 0 && (
+                <div className="drawer-section">
+                  <h4>Provenance · how this signal was produced</h4>
+                  <div
+                    style={{
+                      border: "1px solid var(--line-2)",
+                      borderRadius: 8,
+                      overflow: "hidden",
+                    }}
+                  >
+                    {signal.provenance.map((p, i) => (
+                      <div
+                        key={i}
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "78px 90px 1fr",
+                          gap: 10,
+                          padding: "8px 12px",
+                          fontSize: 12,
+                          borderBottom:
+                            i < signal.provenance.length - 1
+                              ? "1px solid var(--line)"
+                              : 0,
+                          background: i % 2 ? "#ffffff03" : "transparent",
+                        }}
+                      >
+                        <div
+                          className="mono"
+                          style={{ color: "var(--ink-3)", fontSize: 10.5 }}
+                        >
+                          {p.ts}
+                        </div>
+                        <div>
+                          <span
+                            className="tag"
+                            style={{ fontSize: 10.5, padding: "1px 6px" }}
+                          >
+                            {p.by}
+                          </span>
+                        </div>
+                        <div style={{ color: "var(--ink-2)" }}>{p.event}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {signal.updates.length > 0 && (
+                <div className="drawer-section">
+                  <h4>Updates to this signal · who / what / when</h4>
+                  {signal.updates.map((u, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "60px 140px 1fr",
+                        gap: 10,
+                        padding: "8px 0",
+                        borderBottom:
+                          i < signal.updates.length - 1
+                            ? "1px solid var(--line)"
+                            : 0,
+                        fontSize: 12.5,
+                      }}
+                    >
+                      <div
+                        className="mono"
+                        style={{ color: "var(--ink-3)", fontSize: 11 }}
+                      >
+                        {u.ts}
+                      </div>
+                      <div style={{ color: "var(--brass)" }}>{u.who}</div>
+                      <div style={{ color: "var(--ink-2)" }}>{u.what}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {signal.members.length > 0 && (
+                <div className="drawer-section">
+                  <h4>People referenced</h4>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {signal.members.map((mid) => {
+                      const m = ENTITIES.members[mid];
+                      if (!m) return null;
+                      return (
+                        <button
+                          key={mid}
+                          type="button"
+                          className="tag brass clk"
+                          onClick={() => openModal({ kind: "member", id: mid })}
+                        >
+                          {m.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              <div className="drawer-section">
+                <h4>Analyst note</h4>
+                <textarea
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  onBlur={() => saveNote(signal.id, note)}
+                  placeholder="Private notes (auto-saved)"
+                  rows={3}
+                  style={{
+                    width: "100%",
+                    background: "var(--panel)",
+                    border: "1px solid var(--line-2)",
+                    borderRadius: 8,
+                    color: "var(--ink)",
+                    padding: "8px 10px",
+                    fontFamily: "var(--sans)",
+                    fontSize: 13,
+                    resize: "vertical",
+                  }}
+                />
+              </div>
+
+              <div className="drawer-section">
+                <h4>Analyst feedback · is this right?</h4>
+                <div className="feedback-row">
+                  {FEEDBACK_LABELS.map((l) => (
+                    <button
+                      key={l}
+                      type="button"
+                      className={`fb${fb === l ? " on" : ""}`}
+                      onClick={() => {
+                        setFb(l);
+                        saveFeedback(signal.id, l);
+                      }}
+                    >
+                      {l === "Correct priority" && (
+                        <Icon
+                          name="check"
+                          size={12}
+                          style={{ marginRight: 6, verticalAlign: "-2px" }}
+                        />
+                      )}
+                      {l}
+                    </button>
+                  ))}
+                </div>
+                {fb && fb !== "Correct priority" && (
+                  <div
+                    style={{
+                      marginTop: 10,
+                      padding: "10px 12px",
+                      background: "#ffffff04",
+                      border: "1px dashed var(--line-2)",
+                      borderRadius: 8,
+                      fontSize: 12.5,
+                      color: "var(--ink-2)",
+                    }}
+                  >
+                    <div
+                      className="mono"
+                      style={{
+                        fontSize: 10.5,
+                        color: "var(--ink-3)",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.14em",
+                      }}
+                    >
+                      Learning applied
+                    </div>
+                    <div style={{ marginTop: 4 }}>
+                      {signal.source} · similar items · portfolio mapping adjusted
+                    </div>
+                  </div>
+                )}
+                {fb === "Correct priority" && (
+                  <div style={{ marginTop: 10, color: "var(--ok)", fontSize: 12.5 }}>
+                    <Icon
+                      name="check"
+                      size={13}
+                      style={{ verticalAlign: "-2px", marginRight: 4 }}
+                    />
+                    Logged. Weights retained.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="drawer-foot">
+              <button
+                type="button"
+                className="btn primary"
+                onClick={() => generateBrief(signal.id, "Executive brief")}
+              >
+                <Icon name="brief" size={13} /> Generate brief
+              </button>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => addWatchlist(signal.id)}
+              >
+                <Icon name="watch" size={13} /> Watchlist
+              </button>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => {
+                  archive(signal.id);
+                  closeSignal();
+                }}
+              >
+                Archive
+              </button>
+              <button
+                type="button"
+                className="btn ghost"
+                style={{ marginLeft: "auto" }}
+                onClick={closeSignal}
+              >
+                Close
+              </button>
+            </div>
+          </>
+        )}
+      </aside>
+    </>
+  );
+}
