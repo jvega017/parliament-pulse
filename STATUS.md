@@ -1,13 +1,12 @@
 # Parliament Pulse — Service Status
 
-This page documents what is live, what is deferred, and the data integrity
-guarantees behind every surface in the app. Last updated 2026-04-25.
+Last updated 2026-04-25 (Wave 11). Live infrastructure state:
+[`/?page=status`](https://parliament-pulse.pages.dev/?page=status).
 
 ## Live data sources
 
 All data on the production site is pulled from official APH endpoints
-through the `aph-proxy` Cloudflare Worker. There are no fabricated
-records.
+through the `aph-proxy` Cloudflare Worker. No fabricated records.
 
 | Surface | Data source | Refresh |
 |---|---|---|
@@ -17,41 +16,74 @@ records.
 | Briefings queue | Derived from live signals, ranked by attention | Per poll |
 | Today in chamber | Live signals filtered by source label | Per poll |
 | Committees · activity | Live signals filtered by kind=inquiry/hearing/report | Per poll |
-| Committees · directory | Verified APH committee names + canonical URLs | Static |
-| Watchlists | User keyword sets, matched against live RSS titles | Per poll |
-| Sources | The five APH endpoints we poll, with live status from `feedStatus` | Per poll |
-| QON patterns | Empty until Hansard QON ingest lands | n/a |
+| Committees · directory | 10 verified APH committee names + canonical URLs | Static |
+| Watchlists | Keyword sets matched against live RSS titles | Per poll |
+| Sources | Real feed status from `liveFeedResult.feedStatus` | Per poll |
+| Archive | D1 archive of every poll observation | Cron every 30 min |
+| Status | Worker `/healthz`, connector check D1, digest signups | On load |
 
-## Deferred ingests
+## Backend (D1 + cron, Worker `aph-proxy`)
 
-These surfaces show empty states with deep links to the canonical APH page
-until the corresponding ingest is built. None of them carry fabricated
-data.
+| Job | Cron | Job |
+|---|---|---|
+| Archive poll | `*/30 * * * *` | Reads each APH RSS, upserts into `signals` table by guid |
+| Connector verify | `0 0 */14 * *` | Pings the 12 canonical APH URLs, writes to `connector_checks` |
+| Hansard QON ingest | `0 19 * * *` | ParlInfo full-text scrape into `qons` (skeleton; richer NER pending) |
+| Digest delivery | `0 19 * * *` | SendGrid email to subscribers with last 24h items (gated by SENDGRID_API_KEY) |
+
+## Activation checklist
+
+The following one-time steps activate the backend:
+
+```
+# Create D1 archive
+wrangler d1 create parliament-pulse-archive
+# replace database_id in workers/aph-proxy/wrangler.toml with the printed value
+
+# Apply schema
+wrangler d1 migrations apply parliament-pulse-archive --remote
+
+# (optional) Activate digest delivery
+wrangler secret put SENDGRID_API_KEY
+wrangler secret put DIGEST_FROM_EMAIL
+
+# (optional) Activate Sentry
+# add VITE_SENTRY_DSN to apps/web/.env.production and rebuild
+
+# (optional) Activate Cloudflare Access on /archive
+# see docs/cloudflare-access.md, then set Worker var REQUIRE_ACCESS=true
+```
+
+## Deferred ingest surfaces
 
 | Surface | Why deferred | CTA target |
 |---|---|---|
-| Bills detail | Bills Search ingest not built | `aph.gov.au/Parliamentary_Business/Bills_Legislation` |
-| Member detail | Senators and Members roster ingest not built | `aph.gov.au/Senators_and_Members` |
-| Minister detail | Ministry list ingest not built | `pmc.gov.au/government/ministries` |
-| Divisions | Division feeds dormant on APH | `parlinfo.aph.gov.au` |
-| QON pattern engine | Hansard QON ingest not built | ParlInfo full-text |
+| Bills detail | Bills Search ingest not built | aph.gov.au/Parliamentary_Business/Bills_Legislation |
+| Member detail | Senators and Members roster ingest not built | aph.gov.au/Senators_and_Members |
+| Minister detail | Ministry list ingest not built | pmc.gov.au/government/ministries |
+| Divisions | APH division feeds dormant | parlinfo.aph.gov.au |
+| Hansard QON pattern engine | Skeleton ingest live; richer NER pending | ParlInfo |
 
-## Connector audit
+## Frontend services
 
-The 12 APH connector URLs surfaced on the Live page were last verified to
-resolve against the live site on 2026-04-24. They are re-checked manually
-each fortnight; failures are caught by the worker `/healthz` probe and the
-Topbar source-health chip.
+* PWA: manifest + service worker for offline shell
+* Theme: dark / light, system-aware default, persisted in localStorage
+* Sentry: opt-in via `VITE_SENTRY_DSN`; falls back to console-only handler
+* Smoke: Playwright suite in `e2e/`, runs against production on every push to main
+* Confirm modal: replaces native `window.confirm`
 
 ## Worker
 
 * Endpoint: `https://aph-proxy.jvega019.workers.dev`
-* Health: `/healthz`
-* Allowlist: `www.aph.gov.au`, `aph.gov.au`, `parlinfo.aph.gov.au`,
-  `parlwork.aph.gov.au`, `www.youtube.com`
+* Health: `/healthz`, `/healthz/connectors`
+* Archive: `/archive`, `/archive/analytics`
+* Digest: `POST /digest/subscribe`
+* Allowlist for `/rss?u=`: `www.aph.gov.au`, `aph.gov.au`,
+  `parlinfo.aph.gov.au`, `parlwork.aph.gov.au`, `www.youtube.com`
 * Cache: KV, 5 min TTL per upstream URL
+* Storage: D1 `parliament-pulse-archive`
 
 ## Versioning
 
-The app version is read at build time from `apps/web/package.json` and
-shown in the DemoBanner footer alongside the deployed commit SHA.
+The app version is read at build time from `apps/web/package.json` and shown
+in the DemoBanner footer. Status page shows both frontend and Worker version.

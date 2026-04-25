@@ -8,6 +8,17 @@ export interface Toast {
   kind: "ok" | "brass" | "warn";
 }
 
+export interface ConfirmOptions {
+  confirmLabel?: string;
+  cancelLabel?: string;
+  destructive?: boolean;
+  title?: string;
+}
+
+export interface ConfirmRequest extends ConfirmOptions {
+  msg: string;
+}
+
 export interface StoreValue {
   state: PersistedState;
   toasts: Toast[];
@@ -44,6 +55,10 @@ export interface StoreValue {
   toggleShortcuts: () => void;
   density: "comfortable" | "compact";
   setDensity: (d: "comfortable" | "compact") => void;
+
+  confirmRequest: ConfirmRequest | null;
+  confirm: (msg: string, options?: ConfirmOptions) => Promise<boolean>;
+  resolveConfirm: (ok: boolean) => void;
 
   assignOwner: (entityId: string, owner: string) => void;
   saveFeedback: (signalId: string, label: string, reason?: string) => void;

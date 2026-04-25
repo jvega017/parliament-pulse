@@ -44,6 +44,18 @@ body::before {
   body::before { display: none; }
 }
 
+/* Light-theme body: replace dark radial-gradient stack with a soft warm wash. */
+html[data-theme="light"] body {
+  background:
+    radial-gradient(1600px 900px at 12% -10%, #f4ece1 0%, transparent 50%),
+    radial-gradient(1100px 700px at 92% 105%, #f5e4d8 0%, transparent 55%),
+    var(--bg);
+}
+html[data-theme="light"] body::before {
+  opacity: 0.18;
+  mix-blend-mode: multiply;
+}
+
 ::selection {
   background: var(--brass);
   color: var(--brass-ink);

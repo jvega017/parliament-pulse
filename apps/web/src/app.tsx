@@ -16,6 +16,11 @@ import { PageBriefings } from "./pages/PageBriefings";
 import { PageWatchlists } from "./pages/PageWatchlists";
 import { PageRadar } from "./pages/PageRadar";
 import { PageSources } from "./pages/PageSources";
+import { PageArchive } from "./pages/PageArchive";
+import { PageStatus } from "./pages/PageStatus";
+import { initSentry } from "./lib/observability";
+import { ThemeBoot } from "./shell/ThemeBoot";
+import { ConfirmDialog } from "./shell/ConfirmDialog";
 import { useLiveSignals } from "./lib/useLiveSignals";
 import { WATCHLISTS } from "./data/fixtures";
 import { useStore } from "./store/useStore";
@@ -25,6 +30,9 @@ function readPageParam(): string {
   return new URLSearchParams(window.location.search).get("page") ?? "overview";
 }
 
+// Initialise Sentry early. No-op if VITE_SENTRY_DSN is not set.
+initSentry();
+
 export function App(): JSX.Element {
   const [page, setPage] = useState<string>(readPageParam);
 
@@ -33,6 +41,7 @@ export function App(): JSX.Element {
       <a href="#main-content" className="skip-link">
         Skip to main content
       </a>
+      <ThemeBoot />
       <LiveSignalsPump />
       <GlobalShortcuts setPage={setPage} />
       <div className="app">
@@ -47,6 +56,7 @@ export function App(): JSX.Element {
         <DetailModal />
         <BriefPrint />
         <ShortcutsHelp />
+        <ConfirmDialog />
       </div>
     </StoreProvider>
   );
@@ -63,6 +73,8 @@ const NAV_SHORTCUTS: Record<string, string> = {
   q: "patterns",
   w: "watchlists",
   s: "sources",
+  a: "archive",
+  t: "status",
 };
 
 function GlobalShortcuts({ setPage }: { setPage: (p: string) => void }): null {
@@ -154,6 +166,10 @@ function PageSwitch({ page }: { page: string }): JSX.Element {
       return <PageLive />;
     case "sources":
       return <PageSources />;
+    case "archive":
+      return <PageArchive />;
+    case "status":
+      return <PageStatus />;
     case "committees":
       return <PageCommittees />;
     case "bills":

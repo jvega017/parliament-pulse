@@ -3,6 +3,7 @@ import { Icon } from "../icons";
 import { useStore } from "../store/useStore";
 import { APH_FEEDS, SIGNALS } from "../data/fixtures";
 import { ENTITIES } from "../data/entities";
+import { applyTheme, readTheme } from "./theme";
 
 export function Topbar(): JSX.Element {
   const {
@@ -32,6 +33,13 @@ export function Topbar(): JSX.Element {
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const [activeIdx, setActiveIdx] = useState(0);
+  const [theme, setTheme] = useState<"dark" | "light">(() => readTheme());
+  const onToggleTheme = (): void => {
+    const next = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    applyTheme(next);
+    if (typeof window !== "undefined") window.localStorage.setItem("pp.theme", next);
+  };
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -296,6 +304,16 @@ export function Topbar(): JSX.Element {
           onClick={() => setDensity(density === "compact" ? "comfortable" : "compact")}
         >
           {density === "compact" ? "Comfy" : "Compact"}
+        </button>
+        <button
+          type="button"
+          className="btn ghost sm"
+          title={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+          aria-label={`Current theme ${theme}. Click to toggle.`}
+          aria-pressed={theme === "light"}
+          onClick={onToggleTheme}
+        >
+          {theme === "dark" ? "Light" : "Dark"}
         </button>
         <button
           type="button"

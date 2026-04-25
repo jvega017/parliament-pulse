@@ -8,7 +8,7 @@ import {
 } from "react";
 import type { Feed, PersistedState, Signal, Watchlist } from "../types";
 import { Icon } from "../icons";
-import { StoreContext, type StoreValue, type Toast } from "./context";
+import { StoreContext, type ConfirmOptions, type ConfirmRequest, type StoreValue, type Toast } from "./context";
 
 const STORAGE_KEY = "pp-state-v1";
 
@@ -93,6 +93,24 @@ export function StoreProvider({
     return v === "compact" ? "compact" : "comfortable";
   });
   const toastSeq = useRef(0);
+  const [confirmRequest, setConfirmRequest] = useState<ConfirmRequest | null>(null);
+  const confirmResolverRef = useRef<((ok: boolean) => void) | null>(null);
+  const confirmFn = useCallback(
+    (msg: string, options?: ConfirmOptions): Promise<boolean> => {
+      return new Promise<boolean>((resolve) => {
+        // If a previous confirm is somehow still open, resolve it false first.
+        confirmResolverRef.current?.(false);
+        confirmResolverRef.current = resolve;
+        setConfirmRequest({ msg, ...(options ?? {}) });
+      });
+    },
+    [],
+  );
+  const resolveConfirm = useCallback((ok: boolean) => {
+    confirmResolverRef.current?.(ok);
+    confirmResolverRef.current = null;
+    setConfirmRequest(null);
+  }, []);
 
   useEffect(() => {
     persistState(state);
@@ -322,6 +340,9 @@ export function StoreProvider({
       deleteWatchlist,
       density,
       setDensity,
+      confirmRequest,
+      confirm: confirmFn,
+      resolveConfirm,
       assignOwner,
       saveFeedback,
       archive,
@@ -348,6 +369,9 @@ export function StoreProvider({
       mobileNavOpen,
       shortcutsOpen,
       density,
+      confirmRequest,
+      confirmFn,
+      resolveConfirm,
       toast,
       openModal,
       closeModal,

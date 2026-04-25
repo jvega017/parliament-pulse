@@ -1,0 +1,42 @@
+name: E2E Smoke
+
+# Runs the Playwright smoke suite against production after every push to main.
+# Catches regressions like the Wave 10 [Sample] strip without requiring a
+# full local install.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    name: Playwright smoke against parliament-pulse.pages.dev
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm --filter e2e exec playwright install --with-deps chromium
+
+      - name: Wait 60s for Pages to redeploy
+        run: sleep 60
+
+      - name: Run smoke
+        run: pnpm --filter e2e test
+        env:
+          BASE_URL: https://parliament-pulse.pages.dev

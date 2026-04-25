@@ -116,3 +116,74 @@
   --serif: "Fraunces", Georgia, serif;
   --mono: "JetBrains Mono", ui-monospace, monospace;
 }
+
+/* Light theme overrides. Applied via html[data-theme="light"] from ThemeBoot.
+   Surfaces invert to a warm off-white; ink ramp inverts; brass and teal
+   accents stay close to their dark-mode value but slightly desaturated for
+   AA contrast against the lighter surfaces. */
+html[data-theme="light"] {
+  --bg-deep: #f7f5f0;
+  --bg: #fbfaf6;
+  --bg-2: #f3f1ea;
+  --panel: #ffffff;
+  --panel-2: #f7f5ee;
+  --panel-3: #efece3;
+  --panel-hi: #e8e4d8;
+  --panel-glass: #ffffffd0;
+  --surface-inset: #f1eee5;
+  --surface-raised: #ffffff;
+
+  --ink: #16202c;
+  --ink-2: #2c3a4c;
+  --ink-3: #5a6878;
+  --ink-4: #8995a4;
+
+  --line: #00000010;
+  --line-2: #00000018;
+  --line-bright: #00000028;
+  --line-strong: #00000040;
+  --line-panel: #0000001a;
+  --line-side: #00000010;
+
+  --brass: #b86c39;
+  --brass-2: #a85d2c;
+  --brass-3: #d8895a;
+  --brass-soft: #f3dac4;
+  --brass-ink: #fff8f0;
+  --brass-glow: #b86c3938;
+
+  --teal: #2f8576;
+  --teal-2: #56a394;
+  --teal-soft: #cde6df;
+
+  --info: #4a78b1;
+  --caution: #b8862c;
+  --escalate: #b94c40;
+  --ok: #4a8a5a;
+
+  --brass-border: #b86c39;
+  --brass-tint-bg: #b86c391a;
+  --brass-tint-border: #b86c3955;
+
+  --escalate-bg: #b94c4015;
+  --escalate-border: #b94c4055;
+
+  --shadow: 0 1px 0 #00000010, 0 24px 60px -24px #00000028;
+  --shadow-xs: 0 1px 0 #00000014;
+  --shadow-sm: 0 1px 2px #00000018, 0 1px 1px #0000000c;
+  --shadow-md:
+    0 1px 2px #0000001c,
+    0 4px 12px -2px #00000028,
+    inset 0 1px 0 #ffffff;
+  --shadow-lg:
+    0 14px 32px -10px #00000028,
+    0 4px 12px -4px #00000020,
+    inset 0 1px 0 #ffffff;
+  --shadow-xl:
+    0 24px 60px -16px #00000038,
+    0 8px 24px -8px #00000020,
+    inset 0 1px 0 #ffffff;
+  --shadow-glow-brass: 0 0 0 1px #b86c3940, 0 6px 24px -8px #b86c3940;
+  --shadow-inset-line: inset 0 0 0 1px var(--line-2);
+  --shadow-inset-bright: inset 0 0 0 1px var(--line-bright);
+}

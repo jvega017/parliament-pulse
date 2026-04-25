@@ -6,7 +6,7 @@ import { WATCHLISTS } from "../data/fixtures";
 import type { Watchlist } from "../types";
 
 export function PageWatchlists(): JSX.Element {
-  const { openModal, createWatchlist, deleteWatchlist, state, liveSignals } = useStore();
+  const { openModal, createWatchlist, deleteWatchlist, state, liveSignals, confirm } = useStore();
   const [newName, setNewName] = useState("");
   const [newTerms, setNewTerms] = useState("");
   const userWatchlistNames = new Set(state.watchlistCreated.map((w) => w.name));
@@ -106,10 +106,16 @@ export function PageWatchlists(): JSX.Element {
         {isUser && (
           <button
             type="button"
-            onClick={() => {
-              if (confirm(`Delete watchlist "${w.name}"?`)) {
-                deleteWatchlist(w.name);
-              }
+            onClick={async () => {
+              const ok = await confirm(
+                `Delete the "${w.name}" watchlist? This removes the keywords from live scoring; you can recreate it at any time.`,
+                {
+                  title: `Delete "${w.name}"?`,
+                  confirmLabel: "Delete",
+                  destructive: true,
+                },
+              );
+              if (ok) deleteWatchlist(w.name);
             }}
             aria-label={`Delete watchlist ${w.name}`}
             style={{
