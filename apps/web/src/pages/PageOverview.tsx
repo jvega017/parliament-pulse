@@ -44,7 +44,15 @@ function formatAESTDate(d: Date): string {
 }
 
 export function PageOverview(): JSX.Element {
-  const { openModal, state, goto, liveSignals, liveLoading, openBrief } = useStore();
+  const {
+    openModal,
+    state,
+    goto,
+    liveSignals,
+    liveLoading,
+    openBrief,
+    openSignal,
+  } = useStore();
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const id = window.setInterval(() => setNow(new Date()), 30_000);
@@ -181,15 +189,18 @@ export function PageOverview(): JSX.Element {
                 className="clk"
                 style={{ padding: 0, color: "var(--ink)", fontSize: 13 }}
                 onClick={() => {
-                  if (topLiveId) openBrief(topLiveId);
+                  if (topLiveId) openSignal(topLiveId);
                 }}
+                title="Open the signal drawer"
               >
                 {topLiveTitle}
               </button>
             </div>
+          ) : liveLoading ? (
+            <div className="skeleton" style={{ height: 14, width: 220 }} />
           ) : (
             <div style={{ color: "var(--ink-3)" }}>
-              Polling APH feeds for live content...
+              Feeds quiet. Nothing live right now.
             </div>
           )}
         </div>

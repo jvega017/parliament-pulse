@@ -43,7 +43,27 @@
 
   --r-sm: 4px;
   --r: 8px;
-  --r-lg: 14px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-pill: 999px;
+
+  /* Spacing scale on the 4/8 grid for inline-style migrations */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-8: 32px;
+
+  /* z-index ladder so overlays stack predictably */
+  --z-nav: 20;
+  --z-overlay: 40;
+  --z-drawer: 50;
+  --z-modal: 60;
+  --z-toast: 70;
+  --z-brief: 80;
+  --z-skip: 100;
 
   --shadow: 0 1px 0 #00000050, 0 24px 60px -24px #00000080;
 

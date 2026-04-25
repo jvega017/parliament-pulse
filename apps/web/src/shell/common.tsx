@@ -12,7 +12,15 @@ const ATT_LABELS: Record<AttentionLevel, string> = {
 };
 
 export function Att({ level }: AttProps): JSX.Element {
-  return <span className={`att ${level}`}>{ATT_LABELS[level]}</span>;
+  return (
+    <span
+      className={`att ${level}`}
+      title={`Attention ${ATT_LABELS[level]}`}
+      aria-label={`${ATT_LABELS[level]} attention`}
+    >
+      {ATT_LABELS[level]}
+    </span>
+  );
 }
 
 interface ConfProps {
@@ -21,9 +29,14 @@ interface ConfProps {
 
 export function Conf({ n = 3 }: ConfProps): JSX.Element {
   return (
-    <span className="conf" title={`Confidence ${n}/5`}>
+    <span
+      className="conf"
+      title={`Confidence ${n}/5. Driven by watchlist matches and portfolio score.`}
+      aria-label={`Confidence ${n} out of 5`}
+      role="img"
+    >
       {[1, 2, 3, 4, 5].map((i) => (
-        <span key={i} className={i <= n ? "on" : ""} />
+        <span key={i} className={i <= n ? "on" : ""} aria-hidden="true" />
       ))}
     </span>
   );

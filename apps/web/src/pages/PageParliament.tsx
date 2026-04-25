@@ -22,8 +22,8 @@ export function PageParliament(): JSX.Element {
       <DemoBanner />
       <div className="page-head">
         <div>
-          <div className="page-kicker">Parliament</div>
-          <h1 className="page-title">Today in Parliament</h1>
+          <div className="page-kicker">Intelligence</div>
+          <h1 className="page-title">Today in chamber</h1>
           <div className="page-sub">
             Daily program, divisions, and chamber-relevant items from official
             APH feeds.

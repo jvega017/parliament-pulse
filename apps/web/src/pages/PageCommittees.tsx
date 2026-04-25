@@ -71,7 +71,7 @@ export function PageCommittees(): JSX.Element {
       <DemoBanner />
       <div className="page-head">
         <div>
-          <div className="page-kicker">Parliament</div>
+          <div className="page-kicker">Intelligence</div>
           <h1 className="page-title">Committees</h1>
           <div className="page-sub">
             Senate and House committee feeds. Click any row to open the

@@ -110,6 +110,21 @@ export function BriefPrint(): JSX.Element | null {
           </button>
           <button
             type="button"
+            className="btn"
+            title="Copy deep-link to this brief"
+            onClick={() => {
+              const url = new URL(window.location.href);
+              url.searchParams.set("brief", signal.id);
+              navigator.clipboard
+                ?.writeText(url.toString())
+                .then(() => toast("Brief link copied", "brass"))
+                .catch(() => toast("Copy failed"));
+            }}
+          >
+            <Icon name="link" size={13} /> Share link
+          </button>
+          <button
+            type="button"
             className="btn primary"
             onClick={() => window.print()}
           >

@@ -34,6 +34,7 @@ export function App(): JSX.Element {
         Skip to main content
       </a>
       <LiveSignalsPump />
+      <GlobalShortcuts setPage={setPage} />
       <div className="app">
         <Sidebar page={page} onNavigate={setPage} />
         <div className="main">
@@ -49,6 +50,56 @@ export function App(): JSX.Element {
       </div>
     </StoreProvider>
   );
+}
+
+const NAV_SHORTCUTS: Record<string, string> = {
+  o: "overview",
+  l: "live",
+  r: "radar",
+  b: "briefings",
+  c: "committees",
+  i: "bills",
+  p: "parliament",
+  q: "patterns",
+  w: "watchlists",
+  s: "sources",
+};
+
+function GlobalShortcuts({ setPage }: { setPage: (p: string) => void }): null {
+  // "g" prefix then a letter jumps to the mapped page, like Gmail/Linear.
+  useEffect(() => {
+    let gMode = false;
+    let gTimer: number | null = null;
+    const handler = (e: KeyboardEvent): void => {
+      const inField =
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        (e.target instanceof HTMLElement && e.target.isContentEditable);
+      if (inField) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+      if (gMode) {
+        const page = NAV_SHORTCUTS[e.key.toLowerCase()];
+        gMode = false;
+        if (gTimer) window.clearTimeout(gTimer);
+        if (page) {
+          e.preventDefault();
+          setPage(page);
+        }
+        return;
+      }
+      if (e.key.toLowerCase() === "g") {
+        gMode = true;
+        gTimer = window.setTimeout(() => { gMode = false; }, 1200);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => {
+      window.removeEventListener("keydown", handler);
+      if (gTimer) window.clearTimeout(gTimer);
+    };
+  }, [setPage]);
+  return null;
 }
 
 function LiveSignalsPump(): null {

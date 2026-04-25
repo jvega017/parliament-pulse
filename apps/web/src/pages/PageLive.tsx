@@ -108,25 +108,28 @@ export function PageLive(): JSX.Element {
     <div className="page-fade">
       <div className="page-head">
         <div>
-          <div className="page-kicker">Today · live</div>
+          <div className="page-kicker">Today</div>
           <h1 className="page-title">Live parliament</h1>
           <div className="page-sub">
             Official AUSParliamentLive broadcast, ParlView archive, Hansard
             live-track, and APH RSS feeds updating the signal panel.
           </div>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          {(Object.keys(CHAMBERS) as Chamber[]).map((c) => (
-            <button
-              key={c}
-              type="button"
-              className={`btn${which === c ? " primary" : ""}`}
-              onClick={() => setWhich(c)}
-              aria-pressed={which === c}
-            >
-              {CHAMBERS[c].label.split(" ")[0]}
-            </button>
-          ))}
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <div role="tablist" aria-label="Chamber" style={{ display: "flex", gap: 4 }}>
+            {(Object.keys(CHAMBERS) as Chamber[]).map((c) => (
+              <button
+                key={c}
+                type="button"
+                role="tab"
+                aria-selected={which === c}
+                className={`btn${which === c ? " primary" : ""}`}
+                onClick={() => setWhich(c)}
+              >
+                {CHAMBERS[c].label.split(" ")[0]}
+              </button>
+            ))}
+          </div>
           <button
             type="button"
             className="btn"
@@ -273,6 +276,21 @@ export function PageLive(): JSX.Element {
               </div>
             )}
           </div>
+          {liveVideo?.publishedAt && (
+            <div
+              style={{
+                marginTop: 10,
+                fontSize: 12,
+                color: "var(--ink-3)",
+              }}
+              title={liveVideo.publishedAt.toLocaleString("en-AU")}
+            >
+              Stream published{" "}
+              <span style={{ color: "var(--ink-2)" }}>
+                {liveVideo.publishedAt.toLocaleString("en-AU")}
+              </span>
+            </div>
+          )}
           <div
             style={{
               display: "flex",

@@ -18,7 +18,7 @@ export function PagePatterns(): JSX.Element {
       <DemoBanner />
       <div className="page-head">
         <div>
-          <div className="page-kicker">Parliament · Scrutiny</div>
+          <div className="page-kicker">Intelligence · Scrutiny</div>
           <h1 className="page-title">QON pattern engine</h1>
           <div className="page-sub">
             Detects clustered scrutiny across members, topics and targets. Click
@@ -27,20 +27,7 @@ export function PagePatterns(): JSX.Element {
         </div>
       </div>
 
-      <div
-        style={{
-          padding: "10px 14px",
-          background: "#7ba0d410",
-          border: "1px solid #7ba0d433",
-          borderRadius: 8,
-          marginBottom: 16,
-          display: "flex",
-          gap: 10,
-          alignItems: "center",
-          color: "var(--ink-2)",
-          fontSize: 12.5,
-        }}
-      >
+      <div className="callout callout-info" style={{ marginBottom: 16 }}>
         <Icon name="flag" size={14} stroke="var(--info)" />
         <span>
           <strong>Sample data only.</strong> The QON feed is not yet connected.

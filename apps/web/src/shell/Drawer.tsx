@@ -40,6 +40,7 @@ export function Drawer(): JSX.Element {
     saveNote,
     openModal,
     openBrief,
+    toast,
   } = useStore();
 
   const signal = useMemo(() => {
@@ -54,7 +55,6 @@ export function Drawer(): JSX.Element {
   // Deep-link with a non-existent signal id should not leave a blank
   // drawer open. Wait until live signals have arrived (or 4 s pass) before
   // declaring the id missing, then close and clean the URL.
-  const { toast } = useStore();
   useEffect(() => {
     if (!signalId || signal) return;
     // If liveSignals is still loading, wait one cycle.
@@ -105,17 +105,15 @@ export function Drawer(): JSX.Element {
         {signal && (
           <>
             <div className="drawer-head">
-              <div>
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <div
-                  className="mono"
+                  className="mono u-uppercase"
                   style={{
                     fontSize: 10.5,
                     color: "var(--ink-3)",
-                    letterSpacing: "0.16em",
-                    textTransform: "uppercase",
                   }}
                 >
-                  {signal.id} · {signal.date}
+                  {signal.id} · {signal.sourceGroup} · {signal.date}
                 </div>
                 <div
                   id="drawer-title"
@@ -510,6 +508,21 @@ export function Drawer(): JSX.Element {
                 title="Download evidence + score matrix as CSV"
               >
                 <Icon name="download" size={13} /> CSV
+              </button>
+              <button
+                type="button"
+                className="btn"
+                title="Copy deep-link to this signal"
+                onClick={() => {
+                  const url = new URL(window.location.href);
+                  url.searchParams.set("signal", signal.id);
+                  navigator.clipboard
+                    ?.writeText(url.toString())
+                    .then(() => toast("Signal link copied", "brass"))
+                    .catch(() => toast("Copy failed"));
+                }}
+              >
+                <Icon name="link" size={13} /> Share
               </button>
               <button
                 type="button"

@@ -46,7 +46,7 @@ export function PageBriefings(): JSX.Element {
       <DemoBanner />
       <div className="page-head">
         <div>
-          <div className="page-kicker">Workflow</div>
+          <div className="page-kicker">Today</div>
           <h1 className="page-title">Briefings</h1>
           <div className="page-sub">
             Every brief follows a required structure: What happened, Source, Why

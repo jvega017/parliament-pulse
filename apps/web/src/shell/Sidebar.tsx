@@ -140,14 +140,37 @@ export function Sidebar({ page, onNavigate }: SidebarProps): JSX.Element {
         <div className="avatar" aria-hidden="true">
           EM
         </div>
-        <div style={{ lineHeight: 1.2 }}>
+        <div style={{ lineHeight: 1.2, minWidth: 0, flex: 1 }}>
           <div style={{ fontSize: 12.5, fontWeight: 500 }}>Erin Marlowe</div>
           <div
-            style={{ fontFamily: "var(--mono)", fontSize: 10.5, color: "var(--ink-3)" }}
+            style={{
+              fontFamily: "var(--mono)",
+              fontSize: 10.5,
+              color: "var(--ink-3)",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
           >
             Demo user
           </div>
         </div>
+        <a
+          href="https://github.com/jvega017/parliament-pulse"
+          target="_blank"
+          rel="noopener noreferrer"
+          title="View source on GitHub"
+          aria-label="View source on GitHub"
+          style={{
+            color: "var(--ink-3)",
+            display: "inline-flex",
+            alignItems: "center",
+            padding: 4,
+            borderRadius: 4,
+          }}
+        >
+          <Icon name="ext" size={14} />
+        </a>
       </div>
     </aside>
     </>

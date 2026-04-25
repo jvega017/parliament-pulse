@@ -16,7 +16,7 @@ export function PageWatchlists(): JSX.Element {
       <DemoBanner />
       <div className="page-head">
         <div>
-          <div className="page-kicker">Workflow</div>
+          <div className="page-kicker">Configuration</div>
           <h1 className="page-title">Watchlists</h1>
           <div className="page-sub">
             Click any watchlist for matches and configuration. Create a new

@@ -14,6 +14,8 @@ export function Topbar(): JSX.Element {
     triggerRefresh,
     toggleMobileNav,
     toggleShortcuts,
+    density,
+    setDensity,
   } = useStore();
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
@@ -248,6 +250,20 @@ export function Topbar(): JSX.Element {
           onClick={triggerRefresh}
         >
           <Icon name="refresh" size={13} /> Refresh
+        </button>
+        <button
+          type="button"
+          className="btn ghost sm"
+          title={
+            density === "compact"
+              ? "Switch to comfortable density"
+              : "Switch to compact density"
+          }
+          aria-label={`Current density ${density}. Click to toggle.`}
+          aria-pressed={density === "compact"}
+          onClick={() => setDensity(density === "compact" ? "comfortable" : "compact")}
+        >
+          {density === "compact" ? "Comfy" : "Compact"}
         </button>
         <button
           type="button"

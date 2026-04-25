@@ -42,6 +42,8 @@ export interface StoreValue {
   deleteWatchlist: (name: string) => void;
   shortcutsOpen: boolean;
   toggleShortcuts: () => void;
+  density: "comfortable" | "compact";
+  setDensity: (d: "comfortable" | "compact") => void;
 
   assignOwner: (entityId: string, owner: string) => void;
   saveFeedback: (signalId: string, label: string, reason?: string) => void;

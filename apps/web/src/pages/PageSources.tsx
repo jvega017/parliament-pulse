@@ -22,7 +22,7 @@ export function PageSources(): JSX.Element {
       <DemoBanner />
       <div className="page-head">
         <div>
-          <div className="page-kicker">Admin</div>
+          <div className="page-kicker">Configuration</div>
           <h1 className="page-title">Sources</h1>
           <div className="page-sub">
             Official APH feed bundle plus any custom RSS feeds you've added.

@@ -87,6 +87,11 @@ export function StoreProvider({
   const [clusterStatus, setClusterStatusState] = useState<"open" | "tracking" | "coordinated" | "coincidence">("open");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [density, setDensityState] = useState<"comfortable" | "compact">(() => {
+    if (typeof localStorage === "undefined") return "comfortable";
+    const v = localStorage.getItem("pp-density");
+    return v === "compact" ? "compact" : "comfortable";
+  });
   const toastSeq = useRef(0);
 
   useEffect(() => {
@@ -166,6 +171,24 @@ export function StoreProvider({
   const toggleMobileNav = useCallback(() => setMobileNavOpen((o) => !o), []);
   const closeMobileNav = useCallback(() => setMobileNavOpen(false), []);
   const toggleShortcuts = useCallback(() => setShortcutsOpen((o) => !o), []);
+  const setDensity = useCallback((d: "comfortable" | "compact") => {
+    setDensityState(d);
+    try {
+      localStorage.setItem("pp-density", d);
+    } catch {
+      // ignore
+    }
+    if (typeof document !== "undefined") {
+      document.documentElement.dataset.density = d;
+    }
+  }, []);
+
+  // Apply density class to document on mount and whenever it changes.
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      document.documentElement.dataset.density = density;
+    }
+  }, [density]);
   const deleteWatchlist = useCallback(
     (name: string) => {
       setState((s) => ({
@@ -297,6 +320,8 @@ export function StoreProvider({
       shortcutsOpen,
       toggleShortcuts,
       deleteWatchlist,
+      density,
+      setDensity,
       assignOwner,
       saveFeedback,
       archive,
@@ -322,6 +347,7 @@ export function StoreProvider({
       clusterStatus,
       mobileNavOpen,
       shortcutsOpen,
+      density,
       toast,
       openModal,
       closeModal,
@@ -339,6 +365,7 @@ export function StoreProvider({
       closeMobileNav,
       toggleShortcuts,
       deleteWatchlist,
+      setDensity,
       assignOwner,
       saveFeedback,
       archive,

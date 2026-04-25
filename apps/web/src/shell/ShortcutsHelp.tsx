@@ -12,6 +12,16 @@ const SHORTCUTS: Array<{ keys: string[]; desc: string }> = [
   { keys: ["Shift", "Tab"], desc: "Move keyboard focus back" },
   { keys: ["Enter"], desc: "Activate focused control" },
   { keys: ["↑", "↓"], desc: "Move through search results" },
+  { keys: ["g", "o"], desc: "Go to Overview" },
+  { keys: ["g", "l"], desc: "Go to Live parliament" },
+  { keys: ["g", "r"], desc: "Go to Attention radar" },
+  { keys: ["g", "b"], desc: "Go to Briefings" },
+  { keys: ["g", "c"], desc: "Go to Committees" },
+  { keys: ["g", "i"], desc: "Go to Bills intelligence" },
+  { keys: ["g", "p"], desc: "Go to Today in chamber" },
+  { keys: ["g", "q"], desc: "Go to QON patterns" },
+  { keys: ["g", "w"], desc: "Go to Watchlists" },
+  { keys: ["g", "s"], desc: "Go to Sources" },
 ];
 
 export function ShortcutsHelp(): JSX.Element | null {

@@ -11,7 +11,7 @@ export function PageRadar(): JSX.Element {
       <DemoBanner />
       <div className="page-head">
         <div>
-          <div className="page-kicker">Today</div>
+          <div className="page-kicker">Intelligence</div>
           <h1 className="page-title">Attention radar</h1>
           <div className="page-sub">
             Transparent categories, no fake precision scores. Click any issue
