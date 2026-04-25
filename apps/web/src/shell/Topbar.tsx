@@ -201,7 +201,7 @@ export function Topbar(): JSX.Element {
           aria-controls="search-results"
           aria-activedescendant={flat[activeIdx]?.id}
           aria-autocomplete="list"
-          placeholder="Search live + sample signals, bills, committees, members, feeds..."
+          placeholder="Search live signals, committees, watchlists, feeds…"
           aria-label="Global search"
         />
         <span className="kbd" aria-hidden="true">

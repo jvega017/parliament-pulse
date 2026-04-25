@@ -1,21 +1,22 @@
+import { Icon } from "../icons";
 import { DemoBanner } from "../shell/DemoBanner";
 import { useStore } from "../store/useStore";
 import { DIVISIONS } from "../data/fixtures";
 
 export function PageParliament(): JSX.Element {
-  const { openModal } = useStore();
-  const program: Array<[string, string, string | null]> = [
-    ["09:30", "House meets", null],
-    [
-      "10:00",
-      "Government business: 2nd reading — Cyber Security Legislation Amendment Bill 2026",
-      "BILL-2026-041",
-    ],
-    ["11:15", "Matter of public importance", null],
-    ["12:00", "Question time", null],
-    ["14:00", "Private members' business", null],
-    ["16:30", "Adjournment debate", null],
-  ];
+  const { openModal, openSignal, liveSignals } = useStore();
+  // Today-in-chamber items: anything from House Daily Program, Senate Dynamic
+  // Red, or upcoming hearings feeds. Pure live derivation.
+  const today = liveSignals.filter((s) => {
+    const lower = s.source.toLowerCase();
+    return (
+      lower.includes("daily program") ||
+      lower.includes("dynamic red") ||
+      lower.includes("upcoming") ||
+      lower.includes("hearing") ||
+      lower.includes("today")
+    );
+  });
 
   return (
     <div className="page-fade">
@@ -25,94 +26,143 @@ export function PageParliament(): JSX.Element {
           <div className="page-kicker">Intelligence</div>
           <h1 className="page-title">Today in chamber</h1>
           <div className="page-sub">
-            Daily program, divisions, and chamber-relevant items from official
-            APH feeds.
+            Live items pulled from House Daily Program, Senate Dynamic Red, and
+            upcoming-hearings feeds. Division ingest is not yet wired.
           </div>
+        </div>
+        <div style={{ display: "flex", gap: 10 }}>
+          <a
+            className="btn"
+            href="https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/HoR/House_Daily_Program"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <Icon name="ext" size={13} /> House Daily Program
+          </a>
+          <a
+            className="btn"
+            href="https://parlwork.aph.gov.au/Senate/DynamicRed"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <Icon name="ext" size={13} /> Senate Dynamic Red
+          </a>
         </div>
       </div>
 
       <div className="grid g-overview">
         <div className="panel">
           <div className="panel-head">
-            <h3 className="panel-title">House · daily program</h3>
-            <span className="panel-kicker">24 Apr 2026</span>
+            <h3 className="panel-title">Live chamber items</h3>
+            <span className="panel-kicker">
+              {today.length === 0 ? "Awaiting poll" : `${today.length} items`}
+            </span>
           </div>
           <div className="panel-body">
-            <div className="timeline">
-              {program.map(([t, body, billRef], i) => (
-                <div key={i} className={`tl-item${billRef ? "" : " teal"}`}>
-                  <div className="tl-time">{t}</div>
-                  <div className="tl-body">
-                    {billRef ? (
+            {today.length === 0 ? (
+              <div className="empty">
+                <strong>No chamber items in the current poll.</strong>
+                <span>
+                  Items appear when the House Daily Program, Senate Dynamic Red,
+                  or upcoming-hearings feeds publish today's order of business.
+                </span>
+              </div>
+            ) : (
+              <div className="timeline">
+                {today.map((s) => (
+                  <div
+                    key={s.id}
+                    className={`tl-item${
+                      s.attention === "high"
+                        ? " brass"
+                        : s.attention === "med"
+                          ? " info"
+                          : " teal"
+                    }`}
+                  >
+                    <div className="tl-time">{s.time} · {s.sourceGroup}</div>
+                    <div className="tl-body">
                       <button
                         type="button"
                         className="clk"
-                        onClick={() => openModal({ kind: "bill", id: billRef })}
-                        style={{ padding: 0, color: "var(--ink)" }}
+                        onClick={() => openSignal(s.id)}
+                        style={{ padding: 0, color: "var(--ink)", textAlign: "left" }}
                       >
-                        {body}
+                        {s.title}
                       </button>
-                    ) : (
-                      body
-                    )}
-                    {billRef && (
-                      <span className="tag brass" style={{ marginLeft: 8 }}>
-                        Watchlist · Cyber
-                      </span>
-                    )}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
         <div className="panel">
           <div className="panel-head">
             <h3 className="panel-title">Recent divisions</h3>
-            <span className="panel-kicker">House</span>
+            <span className="panel-kicker">Awaiting ingest</span>
           </div>
           <div className="panel-body">
-            {DIVISIONS.map((d, i) => (
-              <button
-                key={i}
-                type="button"
-                className="clk"
-                onClick={() => openModal({ kind: "division", id: d })}
-                style={{
-                  display: "block",
-                  width: "100%",
-                  padding: "10px 8px",
-                  borderBottom:
-                    i < DIVISIONS.length - 1 ? "1px solid var(--line)" : 0,
-                  borderRadius: 6,
-                }}
-              >
-                <div
-                  className="mono"
+            {DIVISIONS.length === 0 ? (
+              <div className="empty">
+                <strong>Division ingest not yet wired.</strong>
+                <span>
+                  Division records will populate once the House and Senate
+                  division feeds resume. Meanwhile, search ParlInfo:
+                </span>
+                <a
+                  className="btn"
+                  href="https://parlinfo.aph.gov.au/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ marginTop: 4 }}
+                >
+                  <Icon name="ext" size={13} /> ParlInfo
+                </a>
+              </div>
+            ) : (
+              DIVISIONS.map((d, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  className="clk"
+                  onClick={() => openModal({ kind: "division", id: d })}
                   style={{
-                    fontSize: 10.5,
-                    color: "var(--ink-3)",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.12em",
+                    display: "block",
+                    width: "100%",
+                    padding: "10px 8px",
+                    borderBottom:
+                      i < DIVISIONS.length - 1 ? "1px solid var(--line)" : 0,
+                    borderRadius: 6,
                   }}
                 >
-                  {d.when} · {d.bill}
-                </div>
-                <div style={{ fontSize: 13, marginTop: 2 }}>{d.q}</div>
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: d.result.startsWith("Agreed")
-                      ? "var(--ok)"
-                      : "var(--escalate)",
-                    marginTop: 2,
-                  }}
-                >
-                  {d.result}
-                </div>
-              </button>
-            ))}
+                  <div
+                    className="mono"
+                    style={{
+                      fontSize: 10.5,
+                      color: "var(--ink-3)",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.12em",
+                    }}
+                  >
+                    {d.when} · {d.bill}
+                  </div>
+                  <div style={{ fontSize: 13, marginTop: 2 }}>{d.q}</div>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: d.result.startsWith("Agreed")
+                        ? "var(--ok)"
+                        : "var(--escalate)",
+                      marginTop: 2,
+                    }}
+                  >
+                    {d.result}
+                  </div>
+                </button>
+              ))
+            )}
           </div>
         </div>
       </div>

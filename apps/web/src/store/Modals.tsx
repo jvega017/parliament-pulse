@@ -442,7 +442,29 @@ function BillDetail({ id }: { id: string }): JSX.Element {
   const topLiveHigh = liveSignals.find((s) => s.attention === "high") ?? liveSignals[0] ?? null;
 
   if (!bill) {
-    return <ModalHead kicker="Bill" title="Not found" onClose={closeModal} />;
+    return (
+      <>
+        <ModalHead kicker="Bill" title="Open in APH Bills Search" onClose={closeModal} />
+        <div className="modal-body">
+          <div className="empty">
+            <strong>Bill detail ingest is not yet wired.</strong>
+            <span>
+              Bill records will populate once the APH Bills Search ingest is
+              connected. Search the live registry directly:
+            </span>
+            <a
+              className="btn primary"
+              href={`https://www.aph.gov.au/Parliamentary_Business/Bills_Legislation/Bills_Search_Results?st=1&q=${encodeURIComponent(id)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ marginTop: 4 }}
+            >
+              <Icon name="ext" size={13} /> Search APH Bills
+            </a>
+          </div>
+        </div>
+      </>
+    );
   }
 
   return (
@@ -571,7 +593,29 @@ function MemberDetail({ id }: { id: string }): JSX.Element {
   const m = ENTITIES.members[id];
   const { closeModal, addWatchlist, state } = useStore();
   if (!m) {
-    return <ModalHead kicker="Member" title="Not found" onClose={closeModal} />;
+    return (
+      <>
+        <ModalHead kicker="Member" title="Open APH Senators and Members" onClose={closeModal} />
+        <div className="modal-body">
+          <div className="empty">
+            <strong>Member roster ingest is not yet wired.</strong>
+            <span>
+              Member detail will populate once the APH Senators and Members
+              roster is connected. Open the live directory:
+            </span>
+            <a
+              className="btn primary"
+              href="https://www.aph.gov.au/Senators_and_Members"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ marginTop: 4 }}
+            >
+              <Icon name="ext" size={13} /> Senators and Members
+            </a>
+          </div>
+        </div>
+      </>
+    );
   }
   const watchlistKey = `member:${id}`;
   const watching = !!state.watchlistAdds[watchlistKey];
@@ -634,11 +678,33 @@ function MemberDetail({ id }: { id: string }): JSX.Element {
   );
 }
 
-function MinisterDetail({ id }: { id: string }): JSX.Element {
-  const m = ENTITIES.ministers[id];
+function MinisterDetail({ id: _id }: { id: string }): JSX.Element {
+  const m = ENTITIES.ministers[_id];
   const { closeModal } = useStore();
   if (!m) {
-    return <ModalHead kicker="Minister" title="Not found" onClose={closeModal} />;
+    return (
+      <>
+        <ModalHead kicker="Minister" title="Open APH Ministry list" onClose={closeModal} />
+        <div className="modal-body">
+          <div className="empty">
+            <strong>Ministry list ingest is not yet wired.</strong>
+            <span>
+              Minister detail will populate once the official Ministry list is
+              connected. Open the current ministry:
+            </span>
+            <a
+              className="btn primary"
+              href="https://www.pmc.gov.au/government/ministries"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ marginTop: 4 }}
+            >
+              <Icon name="ext" size={13} /> Australian Government ministries
+            </a>
+          </div>
+        </div>
+      </>
+    );
   }
   return (
     <>

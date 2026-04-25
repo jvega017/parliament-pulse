@@ -58,7 +58,7 @@ function fmtTime(d: Date | null): string {
 }
 
 export function PageLive(): JSX.Element {
-  const { toast, openModal, liveFeedResult, liveLoading } = useStore();
+  const { toast, liveFeedResult, liveLoading } = useStore();
   const [which, setWhich] = useState<Chamber>("house");
   const [nonce, setNonce] = useState(0);
   const [mode, setMode] = useState<"embed" | "offline">("embed");
@@ -335,14 +335,8 @@ export function PageLive(): JSX.Element {
 
           <div className="panel" style={{ marginTop: 16 }}>
             <div className="panel-head">
-              <h3 className="panel-title">Currently on program</h3>
-              <span
-                className="panel-kicker"
-                style={{ color: "var(--caution)" }}
-                title="This panel is a sample illustration, not live data"
-              >
-                Sample · {cfg.label}
-              </span>
+              <h3 className="panel-title">Daily program</h3>
+              <span className="panel-kicker">{cfg.label}</span>
               <a
                 href={cfg.program}
                 target="_blank"
@@ -354,50 +348,26 @@ export function PageLive(): JSX.Element {
                   textDecoration: "none",
                 }}
               >
-                Open real daily program <Icon name="ext" size={11} />
+                Open daily program <Icon name="ext" size={11} />
               </a>
             </div>
-            <div
-              className="panel-body"
-              style={{
-                background:
-                  "repeating-linear-gradient(135deg, transparent, transparent 14px, #d9a94a08 14px, #d9a94a08 15px)",
-              }}
-            >
-              <div className="timeline">
-                <div className="tl-item">
-                  <div className="tl-time">12:00</div>
-                  <div className="tl-body">
-                    Question time ·{" "}
-                    <button
-                      type="button"
-                      className="clk"
-                      onClick={() => openModal({ kind: "bill", id: "BILL-2026-048" })}
-                      style={{ padding: 0, color: "var(--ink)" }}
-                    >
-                      Digital ID Amendment
-                    </button>{" "}
-                    expected
-                  </div>
-                </div>
-                <div className="tl-item teal">
-                  <div className="tl-time">14:00</div>
-                  <div className="tl-body">
-                    Government business · 2nd reading{" "}
-                    <button
-                      type="button"
-                      className="clk"
-                      onClick={() => openModal({ kind: "bill", id: "BILL-2026-041" })}
-                      style={{ padding: 0, color: "var(--ink)" }}
-                    >
-                      Cyber Security Bill
-                    </button>
-                  </div>
-                </div>
-                <div className="tl-item info">
-                  <div className="tl-time">16:30</div>
-                  <div className="tl-body">Adjournment debate</div>
-                </div>
+            <div className="panel-body">
+              <div className="empty">
+                <strong>Order of business is published on APH.</strong>
+                <span>
+                  The {cfg.label.toLowerCase()} program updates throughout the
+                  sitting day. Open it directly on the official site for the
+                  current state of business.
+                </span>
+                <a
+                  className="btn"
+                  href={cfg.program}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ marginTop: 4 }}
+                >
+                  <Icon name="ext" size={13} /> Open program
+                </a>
               </div>
             </div>
           </div>

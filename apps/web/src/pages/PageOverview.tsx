@@ -4,12 +4,7 @@ import { SignalCard } from "../shell/SignalCard";
 import { DemoBanner } from "../shell/DemoBanner";
 import { useStore } from "../store/useStore";
 import { exportSignalsDigestCsv } from "../lib/export";
-import {
-  APH_FEEDS,
-  BRIEFING_QUEUE,
-  DIVISIONS,
-  SIGNALS,
-} from "../data/fixtures";
+import { APH_FEEDS } from "../data/fixtures";
 
 function formatAEST(d: Date): string {
   try {
@@ -50,6 +45,7 @@ export function PageOverview(): JSX.Element {
     goto,
     liveSignals,
     liveLoading,
+    liveFeedResult,
     openBrief,
     openSignal,
   } = useStore();
@@ -68,17 +64,21 @@ export function PageOverview(): JSX.Element {
   const liveLow = liveSignals.filter(
     (s) => s.attention === "low" && !state.archived[s.id],
   );
-  const samplePriority = SIGNALS.filter(
-    (s) => s.attention === "high" && !state.archived[s.id],
-  );
-  const sampleRest = SIGNALS.filter(
-    (s) => s.attention !== "high" && !state.archived[s.id],
-  );
   const totalLive = liveSignals.length;
-  const healthyFeeds = APH_FEEDS.filter((f) => f.status === "live").length;
-  // Prefer the top high-attention signal; fall back to top-ranked only if none high.
+  // Source health from the real poll, not the fixture row count.
+  const healthyFeeds = liveFeedResult
+    ? Object.values(liveFeedResult.feedStatus).filter((s) => s.ok).length
+    : 0;
+  const totalFeeds = liveFeedResult
+    ? Object.keys(liveFeedResult.feedStatus).length
+    : APH_FEEDS.length;
   const topLiveId = liveHigh[0]?.id ?? liveSignals[0]?.id ?? null;
   const topLiveTitle = liveHigh[0]?.title ?? liveSignals[0]?.title ?? null;
+
+  // What-changed timeline is derived from the live RSS pump, sorted newest-first.
+  const timeline = [...liveSignals]
+    .sort((a, b) => `${b.date} ${b.time}`.localeCompare(`${a.date} ${a.time}`))
+    .slice(0, 6);
 
   return (
     <div className="page-fade">
@@ -93,15 +93,6 @@ export function PageOverview(): JSX.Element {
           </div>
         </div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <button
-            type="button"
-            className="btn"
-            title="Filter by attention / watchlist / portfolio — coming soon"
-            disabled
-            aria-disabled="true"
-          >
-            <Icon name="filter" size={13} /> Filter
-          </button>
           <button
             type="button"
             className="btn"
@@ -248,7 +239,7 @@ export function PageOverview(): JSX.Element {
         <div className="panel stat">
           <div className="stat-label">Live signals (scored)</div>
           <div className="stat-value">{totalLive}</div>
-          <div className="stat-meta">Live APH RSS feeds</div>
+          <div className="stat-meta">From APH RSS</div>
         </div>
         <div className="panel stat">
           <div className="stat-label">Medium</div>
@@ -260,9 +251,11 @@ export function PageOverview(): JSX.Element {
         <div className="panel stat">
           <div className="stat-label">Source health</div>
           <div className="stat-value">
-            {healthyFeeds}/{APH_FEEDS.length}<span className="unit">live</span>
+            {healthyFeeds}/{totalFeeds}<span className="unit">live</span>
           </div>
-          <div className="stat-meta">Live APH RSS feeds</div>
+          <div className="stat-meta">
+            {liveFeedResult ? "From last poll" : "Awaiting first poll"}
+          </div>
         </div>
       </div>
 
@@ -301,8 +294,11 @@ export function PageOverview(): JSX.Element {
               )}
               {!liveLoading && liveHigh.length === 0 && (
                 <div className="empty">
-                  No high-attention live items in the current poll. Medium and
-                  low items are listed below.
+                  <strong>No high-attention live items right now.</strong>
+                  <span>
+                    Medium and low items appear below. Click a watchlist on the
+                    Watchlists page to bias scoring toward your portfolio.
+                  </span>
                 </div>
               )}
               {liveHigh.map((s) => (
@@ -311,7 +307,7 @@ export function PageOverview(): JSX.Element {
             </div>
           </div>
 
-          <div className="panel" style={{ marginBottom: 16 }}>
+          <div className="panel">
             <div className="panel-head">
               <h3 className="panel-title">All live signals</h3>
               <span className="panel-kicker">
@@ -323,189 +319,106 @@ export function PageOverview(): JSX.Element {
                 <SignalCard key={s.id} s={s} />
               ))}
               {liveMed.length + liveLow.length === 0 && !liveLoading && (
-                <div className="empty">No further live items.</div>
+                <div className="empty">
+                  <strong>No further live items.</strong>
+                </div>
               )}
             </div>
           </div>
 
           <DemoBanner />
-
-          <div className="panel">
-            <div className="panel-head">
-              <h3 className="panel-title">Sample priority signals</h3>
-              <span className="panel-kicker">
-                {samplePriority.length} sample items (not live)
-              </span>
-            </div>
-            <div className="panel-body">
-              {samplePriority.map((s) => (
-                <SignalCard key={s.id} s={s} />
-              ))}
-              {samplePriority.length === 0 && (
-                <div className="empty">All sample priority signals archived.</div>
-              )}
-              {sampleRest.map((s) => (
-                <SignalCard key={s.id} s={s} />
-              ))}
-            </div>
-          </div>
         </div>
 
         <div>
           <div className="panel" style={{ marginBottom: 16 }}>
             <div className="panel-head">
               <h3 className="panel-title">What changed</h3>
-              <span className="panel-kicker">Since 17:00 yesterday</span>
-            </div>
-            <div className="panel-body">
-              <div className="timeline">
-                <TimelineLink
-                  time="08:15 · Senate"
-                  onClick={() =>
-                    openModal({
-                      kind: "inquiry",
-                      id: "Commonwealth procurement governance (new)",
-                    })
-                  }
-                >
-                  New inquiry opened: Digital procurement governance
-                </TimelineLink>
-                <TimelineLink
-                  time="07:48 · Library"
-                  colour="teal"
-                  onClick={() =>
-                    openModal({ kind: "bill", id: "BILL-2026-048" })
-                  }
-                >
-                  Bills Digest: Digital ID Amendment (Assurance) Bill 2026
-                </TimelineLink>
-                <TimelineLink
-                  time="07:30 · Senate"
-                  colour="info"
-                  onClick={() => openModal({ kind: "committee", id: "legcon" })}
-                >
-                  Today's hearing · Legal & Constitutional · AI assurance
-                </TimelineLink>
-                <TimelineLink
-                  time="07:10 · House"
-                  onClick={() =>
-                    openModal({ kind: "bill", id: "BILL-2026-041" })
-                  }
-                >
-                  Daily program: Cyber Security Bill, 2nd reading
-                </TimelineLink>
-                {DIVISIONS[2] && (
-                  <TimelineLink
-                    time="Yesterday 18:04"
-                    colour="info"
-                    onClick={() =>
-                      openModal({ kind: "division", id: DIVISIONS[2]! })
-                    }
-                  >
-                    Division: CDR Expansion Bill, 2nd reading agreed
-                  </TimelineLink>
-                )}
-                <TimelineLink time="Yesterday 17:20" colour="teal" disabled>
-                  Report tabled: Regional 5G rollout, interim
-                </TimelineLink>
-              </div>
-            </div>
-          </div>
-
-          <div className="panel" style={{ marginBottom: 16 }}>
-            <div className="panel-head">
-              <h3 className="panel-title">Briefing queue</h3>
               <span className="panel-kicker">
-                {BRIEFING_QUEUE.filter((b) => !b.ready).length} pending ·{" "}
-                {BRIEFING_QUEUE.length} total
+                Latest {timeline.length} live items
               </span>
             </div>
-            <div className="panel-body" style={{ paddingTop: 6 }}>
-              {BRIEFING_QUEUE.map((b, i) => (
-                <div
-                  key={i}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr auto",
-                    padding: "10px 0",
-                    borderBottom:
-                      i < BRIEFING_QUEUE.length - 1
-                        ? "1px solid var(--line)"
-                        : 0,
-                    gap: 10,
-                  }}
-                >
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 500 }}>{b.type}</div>
-                    <div style={{ fontSize: 11.5, color: "var(--ink-3)" }}>
-                      For {b.for} · <span className="mono">{b.at}</span>
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span
-                      className="mono"
-                      style={{
-                        fontSize: 10.5,
-                        color: b.ready ? "var(--ok)" : "var(--caution)",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.12em",
-                      }}
-                    >
-                      {b.status}
-                    </span>
-                  </div>
+            <div className="panel-body">
+              {timeline.length === 0 ? (
+                <div className="empty">
+                  <strong>No recent activity in the poll.</strong>
                 </div>
-              ))}
+              ) : (
+                <div className="timeline">
+                  {timeline.map((s) => (
+                    <TimelineLink
+                      key={s.id}
+                      time={`${s.time} · ${s.sourceGroup}`}
+                      colour={
+                        s.attention === "high"
+                          ? "brass"
+                          : s.attention === "med"
+                            ? "info"
+                            : "teal"
+                      }
+                      onClick={() => openSignal(s.id)}
+                    >
+                      {s.title}
+                    </TimelineLink>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
           <div className="panel">
             <div className="panel-head">
               <h3 className="panel-title">Source health</h3>
-              <span className="panel-kicker">{healthyFeeds}/{APH_FEEDS.length} live</span>
+              <span className="panel-kicker">
+                {liveFeedResult ? `${healthyFeeds}/${totalFeeds} live` : "Awaiting poll"}
+              </span>
             </div>
             <div className="panel-body">
-              {APH_FEEDS.slice(0, 6).map((f) => (
-                <button
-                  key={f.id}
-                  type="button"
-                  onClick={() => openModal({ kind: "feed", id: f.id })}
-                  className="clk"
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr auto auto",
-                    padding: "6px 8px",
-                    gap: 10,
-                    fontSize: 12.5,
-                    alignItems: "center",
-                    borderRadius: 6,
-                    width: "100%",
-                  }}
-                >
-                  <div>
-                    <span
-                      className={`hdot ${
-                        f.status === "review" ? "review" : f.status
-                      }`}
-                    />
-                    {f.name}
-                  </div>
-                  <div className="mono" style={{ color: "var(--ink-3)", fontSize: 11 }}>
-                    {f.last}
-                  </div>
-                  <div
-                    className="mono"
+              {APH_FEEDS.slice(0, 6).map((f) => {
+                const polled = liveFeedResult?.feedStatus[f.url];
+                const ok = polled?.ok ?? false;
+                const dot = !liveFeedResult
+                  ? "review"
+                  : ok
+                    ? "live"
+                    : "review";
+                return (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => openModal({ kind: "feed", id: f.id })}
+                    className="clk"
                     style={{
-                      color: "var(--ink-3)",
-                      fontSize: 11,
-                      textAlign: "right",
-                      width: 28,
+                      display: "grid",
+                      gridTemplateColumns: "1fr auto auto",
+                      padding: "6px 8px",
+                      gap: 10,
+                      fontSize: 12.5,
+                      alignItems: "center",
+                      borderRadius: 6,
+                      width: "100%",
                     }}
                   >
-                    {f.today ?? "—"}
-                  </div>
-                </button>
-              ))}
+                    <div>
+                      <span className={`hdot ${dot}`} />
+                      {f.name}
+                    </div>
+                    <div className="mono" style={{ color: "var(--ink-3)", fontSize: 11 }}>
+                      {liveFeedResult ? (ok ? "ok" : "down") : f.last}
+                    </div>
+                    <div
+                      className="mono"
+                      style={{
+                        color: "var(--ink-3)",
+                        fontSize: 11,
+                        textAlign: "right",
+                        width: 28,
+                      }}
+                    >
+                      {polled?.count ?? "—"}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>

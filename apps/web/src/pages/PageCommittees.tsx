@@ -1,70 +1,33 @@
+import { useMemo } from "react";
 import { Icon } from "../icons";
 import { Att } from "../shell/common";
 import { DemoBanner } from "../shell/DemoBanner";
 import { useStore } from "../store/useStore";
-import { COMMITTEE_ITEMS } from "../data/fixtures";
-import { committeeIdFromName } from "../data/entities";
-import type { CommitteeItem } from "../types";
+import { ENTITIES } from "../data/entities";
+import type { Signal } from "../types";
+
+// Derive committee-level activity from the live signal stream. Anything
+// matching kind=inquiry/hearing/report and tagged Senate/Library/Joint shows
+// up here. No fixture seeding.
+function liveCommitteeRows(signals: Signal[]): Array<{
+  signal: Signal;
+  type: "Hearing" | "Report tabled" | "New inquiry";
+}> {
+  return signals
+    .map((s): { signal: Signal; type: "Hearing" | "Report tabled" | "New inquiry" } | null => {
+      const lower = s.source.toLowerCase();
+      if (lower.includes("hearing")) return { signal: s, type: "Hearing" };
+      if (lower.includes("report")) return { signal: s, type: "Report tabled" };
+      if (lower.includes("inquir")) return { signal: s, type: "New inquiry" };
+      return null;
+    })
+    .filter((row): row is { signal: Signal; type: "Hearing" | "Report tabled" | "New inquiry" } => row !== null);
+}
 
 export function PageCommittees(): JSX.Element {
-  const { openModal } = useStore();
-  const today = COMMITTEE_ITEMS.filter((i) => i.when.startsWith("Today"));
-  const upcoming = COMMITTEE_ITEMS.filter(
-    (i) => !i.when.startsWith("Today") && !i.when.startsWith("Yesterday"),
-  );
-  const recent = COMMITTEE_ITEMS.filter((i) => i.when.startsWith("Yesterday"));
-
-  const CommitteeTable = ({
-    rows,
-    compact,
-  }: {
-    rows: CommitteeItem[];
-    compact?: boolean;
-  }): JSX.Element => (
-    <table className="ds">
-      <thead>
-        <tr>
-          <th>When</th>
-          <th>Type</th>
-          <th>Committee</th>
-          {!compact && <th>Topic</th>}
-          <th>Portfolio</th>
-          <th>Attention</th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((r, i) => {
-          const cid = committeeIdFromName(r.name);
-          return (
-            <tr
-              key={i}
-              onClick={() => cid && openModal({ kind: "committee", id: cid })}
-            >
-              <td className="mono" style={{ fontSize: 11.5, color: "var(--ink-2)" }}>
-                {r.when}
-              </td>
-              <td>
-                <span className="tag">{r.type}</span>
-              </td>
-              <td>
-                {r.name}
-                {compact && (
-                  <div style={{ color: "var(--ink-3)", fontSize: 12 }}>{r.topic}</div>
-                )}
-              </td>
-              {!compact && <td>{r.topic}</td>}
-              <td className="mono" style={{ fontSize: 11.5, color: "var(--ink-3)" }}>
-                {r.portfolio}
-              </td>
-              <td>
-                <Att level={r.att} />
-              </td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
-  );
+  const { openSignal, openModal, liveSignals } = useStore();
+  const committees = useMemo(() => Object.values(ENTITIES.committees), []);
+  const rows = useMemo(() => liveCommitteeRows(liveSignals), [liveSignals]);
 
   return (
     <div className="page-fade">
@@ -74,66 +37,121 @@ export function PageCommittees(): JSX.Element {
           <div className="page-kicker">Intelligence</div>
           <h1 className="page-title">Committees</h1>
           <div className="page-sub">
-            Senate and House committee feeds. Click any row to open the
-            committee with hearings, inquiries and prep pack.
+            Live committee activity from the Senate inquiries, reports, and
+            upcoming-hearings feeds. Reference directory below links to each
+            committee's authoritative APH page.
           </div>
         </div>
         <div style={{ display: "flex", gap: 10 }}>
-          <button
-            type="button"
+          <a
             className="btn"
-            disabled
-            aria-disabled="true"
-            title="Committee filter coming in a later wave"
+            href="https://www.aph.gov.au/Parliamentary_Business/Committees"
+            target="_blank"
+            rel="noopener noreferrer"
           >
-            <Icon name="filter" size={13} /> Filter
-          </button>
-        </div>
-      </div>
-
-      <div className="grid g-3" style={{ marginBottom: 18 }}>
-        <div className="panel stat">
-          <div className="stat-label">Today</div>
-          <div className="stat-value">
-            {today.length}
-            <span className="unit">hearings</span>
-          </div>
-        </div>
-        <div className="panel stat">
-          <div className="stat-label">Upcoming · 7 days</div>
-          <div className="stat-value">
-            {upcoming.length}
-            <span className="unit">hearings</span>
-          </div>
-        </div>
-        <div className="panel stat">
-          <div className="stat-label">Reports tabled · 30 days</div>
-          <div className="stat-value">5</div>
+            <Icon name="ext" size={13} /> All APH committees
+          </a>
         </div>
       </div>
 
       <div className="panel" style={{ marginBottom: 16 }}>
         <div className="panel-head">
-          <h3 className="panel-title">Today's hearings</h3>
-          <span className="panel-kicker">{today.length} items</span>
+          <h3 className="panel-title">Live committee activity</h3>
+          <span className="panel-kicker">
+            {rows.length === 0 ? "No items yet" : `${rows.length} from RSS`}
+          </span>
         </div>
-        <CommitteeTable rows={today} />
+        <div className="panel-body">
+          {rows.length === 0 ? (
+            <div className="empty">
+              <strong>No committee items in the current poll.</strong>
+              <span>
+                The Senate inquiries, reports, and upcoming-hearings feeds are
+                being polled. Items appear here once published.
+              </span>
+            </div>
+          ) : (
+            <table className="ds">
+              <thead>
+                <tr>
+                  <th>When</th>
+                  <th>Type</th>
+                  <th>Committee / signal</th>
+                  <th>Attention</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map(({ signal, type }) => (
+                  <tr key={signal.id} onClick={() => openSignal(signal.id)}>
+                    <td className="mono" style={{ fontSize: 11.5, color: "var(--ink-2)" }}>
+                      {signal.date} · {signal.time}
+                    </td>
+                    <td>
+                      <span className="tag">{type}</span>
+                    </td>
+                    <td>
+                      <div style={{ fontWeight: 500 }}>{signal.title}</div>
+                      <div style={{ color: "var(--ink-3)", fontSize: 12 }}>
+                        {signal.source}
+                      </div>
+                    </td>
+                    <td>
+                      <Att level={signal.attention} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
       </div>
 
-      <div className="grid g-2">
-        <div className="panel">
-          <div className="panel-head">
-            <h3 className="panel-title">Upcoming hearings</h3>
-            <span className="panel-kicker">Next 7 days</span>
-          </div>
-          <CommitteeTable rows={upcoming} compact />
+      <div className="panel">
+        <div className="panel-head">
+          <h3 className="panel-title">Committee reference directory</h3>
+          <span className="panel-kicker">{committees.length} committees</span>
         </div>
-        <div className="panel">
-          <div className="panel-head">
-            <h3 className="panel-title">Recently tabled or opened</h3>
-            <span className="panel-kicker">Last 48h</span>
-          </div>
-          <CommitteeTable rows={recent} compact />
+        <div className="panel-body">
+          <p style={{ color: "var(--ink-3)", fontSize: 12, marginTop: 0 }}>
+            Real public APH committees. Member counts, chairs, hearings and
+            active inquiries are intentionally not pre-populated. Click for the
+            committee bio plus a deep link to the authoritative APH page.
+          </p>
+          <table className="ds">
+            <thead>
+              <tr>
+                <th>Committee</th>
+                <th>Chamber</th>
+                <th>Portfolio scope</th>
+                <th>APH page</th>
+              </tr>
+            </thead>
+            <tbody>
+              {committees.map((c) => (
+                <tr key={c.id} onClick={() => openModal({ kind: "committee", id: c.id })}>
+                  <td style={{ fontWeight: 500 }}>{c.name}</td>
+                  <td>
+                    <span className="tag">{c.chamber}</span>
+                  </td>
+                  <td className="mono" style={{ fontSize: 11.5, color: "var(--ink-3)" }}>
+                    {c.portfolio}
+                  </td>
+                  <td>
+                    <a
+                      href={c.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mono"
+                      style={{ fontSize: 11, color: "var(--teal)" }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      Open ↗
+                    </a>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

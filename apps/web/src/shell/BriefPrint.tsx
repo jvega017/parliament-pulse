@@ -93,7 +93,7 @@ export function BriefPrint(): JSX.Element | null {
             letterSpacing: "0.14em",
           }}
         >
-          Brief preview · {isLive ? "from live APH RSS" : "from sample data"}
+          Brief preview · {isLive ? "live APH RSS" : "archived item"}
         </div>
         <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
           <button
@@ -144,13 +144,13 @@ export function BriefPrint(): JSX.Element | null {
       <article className="brief-print">
         <header className="brief-print-head">
           <div className="brief-print-kicker">
-            Parliament Pulse · Executive brief · {isLive ? "From live APH RSS" : "Sample data"}
+            Parliament Pulse · Executive brief · {isLive ? "Live APH RSS" : "Archived item"}
           </div>
-          <h1 id="brief-title">{signal.title.replace(/^\[Sample\]\s*/, "")}</h1>
+          <h1 id="brief-title">{signal.title}</h1>
           <div className="brief-print-meta">
             {today()} · {signal.id} · Confidence {signal.confidence}/5 ·
             Attention {signal.attention.toUpperCase()} ·
-            {isLive ? " LIVE" : " SAMPLE — NOT FOR ISSUE"}
+            {isLive ? " LIVE" : " ARCHIVED"}
           </div>
         </header>
 

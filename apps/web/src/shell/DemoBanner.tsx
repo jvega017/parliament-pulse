@@ -10,7 +10,7 @@ const APP_VERSION = import.meta.env.VITE_APP_VERSION ?? "0.0.0";
 export function DemoBanner(): JSX.Element {
   return (
     <aside
-      aria-label="Sample data notice"
+      aria-label="Limited beta scope"
       style={{
         display: "flex",
         alignItems: "center",
@@ -18,31 +18,44 @@ export function DemoBanner(): JSX.Element {
         padding: "10px 14px",
         marginBottom: 16,
         background:
-          "linear-gradient(90deg, #e0b55814 0%, #e0b5580a 60%, transparent 100%)",
-        border: "1px solid #e0b55835",
+          "linear-gradient(90deg, #58b9ad14 0%, #58b9ad0a 60%, transparent 100%)",
+        border: "1px solid #58b9ad35",
         borderRadius: 10,
         fontSize: 12,
         color: "var(--ink-2)",
         boxShadow: "var(--shadow-xs), inset 0 1px 0 #ffffff04",
       }}
     >
-      <Icon name="flag" size={14} stroke="var(--caution)" />
+      <Icon name="signal" size={14} stroke="var(--teal)" />
       <span style={{ flex: 1 }}>
-        <strong style={{ color: "var(--caution)" }}>Sample data.</strong> Members,
-        ministers, bills, committees and figures on this page are sample data
-        only. Live APH RSS appears on the Overview and Live parliament pages.
+        <strong style={{ color: "var(--teal)" }}>Limited beta.</strong> Live
+        APH RSS drives Overview, Live, Radar, Briefings and Patterns. Member,
+        minister, and bill detail surfaces link out to{" "}
+        <a
+          href="https://www.aph.gov.au"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: "var(--teal)" }}
+        >
+          aph.gov.au
+        </a>{" "}
+        until the corresponding ingests land. Nothing on this page is fabricated.
       </span>
-      <span
+      <a
+        href="https://github.com/jvega017/parliament-pulse/blob/main/STATUS.md"
+        target="_blank"
+        rel="noopener noreferrer"
         className="mono"
         style={{
           fontSize: 10.5,
           color: "var(--ink-3)",
           letterSpacing: "0.08em",
+          textDecoration: "none",
         }}
-        title={`Deployed build: v${APP_VERSION} at commit ${BUILD_SHA}`}
+        title={`Deployed build: v${APP_VERSION} at commit ${BUILD_SHA}. Click for status page.`}
       >
         v{APP_VERSION} · {BUILD_SHA}
-      </span>
+      </a>
     </aside>
   );
 }
