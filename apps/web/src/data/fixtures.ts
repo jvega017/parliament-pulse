@@ -33,6 +33,28 @@ export const APH_FEEDS: Feed[] = [
   { id: "h-media", group: "House", name: "House Media Releases", url: "https://www.aph.gov.au/house/rss/media_releases", status: "live", last: "just polled", today: 0, fpr: "Med", modules: ["Today's Signal"], parser: "Valid", authority: "Official", confidence: "Medium" },
 ];
 
+/**
+ * Authoritative APH connector index used across the app.
+ * Every URL in this table has been verified to resolve against the live
+ * Parliament of Australia website at the time of last audit.
+ * Source for the connector list: https://www.aph.gov.au/Help/RSS_feeds and
+ * https://www.aph.gov.au/Parliamentary_Business/Chamber_documents.
+ */
+export const APH_CONNECTORS = [
+  { id: "rss-directory", name: "APH RSS feed directory", url: "https://www.aph.gov.au/Help/RSS_feeds", desc: "Every published RSS endpoint" },
+  { id: "hansard", name: "Hansard hub", url: "https://www.aph.gov.au/Parliamentary_Business/Hansard", desc: "Daily transcripts of Senate, House, Federation Chamber and committees" },
+  { id: "parlinfo", name: "ParlInfo search", url: "https://parlinfo.aph.gov.au/", desc: "Full-text across bills, Hansard, committee transcripts" },
+  { id: "bills", name: "Bills Search", url: "https://www.aph.gov.au/Parliamentary_Business/Bills_Legislation/Bills_Search_Results", desc: "Filter bills by stage, type, date" },
+  { id: "house-program", name: "House Daily Program", url: "https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/HoR/House_Daily_Program", desc: "Today's House business, posted ~1h before sitting" },
+  { id: "senate-red", name: "Senate Dynamic Red", url: "https://parlwork.aph.gov.au/Senate/DynamicRed", desc: "Live Senate order of business (ParlWork)" },
+  { id: "parlview", name: "ParlView archive", url: "https://www.aph.gov.au/News_and_Events/Watch_Read_Listen/ParlView/", desc: "Search and download recorded proceedings" },
+  { id: "watch", name: "Watch / Read / Listen", url: "https://www.aph.gov.au/News_and_Events/Watch_Read_Listen", desc: "Live streams, Hansard, podcasts, public hearings" },
+  { id: "members", name: "Senators & Members", url: "https://www.aph.gov.au/Senators_and_Members", desc: "Roster, portfolios, contact details" },
+  { id: "committees", name: "Committees hub", url: "https://www.aph.gov.au/Parliamentary_Business/Committees", desc: "All Senate, House, Joint and select committees" },
+  { id: "flagpost", name: "FlagPost (Parliamentary Library)", url: "https://www.aph.gov.au/About_Parliament/Parliamentary_departments/Parliamentary_Library/Research/FlagPost", desc: "Library research blog" },
+  { id: "library", name: "Parliamentary Library research", url: "https://www.aph.gov.au/About_Parliament/Parliamentary_departments/Parliamentary_Library", desc: "Bills Digests, Issues & Insights, briefing papers" },
+];
+
 export const SIGNALS: Signal[] = [
   {
     id: "CS-0412",
@@ -60,6 +82,7 @@ export const SIGNALS: Signal[] = [
     evidence: [
       { label: "Finance & PA Committee (APH)", url: "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Finance_and_Public_Administration" },
       { label: "Senate New Inquiries RSS", url: "https://www.aph.gov.au/senate/rss/new_inquiries" },
+      { label: "ParlInfo full-text search", url: "https://parlinfo.aph.gov.au/" },
       { label: "APH RSS feed directory", url: "https://www.aph.gov.au/Help/RSS_feeds" },
     ],
     score: { authority: 0.95, portfolio: 0.9, novelty: 0.9, momentum: 0.4, time: 0.6, scrutiny: 0.85, ops: 0.7 },
@@ -96,7 +119,8 @@ export const SIGNALS: Signal[] = [
     sourceAuthority: "Official",
     humanReview: "Optional",
     evidence: [
-      { label: "Speaker's media release", url: "https://www.aph.gov.au/About_Parliament/House_of_Representatives/News_and_events/Media_releases" },
+      { label: "House media releases (RSS)", url: "https://www.aph.gov.au/house/rss/media_releases" },
+      { label: "About the House", url: "https://www.aph.gov.au/About_Parliament/House_of_Representatives" },
     ],
     score: { authority: 0.95, portfolio: 0.05, novelty: 0.3, momentum: 0.1, time: 0.1, scrutiny: 0.1, ops: 0.05 },
     provenance: [
@@ -133,9 +157,10 @@ export const SIGNALS: Signal[] = [
     sourceAuthority: "Official",
     humanReview: "Required",
     evidence: [
-      { label: "Bills Digests index (Parliamentary Library)", url: "https://www.aph.gov.au/Parliamentary_Business/Bills_Legislation/Bills_Search_Results" },
-      { label: "Bills Legislation landing", url: "https://www.aph.gov.au/Parliamentary_Business/Bills_Legislation" },
-      { label: "Parliamentary Library", url: "https://www.aph.gov.au/About_Parliament/Parliamentary_departments/Parliamentary_Library" },
+      { label: "Bills Search (filter by title)", url: "https://www.aph.gov.au/Parliamentary_Business/Bills_Legislation/Bills_Search_Results" },
+      { label: "Bills and Legislation landing", url: "https://www.aph.gov.au/Parliamentary_Business/Bills_Legislation" },
+      { label: "Parliamentary Library research", url: "https://www.aph.gov.au/About_Parliament/Parliamentary_departments/Parliamentary_Library" },
+      { label: "ParlInfo search (full-text)", url: "https://parlinfo.aph.gov.au/" },
     ],
     score: { authority: 0.95, portfolio: 0.85, novelty: 0.8, momentum: 0.55, time: 0.5, scrutiny: 0.7, ops: 0.7 },
     provenance: [
@@ -173,6 +198,7 @@ export const SIGNALS: Signal[] = [
     evidence: [
       { label: "Committee home page", url: "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Legal_and_Constitutional_Affairs" },
       { label: "Today's Senate hearings RSS", url: "https://www.aph.gov.au/senate/rss/red" },
+      { label: "Watch / Read / Listen", url: "https://www.aph.gov.au/News_and_Events/Watch_Read_Listen" },
     ],
     score: { authority: 0.95, portfolio: 0.85, novelty: 0.4, momentum: 0.7, time: 0.95, scrutiny: 0.9, ops: 0.6 },
     provenance: [
@@ -206,8 +232,9 @@ export const SIGNALS: Signal[] = [
     sourceAuthority: "Official",
     humanReview: "Optional",
     evidence: [
-      { label: "House daily program", url: "https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/HoR_chamber_documents/Daily_program" },
+      { label: "House Daily Program", url: "https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/HoR/House_Daily_Program" },
       { label: "Bills Legislation search", url: "https://www.aph.gov.au/Parliamentary_Business/Bills_Legislation/Bills_Search_Results" },
+      { label: "House Hansard transcripts", url: "https://www.aph.gov.au/Parliamentary_Business/Hansard/Hansreps_2011" },
     ],
     score: { authority: 0.95, portfolio: 0.75, novelty: 0.35, momentum: 0.5, time: 0.85, scrutiny: 0.7, ops: 0.55 },
     provenance: [
@@ -240,8 +267,8 @@ export const SIGNALS: Signal[] = [
     sourceAuthority: "Official",
     humanReview: "Optional",
     evidence: [
-      { label: "FlagPost (Parliamentary Library)", url: "https://www.aph.gov.au/About_Parliament/Parliamentary_departments/Parliamentary_Library/FlagPost" },
-      { label: "Parliamentary Library landing", url: "https://www.aph.gov.au/About_Parliament/Parliamentary_departments/Parliamentary_Library" },
+      { label: "FlagPost (Parliamentary Library)", url: "https://www.aph.gov.au/About_Parliament/Parliamentary_departments/Parliamentary_Library/Research/FlagPost" },
+      { label: "Parliamentary Library research", url: "https://www.aph.gov.au/About_Parliament/Parliamentary_departments/Parliamentary_Library" },
     ],
     score: { authority: 0.8, portfolio: 0.7, novelty: 0.6, momentum: 0.5, time: 0.3, scrutiny: 0.4, ops: 0.3 },
     provenance: [

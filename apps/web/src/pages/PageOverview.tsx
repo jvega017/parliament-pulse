@@ -206,6 +206,7 @@ export function PageOverview(): JSX.Element {
         </div>
         <a
           href="https://www.aph.gov.au/Parliamentary_Business/Hansard"
+          title="APH Hansard hub: daily transcripts of debate"
           target="_blank"
           rel="noopener noreferrer"
           className="btn sm ghost"

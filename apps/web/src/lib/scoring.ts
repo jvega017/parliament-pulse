@@ -255,8 +255,9 @@ export function signalFromFeedItem(
     sourceAuthority: "Official",
     humanReview: result.attention === "high" ? "Required" : "Optional",
     evidence: [
-      { label: item.sourceLabel, url: item.sourceUrl },
-      { label: "Open item on aph.gov.au", url: item.link },
+      { label: `Open item: ${item.title.slice(0, 60)}${item.title.length > 60 ? "..." : ""}`, url: item.link },
+      { label: `${item.sourceLabel} (RSS feed)`, url: item.sourceUrl },
+      { label: "ParlInfo full-text search", url: "https://parlinfo.aph.gov.au/" },
       { label: "APH RSS feed directory", url: "https://www.aph.gov.au/Help/RSS_feeds" },
     ],
     score: result.score,

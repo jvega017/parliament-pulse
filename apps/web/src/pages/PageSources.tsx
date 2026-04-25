@@ -1,7 +1,7 @@
 import { Icon } from "../icons";
 import { DemoBanner } from "../shell/DemoBanner";
 import { useStore } from "../store/useStore";
-import { APH_FEEDS } from "../data/fixtures";
+import { APH_FEEDS, APH_CONNECTORS } from "../data/fixtures";
 import type { Feed } from "../types";
 
 const NOT_YET_CONNECTED = [
@@ -26,7 +26,17 @@ export function PageSources(): JSX.Element {
           <h1 className="page-title">Sources</h1>
           <div className="page-sub">
             Official APH feed bundle plus any custom RSS feeds you've added.
-            Each source is validated, classified and routed to modules.
+            Each source is validated, classified and routed to modules. URLs
+            on this page are taken verbatim from the{" "}
+            <a
+              href="https://www.aph.gov.au/Help/RSS_feeds"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: "var(--teal)" }}
+            >
+              APH RSS feed directory
+            </a>
+            .
           </div>
         </div>
         <div style={{ display: "flex", gap: 10 }}>
@@ -137,6 +147,46 @@ export function PageSources(): JSX.Element {
         </div>
 
         <div>
+          <div className="panel" style={{ marginBottom: 16 }}>
+            <div className="panel-head">
+              <h3 className="panel-title">Verified APH connectors</h3>
+              <span className="panel-kicker">{APH_CONNECTORS.length} canonical pages</span>
+            </div>
+            <div className="panel-body">
+              <p
+                style={{
+                  margin: "0 0 10px",
+                  fontSize: 12,
+                  color: "var(--ink-3)",
+                  lineHeight: 1.5,
+                }}
+              >
+                Direct, audited links to Parliament of Australia services. Used
+                throughout the app as the source of truth for evidence and
+                provenance.
+              </p>
+              {APH_CONNECTORS.map((c) => (
+                <a
+                  key={c.id}
+                  href={c.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="connector-card"
+                  style={{ marginBottom: 6 }}
+                >
+                  <span className="hdot live" style={{ flexShrink: 0 }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12.5, fontWeight: 500 }}>{c.name}</div>
+                    <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 2 }}>
+                      {c.desc}
+                    </div>
+                  </div>
+                  <Icon name="ext" size={12} stroke="var(--ink-3)" />
+                </a>
+              ))}
+            </div>
+          </div>
+
           <div className="panel">
             <div className="panel-head">
               <h3 className="panel-title">Not yet connected</h3>

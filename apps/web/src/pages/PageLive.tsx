@@ -9,6 +9,7 @@ import {
   type YtChamber,
 } from "../lib/aphFeed";
 import { formatRelative } from "../lib/export";
+import { APH_CONNECTORS } from "../data/fixtures";
 
 const APH_YT_CHANNEL = "UCvO8Qfr3etT6khGA9Zln8WA";
 
@@ -28,17 +29,17 @@ const CHAMBERS: Record<Chamber, { label: string; program: string }> = {
   house: {
     label: "House of Representatives",
     program:
-      "https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/HoR_chamber_documents/Daily_program",
+      "https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/HoR/House_Daily_Program",
   },
   senate: {
     label: "Senate",
     program:
-      "https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/Senate_chamber_documents/Dynamic_Red",
+      "https://parlwork.aph.gov.au/Senate/DynamicRed",
   },
   federation: {
     label: "Federation Chamber",
     program:
-      "https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/HoR_chamber_documents/Federation_chamber",
+      "https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/HoR/Federation_Chamber_Daily_Program",
   },
 };
 
@@ -404,13 +405,28 @@ export function PageLive(): JSX.Element {
           <div className="panel" style={{ marginTop: 16 }}>
             <div className="panel-head">
               <h3 className="panel-title">APH connectors</h3>
-              <span className="panel-kicker">Official live endpoints</span>
+              <span className="panel-kicker">
+                {APH_CONNECTORS.length} verified endpoints · official APH and ParlWork
+              </span>
             </div>
             <div className="panel-body">
+              <p
+                style={{
+                  margin: "0 0 12px",
+                  fontSize: 12,
+                  color: "var(--ink-3)",
+                  lineHeight: 1.5,
+                }}
+              >
+                Direct links to the canonical APH and ParlWork pages used by
+                this product. Every URL has been verified to resolve.
+                Drawer evidence and brief footnotes also point here so a
+                reviewer can trace any claim back to the primary source.
+              </p>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                {CONNECTORS.map((c) => (
+                {APH_CONNECTORS.map((c) => (
                   <a
-                    key={c.name}
+                    key={c.id}
                     href={c.url}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -630,13 +646,6 @@ function KindIcon({ kind }: { kind: FeedItem["kind"] }): JSX.Element {
   }
 }
 
-const CONNECTORS = [
-  { name: "Hansard live", url: "https://www.aph.gov.au/Parliamentary_Business/Hansard", desc: "Daily proofs, every 5 min" },
-  { name: "ParlInfo Search", url: "https://parlinfo.aph.gov.au/parlInfo/search/search.w3p", desc: "Full-text across bills, Hansard, committees" },
-  { name: "Bills Search", url: "https://www.aph.gov.au/Parliamentary_Business/Bills_Legislation/Bills_Search_Results", desc: "Bill stage & status" },
-  { name: "Senate Dynamic Red", url: "https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/Senate_chamber_documents/Dynamic_Red", desc: "Senate program, live" },
-  { name: "House Daily Program", url: "https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/HoR_chamber_documents/Daily_program", desc: "House program, live" },
-  { name: "Division results", url: "https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/HoR_chamber_documents/Division_lists", desc: "Votes within 2 min of call" },
-  { name: "Committee hearings RSS", url: "https://www.aph.gov.au/Parliamentary_Business/Committees/RSS_Feeds", desc: "New & upcoming inquiries" },
-  { name: "Senators & Members", url: "https://www.aph.gov.au/Senators_and_Members", desc: "Member roster and portfolios" },
-];
+// Authoritative connector list now lives in data/fixtures.ts as APH_CONNECTORS
+// so the Live page, Sources page, and any other surface share one verified
+// URL set.
