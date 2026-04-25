@@ -10,6 +10,7 @@ export function Topbar(): JSX.Element {
     openSignal,
     goto,
     liveSignals,
+    liveFeedResult,
     openBrief,
     triggerRefresh,
     toggleMobileNav,
@@ -17,6 +18,17 @@ export function Topbar(): JSX.Element {
     density,
     setDensity,
   } = useStore();
+  // Source-health is derived from the live poll, not the fixture table, so
+  // the chip never claims sources are live when the proxy is failing.
+  const liveCount = liveFeedResult
+    ? Object.values(liveFeedResult.feedStatus).filter((s) => s.ok).length
+    : 0;
+  const totalCount = liveFeedResult
+    ? Object.keys(liveFeedResult.feedStatus).length
+    : APH_FEEDS.length;
+  const liveLabel = liveFeedResult
+    ? `${liveCount}/${totalCount} live`
+    : "polling…";
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const [activeIdx, setActiveIdx] = useState(0);
@@ -240,8 +252,28 @@ export function Topbar(): JSX.Element {
           />{" "}
           Parliament live
         </button>
-        <span className="chip" title="Sample feeds marked live">
-          <span className="dot" /> {APH_FEEDS.filter((f) => f.status === "live").length}/{APH_FEEDS.length} sources
+        <span
+          className="chip"
+          title={
+            liveFeedResult
+              ? `Last poll ${liveFeedResult.lastPoll.toLocaleTimeString("en-AU", { hour: "2-digit", minute: "2-digit", hour12: false })}. Status reflects the most recent fetch through the aph-proxy Worker.`
+              : "Awaiting first poll of APH feeds"
+          }
+        >
+          <span
+            className="dot"
+            style={{
+              background:
+                !liveFeedResult
+                  ? "var(--ink-4)"
+                  : liveCount === totalCount
+                    ? "var(--ok)"
+                    : liveCount === 0
+                      ? "var(--escalate)"
+                      : "var(--caution)",
+            }}
+          />{" "}
+          {liveLabel}
         </span>
         <button
           type="button"

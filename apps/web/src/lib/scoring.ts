@@ -203,9 +203,17 @@ function actionFor(
   };
 }
 
-function sourceGroupFor(kind: FeedItem["kind"]): Signal["sourceGroup"] {
-  if (kind === "digest") return "Library";
-  if (kind === "inquiry" || kind === "hearing" || kind === "report") return "Senate";
+// Source group derived from the feed label, not the kind.
+// Earlier versions inferred from kind, which mis-routed Senate inquiries and
+// Library digests to "House". The label is canonical because it is set in
+// APH_FEED_URLS and matches the publishing chamber/department exactly.
+function sourceGroupFor(item: FeedItem): Signal["sourceGroup"] {
+  const label = item.sourceLabel.toLowerCase();
+  if (label.includes("library") || label.includes("flagpost") || label.includes("digest")) {
+    return "Library";
+  }
+  if (label.includes("senate") || label.includes("senators")) return "Senate";
+  if (label.includes("joint") || label.includes("committee")) return "Custom";
   return "House";
 }
 
@@ -240,7 +248,7 @@ export function signalFromFeedItem(
     time: fmtTime(item.pubDate),
     date: fmtDate(item.pubDate),
     source: item.sourceLabel,
-    sourceGroup: sourceGroupFor(item.kind),
+    sourceGroup: sourceGroupFor(item),
     title: item.title,
     summary: `Live from ${item.sourceLabel}. Opened via Parliament of Australia RSS.`,
     tags: tagsFor(result, item.kind),
@@ -262,10 +270,10 @@ export function signalFromFeedItem(
     ],
     score: result.score,
     provenance: [
-      { ts: fmtTime(now), by: "parser", event: `Fetched via aph-proxy Worker from ${item.sourceLabel}` },
-      { ts: fmtTime(now), by: "enrichment", event: `Keyword scan -> ${result.matchedWatchlists.length} watchlist match(es)` },
-      { ts: fmtTime(now), by: "scoring", event: `Attention score ${result.overall.toFixed(2)} -> ${result.attention.toUpperCase()}` },
-      { ts: fmtTime(now), by: "publish", event: `Published as ${id}` },
+      { ts: `${fmtDate(now)} ${fmtTime(now)}`, by: "parser", event: `Fetched via aph-proxy Worker from ${item.sourceLabel}` },
+      { ts: `${fmtDate(now)} ${fmtTime(now)}`, by: "enrichment", event: `Keyword scan -> ${result.matchedWatchlists.length} watchlist match(es)` },
+      { ts: `${fmtDate(now)} ${fmtTime(now)}`, by: "scoring", event: `Attention score ${result.overall.toFixed(2)} -> ${result.attention.toUpperCase()}` },
+      { ts: `${fmtDate(now)} ${fmtTime(now)}`, by: "publish", event: `Published as ${id}` },
     ],
     updates: [],
     members: [],

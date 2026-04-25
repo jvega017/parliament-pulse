@@ -140,12 +140,12 @@ export function Sidebar({ page, onNavigate }: SidebarProps): JSX.Element {
         <div className="avatar" aria-hidden="true">
           EM
         </div>
-        <div style={{ lineHeight: 1.2, minWidth: 0, flex: 1 }}>
-          <div style={{ fontSize: 12.5, fontWeight: 500 }}>Erin Marlowe</div>
+        <div style={{ lineHeight: 1.25, minWidth: 0, flex: 1 }}>
+          <div style={{ fontSize: 12.5, fontWeight: 600 }}>Erin Marlowe</div>
           <div
             style={{
-              fontFamily: "var(--mono)",
-              fontSize: 10.5,
+              fontFamily: "var(--sans)",
+              fontSize: 11,
               color: "var(--ink-3)",
               overflow: "hidden",
               textOverflow: "ellipsis",

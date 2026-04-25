@@ -197,7 +197,7 @@ export const SIGNALS: Signal[] = [
     humanReview: "Required",
     evidence: [
       { label: "Committee home page", url: "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Legal_and_Constitutional_Affairs" },
-      { label: "Today's Senate hearings RSS", url: "https://www.aph.gov.au/senate/rss/red" },
+      { label: "Upcoming Senate hearings RSS", url: "https://www.aph.gov.au/senate/rss/upcoming_hearings" },
       { label: "Watch / Read / Listen", url: "https://www.aph.gov.au/News_and_Events/Watch_Read_Listen" },
     ],
     score: { authority: 0.95, portfolio: 0.85, novelty: 0.4, momentum: 0.7, time: 0.95, scrutiny: 0.9, ops: 0.6 },
@@ -234,7 +234,7 @@ export const SIGNALS: Signal[] = [
     evidence: [
       { label: "House Daily Program", url: "https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/HoR/House_Daily_Program" },
       { label: "Bills Legislation search", url: "https://www.aph.gov.au/Parliamentary_Business/Bills_Legislation/Bills_Search_Results" },
-      { label: "House Hansard transcripts", url: "https://www.aph.gov.au/Parliamentary_Business/Hansard/Hansreps_2011" },
+      { label: "House Hansard transcripts", url: "https://www.aph.gov.au/Parliamentary_Business/Hansard" },
     ],
     score: { authority: 0.95, portfolio: 0.75, novelty: 0.35, momentum: 0.5, time: 0.85, scrutiny: 0.7, ops: 0.55 },
     provenance: [
