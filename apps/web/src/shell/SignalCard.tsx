@@ -35,7 +35,7 @@ export function SignalCard({ s }: SignalCardProps): JSX.Element | null {
         ))}
       </div>
       <div className="sig-action">
-        <span className="sig-action-label">Recommended</span>
+        <span className="sig-action-label">Suggested action</span>
         <span className="sig-action-value">{s.action}</span>
         <Conf n={s.confidence} />
         <span className="sig-action-reason">{s.actionReason}</span>

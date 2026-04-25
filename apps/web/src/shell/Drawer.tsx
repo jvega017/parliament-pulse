@@ -206,7 +206,20 @@ export function Drawer(): JSX.Element {
               </div>
 
               <div className="drawer-section">
-                <h4>Attention score breakdown</h4>
+                <h4>
+                  Attention score breakdown
+                  <span
+                    title="Weighted sum: authority 0.20, portfolio 0.30, novelty 0.10, momentum 0.05, time 0.20, scrutiny 0.10, ops 0.05. High >=0.65, medium >=0.40."
+                    style={{
+                      marginLeft: 8,
+                      cursor: "help",
+                      color: "var(--ink-3)",
+                      fontWeight: 400,
+                    }}
+                  >
+                    (how?)
+                  </span>
+                </h4>
                 {Object.entries(signal.score).map(([k, v]) => (
                   <div
                     key={k}
@@ -238,6 +251,7 @@ export function Drawer(): JSX.Element {
                 ))}
               </div>
 
+              {signal.evidence.length > 0 && (
               <div className="drawer-section">
                 <h4>Evidence · open the actual source</h4>
                 {signal.evidence.map((e, i) => (
@@ -279,6 +293,7 @@ export function Drawer(): JSX.Element {
                   </a>
                 ))}
               </div>
+              )}
 
               {signal.provenance.length > 0 && (
                 <div className="drawer-section">

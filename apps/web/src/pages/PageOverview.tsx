@@ -3,6 +3,7 @@ import { Icon } from "../icons";
 import { SignalCard } from "../shell/SignalCard";
 import { DemoBanner } from "../shell/DemoBanner";
 import { useStore } from "../store/useStore";
+import { exportSignalsDigestCsv } from "../lib/export";
 import {
   APH_FEEDS,
   BRIEFING_QUEUE,
@@ -76,18 +77,18 @@ export function PageOverview(): JSX.Element {
       <div className="page-head">
         <div>
           <div className="page-kicker">{formatAESTDate(now)} · AEST</div>
-          <h1 className="page-title">Today's signal</h1>
+          <h1 className="page-title">Today's signals</h1>
           <div className="page-sub">
             {totalLive} live signals scored from official APH RSS.{" "}
             {liveHigh.length} high, {liveMed.length} medium, {liveLow.length} low.
             {liveLoading && " Polling..."}
           </div>
         </div>
-        <div style={{ display: "flex", gap: 10 }}>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <button
             type="button"
             className="btn"
-            title="Coming soon"
+            title="Filter by attention / watchlist / portfolio — coming soon"
             disabled
             aria-disabled="true"
           >
@@ -96,11 +97,20 @@ export function PageOverview(): JSX.Element {
           <button
             type="button"
             className="btn"
-            title="Coming soon"
-            disabled
-            aria-disabled="true"
+            disabled={liveSignals.length === 0}
+            title={
+              liveSignals.length === 0
+                ? "Waiting for live signals"
+                : "Export all live signals as CSV"
+            }
+            onClick={() =>
+              exportSignalsDigestCsv(
+                `live-signals-${new Date().toISOString().slice(0, 10)}.csv`,
+                liveSignals,
+              )
+            }
           >
-            <Icon name="download" size={13} /> Export
+            <Icon name="download" size={13} /> Export all
           </button>
           <button
             type="button"
@@ -221,26 +231,26 @@ export function PageOverview(): JSX.Element {
           <div className="stat-value" style={{ color: "var(--brass)" }}>
             {liveHigh.length}
           </div>
-          <div className="stat-meta">Review before the morning brief</div>
+          <div className="stat-meta">For morning brief review</div>
         </div>
         <div className="panel stat">
           <div className="stat-label">Live signals (scored)</div>
           <div className="stat-value">{totalLive}</div>
-          <div className="stat-meta">From 5 APH RSS feeds via aph-proxy</div>
+          <div className="stat-meta">Live APH RSS feeds</div>
         </div>
         <div className="panel stat">
           <div className="stat-label">Medium</div>
           <div className="stat-value" style={{ color: "var(--caution)" }}>
             {liveMed.length}
           </div>
-          <div className="stat-meta">Contextual reinforcement</div>
+          <div className="stat-meta">Supporting signals</div>
         </div>
         <div className="panel stat">
           <div className="stat-label">Source health</div>
           <div className="stat-value">
             {healthyFeeds}/{APH_FEEDS.length}<span className="unit">live</span>
           </div>
-          <div className="stat-meta">Derived from connected feeds</div>
+          <div className="stat-meta">Live APH RSS feeds</div>
         </div>
       </div>
 
@@ -258,7 +268,24 @@ export function PageOverview(): JSX.Element {
             </div>
             <div className="panel-body">
               {liveLoading && liveHigh.length === 0 && (
-                <div className="empty">Polling APH RSS for live content...</div>
+                <div style={{ padding: "8px 0" }}>
+                  {Array.from({ length: 2 }).map((_, i) => (
+                    <div
+                      key={i}
+                      className="skeleton"
+                      style={{ height: 120, marginBottom: 10 }}
+                    />
+                  ))}
+                  <div
+                    style={{
+                      textAlign: "center",
+                      color: "var(--ink-3)",
+                      fontSize: 12,
+                    }}
+                  >
+                    Polling APH RSS for live content...
+                  </div>
+                </div>
               )}
               {!liveLoading && liveHigh.length === 0 && (
                 <div className="empty">

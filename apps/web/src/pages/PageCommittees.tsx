@@ -74,8 +74,8 @@ export function PageCommittees(): JSX.Element {
           <div className="page-kicker">Parliament</div>
           <h1 className="page-title">Committees</h1>
           <div className="page-sub">
-            Powered by Senate and House committee feeds. Click any row to open
-            the committee with hearings, inquiries and prep pack.
+            Senate and House committee feeds. Click any row to open the
+            committee with hearings, inquiries and prep pack.
           </div>
         </div>
         <div style={{ display: "flex", gap: 10 }}>
@@ -130,7 +130,7 @@ export function PageCommittees(): JSX.Element {
         </div>
         <div className="panel">
           <div className="panel-head">
-            <h3 className="panel-title">Recently tabled / opened</h3>
+            <h3 className="panel-title">Recently tabled or opened</h3>
             <span className="panel-kicker">Last 48h</span>
           </div>
           <CommitteeTable rows={recent} compact />

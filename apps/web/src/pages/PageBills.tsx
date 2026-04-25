@@ -12,11 +12,11 @@ export function PageBills(): JSX.Element {
       <DemoBanner />
       <div className="page-head">
         <div>
-          <div className="page-kicker">Parliament · Bills Intelligence</div>
+          <div className="page-kicker">Intelligence · Bills</div>
           <h1 className="page-title">Bills intelligence</h1>
           <div className="page-sub">
             Click a bill for full details, provisions and timeline. Assign a
-            policy owner directly from the bill detail.
+            policy owner from the bill detail.
           </div>
         </div>
         <div style={{ display: "flex", gap: 10 }}>

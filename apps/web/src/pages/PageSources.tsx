@@ -73,7 +73,7 @@ export function PageSources(): JSX.Element {
       <div className="grid g-overview">
         <div className="panel">
           <div className="panel-head">
-            <h3 className="panel-title">Official APH Feed Bundle</h3>
+            <h3 className="panel-title">Official APH feed bundle</h3>
             <span className="panel-kicker">
               {allFeeds.length} feeds · click a row for detail
             </span>

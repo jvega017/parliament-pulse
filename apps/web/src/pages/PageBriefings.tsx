@@ -74,7 +74,10 @@ export function PageBriefings(): JSX.Element {
         <div className="panel">
           <div className="panel-head">
             <h3 className="panel-title">Queue</h3>
-            <span className="panel-kicker">4 pending</span>
+            <span className="panel-kicker">
+              {briefs.filter((b) => (briefStatus[b.signalId] ?? "draft") !== "approved").length} pending ·{" "}
+              {briefs.length} total
+            </span>
           </div>
           <div>
             {briefs.map((b, i) => {
@@ -131,8 +134,8 @@ export function PageBriefings(): JSX.Element {
 
         <div className="panel">
           <div className="panel-head">
-            <h3 className="panel-title">{current.type} · preview</h3>
-            <span className="panel-kicker">For {current.for}</span>
+            <h3 className="panel-title">{current.type}</h3>
+            <span className="panel-kicker">Preview · for {current.for}</span>
             <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
               <button
                 type="button"

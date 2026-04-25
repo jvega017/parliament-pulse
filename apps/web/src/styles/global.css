@@ -130,11 +130,12 @@ body {
   font-variation-settings: "opsz" 144;
 }
 .brand-sub {
-  font-family: var(--mono);
-  color: var(--ink-4);
-  font-size: 10px;
+  font-family: var(--sans);
+  font-weight: 500;
+  color: var(--ink-3);
+  font-size: 10.5px;
   text-transform: uppercase;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.12em;
   margin-top: 2px;
 }
 
@@ -215,7 +216,7 @@ body {
 
 .side-foot {
   border-top: 1px solid var(--line);
-  padding: 12px 14px;
+  padding: 12px 16px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -432,9 +433,9 @@ textarea:focus-visible {
 }
 .panel-head {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 12px;
-  padding: 14px 16px;
+  padding: 16px;
   border-bottom: 1px solid var(--line);
 }
 .panel-title {
@@ -452,7 +453,7 @@ textarea:focus-visible {
   letter-spacing: 0.16em;
 }
 .panel-body {
-  padding: 14px 16px;
+  padding: 16px;
 }
 .panel-foot {
   padding: 10px 16px;
@@ -538,8 +539,9 @@ textarea:focus-visible {
 .sig-id {
   font-family: var(--mono);
   font-size: 10.5px;
-  color: var(--ink-3);
+  color: var(--ink-2);
   letter-spacing: 0.05em;
+  font-weight: 500;
 }
 .sig-source {
   font-family: var(--mono);
@@ -651,6 +653,7 @@ textarea:focus-visible {
   width: 6px;
   height: 6px;
   border-radius: 50%;
+  flex: none;
 }
 .att.high {
   color: #e89184; /* lighter red to pass 4.5:1 on the dark bg below */
@@ -810,7 +813,7 @@ table.ds td.num {
   padding: 16px 20px;
   border-bottom: 1px solid var(--line);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
 }
 .drawer-body {
@@ -1132,10 +1135,97 @@ hr.sep {
 }
 
 .empty {
-  color: var(--ink-4);
-  font-style: italic;
+  color: var(--ink-3);
   font-size: 13px;
-  padding: 12px 0;
+  padding: 24px 16px;
+  text-align: center;
+  border: 1px dashed var(--line-2);
+  border-radius: 8px;
+  margin: 8px 0;
+  background: #ffffff03;
+}
+
+/* Connector cards on the Live page get a proper hover treatment */
+.connector-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line-2);
+  border-radius: 6px;
+  text-decoration: none;
+  color: var(--ink);
+  background: var(--panel-2);
+  transition: border-color 0.15s, background 0.15s, transform 0.15s;
+}
+.connector-card:hover {
+  border-color: var(--line-bright);
+  background: linear-gradient(180deg, #1e2d41, #1b2a3d);
+}
+.connector-card:active {
+  transform: translateY(1px);
+}
+.connector-card:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+/* Loading skeleton pattern */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--panel-2) 0%,
+    var(--panel-hi) 50%,
+    var(--panel-2) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s infinite;
+  border-radius: 4px;
+}
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton { animation: none; background: var(--panel-2); }
+}
+
+/* Scroll shadow cue on drawer body when content overflows */
+.drawer-body {
+  background:
+    linear-gradient(var(--panel) 30%, rgba(20, 29, 40, 0)) center top,
+    linear-gradient(rgba(20, 29, 40, 0), var(--panel) 70%) center bottom,
+    radial-gradient(farthest-side at 50% 0, rgba(0, 0, 0, 0.35), transparent) center top,
+    radial-gradient(farthest-side at 50% 100%, rgba(0, 0, 0, 0.35), transparent) center bottom;
+  background-repeat: no-repeat;
+  background-size: 100% 24px, 100% 24px, 100% 10px, 100% 10px;
+  background-attachment: local, local, scroll, scroll;
+}
+
+/* Row striping on tables for legibility at density */
+table.ds tbody tr:nth-child(even) {
+  background: #ffffff02;
+}
+table.ds tbody tr:hover {
+  background: #ffffff0c;
+}
+
+/* Panel-body consistent padding on 8px grid */
+.panel-body-tight {
+  padding: 8px 16px;
+}
+
+/* Disabled buttons get a visible secondary outline cue */
+.btn[disabled]:hover {
+  background: var(--panel);
+  color: var(--ink-2);
+  filter: none;
+}
+
+/* Chip and attention pill dot sizing unified to 6px across contexts */
+.hdot {
+  width: 6px;
+  height: 6px;
 }
 
 @media (max-width: 1100px) {
@@ -1339,7 +1429,8 @@ hr.sep {
   color: var(--ink-3);
   text-transform: uppercase;
   letter-spacing: 0.16em;
-  padding: 10px 14px 4px;
+  padding: 10px 16px 4px;
+  background: #ffffff02;
 }
 .sr-item {
   padding: 8px 14px;
@@ -1398,7 +1489,7 @@ hr.sep {
   color: #111111;
   max-width: 760px;
   margin: 24px auto 48px;
-  padding: 48px 56px;
+  padding: 56px 48px;
   box-shadow: 0 20px 60px #00000050;
   font-family: "Fraunces", Georgia, serif;
   font-size: 14px;
@@ -1407,8 +1498,8 @@ hr.sep {
 }
 .brief-print header.brief-print-head {
   border-bottom: 2px solid #1a1a1a;
-  padding-bottom: 12px;
-  margin-bottom: 18px;
+  padding-bottom: 8px;
+  margin-bottom: 16px;
 }
 .brief-print-kicker {
   font-family: "Inter", sans-serif;
@@ -1419,10 +1510,14 @@ hr.sep {
   letter-spacing: 0.16em;
 }
 .brief-print h1 {
-  font-size: 26px;
+  font-size: 30px;
   font-weight: 600;
   margin: 6px 0 4px;
   line-height: 1.15;
+  letter-spacing: -0.01em;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  hyphens: auto;
 }
 .brief-print-meta {
   font-family: "JetBrains Mono", monospace;
@@ -1482,8 +1577,47 @@ hr.sep {
   padding-top: 10px;
   border-top: 1px solid #bbb;
   font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: #333;
+}
+.brief-print-clear {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 6px 16px;
+  font-family: "Inter", sans-serif;
+  font-size: 12px;
+}
+.brief-print-clear dt {
+  color: #444;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
   font-size: 10.5px;
-  color: #666;
+  padding-top: 2px;
+}
+.brief-print-clear dd {
+  margin: 0;
+  color: #111;
+}
+/* Diagonal sample watermark; only visible in screen + print when rendered. */
+.brief-print-watermark {
+  position: absolute;
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-24deg);
+  font-family: "Inter", sans-serif;
+  font-size: 64px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #d06a5e;
+  opacity: 0.15;
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+  z-index: 1;
+}
+.brief-print {
+  position: relative;
 }
 
 @media print {

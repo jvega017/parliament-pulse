@@ -5,7 +5,16 @@ import { APH_FEEDS, SIGNALS } from "../data/fixtures";
 import { ENTITIES } from "../data/entities";
 
 export function Topbar(): JSX.Element {
-  const { openModal, openSignal, goto, liveSignals, openBrief, triggerRefresh, toggleMobileNav } = useStore();
+  const {
+    openModal,
+    openSignal,
+    goto,
+    liveSignals,
+    openBrief,
+    triggerRefresh,
+    toggleMobileNav,
+    toggleShortcuts,
+  } = useStore();
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const [activeIdx, setActiveIdx] = useState(0);
@@ -14,13 +23,18 @@ export function Topbar(): JSX.Element {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      const inTextField =
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement;
       if ((e.key === "k" || e.key === "K") && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         inputRef.current?.focus();
         setOpen(true);
+      } else if (e.key === "/" && !inTextField) {
+        e.preventDefault();
+        inputRef.current?.focus();
+        setOpen(true);
       } else if (e.key === "Escape" && open) {
-        // Per ARIA combobox pattern: collapse the listbox but retain
-        // focus on the input so the user can edit or retype.
         setOpen(false);
       }
     };
@@ -234,6 +248,15 @@ export function Topbar(): JSX.Element {
           onClick={triggerRefresh}
         >
           <Icon name="refresh" size={13} /> Refresh
+        </button>
+        <button
+          type="button"
+          className="btn ghost sm"
+          title="Keyboard shortcuts (press ?)"
+          aria-label="Keyboard shortcuts"
+          onClick={toggleShortcuts}
+        >
+          <kbd className="kbd" aria-hidden="true" style={{ padding: "1px 6px" }}>?</kbd>
         </button>
         <button
           type="button"

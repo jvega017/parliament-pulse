@@ -51,7 +51,7 @@ export const SIGNALS: Signal[] = [
     attention: "high",
     attentionReason:
       "Matches two watchlists (Digital procurement, Procurement). Source authority: Official APH feed. Novelty: new inquiry.",
-    action: "Assign Policy Owner",
+    action: "Assign policy owner",
     actionReason:
       "New inquiry with direct portfolio relevance and submission window open. A named owner reduces the risk of a missed submission date.",
     confidence: 4,
@@ -126,7 +126,7 @@ export const SIGNALS: Signal[] = [
     attention: "high",
     attentionReason:
       "Bill touches two watchlists (Digital identity, Data sharing & privacy). Digest explicitly notes accreditation scope changes.",
-    action: "Draft Executive Brief",
+    action: "Draft executive brief",
     actionReason:
       "Material shift in accreditation scope warrants DDG-level awareness ahead of second reading.",
     confidence: 4,
@@ -165,7 +165,7 @@ export const SIGNALS: Signal[] = [
     attention: "high",
     attentionReason:
       "Hearing today, portfolio match, cross-source reinforcement with last week's FlagPost on AI assurance.",
-    action: "Monitor for Estimates",
+    action: "Monitor for estimates",
     actionReason: "Likely to produce QONs and Hansard references useful for Estimates preparation.",
     confidence: 4,
     sourceAuthority: "Official",
@@ -199,7 +199,7 @@ export const SIGNALS: Signal[] = [
     ],
     attention: "med",
     attentionReason: "Tracked bill on daily program. Time sensitivity elevated for sitting day.",
-    action: "Prepare Ministerial / Parliamentary Lines",
+    action: "Prepare ministerial lines",
     actionReason:
       "Public debate may surface new scrutiny angles; suggested lines should be ready before 2pm.",
     confidence: 4,
@@ -234,7 +234,7 @@ export const SIGNALS: Signal[] = [
     ],
     attention: "med",
     attentionReason: "Strong contextual source. Reinforces the Digital ID bill signal.",
-    action: "Add to Watchlist",
+    action: "Add to watchlist",
     actionReason: "Feeds into emerging issues cluster around Digital ID assurance governance.",
     confidence: 3,
     sourceAuthority: "Official",

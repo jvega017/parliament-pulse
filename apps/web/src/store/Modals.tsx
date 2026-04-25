@@ -183,18 +183,56 @@ function CommitteeDetail({ id }: { id: string }): JSX.Element {
   );
 }
 
+// Parse a hearing's "when" string into a Date if possible. The fixture
+// "when" values are shaped like "Today, 10:00", "25 Apr, 09:00", etc.
+// Returns null when it cannot be parsed; caller falls back to now().
+function parseHearingWhen(when: string): Date | null {
+  const timeMatch = when.match(/(\d{1,2}):(\d{2})/);
+  if (!timeMatch) return null;
+  const [, h, m] = timeMatch;
+  const base = /^Today/i.test(when)
+    ? new Date()
+    : (() => {
+        const dayMonth = when.match(/(\d{1,2})\s+(\w{3})/);
+        if (!dayMonth) return new Date();
+        const [, d, monStr] = dayMonth;
+        const months = [
+          "jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec",
+        ];
+        const mi = months.indexOf(monStr!.toLowerCase());
+        if (mi < 0) return new Date();
+        const dt = new Date();
+        dt.setMonth(mi);
+        dt.setDate(parseInt(d!, 10));
+        return dt;
+      })();
+  base.setHours(parseInt(h!, 10), parseInt(m!, 10), 0, 0);
+  return base;
+}
+
+function toIcsStamp(d: Date): string {
+  return d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+}
+
 // ICS calendar file download — pure client, no backend.
-function downloadIcs(filename: string, summary: string, description: string): void {
-  const dt = new Date();
-  const stamp = dt.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+function downloadIcs(
+  filename: string,
+  summary: string,
+  description: string,
+  start?: Date,
+): void {
+  const now = new Date();
+  const startDate = start ?? now;
+  const endDate = new Date(startDate.getTime() + 60 * 60 * 1000); // default 1h
   const ics = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
     "PRODID:-//Parliament Pulse//EN",
     "BEGIN:VEVENT",
-    `UID:${stamp}-${Math.random().toString(36).slice(2)}@parliament-pulse`,
-    `DTSTAMP:${stamp}`,
-    `DTSTART:${stamp}`,
+    `UID:${toIcsStamp(now)}-${Math.random().toString(36).slice(2)}@parliament-pulse`,
+    `DTSTAMP:${toIcsStamp(now)}`,
+    `DTSTART:${toIcsStamp(startDate)}`,
+    `DTEND:${toIcsStamp(endDate)}`,
     `SUMMARY:${summary.replace(/\n/g, " ")}`,
     `DESCRIPTION:${description.replace(/\n/g, "\\n")}`,
     "END:VEVENT",
@@ -280,10 +318,12 @@ function HearingDetail({
           type="button"
           className="btn primary"
           onClick={() => {
+            const start = parseHearingWhen(data.when);
             downloadIcs(
               `hearing-${data.when.replace(/[^a-z0-9]/gi, "-")}.ics`,
               `${data.committee}: ${data.topic}`,
-              `Hearing room ${data.room}. Source: APH.`,
+              `Hearing room ${data.room}. Source: Parliament of Australia website.`,
+              start ?? undefined,
             );
             toast("Calendar file downloaded (.ics)", "brass");
           }}
@@ -309,7 +349,7 @@ function HearingDetail({
 }
 
 function InquiryDetail({ name }: { name: string }): JSX.Element {
-  const { closeModal, toast, state, assignOwner } = useStore();
+  const { closeModal, state, assignOwner } = useStore();
   const [owner, setOwner] = useState(state.owners[name] ?? "");
   return (
     <>
@@ -372,7 +412,9 @@ function InquiryDetail({ name }: { name: string }): JSX.Element {
         <button
           type="button"
           className="btn primary"
-          onClick={() => toast("Submission draft started", "brass")}
+          disabled
+          aria-disabled="true"
+          title="Submission drafting not yet available; route via your normal drafting workflow."
         >
           <Icon name="brief" size={13} /> Start submission
         </button>
@@ -977,7 +1019,7 @@ function RadarDetail({ issue }: { issue: string }): JSX.Element {
   return (
     <>
       <ModalHead
-        kicker="Attention radar issue"
+        kicker="Issue · attention radar"
         title={r.issue}
         onClose={closeModal}
       />

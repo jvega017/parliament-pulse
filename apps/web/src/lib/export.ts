@@ -76,6 +76,21 @@ export function exportSignalCsv(signal: Signal, owner?: string, feedback?: strin
   downloadBlob(`${signal.id}-evidence.csv`, csv, "text/csv");
 }
 
+// Relative time formatter for RSS item ages — "3 min ago", "2 h ago", etc.
+export function formatRelative(d: Date | null, now: Date = new Date()): string {
+  if (!d) return "—";
+  const diffMs = now.getTime() - d.getTime();
+  const sec = Math.round(diffMs / 1000);
+  if (sec < 45) return "just now";
+  const min = Math.round(sec / 60);
+  if (min < 60) return `${min} min ago`;
+  const hr = Math.round(min / 60);
+  if (hr < 24) return `${hr} h ago`;
+  const day = Math.round(hr / 24);
+  if (day < 7) return `${day} d ago`;
+  return d.toLocaleDateString("en-AU", { day: "numeric", month: "short" });
+}
+
 export function exportSignalsDigestCsv(filename: string, signals: Signal[]): void {
   const headers = [
     "signal_id",

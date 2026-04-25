@@ -30,12 +30,14 @@ export type IconName =
 export interface IconProps extends Omit<SVGProps<SVGSVGElement>, "name" | "size"> {
   name: IconName;
   size?: number;
+  strokeWidth?: number;
 }
 
 export function Icon({
   name,
   size = 16,
   stroke = "currentColor",
+  strokeWidth = 1.6,
   ...rest
 }: IconProps): JSX.Element {
   const props: SVGProps<SVGSVGElement> = {
@@ -44,9 +46,11 @@ export function Icon({
     viewBox: "0 0 24 24",
     fill: "none",
     stroke,
-    strokeWidth: 1.6,
+    strokeWidth,
     strokeLinecap: "round",
     strokeLinejoin: "round",
+    "aria-hidden": true,
+    focusable: false,
     ...rest,
   };
 

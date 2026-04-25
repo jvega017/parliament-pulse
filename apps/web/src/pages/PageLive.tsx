@@ -8,6 +8,7 @@ import {
   type LiveVideo,
   type YtChamber,
 } from "../lib/aphFeed";
+import { formatRelative } from "../lib/export";
 
 const APH_YT_CHANNEL = "UCvO8Qfr3etT6khGA9Zln8WA";
 
@@ -111,7 +112,7 @@ export function PageLive(): JSX.Element {
           <h1 className="page-title">Live parliament</h1>
           <div className="page-sub">
             Official AUSParliamentLive broadcast, ParlView archive, Hansard
-            live-track, and APH RSS wired to the signal engine.
+            live-track, and APH RSS feeds updating the signal panel.
           </div>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
@@ -395,17 +396,7 @@ export function PageLive(): JSX.Element {
                     href={c.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 10,
-                      padding: "10px 12px",
-                      border: "1px solid var(--line-2)",
-                      borderRadius: 6,
-                      textDecoration: "none",
-                      color: "var(--ink)",
-                      background: "var(--panel-2)",
-                    }}
+                    className="connector-card"
                   >
                     <span className="hdot live" style={{ flexShrink: 0 }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -441,15 +432,38 @@ export function PageLive(): JSX.Element {
             aria-live="polite"
           >
             {loading && items.length === 0 && (
-              <div
-                style={{
-                  padding: "20px 8px",
-                  color: "var(--ink-3)",
-                  fontSize: 12.5,
-                  textAlign: "center",
-                }}
-              >
-                Fetching live RSS from aph.gov.au via the aph-proxy Worker...
+              <div style={{ padding: "10px 4px" }}>
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "56px 16px 1fr",
+                      gap: 10,
+                      padding: "10px 8px",
+                    }}
+                  >
+                    <div className="skeleton" style={{ height: 10 }} />
+                    <div className="skeleton" style={{ height: 12, width: 12 }} />
+                    <div>
+                      <div className="skeleton" style={{ height: 14, width: "80%" }} />
+                      <div
+                        className="skeleton"
+                        style={{ height: 10, width: "40%", marginTop: 6 }}
+                      />
+                    </div>
+                  </div>
+                ))}
+                <div
+                  style={{
+                    textAlign: "center",
+                    color: "var(--ink-3)",
+                    fontSize: 11.5,
+                    marginTop: 8,
+                  }}
+                >
+                  Fetching live RSS from aph.gov.au via the aph-proxy Worker...
+                </div>
               </div>
             )}
             {!loading && items.length === 0 && (() => {
@@ -507,8 +521,16 @@ export function PageLive(): JSX.Element {
                   color: "inherit",
                 }}
               >
-                <div className="mono" style={{ fontSize: 10.5, color: "var(--ink-3)", paddingTop: 2 }}>
-                  {fmtTime(e.pubDate)}
+                <div
+                  className="mono"
+                  style={{ fontSize: 10.5, color: "var(--ink-3)", paddingTop: 2 }}
+                  title={
+                    e.pubDate
+                      ? e.pubDate.toLocaleString("en-AU")
+                      : "No publication time in feed"
+                  }
+                >
+                  {e.pubDate ? formatRelative(e.pubDate) : fmtTime(e.pubDate)}
                 </div>
                 <div style={{ paddingTop: 3 }}>
                   <KindIcon kind={e.kind} />
@@ -559,10 +581,10 @@ export function PageLive(): JSX.Element {
             style={{ flexDirection: "column", alignItems: "flex-start", gap: 4 }}
           >
             <span className="mono" style={{ fontSize: 10.5, color: "var(--ink-3)" }}>
-              Source: Parliament of Australia website · via aph-proxy Worker · refreshes every 2 min
+              Source: Parliament of Australia website. Refreshes every 2 min via the aph-proxy Worker.
             </span>
             <span className="mono" style={{ fontSize: 10.5, color: "var(--ink-3)" }}>
-              Last poll: {result?.lastPoll ? fmtTime(result.lastPoll) : "—"} · click any item to open source
+              Last poll: {result?.lastPoll ? fmtTime(result.lastPoll) : "—"}. Click any item to open source.
             </span>
           </div>
         </div>

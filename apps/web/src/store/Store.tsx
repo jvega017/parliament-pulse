@@ -86,6 +86,7 @@ export function StoreProvider({
   const [connectorRequests, setConnectorRequests] = useState<Record<string, true>>({});
   const [clusterStatus, setClusterStatusState] = useState<"open" | "tracking" | "coordinated" | "coincidence">("open");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const toastSeq = useRef(0);
 
   useEffect(() => {
@@ -164,6 +165,17 @@ export function StoreProvider({
   );
   const toggleMobileNav = useCallback(() => setMobileNavOpen((o) => !o), []);
   const closeMobileNav = useCallback(() => setMobileNavOpen(false), []);
+  const toggleShortcuts = useCallback(() => setShortcutsOpen((o) => !o), []);
+  const deleteWatchlist = useCallback(
+    (name: string) => {
+      setState((s) => ({
+        ...s,
+        watchlistCreated: s.watchlistCreated.filter((w) => w.name !== name),
+      }));
+      toast(`Watchlist "${name}" deleted`);
+    },
+    [toast],
+  );
 
   const assignOwner = useCallback(
     (entityId: string, owner: string) => {
@@ -282,6 +294,9 @@ export function StoreProvider({
       mobileNavOpen,
       toggleMobileNav,
       closeMobileNav,
+      shortcutsOpen,
+      toggleShortcuts,
+      deleteWatchlist,
       assignOwner,
       saveFeedback,
       archive,
@@ -306,6 +321,7 @@ export function StoreProvider({
       connectorRequests,
       clusterStatus,
       mobileNavOpen,
+      shortcutsOpen,
       toast,
       openModal,
       closeModal,
@@ -321,6 +337,8 @@ export function StoreProvider({
       setClusterStatus,
       toggleMobileNav,
       closeMobileNav,
+      toggleShortcuts,
+      deleteWatchlist,
       assignOwner,
       saveFeedback,
       archive,

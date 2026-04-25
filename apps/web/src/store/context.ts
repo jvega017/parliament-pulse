@@ -39,6 +39,9 @@ export interface StoreValue {
   mobileNavOpen: boolean;
   toggleMobileNav: () => void;
   closeMobileNav: () => void;
+  deleteWatchlist: (name: string) => void;
+  shortcutsOpen: boolean;
+  toggleShortcuts: () => void;
 
   assignOwner: (entityId: string, owner: string) => void;
   saveFeedback: (signalId: string, label: string, reason?: string) => void;

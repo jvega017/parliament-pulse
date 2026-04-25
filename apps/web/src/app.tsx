@@ -3,6 +3,7 @@ import { Sidebar } from "./shell/Sidebar";
 import { Topbar } from "./shell/Topbar";
 import { Drawer } from "./shell/Drawer";
 import { BriefPrint } from "./shell/BriefPrint";
+import { ShortcutsHelp } from "./shell/ShortcutsHelp";
 import { StoreProvider } from "./store/Store";
 import { DetailModal } from "./store/Modals";
 import { PageOverview } from "./pages/PageOverview";
@@ -44,6 +45,7 @@ export function App(): JSX.Element {
         <Drawer />
         <DetailModal />
         <BriefPrint />
+        <ShortcutsHelp />
       </div>
     </StoreProvider>
   );
@@ -51,7 +53,7 @@ export function App(): JSX.Element {
 
 function LiveSignalsPump(): null {
   const apiBase = import.meta.env.VITE_API_BASE ?? "";
-  const { state, setLiveSignals, refreshTick } = useStore();
+  const { state, setLiveSignals, refreshTick, toast } = useStore();
   const mergedWatchlists = useMemo(
     () => [...WATCHLISTS, ...state.watchlistCreated],
     [state.watchlistCreated],
@@ -64,6 +66,32 @@ function LiveSignalsPump(): null {
   useEffect(() => {
     setLiveSignals(signals, loading, feedResult);
   }, [signals, loading, feedResult, setLiveSignals]);
+
+  // One-shot /healthz probe on mount so infra outages surface explicitly
+  // rather than showing as empty signal lists.
+  useEffect(() => {
+    let cancelled = false;
+    if (!apiBase) return;
+    const ctrl = new AbortController();
+    fetch(`${apiBase.replace(/\/$/, "")}/healthz`, { signal: ctrl.signal })
+      .then((r) => {
+        if (!r.ok) throw new Error(`healthz ${r.status}`);
+        return r.json();
+      })
+      .catch(() => {
+        if (!cancelled) {
+          toast(
+            "Proxy Worker unreachable. Live feeds will not update until it returns.",
+            "warn",
+          );
+        }
+      });
+    return () => {
+      cancelled = true;
+      ctrl.abort();
+    };
+  }, [apiBase, toast]);
+
   return null;
 }
 

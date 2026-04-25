@@ -110,7 +110,12 @@ export function Sidebar({ page, onNavigate }: SidebarProps): JSX.Element {
                   onClick={() => onNavigate(n.id)}
                   aria-current={active ? "page" : undefined}
                 >
-                  <Icon name={ICONS[n.id] ?? "overview"} size={15} className="ico" />
+                  <Icon
+                    name={ICONS[n.id] ?? "overview"}
+                    size={16}
+                    strokeWidth={1.8}
+                    className="ico"
+                  />
                   <span>{n.label}</span>
                   {n.live && (
                     <span
