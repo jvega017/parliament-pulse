@@ -1050,15 +1050,7 @@ table.ds th {
 }
 table.ds tbody tr {
   transition: background-color var(--d-2) ease-in;
-}
-table.ds tbody tr:hover {
-  background: #ffffff05;
-}
-table.ds tbody tr {
   cursor: pointer;
-}
-table.ds tbody tr:hover {
-  background: #ffffff04;
 }
 table.ds td.num {
   text-align: right;
@@ -1392,11 +1384,12 @@ table.ds td.num {
 
 .hdot {
   display: inline-block;
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   margin-right: 6px;
   vertical-align: middle;
+  flex-shrink: 0;
 }
 .hdot.live {
   background: var(--ok);
@@ -1614,11 +1607,7 @@ table.ds tbody tr:hover {
   filter: none;
 }
 
-/* Chip and attention pill dot sizing unified to 6px across contexts */
-.hdot {
-  width: 6px;
-  height: 6px;
-}
+/* hdot sizing: 6px defined in the primary .hdot rule above */
 
 @media (max-width: 1100px) {
   .g-4 {
@@ -2128,4 +2117,240 @@ table.ds tbody tr:hover {
   .live-strip > * {
     justify-self: start;
   }
+}
+
+/* ============================================================
+   WAVE 15: Comprehensive light-mode, contrast, and animation
+   polish pass. All hardcoded dark surfaces overridden.
+   ============================================================ */
+
+/* -- Sidebar: always dark regardless of page theme ---------- */
+/* The sidebar has a dark background (#111c28). In light mode the
+   ink variables resolve to dark values, making text invisible.
+   Re-scope the dark-mode ink/line tokens within .side so the
+   sidebar always renders correctly against its dark background. */
+html[data-theme="light"] .side {
+  --ink:         #f4f6f0;
+  --ink-2:       #d8dfe9;
+  --ink-3:       #b3bcca;
+  --ink-4:       #8e98a8;
+  --line:        #ffffff0e;
+  --line-2:      #ffffff18;
+  --line-bright: #ffffff30;
+  --panel:       #15202c;
+  --panel-2:     #1a2632;
+}
+
+/* -- Drawer: always dark (document-style slide-over) -------- */
+/* Drawer has a dark gradient. Re-scope so child elements
+   that use CSS ink variables still read correctly in light mode. */
+html[data-theme="light"] .drawer {
+  --ink:         #f4f6f0;
+  --ink-2:       #d8dfe9;
+  --ink-3:       #b3bcca;
+  --ink-4:       #8e98a8;
+  --panel:       #15202c;
+  --panel-2:     #1a2632;
+  --surface-inset: #0d161f;
+  --line:        #ffffff0e;
+  --line-2:      #ffffff18;
+  --line-bright: #ffffff30;
+}
+
+/* -- Modal footer: adapt to light surface ------------------- */
+html[data-theme="light"] .modal-foot {
+  background: var(--panel-2);
+  border-color: var(--line-2);
+}
+
+/* -- Signal card hover: remove hardcoded dark surface ------- */
+html[data-theme="light"] .signal:hover {
+  background: linear-gradient(180deg, var(--surface-raised) 0%, var(--panel-2) 100%);
+}
+
+/* -- Connector card hover: same fix as signal hover --------- */
+html[data-theme="light"] .connector-card:hover {
+  background: linear-gradient(180deg, var(--surface-raised) 0%, var(--panel-2) 100%);
+}
+
+/* -- Pattern card: adapt to light surface ------------------- */
+html[data-theme="light"] .pattern {
+  background:
+    radial-gradient(400px 120px at 0% 0%, var(--brass-tint-bg), transparent),
+    linear-gradient(180deg, var(--panel) 0%, var(--panel-2) 100%);
+  border-color: var(--brass-tint-border);
+}
+
+/* -- Feed test panel: adapt --------------------------------- */
+html[data-theme="light"] .feed-test {
+  background: var(--surface-inset);
+  color: var(--ink-2);
+}
+
+/* -- Live strip: warm cream instead of dark gradient -------- */
+html[data-theme="light"] .live-strip {
+  background: linear-gradient(90deg, var(--brass-tint-bg) 0%, var(--panel) 55%, var(--bg) 100%);
+  border-color: var(--brass-tint-border);
+}
+
+/* -- Search dropdown: adapt to light surface ---------------- */
+html[data-theme="light"] .search-results {
+  background: var(--panel);
+  border-color: var(--line-2);
+  box-shadow: 0 20px 50px #00000022, 0 4px 12px #00000014;
+}
+html[data-theme="light"] .sr-item:hover {
+  background: var(--panel-2);
+}
+html[data-theme="light"] .sr-group {
+  background: var(--surface-inset);
+}
+
+/* -- Scrollbar: adapt to light surface ---------------------- */
+html[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: #00000018;
+}
+html[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: #0000002e;
+}
+html[data-theme="light"] * {
+  scrollbar-color: #00000018 transparent;
+}
+
+/* -- Table striping and hover: adapt to light -------------- */
+html[data-theme="light"] table.ds tbody tr:nth-child(even) {
+  background: var(--surface-inset);
+}
+html[data-theme="light"] table.ds tbody tr:hover {
+  background: var(--panel-2);
+}
+/* Global dark-mode table hover — stays consistent with dark bg */
+table.ds tbody tr:hover {
+  background: #ffffff0c;
+}
+
+/* -- Stat block: add accent left-border on high values ------ */
+.stat[data-nonzero="true"] {
+  border-left: 3px solid var(--brass);
+}
+
+/* -- Signal card: entry animation stagger ------------------- */
+/* Applied to nth-child so signals that load together enter
+   sequentially, not all at once. */
+.signal { animation: signalIn var(--d-4) var(--ease-out-soft) both; }
+.signal:nth-child(2) { animation-delay: 50ms; }
+.signal:nth-child(3) { animation-delay: 100ms; }
+.signal:nth-child(4) { animation-delay: 150ms; }
+.signal:nth-child(5) { animation-delay: 200ms; }
+.signal:nth-child(n+6) { animation-delay: 240ms; }
+
+@keyframes signalIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .signal { animation: none; }
+}
+
+/* -- Watchlist card: richer hover state -------------------- */
+.wl:hover {
+  background: var(--panel-2);
+  box-shadow: var(--shadow-sm);
+}
+
+/* -- Nav count "soon" pill: style without colliding active --- */
+.nav-item:not(.active) .count[data-kind="soon"] {
+  color: var(--ink-4);
+  background: #ffffff06;
+  border: 1px solid var(--line-2);
+  font-style: italic;
+}
+
+/* -- Panel: subtle top-highlight line (glass effect) -------- */
+.panel-head {
+  background: linear-gradient(180deg, #ffffff06 0%, transparent 100%);
+}
+
+/* -- Empty state: slightly warmer background in light mode --- */
+html[data-theme="light"] .empty {
+  background:
+    radial-gradient(60% 80% at 50% 0%, #00000004, transparent),
+    var(--surface-inset);
+  border-color: var(--line-2);
+}
+
+/* -- Brief overlay: correct bg in light mode ---------------- */
+html[data-theme="light"] .brief-overlay-bar {
+  background: var(--panel);
+  border-color: var(--line-2);
+}
+
+/* -- Kbd shortcut chip: adapt to light mode ---------------- */
+html[data-theme="light"] .kbd {
+  background: linear-gradient(180deg, var(--panel) 0%, var(--panel-2) 100%);
+  border-color: var(--line-bright);
+  color: var(--ink-2);
+  text-shadow: none;
+}
+
+/* -- Focus ring: unified 2px brass, all interactive elements - */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+[role="tab"]:focus-visible,
+[role="option"]:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: var(--focus-offset, 2px);
+  border-radius: var(--r-sm);
+}
+
+/* -- Signal card shimmer: will-change hint for GPU layer ---- */
+.signal {
+  will-change: transform, box-shadow;
+}
+
+/* -- Drawer: will-change for smooth slide animation --------- */
+.drawer {
+  will-change: transform;
+}
+
+/* -- Topbar glass: stronger in light mode ------------------- */
+html[data-theme="light"] .topbar {
+  background: rgba(251, 250, 246, 0.88);
+  border-bottom-color: var(--line-2);
+  box-shadow: 0 1px 0 var(--line-2);
+}
+
+/* -- Panel body: consistent padding fix --------------------- */
+html[data-theme="light"] .panel {
+  box-shadow: var(--shadow-sm);
+}
+
+/* -- Sig-sum: bump contrast slightly for readability --------- */
+.sig-sum {
+  color: var(--ink-3);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+/* -- Attention pill: lighter high-attention in dark mode ----- */
+html:not([data-theme="light"]) .att.high {
+  color: #ffbdb6;
+}
+
+/* -- Page kicker dot: consistent 6px with .hdot ------------ */
+.page-kicker::before {
+  width: 5px;
+  height: 5px;
+}
+
+/* -- Table: first/last column padding fixes ----------------- */
+table.ds th:first-child,
+table.ds td:first-child {
+  padding-left: 16px;
+}
+table.ds th:last-child,
+table.ds td:last-child {
+  padding-right: 16px;
 }

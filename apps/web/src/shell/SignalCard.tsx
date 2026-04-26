@@ -12,6 +12,10 @@ export function SignalCard({ s }: SignalCardProps): JSX.Element | null {
   if (state.archived[s.id]) return null;
   const feedback = state.feedback[s.id];
 
+  // Show a concise date when it exists. fmtDate in scoring.ts omits the year
+  // for current-year items, so the header stays compact.
+  const dateStamp = s.date !== "—" ? `${s.date} · ` : "";
+
   return (
     <button
       type="button"
@@ -23,7 +27,7 @@ export function SignalCard({ s }: SignalCardProps): JSX.Element | null {
         <span className="sig-id mono">{s.id}</span>
         <span className="sig-source mono">· {s.source}</span>
         <Att level={s.attention} />
-        <span className="sig-time mono">{s.time}</span>
+        <span className="sig-time mono">{dateStamp}{s.time}</span>
       </div>
       <div className="sig-title serif">{s.title}</div>
       <div className="sig-sum">{s.summary}</div>
@@ -35,7 +39,7 @@ export function SignalCard({ s }: SignalCardProps): JSX.Element | null {
         ))}
       </div>
       <div className="sig-action">
-        <span className="sig-action-label">Suggested action</span>
+        <span className="sig-action-label">Action</span>
         <span className="sig-action-value">{s.action}</span>
         <Conf n={s.confidence} />
         <span className="sig-action-reason">{s.actionReason}</span>

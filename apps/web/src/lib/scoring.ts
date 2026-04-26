@@ -169,11 +169,11 @@ export function scoreFeedItem(
 
 function fmtDate(d: Date | null): string {
   if (!d) return "—";
-  return d.toLocaleDateString("en-AU", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+  const now = new Date();
+  const opts: Intl.DateTimeFormatOptions = { day: "numeric", month: "short" };
+  // Include year only when it differs from the current year
+  if (d.getFullYear() !== now.getFullYear()) opts.year = "numeric";
+  return d.toLocaleDateString("en-AU", opts);
 }
 
 function fmtTime(d: Date | null): string {
@@ -279,13 +279,16 @@ export function signalFromFeedItem(
     source: item.sourceLabel,
     sourceGroup: sourceGroupFor(item),
     title: item.title,
-    summary: `Live from ${item.sourceLabel}. Opened via Parliament of Australia RSS.`,
+    summary:
+      result.matchedWatchlists.length > 0
+        ? `Matches: ${result.matchedWatchlists.join(", ")}. ${item.sourceLabel}.`
+        : `${item.sourceLabel} · ${item.kind}. Published ${fmtDate(item.pubDate) !== "—" ? fmtDate(item.pubDate) : "recently"}.`,
     tags: tagsFor(result, item.kind),
     attention: result.attention,
     attentionReason:
       result.matchedWatchlists.length > 0
         ? `Matched watchlist(s): ${result.matchedWatchlists.join(", ")}. Source authority: Official APH RSS.`
-        : "No watchlist match. Low baseline attention assigned by time sensitivity and source authority only.",
+        : "No watchlist terms matched. Scored on recency and source authority only. Add keywords on the Watchlists page to bias scoring toward your portfolio.",
     action,
     actionReason: reason,
     confidence: result.confidence,

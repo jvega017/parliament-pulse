@@ -153,7 +153,7 @@ html[data-theme="light"] {
   --ink: #16202c;
   --ink-2: #2c3a4c;
   --ink-3: #5a6878;
-  --ink-4: #8995a4;
+  --ink-4: #606c7a; /* darkened from #8995a4 for WCAG AA on #fbfaf6 (was 2.9:1, now 5.1:1) */
 
   --line: #00000010;
   --line-2: #00000018;
