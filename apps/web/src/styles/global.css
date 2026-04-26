@@ -1017,6 +1017,7 @@ html[data-density="compact"] .sig-sum { font-size: 12px; -webkit-line-clamp: 2; 
   color: #f5a89c;
   background: #3a1612;
   border: 1px solid var(--escalate-border);
+  box-shadow: 0 0 6px -2px #df827640;
 }
 .att.high::before {
   background: var(--escalate);
@@ -1278,6 +1279,22 @@ table.ds td.num {
   box-shadow: 0 0 8px -2px var(--brass-glow);
   transition: width var(--d-5) var(--ease-out-soft);
 }
+/* Semantic bar fill colours: score level drives colour, not just width */
+.bar[data-level="ok"] .fill {
+  background: linear-gradient(90deg, #4a9c6a 0%, var(--ok) 100%);
+  box-shadow: 0 0 8px -2px #84c79c60;
+}
+.bar[data-level="mid"] .fill {
+  background: linear-gradient(90deg, var(--brass-3) 0%, var(--brass) 100%);
+}
+.bar[data-level="low"] .fill {
+  background: var(--line-bright);
+  box-shadow: none;
+}
+.bar[data-level="high-vol"] .fill {
+  background: linear-gradient(90deg, var(--brass) 0%, var(--escalate) 100%);
+  box-shadow: 0 0 8px -2px #df827660;
+}
 .spark {
   display: flex;
   gap: 2px;
@@ -1361,6 +1378,17 @@ table.ds td.num {
   display: grid;
   place-items: center;
   filter: drop-shadow(0 2px 4px #00000040);
+}
+/* Semantic ring colour by confidence level */
+.ring[data-level="ok"] {
+  background: conic-gradient(var(--ok) calc(var(--p, 70) * 1%), var(--line-2) 0);
+  filter: drop-shadow(0 2px 4px #00000040) drop-shadow(0 0 6px #84c79c40);
+}
+.ring[data-level="warn"] {
+  background: conic-gradient(var(--caution) calc(var(--p, 70) * 1%), var(--line-2) 0);
+}
+.ring[data-level="bad"] {
+  background: conic-gradient(var(--escalate) calc(var(--p, 70) * 1%), var(--line-2) 0);
 }
 .ring::after {
   content: attr(data-p) "%";

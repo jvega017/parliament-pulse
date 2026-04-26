@@ -208,6 +208,8 @@ export function Drawer(): JSX.Element {
                   const weight = SCORE_WEIGHTS[k] ?? 0;
                   const zeroed = weight === 0;
                   const contribution = Math.round(v * weight * 100);
+                  const scorePct = Math.round(v * 100);
+                  const barLevel = zeroed ? "low" : scorePct >= 70 ? "ok" : scorePct >= 40 ? "mid" : "low";
                   return (
                   <div
                     key={k}
@@ -223,8 +225,16 @@ export function Drawer(): JSX.Element {
                     <div style={{ fontSize: 12.5, color: "var(--ink-2)" }}>
                       {SCORE_LABELS[k] ?? k}
                     </div>
-                    <div className="bar">
-                      <div className="fill" style={{ width: `${v * 100}%` }} />
+                    <div
+                      className="bar"
+                      role="progressbar"
+                      aria-valuenow={scorePct}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-label={`${SCORE_LABELS[k] ?? k} score ${scorePct}%`}
+                      data-level={barLevel}
+                    >
+                      <div className="fill" style={{ width: `${scorePct}%` }} />
                     </div>
                     <div
                       className="mono"

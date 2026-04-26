@@ -63,19 +63,27 @@ function scoreNovelty(hours: number): number {
 function scorePortfolio(
   haystack: string,
   watchlists: Watchlist[],
-): { score: number; matched: string[] } {
+): { score: number; matched: string[]; termHits: number } {
   const matched: string[] = [];
+  let termHits = 0;
   for (const w of watchlists) {
+    let wHits = 0;
     for (const term of w.terms) {
       if (term && haystack.includes(term.toLowerCase())) {
-        matched.push(w.name);
-        break;
+        wHits++;
       }
     }
+    if (wHits > 0) {
+      matched.push(w.name);
+      termHits += wHits;
+    }
   }
-  // 0 matches → 0.0, 1 → 0.7, 2 → 0.85, 3+ → 0.95. Diminishing returns.
-  const score = matched.length === 0 ? 0 : Math.min(0.95, 0.5 + 0.2 * matched.length);
-  return { score, matched };
+  // Gentler curve than the old 0.5+0.2n formula:
+  // 0 matches → 0, 1 → 0.60, 2 → 0.78, 3+ → 0.90
+  // Term-frequency bonus: extra keyword hits beyond 1-per-watchlist add up to 0.05
+  const base = matched.length === 0 ? 0 : Math.min(0.90, 0.45 + 0.18 * matched.length);
+  const freqBonus = termHits > matched.length ? Math.min(0.05, (termHits - matched.length) * 0.012) : 0;
+  return { score: Math.min(0.95, base + freqBonus), matched, termHits };
 }
 
 // Authority reflects the formal standing of the feed source, not the item
@@ -116,11 +124,12 @@ function attentionFrom(overall: number): AttentionLevel {
   return "low";
 }
 
-function confidenceFrom(portfolio: number, matched: number): number {
-  if (matched >= 2 && portfolio >= 0.8) return 5;
-  if (matched >= 1 && portfolio >= 0.7) return 4;
-  if (matched >= 1) return 3;
-  return 2;
+function confidenceFrom(portfolio: number, matched: number, termHits: number): number {
+  if (matched >= 2 && portfolio >= 0.8 && termHits >= 3) return 5;
+  if (matched >= 2 && portfolio >= 0.8) return 4;
+  if (matched >= 1 && portfolio >= 0.6) return 3;
+  if (matched >= 1) return 2;
+  return 1; // no portfolio match — authority-only signal
 }
 
 export function scoreFeedItem(
@@ -165,7 +174,7 @@ export function scoreFeedItem(
     overall,
     attention: attentionFrom(overall),
     matchedWatchlists: portfolio.matched,
-    confidence: confidenceFrom(portfolio.score, portfolio.matched.length),
+    confidence: confidenceFrom(portfolio.score, portfolio.matched.length, portfolio.termHits),
   };
 }
 
@@ -205,6 +214,12 @@ function actionFor(
   matched: string[],
 ): { action: string; reason: string } {
   if (attention === "high") {
+    if (matched.length === 0) {
+      return {
+        action: "Situational awareness — log and monitor",
+        reason: `High-authority ${kind} from official feed. No watchlist match, but source weight and recency elevated attention. Review against current portfolio before archiving.`,
+      };
+    }
     if (kind === "inquiry") {
       return {
         action: "Assign policy owner",
@@ -223,6 +238,12 @@ function actionFor(
     };
   }
   if (attention === "med") {
+    if (matched.length > 0) {
+      return {
+        action: "Add to watchlist digest",
+        reason: `${matched.length} watchlist match(es). Aggregate into the daily digest; escalate if frequency increases.`,
+      };
+    }
     return {
       action: "Add to watchlist digest",
       reason: "Contextual relevance; aggregate into the daily digest rather than a standalone brief.",

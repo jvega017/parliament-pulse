@@ -112,7 +112,12 @@ export function PageRadar(): JSX.Element {
                 <HeaderCell>Volume</HeaderCell>
                 <HeaderCell>Confidence</HeaderCell>
               </div>
-              {rows.map((r, i) => (
+              {rows.map((r, i) => {
+                const confPct = Math.round(r.confidence * 100);
+                const ringLevel = confPct >= 70 ? "ok" : confPct >= 40 ? "warn" : "bad";
+                const volPct = Math.round(r.momentum * 100);
+                const barLevel = volPct >= 80 ? "high-vol" : volPct >= 40 ? "mid" : "low";
+                return (
                 <button
                   key={r.issue}
                   type="button"
@@ -121,6 +126,7 @@ export function PageRadar(): JSX.Element {
                     const lead = r.signals[0];
                     if (lead) openSignal(lead.id);
                   }}
+                  aria-label={`Cluster: ${r.issue}. ${r.reason}. Attention: ${r.att}. Click to open lead signal.`}
                   style={{
                     display: "grid",
                     gridTemplateColumns: "1fr 100px 80px 120px 140px",
@@ -144,20 +150,30 @@ export function PageRadar(): JSX.Element {
                   <div className="mono" style={{ textAlign: "right", color: "var(--ink-2)" }}>
                     {r.sources}
                   </div>
-                  <div>
-                    <div className="bar">
-                      <div className="fill" style={{ width: `${r.momentum * 100}%` }} />
-                    </div>
+                  <div
+                    className="bar"
+                    role="progressbar"
+                    aria-valuenow={volPct}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-label={`Volume ${volPct}%`}
+                    data-level={barLevel}
+                  >
+                    <div className="fill" style={{ width: `${volPct}%` }} />
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <div
                       className="ring"
-                      style={{ ["--p" as string]: Math.round(r.confidence * 100) } as React.CSSProperties}
-                      data-p={Math.round(r.confidence * 100)}
+                      style={{ ["--p" as string]: confPct } as React.CSSProperties}
+                      data-p={confPct}
+                      data-level={ringLevel}
+                      role="img"
+                      aria-label={`Confidence ${confPct}%`}
                     />
                   </div>
                 </button>
-              ))}
+                );
+              })}
             </>
           )}
         </div>
