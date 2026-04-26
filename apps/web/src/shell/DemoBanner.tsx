@@ -43,21 +43,17 @@ export function DemoBanner(): JSX.Element {
         until ingest lands. No data is fabricated; deferred surfaces show honest
         empty states.
       </span>
-      <a
-        href="https://github.com/jvega017/parliament-pulse/blob/main/STATUS.md"
-        target="_blank"
-        rel="noopener noreferrer"
+      <span
         className="mono"
         style={{
           fontSize: 10.5,
           color: "var(--ink-3)",
           letterSpacing: "0.08em",
-          textDecoration: "none",
         }}
-        title={`Deployed build: v${APP_VERSION} at commit ${BUILD_SHA}. Click for status page.`}
+        title={`Deployed build: v${APP_VERSION} at commit ${BUILD_SHA}`}
       >
         v{APP_VERSION} · {BUILD_SHA}
-      </a>
+      </span>
     </aside>
   );
 }

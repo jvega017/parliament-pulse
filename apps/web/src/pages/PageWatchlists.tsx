@@ -148,6 +148,7 @@ export function PageWatchlists(): JSX.Element {
           <div className="page-sub">
             Each watchlist is a set of keywords scored against every live RSS
             item. Match counts below are computed from the current poll.
+            Terms are matched against RSS item titles only, not descriptions.
           </div>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>

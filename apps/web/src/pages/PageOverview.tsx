@@ -129,6 +129,8 @@ export function PageOverview(): JSX.Element {
         </div>
       </div>
 
+      <DemoBanner />
+
       <div className="live-strip">
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span
@@ -326,7 +328,6 @@ export function PageOverview(): JSX.Element {
             </div>
           </div>
 
-          <DemoBanner />
         </div>
 
         <div>

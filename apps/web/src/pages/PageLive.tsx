@@ -179,7 +179,7 @@ export function PageLive(): JSX.Element {
                 className="live-badge"
                 style={{ background: "var(--ink-4)", boxShadow: "none" }}
               >
-                <span className="pulse" /> NO RECENT STREAM
+                NO RECENT STREAM
               </div>
             )}
             {mode === "embed" && (
@@ -411,7 +411,7 @@ export function PageLive(): JSX.Element {
                     rel="noopener noreferrer"
                     className="connector-card"
                   >
-                    <span className="hdot live" style={{ flexShrink: 0 }} />
+                    <span className="hdot stale" style={{ flexShrink: 0 }} title="Verified link — not health-monitored" />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 12.5, fontWeight: 500 }}>{c.name}</div>
                       <div

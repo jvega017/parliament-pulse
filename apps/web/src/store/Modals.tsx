@@ -928,7 +928,6 @@ function WatchlistDetail({ name }: { name: string }): JSX.Element {
   if (!w) {
     return <ModalHead kicker="Watchlist" title="Not found" onClose={closeModal} />;
   }
-  const max = Math.max(...w.trend, 1);
   // Match live signals that the scoring engine tagged with this watchlist name
   // (brass tag = first matched watchlist). Fall back to term scan for built-ins.
   const matches = liveSignals.filter((s) =>
@@ -954,10 +953,15 @@ function WatchlistDetail({ name }: { name: string }): JSX.Element {
           </div>
           <div className="panel stat">
             <div className="stat-label">7-day trend</div>
-            <div className="spark" style={{ marginTop: 8 }}>
-              {w.trend.map((v, i) => (
-                <span key={i} style={{ height: `${(v / max) * 24 + 3}px` }} />
-              ))}
+            <div
+              style={{
+                marginTop: 10,
+                fontSize: 11.5,
+                color: "var(--ink-3)",
+                fontStyle: "italic",
+              }}
+            >
+              No historical data yet
             </div>
           </div>
         </div>

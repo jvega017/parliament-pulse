@@ -17,6 +17,7 @@ export function PagePatterns(): JSX.Element {
           <div className="page-sub">
             Detects clustered scrutiny across members, topics and targets.
             Requires a live Hansard QON ingest, which is not yet wired.
+            Planned: Hansard ingest (est. Q3 2026), cluster pattern visualisation, member-topic heat map.
           </div>
         </div>
       </div>

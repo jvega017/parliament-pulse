@@ -109,7 +109,7 @@ export function PageRadar(): JSX.Element {
                 <HeaderCell>Cluster</HeaderCell>
                 <HeaderCell>Attention</HeaderCell>
                 <HeaderCell align="right">Signals</HeaderCell>
-                <HeaderCell>Momentum</HeaderCell>
+                <HeaderCell>Volume</HeaderCell>
                 <HeaderCell>Confidence</HeaderCell>
               </div>
               {rows.map((r, i) => (

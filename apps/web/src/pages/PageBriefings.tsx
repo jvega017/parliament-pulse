@@ -82,7 +82,7 @@ export function PageBriefings(): JSX.Element {
               <h3 className="panel-title">Queue</h3>
               <span className="panel-kicker">
                 {queue.filter((s) => (briefStatus[s.id] ?? "draft") !== "approved").length} pending ·{" "}
-                {queue.length} total
+                top {queue.length} of {liveSignals.length}
               </span>
             </div>
             <div>

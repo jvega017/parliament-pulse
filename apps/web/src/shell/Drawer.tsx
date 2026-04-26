@@ -290,6 +290,9 @@ export function Drawer(): JSX.Element {
               {signal.provenance.length > 0 && (
                 <div className="drawer-section">
                   <h4>Provenance · how this signal was produced</h4>
+                  <p style={{ margin: "0 0 8px", fontSize: 12, color: "var(--ink-3)" }}>
+                    All pipeline events are timestamped at ingest time (AEST).
+                  </p>
                   <div
                     style={{
                       border: "1px solid var(--line-2)",
@@ -458,10 +461,10 @@ export function Drawer(): JSX.Element {
                         letterSpacing: "0.14em",
                       }}
                     >
-                      Learning applied
+                      Feedback recorded
                     </div>
                     <div style={{ marginTop: 4 }}>
-                      {signal.source} · similar items · portfolio mapping adjusted
+                      Feedback logged for {signal.source}. Scoring weights are static in this release and are not adjusted automatically.
                     </div>
                   </div>
                 )}
@@ -472,7 +475,7 @@ export function Drawer(): JSX.Element {
                       size={13}
                       style={{ verticalAlign: "-2px", marginRight: 4 }}
                     />
-                    Logged. Weights retained.
+                    Feedback logged.
                   </div>
                 )}
               </div>

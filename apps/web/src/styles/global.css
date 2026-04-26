@@ -2003,23 +2003,6 @@ table.ds tbody tr:hover {
   margin: 0;
   color: #111;
 }
-/* Diagonal sample watermark; only visible in screen + print when rendered. */
-.brief-print-watermark {
-  position: absolute;
-  top: 40%;
-  left: 50%;
-  transform: translate(-50%, -50%) rotate(-24deg);
-  font-family: "Inter", sans-serif;
-  font-size: 64px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  color: #d06a5e;
-  opacity: 0.15;
-  pointer-events: none;
-  user-select: none;
-  white-space: nowrap;
-  z-index: 1;
-}
 .brief-print {
   position: relative;
 }
@@ -2108,6 +2091,7 @@ table.ds tbody tr:hover {
 }
 @media (prefers-reduced-motion: reduce) {
   .live-strip::after { display: none; }
+  .live-badge .pulse { animation: none; }
 }
 @media (max-width: 900px) {
   .live-strip {

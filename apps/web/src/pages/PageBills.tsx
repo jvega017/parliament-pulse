@@ -15,7 +15,7 @@ export function PageBills(): JSX.Element {
       <div className="page-head">
         <div>
           <div className="page-kicker">Intelligence</div>
-          <h1 className="page-title">Bills monitor</h1>
+          <h1 className="page-title">Bills Digests</h1>
           <div className="page-sub">
             Bills Digests from the Parliamentary Library update via RSS.
             Full bills search and division records link to the authoritative APH source.
@@ -59,7 +59,7 @@ export function PageBills(): JSX.Element {
               <div className="empty">
                 <strong>No Bills Digests in the current poll.</strong>
                 <span>
-                  The ParlInfo Bills Digests RSS feed is polled every 30 minutes.
+                  The ParlInfo Bills Digests RSS feed is polled every 2 minutes.
                   Digests appear here as the Parliamentary Library publishes them
                   throughout 2026. Search ParlInfo for the full archive:
                 </span>
