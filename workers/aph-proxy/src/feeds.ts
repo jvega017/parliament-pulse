@@ -8,11 +8,18 @@ export interface FeedMeta {
 }
 
 export const APH_FEEDS: FeedMeta[] = [
+  // Senate feeds (verified working, high-value committee intelligence)
   { url: "https://www.aph.gov.au/senate/rss/new_inquiries", label: "New Senate inquiries", kind: "inquiry" },
   { url: "https://www.aph.gov.au/senate/rss/reports", label: "Senate reports tabled", kind: "report" },
   { url: "https://www.aph.gov.au/senate/rss/upcoming_hearings", label: "Upcoming Senate hearings", kind: "hearing" },
   { url: "https://www.aph.gov.au/senate/rss/senators_details", label: "Senators' details updates", kind: "signal" },
+  // House feeds
   { url: "https://www.aph.gov.au/house/rss/media_releases", label: "House media releases", kind: "signal" },
+  { url: "https://www.aph.gov.au/house/rss/house_inquiries", label: "House committee inquiries", kind: "inquiry" },
+  { url: "https://www.aph.gov.au/house/rss/joint_inquiries", label: "Joint committee inquiries", kind: "inquiry" },
+  // Parliamentary Library — Bills Digests (plain-English summaries, Date:thisYear = 2026)
+  // This is the primary source for 2026 legislative data in the archive.
+  { url: "https://parlinfo.aph.gov.au/parlInfo/feeds/rss.w3p;adv=yes;orderBy=date-eFirst;page=0;query=Date%3AthisYear%20Dataset%3Abillsdgs;resCount=100", label: "Bills Digests 2026", kind: "digest" },
 ];
 
 // Canonical 12 connector URLs; cron pings these fortnightly for liveness.
@@ -33,8 +40,8 @@ export const APH_CONNECTORS: string[] = [
 
 export function sourceGroupFor(label: string): string {
   const lower = label.toLowerCase();
-  if (lower.includes("library") || lower.includes("flagpost") || lower.includes("digest")) return "Library";
+  if (lower.includes("library") || lower.includes("flagpost") || lower.includes("digest") || lower.includes("bills digest")) return "Library";
+  if (lower.includes("joint")) return "Custom";
   if (lower.includes("senate") || lower.includes("senators")) return "Senate";
-  if (lower.includes("joint") || lower.includes("committee")) return "Custom";
   return "House";
 }

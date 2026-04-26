@@ -24,14 +24,20 @@ export interface ScoringResult {
   confidence: number;
 }
 
+// Weight table for the scoring formula. momentum and ops are zeroed because
+// their values cannot be derived from a single RSS item in isolation:
+//   - momentum requires time-series signal frequency (not yet ingested)
+//   - ops requires operational risk context (not yet wired)
+// The 10% previously allocated to those dimensions is redistributed to
+// authority (+5%) and portfolio (+5%) to preserve the 100% total.
 const WEIGHTS: Record<keyof ScoreDimensions, number> = {
-  authority: 0.2,
-  portfolio: 0.3,
-  novelty: 0.1,
-  momentum: 0.05,
-  time: 0.2,
-  scrutiny: 0.1,
-  ops: 0.05,
+  authority: 0.25,
+  portfolio: 0.35,
+  novelty: 0.10,
+  momentum: 0,    // zeroed: no time-series data
+  time: 0.20,
+  scrutiny: 0.10,
+  ops: 0,         // zeroed: no operational context
 };
 
 function ageHours(pub: Date | null, now: Date): number {
@@ -141,10 +147,10 @@ export function scoreFeedItem(
     authority,
     portfolio: portfolio.score,
     novelty,
-    momentum: 0.5,
+    momentum: 0, // not derived — weight is 0
     time,
     scrutiny,
-    ops: 0.5,
+    ops: 0,      // not derived — weight is 0
   };
 
   let overall = 0;

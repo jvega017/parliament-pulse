@@ -30,14 +30,23 @@ export interface FeedResult {
 //   house/rss/divisions, house/rss/todays_hearings, house/rss/daily_program,
 //   senate/rss/red, house/rss/house_inquiries, house/rss/joint_inquiries,
 //   house/rss/house_news
-// The legacy parlinfo ;matrix-parameter Bills Digests feed also fails via
-// the proxy and should not be re-added until APH publishes a stable URL.
+// Feed expansion: house_inquiries, joint_inquiries, and ParlInfo Bills Digests
+// added in Wave 13 after re-verifying the APH RSS feed directory (Apr 2026).
+// The ParlInfo Bills Digests URL uses Date:thisYear so it always returns
+// current-year bills — this is the primary 2026 legislative data source.
 export const APH_FEED_URLS: FeedMeta[] = [
+  // Senate
   { url: "https://www.aph.gov.au/senate/rss/new_inquiries", label: "New Senate inquiries", kind: "inquiry" },
   { url: "https://www.aph.gov.au/senate/rss/reports", label: "Senate reports tabled", kind: "report" },
   { url: "https://www.aph.gov.au/senate/rss/upcoming_hearings", label: "Upcoming Senate hearings", kind: "hearing" },
   { url: "https://www.aph.gov.au/senate/rss/senators_details", label: "Senators' details updates", kind: "signal" },
+  // House
   { url: "https://www.aph.gov.au/house/rss/media_releases", label: "House media releases", kind: "signal" },
+  { url: "https://www.aph.gov.au/house/rss/house_inquiries", label: "House committee inquiries", kind: "inquiry" },
+  // Joint committees (managed by House secretariat)
+  { url: "https://www.aph.gov.au/house/rss/joint_inquiries", label: "Joint committee inquiries", kind: "inquiry" },
+  // Parliamentary Library — Bills Digests 2026
+  { url: "https://parlinfo.aph.gov.au/parlInfo/feeds/rss.w3p;adv=yes;orderBy=date-eFirst;page=0;query=Date%3AthisYear%20Dataset%3Abillsdgs;resCount=100", label: "Bills Digests 2026", kind: "digest" },
 ];
 
 function parseRssXml(xml: string, feed: FeedMeta): FeedItem[] {

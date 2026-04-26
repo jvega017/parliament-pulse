@@ -76,7 +76,7 @@ html[data-density="compact"] .grid { gap: 10px; }
 .mono {
   font-family: var(--mono);
   font-feature-settings: "tnum";
-  letter-spacing: 0.01em;
+  letter-spacing: var(--tracking-mono, 0.06em);
 }
 
 .serif {
@@ -563,7 +563,17 @@ textarea:focus-visible {
 }
 .btn:focus-visible {
   outline: 2px solid var(--brass);
-  outline-offset: 2px;
+  outline-offset: var(--focus-offset, 2px);
+}
+
+/* Global focus ring — matches btn style for consistency. */
+a:focus-visible,
+[role="option"]:focus-visible,
+[role="row"]:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: var(--focus-offset, 2px);
+  border-radius: var(--r-sm);
 }
 .btn:active {
   transform: translateY(1px);
@@ -1025,15 +1035,24 @@ table.ds td {
   padding: 10px 14px;
   text-align: left;
   border-bottom: 1px solid var(--line);
+  height: 36px;
+  vertical-align: middle;
 }
 table.ds th {
   font-family: var(--mono);
   font-size: 10.5px;
   color: var(--ink-3);
   text-transform: uppercase;
-  letter-spacing: 0.16em;
+  letter-spacing: var(--tracking-caps, 0.10em);
   font-weight: 500;
   background: #ffffff03;
+  height: 32px;
+}
+table.ds tbody tr {
+  transition: background-color var(--d-2) ease-in;
+}
+table.ds tbody tr:hover {
+  background: #ffffff05;
 }
 table.ds tbody tr {
   cursor: pointer;

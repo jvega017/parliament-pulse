@@ -106,11 +106,28 @@
   /* Motion */
   --ease-out-soft: cubic-bezier(0.2, 0.7, 0.2, 1);
   --ease-out-snap: cubic-bezier(0.18, 0.89, 0.32, 1.18);
+  --ease-professional: cubic-bezier(0.16, 1, 0.3, 1);
   --d-1: 80ms;
   --d-2: 120ms;
   --d-3: 180ms;
   --d-4: 240ms;
   --d-5: 320ms;
+
+  /* Transition shorthands — analytical tool: state-change only, no delight */
+  --tx-fade: opacity var(--d-3) ease-in;
+  --tx-height: height var(--d-2) var(--ease-professional);
+  --tx-color: color var(--d-2) ease-in, background-color var(--d-2) ease-in;
+
+  /* Focus ring — 2px brass offset by 2px. Meets WCAG 2.4.7 without fill. */
+  --focus-ring: 0 0 0 2px var(--brass);
+  --focus-offset: 2px;
+
+  /* Letter-spacing — adds scannability to labels at 13px without size increase */
+  --tracking-tight: -0.01em;
+  --tracking-normal: 0em;
+  --tracking-label: 0.03em;   /* table th, section kickers */
+  --tracking-mono: 0.06em;    /* timestamps, IDs, codes */
+  --tracking-caps: 0.10em;    /* all-caps kickers */
 
   --sans: "Inter", system-ui, sans-serif;
   --serif: "Fraunces", Georgia, serif;

@@ -293,31 +293,20 @@ function HearingDetail({
             </a>
           </p>
         </Section>
-        <Section title="Suggested briefing questions (templates)">
-          <ol style={{ margin: 0, paddingLeft: 18, color: "var(--ink-2)" }}>
-            <li>
-              How does the department assure AI models against bias in high-risk
-              contexts?
-            </li>
-            <li>
-              Which programs currently use automated decision-making for benefit
-              eligibility?
-            </li>
-            <li>
-              What is the escalation pathway when assurance fails in production?
-            </li>
-          </ol>
-          <div
-            style={{
-              marginTop: 8,
-              fontSize: 12,
-              color: "var(--ink-3)",
-              fontStyle: "italic",
-            }}
+        <Section title="Prepare research">
+          <p style={{ margin: 0, color: "var(--ink-3)", fontSize: 12.5 }}>
+            Search the ParlInfo transcript for prior evidence given by
+            witnesses at {data.committee} hearings on this topic:
+          </p>
+          <a
+            className="btn ghost"
+            href={`https://parlinfo.aph.gov.au/parlInfo/search/summary/summary.w3p;query=${encodeURIComponent(data.topic || data.committee)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 8 }}
           >
-            Templates only. Replace with portfolio-specific questions before
-            issuing the prep note.
-          </div>
+            <Icon name="ext" size={12} /> Search ParlInfo transcripts
+          </a>
         </Section>
       </div>
       <div className="modal-foot">
@@ -422,17 +411,7 @@ function InquiryDetail({ name }: { name: string }): JSX.Element {
       <div className="modal-foot">
         <button
           type="button"
-          className="btn primary"
-          disabled
-          aria-disabled="true"
-          title="Submission drafting not yet available; route via your normal drafting workflow."
-        >
-          <Icon name="brief" size={13} /> Start submission
-        </button>
-        <button
-          type="button"
           className="btn ghost"
-          style={{ marginLeft: "auto" }}
           onClick={closeModal}
         >
           Close
@@ -1106,18 +1085,48 @@ function RadarDetail({ issue }: { issue: string }): JSX.Element {
           <span className="tag">{r.sources} contributing sources</span>
         </div>
         <p style={{ color: "var(--ink-2)", marginTop: 0 }}>{r.reason}</p>
-        <Section title="Momentum (7 days)">
-          <div className="spark" style={{ height: 40 }}>
-            {[3, 4, 5, 4, 6, 7, Math.round(r.momentum * 10)].map((v, i) => (
-              <span key={i} style={{ height: `${v * 3 + 4}px` }} />
-            ))}
+        <Section title="Signal volume">
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div
+              style={{
+                height: 6,
+                flex: 1,
+                borderRadius: 3,
+                background: "var(--panel-2)",
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  height: "100%",
+                  width: `${Math.round(r.momentum * 100)}%`,
+                  background: "linear-gradient(90deg, var(--brass) 0%, var(--brass-2) 100%)",
+                  borderRadius: 3,
+                }}
+              />
+            </div>
+            <span className="mono" style={{ fontSize: 11, color: "var(--ink-3)", minWidth: 36, textAlign: "right" }}>
+              {r.sources} {r.sources === 1 ? "signal" : "signals"}
+            </span>
           </div>
+          <p style={{ margin: "6px 0 0", fontSize: 12, color: "var(--ink-4)" }}>
+            Derived from live RSS poll — not a 7-day time-series.
+          </p>
         </Section>
         <Section title="Suggested actions">
           <ul style={{ margin: 0, paddingLeft: 18, color: "var(--ink-2)" }}>
-            <li>Draft Executive Brief for DDG Digital</li>
-            <li>Monitor for Estimates references</li>
-            <li>Coordinate with Procurement lead</li>
+            <li>Monitor <strong>{r.issue}</strong> for new signals over next 24 h</li>
+            {r.att === "high" && <li>Escalate to briefing queue — high attention level</li>}
+            <li>
+              <a
+                href={`https://parlinfo.aph.gov.au/parlInfo/search/summary/summary.w3p;query=${encodeURIComponent(r.issue)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: "var(--teal)" }}
+              >
+                Search ParlInfo for {r.issue}
+              </a>
+            </li>
           </ul>
         </Section>
       </div>
