@@ -48,6 +48,7 @@ export interface Signal {
   id: string;
   time: string;
   date: string;
+  pubMs?: number;         // epoch ms from pubDate — used for relative age display
   source: string;
   sourceGroup: "Senate" | "House" | "Library" | "Custom";
   title: string;

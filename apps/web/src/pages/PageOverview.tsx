@@ -55,6 +55,16 @@ export function PageOverview(): JSX.Element {
     return () => window.clearInterval(id);
   }, []);
 
+  const [attFilter, setAttFilter] = useState<"all" | "high" | "med" | "low">("all");
+  const [groupFilter, setGroupFilter] = useState<"all" | "Senate" | "House" | "Library" | "Custom">("all");
+
+  const visibleSignals = liveSignals.filter(
+    (s) =>
+      !state.archived[s.id] &&
+      (attFilter === "all" || s.attention === attFilter) &&
+      (groupFilter === "all" || s.sourceGroup === groupFilter),
+  );
+
   const liveHigh = liveSignals.filter(
     (s) => s.attention === "high" && !state.archived[s.id],
   );
@@ -64,6 +74,9 @@ export function PageOverview(): JSX.Element {
   const liveLow = liveSignals.filter(
     (s) => s.attention === "low" && !state.archived[s.id],
   );
+  const filteredHigh = visibleSignals.filter((s) => s.attention === "high");
+  const filteredMed = visibleSignals.filter((s) => s.attention === "med");
+  const filteredLow = visibleSignals.filter((s) => s.attention === "low");
   const totalLive = liveSignals.length;
   // Source health from the real poll, not the fixture row count.
   const healthyFeeds = liveFeedResult
@@ -130,6 +143,47 @@ export function PageOverview(): JSX.Element {
       </div>
 
       <DemoBanner />
+
+      <div
+        className="feedback-row"
+        style={{ marginBottom: 14, flexWrap: "wrap", gap: 6 }}
+        role="group"
+        aria-label="Filter signals by attention and source"
+      >
+        {(["all", "high", "med", "low"] as const).map((a) => (
+          <button
+            key={a}
+            type="button"
+            className={`fb${attFilter === a ? " on" : ""}`}
+            onClick={() => setAttFilter(a)}
+            aria-pressed={attFilter === a}
+          >
+            {a === "all" ? "All attention" : a.charAt(0).toUpperCase() + a.slice(1)}
+          </button>
+        ))}
+        <span style={{ width: 1, background: "var(--line-2)", alignSelf: "stretch", margin: "0 2px" }} aria-hidden="true" />
+        {(["all", "Senate", "House", "Library"] as const).map((g) => (
+          <button
+            key={g}
+            type="button"
+            className={`fb${groupFilter === g ? " on" : ""}`}
+            onClick={() => setGroupFilter(g)}
+            aria-pressed={groupFilter === g}
+          >
+            {g === "all" ? "All sources" : g}
+          </button>
+        ))}
+        {(attFilter !== "all" || groupFilter !== "all") && (
+          <button
+            type="button"
+            className="fb"
+            style={{ color: "var(--ink-3)" }}
+            onClick={() => { setAttFilter("all"); setGroupFilter("all"); }}
+          >
+            Clear
+          </button>
+        )}
+      </div>
 
       <div className="live-strip">
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -268,9 +322,11 @@ export function PageOverview(): JSX.Element {
               <h3 className="panel-title">Live priority signals</h3>
               <span
                 className="panel-kicker"
-                style={{ color: liveHigh.length > 0 ? "var(--brass)" : undefined }}
+                style={{ color: filteredHigh.length > 0 ? "var(--brass)" : undefined }}
+                aria-live="polite"
+                aria-atomic="true"
               >
-                {liveHigh.length} live items · scored from APH RSS
+                {filteredHigh.length} high · {attFilter !== "all" || groupFilter !== "all" ? "filtered" : "from APH RSS"}
               </span>
             </div>
             <div className="panel-body">
@@ -294,16 +350,21 @@ export function PageOverview(): JSX.Element {
                   </div>
                 </div>
               )}
-              {!liveLoading && liveHigh.length === 0 && (
+              {!liveLoading && filteredHigh.length === 0 && (
                 <div className="empty">
-                  <strong>No high-attention live items right now.</strong>
+                  <strong>
+                    {attFilter !== "all" || groupFilter !== "all"
+                      ? "No signals match the current filter."
+                      : "No high-attention live items right now."}
+                  </strong>
                   <span>
-                    Medium and low items appear below. Click a watchlist on the
-                    Watchlists page to bias scoring toward your portfolio.
+                    {attFilter !== "all" || groupFilter !== "all"
+                      ? "Try clearing the filter to see all signals."
+                      : "Medium and low items appear below. Add keywords on the Watchlists page to bias scoring toward your portfolio."}
                   </span>
                 </div>
               )}
-              {liveHigh.map((s) => (
+              {filteredHigh.map((s) => (
                 <SignalCard key={s.id} s={s} />
               ))}
             </div>
@@ -312,15 +373,16 @@ export function PageOverview(): JSX.Element {
           <div className="panel">
             <div className="panel-head">
               <h3 className="panel-title">All live signals</h3>
-              <span className="panel-kicker">
-                {liveMed.length + liveLow.length} medium and low
+              <span className="panel-kicker" aria-live="polite" aria-atomic="true">
+                {filteredMed.length + filteredLow.length} medium and low
+                {(attFilter !== "all" || groupFilter !== "all") && " · filtered"}
               </span>
             </div>
             <div className="panel-body">
-              {[...liveMed, ...liveLow].map((s) => (
+              {[...filteredMed, ...filteredLow].map((s) => (
                 <SignalCard key={s.id} s={s} />
               ))}
-              {liveMed.length + liveLow.length === 0 && !liveLoading && (
+              {filteredMed.length + filteredLow.length === 0 && !liveLoading && (
                 <div className="empty">
                   <strong>No further live items.</strong>
                 </div>

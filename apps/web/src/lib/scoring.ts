@@ -128,7 +128,9 @@ export function scoreFeedItem(
   watchlists: Watchlist[],
   now: Date = new Date(),
 ): ScoringResult {
-  const haystack = item.title.toLowerCase();
+  // Include description in keyword matching — RSS descriptions often contain
+  // more context than the title alone (committee name, portfolio keywords, etc.)
+  const haystack = (item.title + " " + item.description).toLowerCase();
   const hours = ageHours(item.pubDate, now);
 
   const portfolio = scorePortfolio(haystack, watchlists);
@@ -276,6 +278,7 @@ export function signalFromFeedItem(
     id,
     time: fmtTime(item.pubDate),
     date: fmtDate(item.pubDate),
+    pubMs: item.pubDate?.getTime(),
     source: item.sourceLabel,
     sourceGroup: sourceGroupFor(item),
     title: item.title,

@@ -27,7 +27,7 @@ const NAV: NavItem[] = [
   { id: "briefings", label: "Briefings", group: "Today", count: null },
   { id: "parliament", label: "Today in chamber", group: "Intelligence", count: null },
   { id: "committees", label: "Committees", group: "Intelligence", count: null },
-  { id: "bills", label: "Bills monitor", group: "Intelligence", count: null },
+  { id: "bills", label: "Bills Digests", group: "Intelligence", count: null },
   { id: "patterns", label: "QON patterns", group: "Intelligence", count: null, deferred: true },
   { id: "archive", label: "Archive", group: "Intelligence", count: null },
   { id: "watchlists", label: "Watchlists", group: "Configuration", count: null },
@@ -57,7 +57,9 @@ interface SidebarProps {
 
 export function Sidebar({ page, onNavigate }: SidebarProps): JSX.Element {
   const groups: NavItem["group"][] = ["Today", "Intelligence", "Configuration"];
-  const { mobileNavOpen, closeMobileNav } = useStore();
+  const { mobileNavOpen, closeMobileNav, liveSignals } = useStore();
+  const liveHighCount = liveSignals.filter((s) => s.attention === "high").length;
+  const liveTotalCount = liveSignals.length;
   // useId ensures the SVG gradient id is unique per render so concurrent
   // sidebar instances (mobile overlay + desktop) do not share a defs id.
   const flameId = `flame-${useId()}`;
@@ -142,7 +144,23 @@ export function Sidebar({ page, onNavigate }: SidebarProps): JSX.Element {
                       soon
                     </span>
                   )}
-                  {!n.live && !n.deferred && n.count !== null && <span className="count">{n.count}</span>}
+                  {n.id === "overview" && liveHighCount > 0 && (
+                    <span
+                      className="count"
+                      title={`${liveHighCount} high-attention live signals`}
+                      style={{ background: "var(--brass)", color: "var(--brass-ink)" }}
+                    >
+                      {liveHighCount}
+                    </span>
+                  )}
+                  {n.id === "radar" && liveTotalCount > 0 && (
+                    <span className="count" title={`${liveTotalCount} live signals`}>
+                      {liveTotalCount}
+                    </span>
+                  )}
+                  {!n.live && !n.deferred && n.id !== "overview" && n.id !== "radar" && n.count !== null && (
+                    <span className="count">{n.count}</span>
+                  )}
                 </button>
               );
             })}
@@ -168,22 +186,12 @@ export function Sidebar({ page, onNavigate }: SidebarProps): JSX.Element {
             Beta access
           </div>
         </div>
-        <a
-          href="https://github.com/jvega017/parliament-pulse"
-          target="_blank"
-          rel="noopener noreferrer"
-          title="View source on GitHub"
-          aria-label="View source on GitHub"
-          style={{
-            color: "var(--ink-3)",
-            display: "inline-flex",
-            alignItems: "center",
-            padding: 4,
-            borderRadius: 4,
-          }}
+        <span
+          title="Parliament Pulse — Parliamentary Intelligence Platform"
+          style={{ color: "var(--ink-4)", fontSize: 10, fontFamily: "var(--mono)", letterSpacing: "0.06em" }}
         >
-          <Icon name="ext" size={14} />
-        </a>
+          v0
+        </span>
       </div>
     </aside>
     </>

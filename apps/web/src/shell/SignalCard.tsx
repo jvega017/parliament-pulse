@@ -2,6 +2,7 @@ import { Icon } from "../icons";
 import { useStore } from "../store/useStore";
 import type { Signal } from "../types";
 import { Att, Conf } from "./common";
+import { formatRelative } from "../lib/export";
 
 interface SignalCardProps {
   s: Signal;
@@ -12,9 +13,8 @@ export function SignalCard({ s }: SignalCardProps): JSX.Element | null {
   if (state.archived[s.id]) return null;
   const feedback = state.feedback[s.id];
 
-  // Show a concise date when it exists. fmtDate in scoring.ts omits the year
-  // for current-year items, so the header stays compact.
   const dateStamp = s.date !== "—" ? `${s.date} · ` : "";
+  const age = s.pubMs ? formatRelative(new Date(s.pubMs)) : null;
 
   return (
     <button
@@ -28,6 +28,15 @@ export function SignalCard({ s }: SignalCardProps): JSX.Element | null {
         <span className="sig-source mono">· {s.source}</span>
         <Att level={s.attention} />
         <span className="sig-time mono">{dateStamp}{s.time}</span>
+        {age && (
+          <span
+            className="mono"
+            style={{ fontSize: 10, color: "var(--ink-4)", marginLeft: 4 }}
+            title={`Published: ${s.date} ${s.time}`}
+          >
+            {age}
+          </span>
+        )}
       </div>
       <div className="sig-title serif">{s.title}</div>
       <div className="sig-sum">{s.summary}</div>

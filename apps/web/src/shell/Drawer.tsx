@@ -207,13 +207,14 @@ export function Drawer(): JSX.Element {
                 {Object.entries(signal.score).map(([k, v]) => {
                   const weight = SCORE_WEIGHTS[k] ?? 0;
                   const zeroed = weight === 0;
+                  const contribution = Math.round(v * weight * 100);
                   return (
                   <div
                     key={k}
                     style={{
                       display: "grid",
-                      gridTemplateColumns: "160px 1fr 40px 36px",
-                      gap: 10,
+                      gridTemplateColumns: "150px 1fr 36px 40px 32px",
+                      gap: 8,
                       alignItems: "center",
                       padding: "4px 0",
                       opacity: zeroed ? 0.45 : 1,
@@ -238,6 +239,17 @@ export function Drawer(): JSX.Element {
                     >
                       {zeroed ? "—" : `×${Math.round(weight * 100)}%`}
                     </div>
+                    <div
+                      className="mono"
+                      style={{
+                        fontSize: 10,
+                        textAlign: "right",
+                        color: zeroed ? "var(--ink-4)" : contribution > 10 ? "var(--brass)" : "var(--ink-3)",
+                      }}
+                      title={zeroed ? "Not counted" : `Contributes ${contribution} pts to overall score`}
+                    >
+                      {zeroed ? "—" : `=${contribution}`}
+                    </div>
                   </div>
                   );
                 })}
@@ -247,42 +259,66 @@ export function Drawer(): JSX.Element {
               <div className="drawer-section">
                 <h4>Evidence · open the actual source</h4>
                 {signal.evidence.map((e) => (
-                  <a
+                  <div
                     key={e.url}
-                    href={e.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
                     style={{
                       display: "flex",
                       alignItems: "center",
-                      gap: 10,
-                      padding: "10px 12px",
-                      border: "1px solid var(--line-2)",
-                      borderRadius: 8,
-                      color: "var(--ink)",
-                      textDecoration: "none",
+                      gap: 6,
                       marginBottom: 6,
-                      fontSize: 13,
                     }}
                   >
-                    <Icon name="link" size={14} stroke="var(--teal)" />
-                    <span>{e.label}</span>
-                    <span
-                      className="mono"
+                    <a
+                      href={e.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       style={{
-                        color: "var(--ink-3)",
-                        fontSize: 11,
-                        marginLeft: "auto",
-                        maxWidth: 240,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
+                        padding: "10px 12px",
+                        border: "1px solid var(--line-2)",
+                        borderRadius: 8,
+                        color: "var(--ink)",
+                        textDecoration: "none",
+                        flex: 1,
+                        fontSize: 13,
+                        minWidth: 0,
                       }}
                     >
-                      {e.url.replace(/^https?:\/\//, "")}
-                    </span>
-                    <Icon name="ext" size={12} stroke="var(--ink-3)" />
-                  </a>
+                      <Icon name="link" size={14} stroke="var(--teal)" />
+                      <span>{e.label}</span>
+                      <span
+                        className="mono"
+                        style={{
+                          color: "var(--ink-3)",
+                          fontSize: 11,
+                          marginLeft: "auto",
+                          maxWidth: 200,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {e.url.replace(/^https?:\/\//, "")}
+                      </span>
+                      <Icon name="ext" size={12} stroke="var(--ink-3)" />
+                    </a>
+                    <button
+                      type="button"
+                      className="btn ghost sm"
+                      title="Copy URL to clipboard"
+                      onClick={() =>
+                        navigator.clipboard
+                          ?.writeText(e.url)
+                          .then(() => toast("URL copied", "brass"))
+                          .catch(() => toast("Copy failed"))
+                      }
+                      style={{ flexShrink: 0 }}
+                    >
+                      <Icon name="link" size={12} />
+                    </button>
+                  </div>
                 ))}
               </div>
               )}

@@ -11,6 +11,7 @@ export interface FeedMeta {
 export interface FeedItem {
   title: string;
   link: string;
+  description: string;   // body text from <description>/<summary> — used in portfolio scoring
   pubDate: Date | null;
   sourceLabel: string;
   sourceUrl: string;
@@ -65,11 +66,16 @@ function parseRssXml(xml: string, feed: FeedMeta): FeedItem[] {
       node.querySelector("published")?.textContent ??
       null;
     const pubDate = pubText ? new Date(pubText) : null;
+    const description =
+      (node.querySelector("description")?.textContent ??
+       node.querySelector("summary")?.textContent ??
+       "").trim().slice(0, 400); // cap at 400 chars — enough for keyword matching
 
     if (!title || !link) return;
     items.push({
       title,
       link,
+      description,
       pubDate: pubDate && !Number.isNaN(pubDate.getTime()) ? pubDate : null,
       sourceLabel: feed.label,
       sourceUrl: feed.url,
@@ -204,5 +210,14 @@ export async function fetchAllFeeds(
     return 0;
   });
 
-  return { items: items.slice(0, 30), feedStatus, lastPoll: new Date() };
+  // Deduplicate by canonical URL — the same item can appear in multiple APH feeds
+  // (e.g. a joint committee inquiry surfaces in both house and senate feeds).
+  const seen = new Set<string>();
+  const deduped = items.filter((item) => {
+    if (seen.has(item.link)) return false;
+    seen.add(item.link);
+    return true;
+  });
+
+  return { items: deduped.slice(0, 30), feedStatus, lastPoll: new Date() };
 }
