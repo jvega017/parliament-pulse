@@ -72,6 +72,22 @@ function scorePortfolio(
   return { score, matched };
 }
 
+// Authority reflects the formal standing of the feed source, not the item
+// content. Inquiry and report feeds carry the highest institutional weight;
+// media releases the lowest. Values intentionally differ between types.
+function authorityFromKind(kind: FeedItem["kind"]): number {
+  const map: Record<FeedItem["kind"], number> = {
+    inquiry: 0.90,
+    report: 0.90,
+    hearing: 0.85,
+    division: 0.75,
+    digest: 0.75,
+    program: 0.65,
+    signal: 0.65,
+  };
+  return map[kind] ?? 0.65;
+}
+
 function scoreScrutiny(haystack: string, kind: FeedItem["kind"]): number {
   const kindWeight: Record<FeedItem["kind"], number> = {
     inquiry: 0.9,
@@ -114,8 +130,15 @@ export function scoreFeedItem(
   const novelty = scoreNovelty(hours);
   const scrutiny = scoreScrutiny(haystack, item.kind);
 
+  // authority: derived from feed kind. Formal committee outputs (inquiry/report)
+  // are highest; media releases are lowest. This replaces the former constant
+  // 0.95 which inflated scores uniformly across all feeds.
+  // momentum and ops cannot be derived from a single RSS item in isolation
+  // (momentum requires time-series data; ops requires operational context);
+  // both are held at 0.50 as neutral mid-point pending richer data ingestion.
+  const authority = authorityFromKind(item.kind);
   const score: ScoreDimensions = {
-    authority: 0.95,
+    authority,
     portfolio: portfolio.score,
     novelty,
     momentum: 0.5,

@@ -24,6 +24,15 @@ function liveCommitteeRows(signals: Signal[]): Array<{
     .filter((row): row is { signal: Signal; type: "Hearing" | "Report tabled" | "New inquiry" } => row !== null);
 }
 
+function committeeSignalCount(signals: Signal[], committeeName: string): number {
+  const lower = committeeName.toLowerCase();
+  // Match on signal title or source label — counts items observed this poll
+  // that mention the committee. Not a formal active inquiry count.
+  return signals.filter(
+    (s) => s.title.toLowerCase().includes(lower) || s.source.toLowerCase().includes(lower),
+  ).length;
+}
+
 export function PageCommittees(): JSX.Element {
   const { openSignal, openModal, liveSignals } = useStore();
   const committees = useMemo(() => Object.values(ENTITIES.committees), []);
@@ -113,9 +122,10 @@ export function PageCommittees(): JSX.Element {
         </div>
         <div className="panel-body">
           <p style={{ color: "var(--ink-3)", fontSize: 12, marginTop: 0 }}>
-            Real public APH committees. Member counts, chairs, hearings and
-            active inquiries are intentionally not pre-populated. Click for the
-            committee bio plus a deep link to the authoritative APH page.
+            Real public APH committees. "Live signals" counts RSS items
+            mentioning each committee in the current poll — not a formal inquiry
+            count. Chairs and member rosters require scraping; click APH for
+            authoritative data.
           </p>
           <table className="ds">
             <thead>
@@ -123,11 +133,14 @@ export function PageCommittees(): JSX.Element {
                 <th>Committee</th>
                 <th>Chamber</th>
                 <th>Portfolio scope</th>
+                <th>Live signals</th>
                 <th>APH page</th>
               </tr>
             </thead>
             <tbody>
-              {committees.map((c) => (
+              {committees.map((c) => {
+                const liveCount = committeeSignalCount(liveSignals, c.name);
+                return (
                 <tr key={c.id} onClick={() => openModal({ kind: "committee", id: c.id })}>
                   <td style={{ fontWeight: 500 }}>{c.name}</td>
                   <td>
@@ -135,6 +148,12 @@ export function PageCommittees(): JSX.Element {
                   </td>
                   <td className="mono" style={{ fontSize: 11.5, color: "var(--ink-3)" }}>
                     {c.portfolio}
+                  </td>
+                  <td style={{ textAlign: "center" }}>
+                    {liveCount > 0
+                      ? <span className="tag brass">{liveCount}</span>
+                      : <span style={{ color: "var(--ink-4)", fontSize: 12 }}>—</span>
+                    }
                   </td>
                   <td>
                     <a
@@ -149,7 +168,8 @@ export function PageCommittees(): JSX.Element {
                     </a>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>

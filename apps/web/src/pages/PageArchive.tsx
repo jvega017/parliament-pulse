@@ -143,7 +143,7 @@ export function PageArchive(): JSX.Element {
               onChange={(e) => { setKind(e.target.value); setPage(0); }}
               style={{ padding: 7, background: "var(--panel-2)", color: "var(--ink)", border: "1px solid var(--line-2)", borderRadius: 6 }}
             >
-              {KINDS.map((k) => <option key={k} value={k}>{k || "All kinds"}</option>)}
+              {KINDS.map((k) => <option key={k || "all-kinds"} value={k}>{k || "All kinds"}</option>)}
             </select>
           </label>
           <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11.5, color: "var(--ink-3)" }}>
@@ -153,7 +153,7 @@ export function PageArchive(): JSX.Element {
               onChange={(e) => { setGroup(e.target.value); setPage(0); }}
               style={{ padding: 7, background: "var(--panel-2)", color: "var(--ink)", border: "1px solid var(--line-2)", borderRadius: 6 }}
             >
-              {GROUPS.map((g) => <option key={g} value={g}>{g || "All groups"}</option>)}
+              {GROUPS.map((g) => <option key={g || "all-groups"} value={g}>{g || "All groups"}</option>)}
             </select>
           </label>
           <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11.5, color: "var(--ink-3)" }}>

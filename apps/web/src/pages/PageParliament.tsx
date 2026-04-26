@@ -26,8 +26,11 @@ export function PageParliament(): JSX.Element {
           <div className="page-kicker">Intelligence</div>
           <h1 className="page-title">Today in chamber</h1>
           <div className="page-sub">
-            Live items pulled from House Daily Program, Senate Dynamic Red, and
-            upcoming-hearings feeds. Division ingest is not yet wired.
+            Senate upcoming hearings are sourced from the live APH RSS feed.
+            House Daily Program and Senate Dynamic Red are web pages, not RSS
+            feeds — House chamber data is not available without scraping and
+            will not appear here until that ingest is built. Division data is
+            also not yet wired.
           </div>
         </div>
         <div style={{ display: "flex", gap: 10 }}>

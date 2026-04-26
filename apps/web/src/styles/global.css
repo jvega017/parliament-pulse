@@ -1423,8 +1423,11 @@ table.ds td.num {
 }
 
 /* Respect prefers-reduced-motion per WCAG 2.3.3 / 2.2.2.
-   Kill all indefinite animations and collapse transitions. */
+   Kill all indefinite animations and collapse transitions.
+   --motion-pulse is used by inline-style animations so this media query
+   suppresses them without JS involvement. */
 @media (prefers-reduced-motion: reduce) {
+  :root { --motion-pulse: none; }
   *,
   *::before,
   *::after {

@@ -28,8 +28,8 @@ export function SignalCard({ s }: SignalCardProps): JSX.Element | null {
       <div className="sig-title serif">{s.title}</div>
       <div className="sig-sum">{s.summary}</div>
       <div className="sig-tags">
-        {s.tags.map((t, i) => (
-          <span key={i} className={`tag ${t.c ?? ""}`}>
+        {s.tags.map((t) => (
+          <span key={`${t.l}-${t.c ?? "default"}`} className={`tag ${t.c ?? ""}`}>
             {t.l}
           </span>
         ))}

@@ -92,7 +92,7 @@ export default {
       // protects this Worker route. We do NOT verify the JWT signature here
       // (Access is validating at the edge); we only require the header so
       // direct curl access without Access still bounces.
-      const requireAccess = (env as unknown as { REQUIRE_ACCESS?: string }).REQUIRE_ACCESS === "true";
+      const requireAccess = env.REQUIRE_ACCESS === "true";
       if (requireAccess && !req.headers.get("cf-access-jwt-assertion")) {
         return jsonResponse({ error: "access required" }, 401, cors);
       }
@@ -100,11 +100,8 @@ export default {
         const result = await queryArchive(env, url.searchParams);
         return jsonResponse(result, 200, cors);
       } catch (err) {
-        return jsonResponse(
-          { error: err instanceof Error ? err.message : "archive query failed" },
-          500,
-          cors,
-        );
+        console.error({ endpoint: "/archive", error: err instanceof Error ? err.message : err, ts: new Date().toISOString() });
+        return jsonResponse({ error: "archive temporarily unavailable" }, 503, cors);
       }
     }
 
@@ -113,15 +110,22 @@ export default {
         const result = await watchlistAnalytics(env, url.searchParams);
         return jsonResponse(result, 200, cors);
       } catch (err) {
-        return jsonResponse(
-          { error: err instanceof Error ? err.message : "analytics failed" },
-          500,
-          cors,
-        );
+        console.error({ endpoint: "/archive/analytics", error: err instanceof Error ? err.message : err, ts: new Date().toISOString() });
+        return jsonResponse({ error: "analytics temporarily unavailable" }, 503, cors);
       }
     }
 
     if (url.pathname === "/digest/subscribe" && req.method === "POST") {
+      // Simple per-IP rate limit: max 3 subscribe attempts per minute via KV.
+      const ip = req.headers.get("cf-connecting-ip") ?? "unknown";
+      const rlKey = `ratelimit:sub:${ip}`;
+      const rlRaw = await env.CACHE.get(rlKey);
+      const rlCount = rlRaw ? parseInt(rlRaw, 10) : 0;
+      if (rlCount >= 3) {
+        return jsonResponse({ error: "too many requests, try again in a minute" }, 429, cors);
+      }
+      await env.CACHE.put(rlKey, String(rlCount + 1), { expirationTtl: 60 });
+
       try {
         const body = (await req.json()) as {
           email?: string;
@@ -131,6 +135,10 @@ export default {
         if (!body.email || !/^[^@]+@[^@]+\.[^@]+$/.test(body.email)) {
           return jsonResponse({ error: "valid email required" }, 400, cors);
         }
+        // Deduplicate watchlist terms on insert.
+        const watchlists = body.watchlists
+          ? [...new Set(body.watchlists.split(",").map((t) => t.trim()).filter(Boolean))].join(",")
+          : "";
         await env.ARCHIVE.prepare(
           `INSERT INTO digest_subscribers (email, watchlists, attention_min, created_at, active)
            VALUES (?, ?, ?, ?, 1)
@@ -138,20 +146,12 @@ export default {
                                             attention_min = excluded.attention_min,
                                             active = 1`,
         )
-          .bind(
-            body.email,
-            body.watchlists ?? "",
-            body.attention_min ?? "high",
-            new Date().toISOString(),
-          )
+          .bind(body.email, watchlists, body.attention_min ?? "high", new Date().toISOString())
           .run();
         return jsonResponse({ ok: true }, 200, cors);
       } catch (err) {
-        return jsonResponse(
-          { error: err instanceof Error ? err.message : "subscribe failed" },
-          500,
-          cors,
-        );
+        console.error({ endpoint: "/digest/subscribe", error: err instanceof Error ? err.message : err, ts: new Date().toISOString() });
+        return jsonResponse({ error: "subscribe temporarily unavailable" }, 503, cors);
       }
     }
 

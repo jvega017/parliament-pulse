@@ -508,7 +508,7 @@ export function PageLive(): JSX.Element {
             })()}
             {items.map((e, i) => (
               <a
-                key={i}
+                key={e.link + (e.pubDate?.getTime() ?? "")}
                 href={e.link}
                 target="_blank"
                 rel="noopener noreferrer"

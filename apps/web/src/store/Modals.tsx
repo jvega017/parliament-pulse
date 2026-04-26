@@ -279,12 +279,19 @@ function HearingDetail({
             </a>
           </dd>
         </dl>
-        <Section title="Likely witnesses">
-          <ul style={{ margin: 0, paddingLeft: 18, color: "var(--ink-2)" }}>
-            <li>Department (First Assistant Secretary)</li>
-            <li>OAIC (Privacy Commissioner)</li>
-            <li>Industry peak body</li>
-          </ul>
+        <Section title="Witnesses">
+          <p style={{ margin: 0, color: "var(--ink-3)", fontSize: 12.5 }}>
+            Witness lists are published by the committee closer to the hearing
+            date.{" "}
+            <a
+              href="https://www.aph.gov.au/Parliamentary_Business/Committees"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: "var(--teal)" }}
+            >
+              Check the committee page on APH.
+            </a>
+          </p>
         </Section>
         <Section title="Suggested briefing questions (templates)">
           <ol style={{ margin: 0, paddingLeft: 18, color: "var(--ink-2)" }}>
@@ -355,27 +362,31 @@ function InquiryDetail({ name }: { name: string }): JSX.Element {
     <>
       <ModalHead kicker="Inquiry" title={name} onClose={closeModal} />
       <div className="modal-body">
-        <dl className="kv">
-          <dt>Status</dt>
-          <dd>Accepting submissions</dd>
-          <dt>Submissions close</dt>
-          <dd>19 May 2026</dd>
-          <dt>Reporting</dt>
-          <dd>by 30 August 2026</dd>
-          <dt>Scope</dt>
-          <dd>
-            Commonwealth procurement and contract governance for digital programs
-            over $100m
-          </dd>
-        </dl>
-        <Section title="Terms of reference">
-          <ol style={{ margin: 0, paddingLeft: 18, color: "var(--ink-2)" }}>
-            <li>Adequacy of current governance frameworks</li>
-            <li>Use of limited tender and contract variations</li>
-            <li>Transparency and public reporting</li>
-            <li>Any related matters</li>
-          </ol>
-        </Section>
+        <div className="empty" style={{ marginBottom: 16 }}>
+          <strong>Inquiry detail ingest not yet wired.</strong>
+          <span>
+            Submission dates, scope, and terms of reference will populate once
+            the ParlInfo inquiry ingest is connected. Open the live record
+            directly on APH:
+          </span>
+          <a
+            className="btn primary"
+            href={`https://www.aph.gov.au/Parliamentary_Business/Committees/Senate`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            APH Senate Committees
+          </a>
+          <a
+            className="btn ghost"
+            href={`https://parlinfo.aph.gov.au/parlInfo/search/search.w3p;query=Dataset:committee`}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ marginTop: 6 }}
+          >
+            Search ParlInfo
+          </a>
+        </div>
         <Section title="Assign owner">
           <div style={{ display: "flex", gap: 8 }}>
             <input
@@ -656,11 +667,11 @@ function MemberDetail({ id }: { id: string }): JSX.Element {
           </div>
         </div>
         <Section title="Recent activity">
-          <ul style={{ margin: 0, paddingLeft: 18, color: "var(--ink-2)" }}>
-            <li>Lodged QON on digital procurement · 23 Apr</li>
-            <li>Spoke on Cyber Security Bill · 22 Apr</li>
-            <li>Committee questioning at FinPA hearing · 21 Apr</li>
-          </ul>
+          <p style={{ margin: 0, color: "var(--ink-3)", fontSize: 12.5 }}>
+            Hansard activity ingest is not yet wired. Recent speeches, QONs,
+            and committee appearances will appear here once the ParlInfo ingest
+            lands.
+          </p>
         </Section>
       </div>
       <div className="modal-foot">

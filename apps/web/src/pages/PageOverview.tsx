@@ -138,7 +138,7 @@ export function PageOverview(): JSX.Element {
               borderRadius: "50%",
               background: "var(--escalate)",
               boxShadow: "0 0 12px var(--escalate)",
-              animation: "pulse 1.4s infinite",
+              animation: "var(--motion-pulse, pulse 1.4s infinite)",
             }}
           />
           <span

@@ -29,8 +29,8 @@ export function DemoBanner(): JSX.Element {
       <Icon name="signal" size={14} stroke="var(--teal)" />
       <span style={{ flex: 1 }}>
         <strong style={{ color: "var(--teal)" }}>Limited beta.</strong> Live
-        APH RSS drives Overview, Live, Radar, Briefings and Patterns. Member,
-        minister, and bill detail surfaces link out to{" "}
+        APH RSS drives Overview, Live, Radar, and Briefings. Patterns, member,
+        minister, and bill detail are deferred — those surfaces link out to{" "}
         <a
           href="https://www.aph.gov.au"
           target="_blank"
@@ -39,7 +39,8 @@ export function DemoBanner(): JSX.Element {
         >
           aph.gov.au
         </a>{" "}
-        until the corresponding ingests land. Nothing on this page is fabricated.
+        until the corresponding ingests land. No data is fabricated; deferred
+        surfaces show honest empty states.
       </span>
       <a
         href="https://github.com/jvega017/parliament-pulse/blob/main/STATUS.md"
