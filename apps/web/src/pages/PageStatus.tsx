@@ -179,11 +179,13 @@ export function PageStatus(): JSX.Element {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@agency.gov.au"
               className="search"
+              aria-label="Email address for digest subscription"
               style={{ padding: 8, minWidth: 260 }}
             />
             <select
               value={attentionMin}
               onChange={(e) => setAttentionMin(e.target.value as "high" | "med" | "low")}
+              aria-label="Minimum attention level for digest emails"
               style={{ padding: 8, background: "var(--panel-2)", color: "var(--ink)", border: "1px solid var(--line-2)", borderRadius: 6 }}
             >
               <option value="high">High only</option>

@@ -132,7 +132,7 @@ export function buildBriefMarkdown(
     year: "numeric",
   });
   const lines: string[] = [];
-  lines.push(`# ${signal.title.replace(/^\[Sample\]\s*/, "")}`);
+  lines.push(`# ${signal.title}`);
   lines.push("");
   lines.push(
     `**Parliament Pulse · Executive brief** · ${today} · ${signal.id} · Confidence ${signal.confidence}/5 · Attention **${signal.attention.toUpperCase()}**`,
@@ -148,7 +148,13 @@ export function buildBriefMarkdown(
   lines.push(signal.summary);
   lines.push("");
   lines.push("## What happened");
-  lines.push(`${signal.title}. Retrieved from ${signal.source} on ${signal.date}.`);
+  const watchlistMatches = signal.tags.filter((t) => t.c === "brass").map((t) => t.l).join(", ");
+  lines.push(
+    `${signal.source} published this item on ${signal.date} at ${signal.time}. ` +
+    `Source authority: ${signal.sourceAuthority}. ` +
+    (watchlistMatches ? `Matched watchlists: ${watchlistMatches}. ` : "No watchlist terms matched. ") +
+    `Access the primary source via the Evidence links below.`,
+  );
   lines.push("");
   lines.push("## Evidence");
   for (const e of signal.evidence) {

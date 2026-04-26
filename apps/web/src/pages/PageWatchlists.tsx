@@ -72,8 +72,8 @@ export function PageWatchlists(): JSX.Element {
               style={{
                 fontSize: 10.5,
                 color: matches > 0 ? "var(--brass)" : "var(--ink-3)",
-                background: matches > 0 ? "#e0935912" : "transparent",
-                border: matches > 0 ? "1px solid #e0935944" : "1px solid var(--line)",
+                background: matches > 0 ? "var(--brass-tint-bg)" : "transparent",
+                border: matches > 0 ? "1px solid var(--brass-tint-border)" : "1px solid var(--line)",
                 padding: "1px 6px",
                 borderRadius: 4,
                 marginLeft: "auto",

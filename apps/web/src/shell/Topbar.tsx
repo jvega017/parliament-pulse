@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../icons";
 import { useStore } from "../store/useStore";
-import { APH_FEEDS, SIGNALS } from "../data/fixtures";
+import { APH_FEEDS } from "../data/fixtures";
 import { ENTITIES } from "../data/entities";
 import { applyTheme, readTheme } from "./theme";
 
@@ -88,15 +88,10 @@ export function Topbar(): JSX.Element {
       .filter(
         (s) =>
           s.title.toLowerCase().includes(term) ||
-          s.summary.toLowerCase().includes(term),
+          s.summary.toLowerCase().includes(term) ||
+          s.id.toLowerCase().includes(term),
       )
-      .slice(0, 4);
-    const sigMatches = SIGNALS.filter(
-      (s) =>
-        s.title.toLowerCase().includes(term) ||
-        s.summary.toLowerCase().includes(term) ||
-        s.id.toLowerCase().includes(term),
-    ).slice(0, 4);
+      .slice(0, 6);
     const bills = Object.values(ENTITIES.bills).filter(
       (b) =>
         b.title.toLowerCase().includes(term) || b.ref.toLowerCase().includes(term),
@@ -114,14 +109,7 @@ export function Topbar(): JSX.Element {
         kind: "live" as const,
         id: `live-${s.id}`,
         label: s.title,
-        sub: `LIVE · ${s.id}`,
-        action: () => { openSignal(s.id); setOpen(false); },
-      })),
-      ...sigMatches.map((s) => ({
-        kind: "sig" as const,
-        id: `sig-${s.id}`,
-        label: s.title,
-        sub: s.id,
+        sub: `LIVE · ${s.id} · ${s.sourceGroup}`,
         action: () => { openSignal(s.id); setOpen(false); },
       })),
       ...bills.map((b) => ({

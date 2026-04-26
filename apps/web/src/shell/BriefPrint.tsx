@@ -3,21 +3,11 @@ import { Icon } from "../icons";
 import { useStore } from "../store/useStore";
 import { useFocusTrap } from "../lib/useFocusTrap";
 import { buildBriefMarkdown } from "../lib/export";
-import { SIGNALS } from "../data/fixtures";
+import { SCORE_LABELS } from "../lib/constants";
 import type { Signal } from "../types";
 
-const SCORE_LABELS: Record<string, string> = {
-  authority: "Source authority",
-  portfolio: "Portfolio relevance",
-  novelty: "Novelty",
-  momentum: "Momentum",
-  time: "Time sensitivity",
-  scrutiny: "Scrutiny relevance",
-  ops: "Operational impact",
-};
-
 function findSignal(id: string, live: Signal[]): Signal | null {
-  return live.find((s) => s.id === id) ?? SIGNALS.find((s) => s.id === id) ?? null;
+  return live.find((s) => s.id === id) ?? null;
 }
 
 function today(): string {
@@ -173,14 +163,19 @@ export function BriefPrint(): JSX.Element | null {
 
         <section>
           <h2>What happened</h2>
-          <p>{signal.title}. Retrieved from {signal.source} on {signal.date}.</p>
+          <p>
+            {signal.source} published this item on {signal.date} at {signal.time}.
+            Source authority: {signal.sourceAuthority}. Access the primary source directly
+            via the Evidence links below. The signal was scored by the Parliament Pulse
+            live engine against {signal.tags.filter((t) => t.c === "brass").map((t) => t.l).join(", ") || "no configured watchlists"}.
+          </p>
         </section>
 
         <section>
           <h2>Evidence</h2>
           <ul>
-            {signal.evidence.map((e, i) => (
-              <li key={i}>
+            {signal.evidence.map((e) => (
+              <li key={e.url}>
                 {e.label} — <span className="brief-print-url">{e.url}</span>
               </li>
             ))}

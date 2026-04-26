@@ -104,7 +104,7 @@ export function PageBriefings(): JSX.Element {
                       padding: "12px 14px",
                       borderBottom: "1px solid var(--line)",
                       cursor: "pointer",
-                      background: sel === i ? "#e093590c" : "transparent",
+                      background: sel === i ? "var(--brass-tint-bg)" : "transparent",
                       borderLeft:
                         sel === i ? "2px solid var(--brass)" : "2px solid transparent",
                       width: "100%",

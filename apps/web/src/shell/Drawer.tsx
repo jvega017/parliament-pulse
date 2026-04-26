@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../icons";
 import { useStore } from "../store/useStore";
-import { SIGNALS } from "../data/fixtures";
 import { ENTITIES } from "../data/entities";
 import { useFocusTrap } from "../lib/useFocusTrap";
 import { exportSignalCsv } from "../lib/export";
+import { SCORE_LABELS, SCORE_WEIGHTS } from "../lib/constants";
 import { Att, Conf } from "./common";
 
 const FEEDBACK_LABELS = [
@@ -17,16 +17,6 @@ const FEEDBACK_LABELS = [
   "Noise",
   "Needs human review",
 ];
-
-const SCORE_LABELS: Record<string, string> = {
-  authority: "Source authority",
-  portfolio: "Portfolio relevance",
-  novelty: "Novelty",
-  momentum: "Momentum",
-  time: "Time sensitivity",
-  scrutiny: "Scrutiny relevance",
-  ops: "Operational impact",
-};
 
 export function Drawer(): JSX.Element {
   const {
@@ -45,11 +35,7 @@ export function Drawer(): JSX.Element {
 
   const signal = useMemo(() => {
     if (!signalId) return null;
-    return (
-      liveSignals.find((s) => s.id === signalId) ??
-      SIGNALS.find((s) => s.id === signalId) ??
-      null
-    );
+    return liveSignals.find((s) => s.id === signalId) ?? null;
   }, [signalId, liveSignals]);
 
   // Deep-link with a non-existent signal id should not leave a blank
@@ -187,9 +173,9 @@ export function Drawer(): JSX.Element {
                 <div
                   style={{
                     padding: "12px 14px",
-                    border: "1px solid #e0935944",
+                    border: "1px solid var(--brass-tint-border)",
                     borderRadius: 8,
-                    background: "#e093590d",
+                    background: "var(--brass-tint-bg)",
                   }}
                 >
                   <div style={{ fontWeight: 600, color: "var(--brass)" }}>
@@ -207,7 +193,7 @@ export function Drawer(): JSX.Element {
                 <h4>
                   Attention score breakdown
                   <span
-                    title="Weighted sum: authority 0.20, portfolio 0.30, novelty 0.10, momentum 0.05, time 0.20, scrutiny 0.10, ops 0.05. High >=0.65, medium >=0.40."
+                    title="Weighted sum: authority 0.25, portfolio 0.35, novelty 0.10, time 0.20, scrutiny 0.10. Momentum and ops zeroed (no time-series data yet). High ≥0.65, medium ≥0.40."
                     style={{
                       marginLeft: 8,
                       cursor: "help",
@@ -218,15 +204,19 @@ export function Drawer(): JSX.Element {
                     (how?)
                   </span>
                 </h4>
-                {Object.entries(signal.score).map(([k, v]) => (
+                {Object.entries(signal.score).map(([k, v]) => {
+                  const weight = SCORE_WEIGHTS[k] ?? 0;
+                  const zeroed = weight === 0;
+                  return (
                   <div
                     key={k}
                     style={{
                       display: "grid",
-                      gridTemplateColumns: "160px 1fr 40px",
+                      gridTemplateColumns: "160px 1fr 40px 36px",
                       gap: 10,
                       alignItems: "center",
                       padding: "4px 0",
+                      opacity: zeroed ? 0.45 : 1,
                     }}
                   >
                     <div style={{ fontSize: 12.5, color: "var(--ink-2)" }}>
@@ -237,24 +227,28 @@ export function Drawer(): JSX.Element {
                     </div>
                     <div
                       className="mono"
-                      style={{
-                        fontSize: 11,
-                        color: "var(--ink-3)",
-                        textAlign: "right",
-                      }}
+                      style={{ fontSize: 11, color: "var(--ink-3)", textAlign: "right" }}
                     >
                       {Math.round(v * 100)}
                     </div>
+                    <div
+                      className="mono"
+                      style={{ fontSize: 10, color: "var(--ink-4)", textAlign: "right" }}
+                      title={zeroed ? "Weight zeroed — not yet wired" : `Weight: ${Math.round(weight * 100)}%`}
+                    >
+                      {zeroed ? "—" : `×${Math.round(weight * 100)}%`}
+                    </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
 
               {signal.evidence.length > 0 && (
               <div className="drawer-section">
                 <h4>Evidence · open the actual source</h4>
-                {signal.evidence.map((e, i) => (
+                {signal.evidence.map((e) => (
                   <a
-                    key={i}
+                    key={e.url}
                     href={e.url}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -303,9 +297,9 @@ export function Drawer(): JSX.Element {
                       overflow: "hidden",
                     }}
                   >
-                    {signal.provenance.map((p, i) => (
+                    {signal.provenance.map((p, pi) => (
                       <div
-                        key={i}
+                        key={`${p.ts}-${p.by}`}
                         style={{
                           display: "grid",
                           gridTemplateColumns: "78px 90px 1fr",
@@ -313,10 +307,10 @@ export function Drawer(): JSX.Element {
                           padding: "8px 12px",
                           fontSize: 12,
                           borderBottom:
-                            i < signal.provenance.length - 1
+                            pi < signal.provenance.length - 1
                               ? "1px solid var(--line)"
                               : 0,
-                          background: i % 2 ? "#ffffff03" : "transparent",
+                          background: pi % 2 ? "#ffffff03" : "transparent",
                         }}
                       >
                         <div
@@ -343,16 +337,16 @@ export function Drawer(): JSX.Element {
               {signal.updates.length > 0 && (
                 <div className="drawer-section">
                   <h4>Updates to this signal · who / what / when</h4>
-                  {signal.updates.map((u, i) => (
+                  {signal.updates.map((u, ui) => (
                     <div
-                      key={i}
+                      key={`${u.ts}-${u.who}`}
                       style={{
                         display: "grid",
                         gridTemplateColumns: "60px 140px 1fr",
                         gap: 10,
                         padding: "8px 0",
                         borderBottom:
-                          i < signal.updates.length - 1
+                          ui < signal.updates.length - 1
                             ? "1px solid var(--line)"
                             : 0,
                         fontSize: 12.5,
@@ -527,6 +521,7 @@ export function Drawer(): JSX.Element {
               <button
                 type="button"
                 className="btn"
+                title="Add this signal ID to watchlist monitoring"
                 onClick={() => addWatchlist(signal.id)}
               >
                 <Icon name="watch" size={13} /> Watchlist
@@ -534,6 +529,7 @@ export function Drawer(): JSX.Element {
               <button
                 type="button"
                 className="btn"
+                title="Archive this signal — removes it from the live feed view"
                 onClick={() => {
                   archive(signal.id);
                   closeSignal();
