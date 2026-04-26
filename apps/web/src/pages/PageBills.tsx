@@ -1,7 +1,6 @@
 import { Icon } from "../icons";
 import { DemoBanner } from "../shell/DemoBanner";
 import { useStore } from "../store/useStore";
-import { DIVISIONS } from "../data/fixtures";
 
 export function PageBills(): JSX.Element {
   const { liveSignals, openSignal } = useStore();
@@ -166,27 +165,35 @@ export function PageBills(): JSX.Element {
         <div className="panel">
           <div className="panel-head">
             <h3 className="panel-title">Recent divisions</h3>
-            <span className="panel-kicker">Awaiting ingest</span>
+            <span className="panel-kicker">Links to authoritative source</span>
           </div>
           <div className="panel-body">
-            {DIVISIONS.length === 0 ? (
-              <div className="empty">
-                <strong>Division ingest not yet wired.</strong>
-                <span>
-                  Division records populate once the House and Senate division feeds
-                  resume. Search ParlInfo for the current division register:
-                </span>
+            <div className="empty">
+              <strong>Division results are published by APH after each sitting day.</strong>
+              <span>
+                House and Senate vote records on bills are available in the
+                authoritative registers below. Bills digest and division data
+                will be cross-linked here once APH provides a structured feed.
+              </span>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center", marginTop: 4 }}>
                 <a
                   className="btn"
-                  href="https://www.aph.gov.au/Parliamentary_Business/Chamber_documents"
+                  href="https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/HoR/Divisions"
                   target="_blank"
                   rel="noopener noreferrer"
-                  style={{ marginTop: 4 }}
                 >
-                  <Icon name="ext" size={13} /> APH chamber documents
+                  <Icon name="ext" size={13} /> House Divisions
+                </a>
+                <a
+                  className="btn"
+                  href="https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/Senate/Votes_and_proceedings"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Icon name="ext" size={13} /> Senate Votes &amp; Proceedings
                 </a>
               </div>
-            ) : null}
+            </div>
           </div>
         </div>
       </div>

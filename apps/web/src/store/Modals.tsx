@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { Icon } from "../icons";
 import { Att, ModalHead } from "../shell/common";
-import { APH_FEEDS, DIVISIONS, SIGNALS, WATCHLISTS, RADAR } from "../data/fixtures";
+import { APH_FEEDS, DIVISIONS, WATCHLISTS, RADAR } from "../data/fixtures";
 import { ENTITIES } from "../data/entities";
 import { useFocusTrap } from "../lib/useFocusTrap";
 import { exportSignalsDigestCsv } from "../lib/export";
@@ -351,30 +351,30 @@ function InquiryDetail({ name }: { name: string }): JSX.Element {
     <>
       <ModalHead kicker="Inquiry" title={name} onClose={closeModal} />
       <div className="modal-body">
-        <div className="empty" style={{ marginBottom: 16 }}>
-          <strong>Inquiry detail ingest not yet wired.</strong>
-          <span>
-            Submission dates, scope, and terms of reference will populate once
-            the ParlInfo inquiry ingest is connected. Open the live record
-            directly on APH:
-          </span>
-          <a
-            className="btn primary"
-            href={`https://www.aph.gov.au/Parliamentary_Business/Committees/Senate`}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            APH Senate Committees
-          </a>
-          <a
-            className="btn ghost"
-            href={`https://parlinfo.aph.gov.au/parlInfo/search/search.w3p;query=Dataset:committee`}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ marginTop: 6 }}
-          >
-            Search ParlInfo
-          </a>
+        <div style={{ marginBottom: 16 }}>
+          <p style={{ margin: "0 0 12px", color: "var(--ink-2)", fontSize: 13, lineHeight: 1.5 }}>
+            Submission dates, terms of reference, and witness lists are published
+            by the committee on APH. Search ParlInfo for the full inquiry record
+            including transcripts and submissions.
+          </p>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <a
+              className="btn primary"
+              href={`https://parlinfo.aph.gov.au/parlInfo/search/summary/summary.w3p;query=${encodeURIComponent(name)};orderBy=date-eFirst`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Icon name="ext" size={13} /> Search ParlInfo for this inquiry
+            </a>
+            <a
+              className="btn"
+              href="https://www.aph.gov.au/Parliamentary_Business/Committees"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Icon name="ext" size={13} /> All APH committees
+            </a>
+          </div>
         </div>
         <Section title="Assign owner">
           <div style={{ display: "flex", gap: 8 }}>
@@ -646,11 +646,30 @@ function MemberDetail({ id }: { id: string }): JSX.Element {
           </div>
         </div>
         <Section title="Recent activity">
-          <p style={{ margin: 0, color: "var(--ink-3)", fontSize: 12.5 }}>
-            Hansard activity ingest is not yet wired. Recent speeches, QONs,
-            and committee appearances will appear here once the ParlInfo ingest
-            lands.
+          <p style={{ margin: "0 0 10px", color: "var(--ink-3)", fontSize: 12.5 }}>
+            Search Hansard and ParlInfo for recent speeches, QONs, and committee
+            appearances by this member:
           </p>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <a
+              className="btn"
+              href={`https://parlinfo.aph.gov.au/parlInfo/search/summary/summary.w3p;query=${encodeURIComponent(m.name)};orderBy=date-eFirst`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ fontSize: 12 }}
+            >
+              <Icon name="ext" size={12} /> Hansard speeches
+            </a>
+            <a
+              className="btn"
+              href={`https://www.aph.gov.au/Senators_and_Members/Parliamentarian?MPID=${encodeURIComponent(m.name.replace(/\s+/g, "+"))}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ fontSize: 12 }}
+            >
+              <Icon name="ext" size={12} /> Member profile (APH)
+            </a>
+          </div>
         </Section>
       </div>
       <div className="modal-foot">
@@ -899,7 +918,7 @@ function FeedDetail({ id }: { id: string }): JSX.Element {
 }
 
 function WatchlistDetail({ name }: { name: string }): JSX.Element {
-  const { closeModal, toast, state, updateWatchlistTerms } = useStore();
+  const { closeModal, toast, state, updateWatchlistTerms, liveSignals } = useStore();
   // User-created watchlists take precedence over fixture ones of the same name.
   const w =
     state.watchlistCreated.find((x) => x.name === name) ??
@@ -910,15 +929,11 @@ function WatchlistDetail({ name }: { name: string }): JSX.Element {
     return <ModalHead kicker="Watchlist" title="Not found" onClose={closeModal} />;
   }
   const max = Math.max(...w.trend, 1);
-  const lower = w.name.toLowerCase();
-  const matches = SIGNALS.filter((s) =>
-    s.tags.some((t) =>
-      t.l
-        .toLowerCase()
-        .split(/[\s&]/)
-        .some((tok) => tok.length > 3 && lower.includes(tok)),
-    ),
-  ).slice(0, 3);
+  // Match live signals that the scoring engine tagged with this watchlist name
+  // (brass tag = first matched watchlist). Fall back to term scan for built-ins.
+  const matches = liveSignals.filter((s) =>
+    s.tags.some((t) => t.c === "brass" && t.l.toLowerCase() === w.name.toLowerCase()),
+  ).slice(0, 5);
 
   return (
     <>
@@ -926,15 +941,15 @@ function WatchlistDetail({ name }: { name: string }): JSX.Element {
       <div className="modal-body">
         <div className="grid g-3" style={{ gap: 12 }}>
           <div className="panel stat">
-            <div className="stat-label">Matches</div>
+            <div className="stat-label">Live matches</div>
             <div className="stat-value" style={{ fontSize: 26 }}>
-              {w.matches}
+              {matches.length}
             </div>
           </div>
           <div className="panel stat">
             <div className="stat-label">Keywords</div>
             <div className="stat-value" style={{ fontSize: 26 }}>
-              {w.keywords}
+              {w.terms.length}
             </div>
           </div>
           <div className="panel stat">

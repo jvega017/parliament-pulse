@@ -26,11 +26,9 @@ export function PageParliament(): JSX.Element {
           <div className="page-kicker">Intelligence</div>
           <h1 className="page-title">Today in chamber</h1>
           <div className="page-sub">
-            Senate upcoming hearings are sourced from the live APH RSS feed.
-            House Daily Program and Senate Dynamic Red are web pages, not RSS
-            feeds — House chamber data is not available without scraping and
-            will not appear here until that ingest is built. Division data is
-            also not yet wired.
+            Senate upcoming hearings update via live APH RSS. House Daily Program
+            and Senate Dynamic Red publish as web pages only — open the authoritative
+            links to the right for today's full order of business and division results.
           </div>
         </div>
         <div style={{ display: "flex", gap: 10 }}>
@@ -104,25 +102,34 @@ export function PageParliament(): JSX.Element {
         <div className="panel">
           <div className="panel-head">
             <h3 className="panel-title">Recent divisions</h3>
-            <span className="panel-kicker">Awaiting ingest</span>
+            <span className="panel-kicker">Links to authoritative source</span>
           </div>
           <div className="panel-body">
             {DIVISIONS.length === 0 ? (
               <div className="empty">
-                <strong>Division ingest not yet wired.</strong>
+                <strong>Division results are published by APH.</strong>
                 <span>
-                  Division records will populate once the House and Senate
-                  division feeds resume. Meanwhile, search ParlInfo:
+                  House and Senate vote records update after each sitting day.
+                  Open the authoritative sources below:
                 </span>
-                <a
-                  className="btn"
-                  href="https://parlinfo.aph.gov.au/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ marginTop: 4 }}
-                >
-                  <Icon name="ext" size={13} /> ParlInfo
-                </a>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center", marginTop: 4 }}>
+                  <a
+                    className="btn"
+                    href="https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/HoR/Divisions"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Icon name="ext" size={13} /> House Divisions
+                  </a>
+                  <a
+                    className="btn"
+                    href="https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/Senate/Votes_and_proceedings"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Icon name="ext" size={13} /> Senate Votes &amp; Proceedings
+                  </a>
+                </div>
               </div>
             ) : (
               DIVISIONS.map((d, i) => (
