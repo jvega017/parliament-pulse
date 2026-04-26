@@ -134,9 +134,18 @@ export function PageLive(): JSX.Element {
           <button
             type="button"
             className="btn"
-            onClick={() => toast("Flag captured, linked to current speaker", "brass")}
+            title="Copy the current stream link to clipboard so you can return to this moment later"
+            onClick={() => {
+              const url = liveVideo
+                ? `https://www.youtube.com/watch?v=${liveVideo.videoId}`
+                : `https://www.youtube.com/@AUSParliamentLive/streams`;
+              navigator.clipboard.writeText(url).then(
+                () => toast("Stream link copied to clipboard", "brass"),
+                () => toast("Clipboard unavailable — copy the URL manually", "warn"),
+              );
+            }}
           >
-            <Icon name="flag" size={13} /> Flag moment
+            <Icon name="flag" size={13} /> Copy stream link
           </button>
         </div>
       </div>

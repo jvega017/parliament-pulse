@@ -1,28 +1,43 @@
 import { Icon } from "../icons";
 import { DemoBanner } from "../shell/DemoBanner";
-import { BILLS, DIVISIONS } from "../data/fixtures";
+import { useStore } from "../store/useStore";
+import { DIVISIONS } from "../data/fixtures";
 
 export function PageBills(): JSX.Element {
+  const { liveSignals, openSignal } = useStore();
+
+  // Bills Digests come through the ParlInfo Bills Digests RSS feed (kind="digest").
+  // These are real Parliamentary Library publications — scored by the live engine.
+  const digests = liveSignals.filter((s) => s.tags.some((t) => t.l === "digest"));
+
   return (
     <div className="page-fade">
       <DemoBanner />
       <div className="page-head">
         <div>
           <div className="page-kicker">Intelligence</div>
-          <h1 className="page-title">Bills intelligence</h1>
+          <h1 className="page-title">Bills monitor</h1>
           <div className="page-sub">
-            Tracks bills relevant to your watchlists. Bills ingest is not yet
-            wired; deep links below open the live APH Bills Search.
+            Bills Digests from the Parliamentary Library update via RSS.
+            Full bills search and division records link to the authoritative APH source.
           </div>
         </div>
         <div style={{ display: "flex", gap: 10 }}>
           <a
-            className="btn primary"
+            className="btn"
             href="https://www.aph.gov.au/Parliamentary_Business/Bills_Legislation/Bills_Search_Results"
             target="_blank"
             rel="noopener noreferrer"
           >
-            <Icon name="ext" size={13} /> Open APH Bills Search
+            <Icon name="ext" size={13} /> APH Bills Search
+          </a>
+          <a
+            className="btn primary"
+            href="https://parlinfo.aph.gov.au/parlInfo/search/search.w3p;query=Dataset%3Abillsdgs;orderBy=date-eFirst"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <Icon name="ext" size={13} /> Bills Digests on ParlInfo
           </a>
         </div>
       </div>
@@ -30,25 +45,41 @@ export function PageBills(): JSX.Element {
       <div className="grid g-overview">
         <div className="panel">
           <div className="panel-head">
-            <h3 className="panel-title">Tracked bills</h3>
-            <span className="panel-kicker">Awaiting ingest</span>
+            <h3 className="panel-title">Bills Digests</h3>
+            <span
+              className="panel-kicker"
+              style={{ color: digests.length > 0 ? "var(--brass)" : undefined }}
+            >
+              {digests.length > 0
+                ? `${digests.length} live · Parliamentary Library 2026`
+                : "Awaiting next poll"}
+            </span>
           </div>
           <div className="panel-body">
-            {BILLS.length === 0 ? (
+            {digests.length === 0 ? (
               <div className="empty">
-                <strong>No bills tracked yet.</strong>
+                <strong>No Bills Digests in the current poll.</strong>
                 <span>
-                  The bills register lights up once the APH Bills Search ingest is
-                  connected. Until then, jump straight to the live source:
+                  The ParlInfo Bills Digests RSS feed is polled every 30 minutes.
+                  Digests appear here as the Parliamentary Library publishes them
+                  throughout 2026. Search ParlInfo for the full archive:
                 </span>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center", marginTop: 4 }}>
+                  <a
+                    className="btn"
+                    href="https://parlinfo.aph.gov.au/parlInfo/search/search.w3p;query=Dataset%3Abillsdgs;orderBy=date-eFirst"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Icon name="ext" size={13} /> Bills Digests (ParlInfo)
+                  </a>
                   <a
                     className="btn"
                     href="https://www.aph.gov.au/Parliamentary_Business/Bills_Legislation/Bills_Search_Results"
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    <Icon name="ext" size={13} /> Bills Search
+                    <Icon name="ext" size={13} /> Bills Search (APH)
                   </a>
                   <a
                     className="btn"
@@ -56,19 +87,79 @@ export function PageBills(): JSX.Element {
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    <Icon name="ext" size={13} /> Bills Digests
-                  </a>
-                  <a
-                    className="btn"
-                    href="https://parlinfo.aph.gov.au/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <Icon name="ext" size={13} /> ParlInfo full-text
+                    <Icon name="ext" size={13} /> Parliamentary Library
                   </a>
                 </div>
               </div>
-            ) : null}
+            ) : (
+              <div>
+                <p style={{ margin: "0 0 12px", fontSize: 12, color: "var(--ink-3)" }}>
+                  Official Bills Digests from the Parliamentary Library. Published as bills
+                  are introduced. Click any digest to open the scored signal drawer, or
+                  follow the source link to the full ParlInfo document.
+                </p>
+                {digests.map((s, i) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    className="clk"
+                    onClick={() => openSignal(s.id)}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr auto",
+                      padding: "12px 8px",
+                      borderBottom: i < digests.length - 1 ? "1px solid var(--line)" : 0,
+                      gap: 12,
+                      alignItems: "start",
+                      borderRadius: 6,
+                      width: "100%",
+                      textAlign: "left",
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 500, lineHeight: 1.4 }}>
+                        {s.title}
+                      </div>
+                      <div style={{ display: "flex", gap: 10, marginTop: 5, alignItems: "center" }}>
+                        <span
+                          className="mono"
+                          style={{ fontSize: 10.5, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.12em" }}
+                        >
+                          {s.date} · {s.time}
+                        </span>
+                        <span
+                          className="mono"
+                          style={{ fontSize: 10.5, color: "var(--teal)" }}
+                        >
+                          {s.source}
+                        </span>
+                      </div>
+                    </div>
+                    <div>
+                      <span
+                        className="tag"
+                        style={{
+                          color:
+                            s.attention === "high"
+                              ? "var(--brass)"
+                              : s.attention === "med"
+                                ? "var(--caution)"
+                                : "var(--ink-3)",
+                          borderColor:
+                            s.attention === "high"
+                              ? "var(--brass)"
+                              : s.attention === "med"
+                                ? "var(--caution)"
+                                : undefined,
+                        }}
+                      >
+                        {s.attention}
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -80,9 +171,10 @@ export function PageBills(): JSX.Element {
           <div className="panel-body">
             {DIVISIONS.length === 0 ? (
               <div className="empty">
-                <strong>No division records.</strong>
+                <strong>Division ingest not yet wired.</strong>
                 <span>
-                  Division ingest from APH chamber documents is not yet wired.
+                  Division records populate once the House and Senate division feeds
+                  resume. Search ParlInfo for the current division register:
                 </span>
                 <a
                   className="btn"

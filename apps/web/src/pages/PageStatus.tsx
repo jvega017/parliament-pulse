@@ -7,6 +7,7 @@ import {
   type ConnectorHealth,
 } from "../lib/archive";
 import { useStore } from "../store/useStore";
+import { APH_CONNECTORS } from "../data/fixtures";
 
 const APP_VERSION = import.meta.env.VITE_APP_VERSION ?? "0.0.0";
 const COMMIT_SHA = (import.meta.env.VITE_COMMIT_SHA ?? "dev").slice(0, 7);
@@ -103,7 +104,7 @@ export function PageStatus(): JSX.Element {
       <div className="panel" style={{ marginBottom: 16 }}>
         <div className="panel-head">
           <h3 className="panel-title">APH connector health</h3>
-          <span className="panel-kicker">12 canonical endpoints</span>
+          <span className="panel-kicker">{APH_CONNECTORS.length} canonical endpoints</span>
         </div>
         <div className="panel-body">
           {connectors.length === 0 && !loadingConn ? (

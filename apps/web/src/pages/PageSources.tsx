@@ -13,9 +13,14 @@ const NOT_YET_CONNECTED = [
 ];
 
 export function PageSources(): JSX.Element {
-  const { openModal, state, triggerRefresh, requestConnector, connectorRequests } = useStore();
+  const { openModal, state, triggerRefresh, requestConnector, connectorRequests, liveFeedResult } = useStore();
 
   const allFeeds: Feed[] = [...APH_FEEDS, ...state.feeds];
+
+  // Total items from the most recent poll across all feeds
+  const itemsToday = liveFeedResult
+    ? Object.values(liveFeedResult.feedStatus).reduce((sum, s) => sum + (s.count ?? 0), 0)
+    : null;
 
   return (
     <div className="page-fade">
@@ -69,9 +74,11 @@ export function PageSources(): JSX.Element {
           </div>
         </div>
         <div className="panel stat">
-          <div className="stat-label">Items today</div>
-          <div className="stat-value" style={{ color: "var(--ink-3)" }}>—</div>
-          <div className="stat-meta">Not yet available</div>
+          <div className="stat-label">Items this poll</div>
+          <div className="stat-value" style={{ color: itemsToday !== null ? "var(--ink)" : "var(--ink-3)" }}>
+            {itemsToday !== null ? itemsToday : "—"}
+          </div>
+          <div className="stat-meta">{itemsToday !== null ? "From last poll" : "Awaiting first poll"}</div>
         </div>
         <div className="panel stat">
           <div className="stat-label">False positive rate</div>

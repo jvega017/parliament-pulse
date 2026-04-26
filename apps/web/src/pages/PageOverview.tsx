@@ -373,7 +373,7 @@ export function PageOverview(): JSX.Element {
               </span>
             </div>
             <div className="panel-body">
-              {APH_FEEDS.slice(0, 6).map((f) => {
+              {APH_FEEDS.map((f) => {
                 const polled = liveFeedResult?.feedStatus[f.url];
                 const ok = polled?.ok ?? false;
                 const dot = !liveFeedResult

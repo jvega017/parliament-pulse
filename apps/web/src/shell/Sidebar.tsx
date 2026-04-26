@@ -8,6 +8,7 @@ interface NavItem {
   group: "Today" | "Intelligence" | "Configuration";
   count: number | null;
   live?: boolean;
+  deferred?: boolean;
 }
 
 // Counts removed where they would lie. Only show counts that derive from
@@ -27,7 +28,7 @@ const NAV: NavItem[] = [
   { id: "parliament", label: "Today in chamber", group: "Intelligence", count: null },
   { id: "committees", label: "Committees", group: "Intelligence", count: null },
   { id: "bills", label: "Bills monitor", group: "Intelligence", count: null },
-  { id: "patterns", label: "QON patterns (deferred)", group: "Intelligence", count: null },
+  { id: "patterns", label: "QON patterns", group: "Intelligence", count: null, deferred: true },
   { id: "archive", label: "Archive", group: "Intelligence", count: null },
   { id: "watchlists", label: "Watchlists", group: "Configuration", count: null },
   { id: "sources", label: "Sources", group: "Configuration", count: null },
@@ -133,7 +134,15 @@ export function Sidebar({ page, onNavigate }: SidebarProps): JSX.Element {
                       LIVE
                     </span>
                   )}
-                  {!n.live && n.count !== null && <span className="count">{n.count}</span>}
+                  {n.deferred && (
+                    <span
+                      className="count"
+                      style={{ color: "var(--ink-4)", background: "#ffffff0a", border: "1px solid var(--line)" }}
+                    >
+                      soon
+                    </span>
+                  )}
+                  {!n.live && !n.deferred && n.count !== null && <span className="count">{n.count}</span>}
                 </button>
               );
             })}
@@ -141,11 +150,11 @@ export function Sidebar({ page, onNavigate }: SidebarProps): JSX.Element {
         ))}
       </nav>
       <div className="side-foot">
-        <div className="avatar" aria-hidden="true">
-          EM
+        <div className="avatar" aria-hidden="true" style={{ background: "var(--brass-soft)", color: "var(--brass-2)" }}>
+          PP
         </div>
         <div style={{ lineHeight: 1.25, minWidth: 0, flex: 1 }}>
-          <div style={{ fontSize: 12.5, fontWeight: 600 }}>Erin Marlowe</div>
+          <div style={{ fontSize: 12.5, fontWeight: 600 }}>Policy Analyst</div>
           <div
             style={{
               fontFamily: "var(--sans)",
@@ -156,7 +165,7 @@ export function Sidebar({ page, onNavigate }: SidebarProps): JSX.Element {
               whiteSpace: "nowrap",
             }}
           >
-            Demo user
+            Beta access
           </div>
         </div>
         <a

@@ -1,6 +1,6 @@
 # Parliament Pulse — Service Status
 
-Last updated 2026-04-25 (Wave 11). Live infrastructure state:
+Last updated 2026-04-26 (Wave 14). Live infrastructure state:
 [`/?page=status`](https://parliament-pulse.pages.dev/?page=status).
 
 ## Live data sources
@@ -10,13 +10,14 @@ through the `aph-proxy` Cloudflare Worker. No fabricated records.
 
 | Surface | Data source | Refresh |
 |---|---|---|
-| Today's signals | APH RSS (5 feeds) scored client-side | Every 10 min, on-demand |
+| Today's signals | APH RSS (8 feeds) scored client-side | Every 10 min, on-demand |
 | Live parliament | YouTube channel RSS (chamber-matched) | Every 10 min |
 | Attention radar | Derived from live signals (cluster on watchlist tag) | Per poll |
 | Briefings queue | Derived from live signals, ranked by attention | Per poll |
 | Today in chamber | Live signals filtered by source label | Per poll |
 | Committees · activity | Live signals filtered by kind=inquiry/hearing/report | Per poll |
-| Committees · directory | 10 verified APH committee names + canonical URLs | Static |
+| Committees · directory | Verified APH committee names + canonical URLs | Static |
+| Bills monitor | Bills Digests (kind=digest) from ParlInfo RSS 2026 | Per poll |
 | Watchlists | Keyword sets matched against live RSS titles | Per poll |
 | Sources | Real feed status from `liveFeedResult.feedStatus` | Per poll |
 | Archive | D1 archive of every poll observation | Cron every 30 min |
@@ -27,7 +28,7 @@ through the `aph-proxy` Cloudflare Worker. No fabricated records.
 | Job | Cron | Job |
 |---|---|---|
 | Archive poll | `*/30 * * * *` | Reads each APH RSS, upserts into `signals` table by guid |
-| Connector verify | `0 0 */14 * *` | Pings the 12 canonical APH URLs, writes to `connector_checks` |
+| Connector verify | `0 0 */14 * *` | Pings the 12 canonical APH connector URLs, writes to `connector_checks` |
 | Hansard QON ingest | `0 19 * * *` | ParlInfo full-text scrape into `qons` (skeleton; richer NER pending) |
 | Digest delivery | `0 19 * * *` | SendGrid email to subscribers with last 24h items (gated by SENDGRID_API_KEY) |
 

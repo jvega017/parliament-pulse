@@ -197,8 +197,8 @@ export function PageBriefings(): JSX.Element {
                   </div>
                   <h5>Evidence</h5>
                   <ul>
-                    {current.evidence.map((e, i) => (
-                      <li key={i}>
+                    {current.evidence.map((e) => (
+                      <li key={e.url}>
                         <a href={e.url} target="_blank" rel="noopener noreferrer">
                           {e.label}
                         </a>
