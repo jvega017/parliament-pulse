@@ -17,7 +17,7 @@ id = "7e87caca7a354030a1da85ebbbbe518f"
 [[d1_databases]]
 binding = "ARCHIVE"
 database_name = "parliament-pulse-archive"
-database_id = "REPLACE_WITH_D1_ID_AFTER_CREATE"
+database_id = "2147ccbf-c032-4513-8e5b-6cd131fb6f10"
 migrations_dir = "migrations"
 
 [vars]
