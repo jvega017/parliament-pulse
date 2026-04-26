@@ -22,6 +22,7 @@ const SHORTCUTS: Array<{ keys: string[]; desc: string }> = [
   { keys: ["g", "q"], desc: "Go to QON patterns" },
   { keys: ["g", "w"], desc: "Go to Watchlists" },
   { keys: ["g", "s"], desc: "Go to Sources" },
+  { keys: ["d"], desc: "Toggle compact / comfortable density" },
 ];
 
 export function ShortcutsHelp(): JSX.Element | null {

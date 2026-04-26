@@ -78,6 +78,7 @@ const NAV_SHORTCUTS: Record<string, string> = {
 };
 
 function GlobalShortcuts({ setPage }: { setPage: (p: string) => void }): null {
+  const { density, setDensity } = useStore();
   // "g" prefix then a letter jumps to the mapped page, like Gmail/Linear.
   useEffect(() => {
     let gMode = false;
@@ -103,6 +104,11 @@ function GlobalShortcuts({ setPage }: { setPage: (p: string) => void }): null {
       if (e.key.toLowerCase() === "g") {
         gMode = true;
         gTimer = window.setTimeout(() => { gMode = false; }, 1200);
+        return;
+      }
+      if (e.key.toLowerCase() === "d") {
+        e.preventDefault();
+        setDensity(density === "compact" ? "comfortable" : "compact");
       }
     };
     window.addEventListener("keydown", handler);
@@ -110,7 +116,7 @@ function GlobalShortcuts({ setPage }: { setPage: (p: string) => void }): null {
       window.removeEventListener("keydown", handler);
       if (gTimer) window.clearTimeout(gTimer);
     };
-  }, [setPage]);
+  }, [setPage, density, setDensity]);
   return null;
 }
 

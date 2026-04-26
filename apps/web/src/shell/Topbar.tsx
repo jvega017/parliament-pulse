@@ -81,6 +81,7 @@ export function Topbar(): JSX.Element {
       id: string;
       label: string;
       sub: string;
+      subColor?: string;
       action: () => void;
     }>;
     const term = q.toLowerCase();
@@ -104,12 +105,19 @@ export function Topbar(): JSX.Element {
     );
     const feeds = APH_FEEDS.filter((f) => f.name.toLowerCase().includes(term));
 
+    const SG_COLOR: Record<string, string> = {
+      Senate: "var(--source-senate)",
+      House: "var(--source-house)",
+      Library: "var(--source-lib)",
+      Custom: "var(--source-custom)",
+    };
     return [
       ...liveMatches.map((s) => ({
         kind: "live" as const,
         id: `live-${s.id}`,
         label: s.title,
         sub: `LIVE · ${s.id} · ${s.sourceGroup}`,
+        subColor: SG_COLOR[s.sourceGroup] ?? "var(--ink-4)",
         action: () => { openSignal(s.id); setOpen(false); },
       })),
       ...bills.map((b) => ({
@@ -217,7 +225,7 @@ export function Topbar(): JSX.Element {
                 onClick={item.action}
                 onMouseEnter={() => setActiveIdx(i)}
               >
-                <span className="k">{item.sub}</span>
+                <span className="k" style={(item as { subColor?: string }).subColor ? { color: (item as { subColor?: string }).subColor } : undefined}>{item.sub}</span>
                 <span>{item.label}</span>
               </button>
             ))}

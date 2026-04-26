@@ -57,9 +57,11 @@ interface SidebarProps {
 
 export function Sidebar({ page, onNavigate }: SidebarProps): JSX.Element {
   const groups: NavItem["group"][] = ["Today", "Intelligence", "Configuration"];
-  const { mobileNavOpen, closeMobileNav, liveSignals } = useStore();
+  const { mobileNavOpen, closeMobileNav, liveSignals, state } = useStore();
   const liveHighCount = liveSignals.filter((s) => s.attention === "high").length;
   const liveTotalCount = liveSignals.length;
+  const archiveCount = Object.keys(state.archived).length;
+  const feedbackCount = Object.keys(state.feedback).length;
   // useId ensures the SVG gradient id is unique per render so concurrent
   // sidebar instances (mobile overlay + desktop) do not share a defs id.
   const flameId = `flame-${useId()}`;
@@ -158,7 +160,12 @@ export function Sidebar({ page, onNavigate }: SidebarProps): JSX.Element {
                       {liveTotalCount}
                     </span>
                   )}
-                  {!n.live && !n.deferred && n.id !== "overview" && n.id !== "radar" && n.count !== null && (
+                  {n.id === "archive" && archiveCount > 0 && (
+                    <span className="count" title={`${archiveCount} archived signals`}>
+                      {archiveCount}
+                    </span>
+                  )}
+                  {!n.live && !n.deferred && n.id !== "overview" && n.id !== "radar" && n.id !== "archive" && n.count !== null && (
                     <span className="count">{n.count}</span>
                   )}
                 </button>
@@ -183,7 +190,7 @@ export function Sidebar({ page, onNavigate }: SidebarProps): JSX.Element {
               whiteSpace: "nowrap",
             }}
           >
-            Beta access
+            {feedbackCount > 0 ? `${feedbackCount} signal${feedbackCount === 1 ? "" : "s"} rated` : "No ratings yet"}
           </div>
         </div>
         <span

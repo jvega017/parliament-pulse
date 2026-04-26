@@ -181,6 +181,28 @@ html[data-density="compact"] .grid { gap: 10px; }
   background: #3a1612;
 }
 
+/* Source group badges — Senate / House / Library / Custom */
+.sg-senate {
+  color: var(--source-senate);
+  background: var(--source-senate-bg);
+  border-color: var(--source-senate);
+}
+.sg-house {
+  color: var(--source-house);
+  background: var(--source-house-bg);
+  border-color: var(--source-house);
+}
+.sg-lib {
+  color: var(--source-lib);
+  background: var(--source-lib-bg);
+  border-color: var(--source-lib);
+}
+.sg-custom {
+  color: var(--source-custom);
+  background: var(--source-custom-bg);
+  border-color: var(--source-custom);
+}
+
 /* ---------- Callout / inline tip ---------- */
 .callout {
   display: flex;
@@ -835,6 +857,13 @@ select:focus-visible {
 .signal + .signal {
   margin-top: 10px;
 }
+
+/* Attention-level left accent border */
+.signal.att-high { border-left: 3px solid var(--brass); }
+.signal.att-med  { border-left: 3px solid var(--caution); }
+.signal.att-low  { border-left: 3px solid var(--line-2); }
+
+html[data-density="compact"] .sig-sum { font-size: 12px; -webkit-line-clamp: 2; display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; }
 
 .sig-head {
   display: flex;

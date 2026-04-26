@@ -313,6 +313,15 @@ export function PageOverview(): JSX.Element {
             {liveFeedResult ? "From last poll" : "Awaiting first poll"}
           </div>
         </div>
+        <div className="panel stat" style={{ borderLeft: "3px solid var(--teal)" }}>
+          <div className="stat-label" style={{ color: "var(--teal)" }}>Signals rated</div>
+          <div className="stat-value" style={{ color: "var(--teal)" }}>
+            {Object.keys(state.feedback).length}
+          </div>
+          <div className="stat-meta">
+            {Object.keys(state.briefsGenerated).length} briefed
+          </div>
+        </div>
       </div>
 
       <div className="grid g-overview">

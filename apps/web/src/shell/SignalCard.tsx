@@ -8,24 +8,36 @@ interface SignalCardProps {
   s: Signal;
 }
 
+const SG_CLASS: Record<string, string> = {
+  Senate: "sg-senate",
+  House: "sg-house",
+  Library: "sg-lib",
+  Custom: "sg-custom",
+};
+
 export function SignalCard({ s }: SignalCardProps): JSX.Element | null {
   const { openSignal, state } = useStore();
   if (state.archived[s.id]) return null;
   const feedback = state.feedback[s.id];
+  const hasNote = !!state.notes?.[s.id];
+  const hasBrief = !!state.briefsGenerated?.[s.id];
 
   const dateStamp = s.date !== "—" ? `${s.date} · ` : "";
   const age = s.pubMs ? formatRelative(new Date(s.pubMs)) : null;
+  const sgClass = SG_CLASS[s.sourceGroup] ?? "";
 
   return (
     <button
       type="button"
-      className="signal"
+      className={`signal att-${s.attention}`}
       onClick={() => openSignal(s.id)}
       aria-label={`Open signal ${s.id}: ${s.title}`}
     >
       <div className="sig-head">
         <span className="sig-id mono">{s.id}</span>
-        <span className="sig-source mono">· {s.source}</span>
+        <span className={`badge ${sgClass}`} style={{ fontSize: 9.5, padding: "1px 5px" }}>
+          {s.sourceGroup}
+        </span>
         <Att level={s.attention} />
         <span className="sig-time mono">{dateStamp}{s.time}</span>
         {age && (
@@ -53,14 +65,48 @@ export function SignalCard({ s }: SignalCardProps): JSX.Element | null {
         <Conf n={s.confidence} />
         <span className="sig-action-reason">{s.actionReason}</span>
       </div>
-      {feedback && (
-        <div style={{ marginTop: 8, fontSize: 11.5, color: "var(--brass)" }}>
-          <Icon
-            name="check"
-            size={12}
-            style={{ verticalAlign: "-2px", marginRight: 4 }}
-          />{" "}
-          Feedback: {feedback.label}
+      {(feedback || hasNote || hasBrief) && (
+        <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          {feedback && (
+            <span style={{ fontSize: 11.5, color: "var(--brass)", display: "flex", alignItems: "center", gap: 4 }}>
+              <Icon name="check" size={12} style={{ verticalAlign: "-2px" }} />
+              {feedback.label}
+            </span>
+          )}
+          {hasNote && (
+            <span
+              title="You have a note on this signal"
+              style={{
+                fontSize: 10,
+                color: "var(--caution)",
+                fontFamily: "var(--mono)",
+                letterSpacing: "0.06em",
+                padding: "1px 5px",
+                background: "#e0b55818",
+                border: "1px solid #e0b55840",
+                borderRadius: 4,
+              }}
+            >
+              note
+            </span>
+          )}
+          {hasBrief && (
+            <span
+              title="Brief generated for this signal"
+              style={{
+                fontSize: 10,
+                color: "var(--teal)",
+                fontFamily: "var(--mono)",
+                letterSpacing: "0.06em",
+                padding: "1px 5px",
+                background: "#58b9ad18",
+                border: "1px solid #58b9ad40",
+                borderRadius: 4,
+              }}
+            >
+              briefed
+            </span>
+          )}
         </div>
       )}
     </button>

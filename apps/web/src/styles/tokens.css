@@ -59,6 +59,16 @@
   --escalate-bg: #3a161222;
   --escalate-border: #d06a5e60;
 
+  /* Source group accent colours — Senate=info/blue, House=teal, Library=ok/green, Custom=brass */
+  --source-senate: var(--info);
+  --source-senate-bg: #8fb1de18;
+  --source-house: var(--teal);
+  --source-house-bg: #58b9ad18;
+  --source-lib: var(--ok);
+  --source-lib-bg: #84c79c18;
+  --source-custom: var(--brass);
+  --source-custom-bg: var(--brass-tint-bg);
+
   --r-sm: 4px;
   --r: 8px;
   --r-md: 12px;
