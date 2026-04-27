@@ -129,9 +129,9 @@ export function PageStatus(): JSX.Element {
         <div className="panel stat">
           <div className="stat-label">D1 migrations</div>
           <div className="stat-value" style={{ color: "var(--ok)", fontSize: 15 }}>
-            0003
+            0004
           </div>
-          <div className="stat-meta">intelligence columns · alert tables</div>
+          <div className="stat-meta">members table · description column</div>
         </div>
       </div>
 
@@ -156,6 +156,10 @@ export function PageStatus(): JSX.Element {
             <dd>Queue on the Briefings page sorted by attention weight × confidence × recency (7-day decay).</dd>
             <dt>Session-new tracking</dt>
             <dd><code>lastVisit</code> timestamp in localStorage. Signals published after your last visit show a NEW badge.</dd>
+            <dt>QON ingest</dt>
+            <dd>ParlInfo Questions on Notice ingested daily at 05:00 AEST. Member, chamber, and target extracted from HTML snippets where available. Clusters by target on the QON Patterns page.</dd>
+            <dt>Member roster</dt>
+            <dd>Senators derived from senators_details RSS on each 30-min poll. Stored in D1 members table. House members pending once APH members_updates RSS resumes publishing.</dd>
             <dt>Momentum / ops</dt>
             <dd>Currently zeroed (weight 0). Momentum requires D1 time-series frequency data — planned for a future cron enrichment pass.</dd>
           </dl>

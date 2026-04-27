@@ -164,6 +164,77 @@ export async function fetchAlertEvents(limit = 50, signal?: AbortSignal): Promis
   return (await res.json()) as { events: AlertEvent[] };
 }
 
+export interface BillRow {
+  guid: string;
+  title: string;
+  link: string;
+  pub_date: string | null;
+  description: string | null;
+  attention: string | null;
+  confidence: number | null;
+}
+
+export async function fetchBills(
+  params: { q?: string; limit?: number; offset?: number } = {},
+  signal?: AbortSignal,
+): Promise<{ rows: BillRow[]; total: number }> {
+  const u = new URL(`${apiBase()}/bills`);
+  if (params.q) u.searchParams.set("q", params.q);
+  if (params.limit) u.searchParams.set("limit", String(params.limit));
+  if (params.offset) u.searchParams.set("offset", String(params.offset));
+  const res = await fetch(u.toString(), { signal });
+  if (!res.ok) throw new Error(`bills ${res.status}`);
+  return (await res.json()) as { rows: BillRow[]; total: number };
+}
+
+export interface QonRow {
+  id: string;
+  asked_at: string;
+  member: string | null;
+  chamber: string | null;
+  target: string | null;
+  question: string | null;
+  hansard_url: string;
+  ingested_at: string;
+}
+
+export async function fetchQons(
+  params: { q?: string; chamber?: string; limit?: number } = {},
+  signal?: AbortSignal,
+): Promise<{ rows: QonRow[]; total: number }> {
+  const u = new URL(`${apiBase()}/qons`);
+  if (params.q) u.searchParams.set("q", params.q);
+  if (params.chamber) u.searchParams.set("chamber", params.chamber);
+  if (params.limit) u.searchParams.set("limit", String(params.limit));
+  const res = await fetch(u.toString(), { signal });
+  if (!res.ok) throw new Error(`qons ${res.status}`);
+  return (await res.json()) as { rows: QonRow[]; total: number };
+}
+
+export interface MemberRow {
+  mpid: string;
+  name: string;
+  chamber: string;
+  party: string | null;
+  state: string | null;
+  role: string | null;
+  profile_url: string;
+  updated_at: string;
+}
+
+export async function fetchMembers(
+  params: { q?: string; party?: string; chamber?: string } = {},
+  signal?: AbortSignal,
+): Promise<{ members: MemberRow[]; total: number }> {
+  const u = new URL(`${apiBase()}/members`);
+  if (params.q) u.searchParams.set("q", params.q);
+  if (params.party) u.searchParams.set("party", params.party);
+  if (params.chamber) u.searchParams.set("chamber", params.chamber);
+  const res = await fetch(u.toString(), { signal });
+  if (!res.ok) throw new Error(`members ${res.status}`);
+  return (await res.json()) as { members: MemberRow[]; total: number };
+}
+
 export function downloadArchiveCsv(rows: ArchiveRow[], filename: string): void {
   const cols: Array<keyof ArchiveRow> = [
     "pub_date",

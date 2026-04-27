@@ -1,7 +1,8 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Icon } from "../icons";
 import { Att, ModalHead } from "../shell/common";
 import { APH_FEEDS, DIVISIONS, WATCHLISTS, RADAR } from "../data/fixtures";
+import { fetchBills, fetchMembers, type BillRow, type MemberRow } from "../lib/archive";
 import { ENTITIES } from "../data/entities";
 import { useFocusTrap } from "../lib/useFocusTrap";
 import { exportSignalsDigestCsv } from "../lib/export";
@@ -430,28 +431,76 @@ function BillDetail({ id }: { id: string }): JSX.Element {
   const watchlistKey = `bill:${id}`;
   const watching = !!state.watchlistAdds[watchlistKey];
   const topLiveHigh = liveSignals.find((s) => s.attention === "high") ?? liveSignals[0] ?? null;
+  const [archiveBill, setArchiveBill] = useState<BillRow | null>(null);
+  const apiBase = (import.meta.env.VITE_API_BASE ?? "").replace(/\/$/, "");
+
+  useEffect(() => {
+    if (bill || !apiBase) return;
+    fetchBills({ q: id, limit: 1 })
+      .then((r) => setArchiveBill(r.rows[0] ?? null))
+      .catch(() => null);
+  }, [id, bill, apiBase]);
 
   if (!bill) {
     return (
       <>
-        <ModalHead kicker="Bill" title="Open in APH Bills Search" onClose={closeModal} />
+        <ModalHead kicker="Bill · Parliamentary Library Digest" title={archiveBill?.title ?? id} onClose={closeModal} />
         <div className="modal-body">
-          <div className="empty">
-            <strong>Bill detail ingest is not yet wired.</strong>
-            <span>
-              Bill records will populate once the APH Bills Search ingest is
-              connected. Search the live registry directly:
-            </span>
-            <a
-              className="btn primary"
-              href={`https://www.aph.gov.au/Parliamentary_Business/Bills_Legislation/Bills_Search_Results?st=1&q=${encodeURIComponent(id)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ marginTop: 4 }}
-            >
-              <Icon name="ext" size={13} /> Search APH Bills
-            </a>
-          </div>
+          {archiveBill ? (
+            <>
+              <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+                {archiveBill.attention && (
+                  <Att level={archiveBill.attention as "high" | "med" | "low"} />
+                )}
+                <span className="tag teal">Bills Digest</span>
+                {archiveBill.pub_date && (
+                  <span className="tag">{archiveBill.pub_date.slice(0, 10)}</span>
+                )}
+              </div>
+              {archiveBill.description && (
+                <Section title="Summary">
+                  <p style={{ margin: 0, color: "var(--ink-2)", fontSize: 13, lineHeight: 1.6 }}>
+                    {archiveBill.description}
+                  </p>
+                </Section>
+              )}
+              <Section title="Source">
+                <a
+                  href={archiveBill.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: "var(--teal)", fontSize: 12 }}
+                >
+                  <Icon name="ext" size={12} /> Parliamentary Library — full digest
+                </a>
+              </Section>
+            </>
+          ) : (
+            <div className="empty">
+              <strong>Bills Digest not yet in archive.</strong>
+              <span>Bills Digests are ingested from the Parliamentary Library RSS. Search directly:</span>
+              <a
+                className="btn primary"
+                href={`https://www.aph.gov.au/Parliamentary_Business/Bills_Legislation/Bills_Search_Results?st=1&q=${encodeURIComponent(id)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ marginTop: 4 }}
+              >
+                <Icon name="ext" size={13} /> Search APH Bills
+              </a>
+            </div>
+          )}
+          {topLiveHigh && (
+            <div className="modal-foot">
+              <button
+                type="button"
+                className="btn"
+                onClick={() => { openBrief(topLiveHigh.id); closeModal(); }}
+              >
+                <Icon name="brief" size={13} /> Draft brief from top signal
+              </button>
+            </div>
+          )}
         </div>
       </>
     );
@@ -582,27 +631,73 @@ function BillDetail({ id }: { id: string }): JSX.Element {
 function MemberDetail({ id }: { id: string }): JSX.Element {
   const m = ENTITIES.members[id];
   const { closeModal, addWatchlist, state } = useStore();
+  const [archiveMember, setArchiveMember] = useState<MemberRow | null>(null);
+  const [loadingMember, setLoadingMember] = useState(false);
+  const apiBase = (import.meta.env.VITE_API_BASE ?? "").replace(/\/$/, "");
+
+  useEffect(() => {
+    if (m || !apiBase) return;
+    setLoadingMember(true);
+    fetchMembers({ q: id })
+      .then((r) => setArchiveMember(r.members[0] ?? null))
+      .catch(() => null)
+      .finally(() => setLoadingMember(false));
+  }, [id, m, apiBase]);
+
   if (!m) {
+    const display = archiveMember;
     return (
       <>
-        <ModalHead kicker="Member" title="Open APH Senators and Members" onClose={closeModal} />
+        <ModalHead
+          kicker={display ? `${display.chamber} · ${display.party ?? "—"} · ${display.state ?? "—"}` : "Member"}
+          title={display?.name ?? id}
+          onClose={closeModal}
+        />
         <div className="modal-body">
-          <div className="empty">
-            <strong>Member roster ingest is not yet wired.</strong>
-            <span>
-              Member detail will populate once the APH Senators and Members
-              roster is connected. Open the live directory:
-            </span>
-            <a
-              className="btn primary"
-              href="https://www.aph.gov.au/Senators_and_Members"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ marginTop: 4 }}
-            >
-              <Icon name="ext" size={13} /> Senators and Members
-            </a>
-          </div>
+          {loadingMember && <div style={{ padding: 12, color: "var(--ink-3)", fontSize: 12 }}>Loading…</div>}
+          {!loadingMember && display && (
+            <>
+              <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+                {display.party && <span className="tag">{display.party}</span>}
+                {display.state && <span className="tag teal">{display.state}</span>}
+                {display.chamber && <span className="tag">{display.chamber}</span>}
+              </div>
+              <Section title="APH profile">
+                <a
+                  href={display.profile_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: "var(--teal)", fontSize: 12 }}
+                >
+                  <Icon name="ext" size={12} /> Open full profile on APH
+                </a>
+              </Section>
+              <Section title="Note">
+                <p style={{ margin: 0, color: "var(--ink-3)", fontSize: 12 }}>
+                  Committee memberships, QON counts, and Hansard mentions will appear
+                  once the member enrichment pipeline is complete (Q3 2026).
+                </p>
+              </Section>
+            </>
+          )}
+          {!loadingMember && !display && (
+            <div className="empty">
+              <strong>Member not found in roster.</strong>
+              <span>
+                The roster is built from senators_details RSS. House members and
+                newly arrived senators appear after their next RSS update.
+              </span>
+              <a
+                className="btn primary"
+                href="https://www.aph.gov.au/Senators_and_Members"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ marginTop: 4 }}
+              >
+                <Icon name="ext" size={13} /> Senators and Members
+              </a>
+            </div>
+          )}
         </div>
       </>
     );
@@ -690,27 +785,60 @@ function MemberDetail({ id }: { id: string }): JSX.Element {
 function MinisterDetail({ id: _id }: { id: string }): JSX.Element {
   const m = ENTITIES.ministers[_id];
   const { closeModal } = useStore();
+  const [archiveMember, setArchiveMember] = useState<MemberRow | null>(null);
+  const apiBase = (import.meta.env.VITE_API_BASE ?? "").replace(/\/$/, "");
+
+  useEffect(() => {
+    if (m || !apiBase) return;
+    fetchMembers({ q: _id })
+      .then((r) => setArchiveMember(r.members[0] ?? null))
+      .catch(() => null);
+  }, [_id, m, apiBase]);
+
   if (!m) {
     return (
       <>
-        <ModalHead kicker="Minister" title="Open APH Ministry list" onClose={closeModal} />
+        <ModalHead
+          kicker={archiveMember ? `${archiveMember.chamber} · ${archiveMember.party ?? "—"}` : "Minister"}
+          title={archiveMember?.name ?? _id}
+          onClose={closeModal}
+        />
         <div className="modal-body">
-          <div className="empty">
-            <strong>Ministry list ingest is not yet wired.</strong>
-            <span>
-              Minister detail will populate once the official Ministry list is
-              connected. Open the current ministry:
-            </span>
-            <a
-              className="btn primary"
-              href="https://www.pmc.gov.au/government/ministries"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ marginTop: 4 }}
-            >
-              <Icon name="ext" size={13} /> Australian Government ministries
-            </a>
-          </div>
+          {archiveMember ? (
+            <>
+              <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+                {archiveMember.party && <span className="tag">{archiveMember.party}</span>}
+                {archiveMember.state && <span className="tag teal">{archiveMember.state}</span>}
+              </div>
+              <Section title="APH profile">
+                <a
+                  href={archiveMember.profile_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: "var(--teal)", fontSize: 12 }}
+                >
+                  <Icon name="ext" size={12} /> Open profile on APH
+                </a>
+              </Section>
+            </>
+          ) : (
+            <div className="empty">
+              <strong>Ministry list ingest is not yet wired.</strong>
+              <span>
+                Minister detail will populate once the official Ministry list is
+                connected. Portfolio assignments are announced by the PM and published on pmc.gov.au.
+              </span>
+              <a
+                className="btn primary"
+                href="https://www.pmc.gov.au/government/ministries"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ marginTop: 4 }}
+              >
+                <Icon name="ext" size={13} /> Australian Government ministries
+              </a>
+            </div>
+          )}
         </div>
       </>
     );

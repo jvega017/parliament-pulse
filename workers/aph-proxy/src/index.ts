@@ -22,6 +22,10 @@ import {
   createAlertRule,
   deleteAlertRule,
   listAlertEvents,
+  queryBills,
+  queryQons,
+  queryMembers,
+  ingestMembers,
   type Env,
 } from "./archive";
 import { ingestQons } from "./hansard";
@@ -70,7 +74,7 @@ export default {
     if (req.method === "OPTIONS") return new Response(null, { headers: cors });
 
     if (url.pathname === "/healthz") {
-      return jsonResponse({ ok: true, version: "0.11.0", scoring_engine: "v1.1-deterministic" }, 200, cors);
+      return jsonResponse({ ok: true, version: "0.12.0", scoring_engine: "v1.1-deterministic" }, 200, cors);
     }
 
     if (url.pathname === "/healthz/connectors") {
@@ -206,6 +210,39 @@ export default {
       return jsonResponse({ error: "method not allowed" }, 405, cors);
     }
 
+    // Bills (archive view — kind=digest) ----------------------------------------
+    if (url.pathname === "/bills") {
+      try {
+        const result = await queryBills(env, url.searchParams);
+        return jsonResponse(result, 200, cors);
+      } catch (err) {
+        console.error({ endpoint: "/bills", error: err instanceof Error ? err.message : err });
+        return jsonResponse({ error: "bills temporarily unavailable" }, 503, cors);
+      }
+    }
+
+    // QONs -----------------------------------------------------------------------
+    if (url.pathname === "/qons") {
+      try {
+        const result = await queryQons(env, url.searchParams);
+        return jsonResponse(result, 200, cors);
+      } catch (err) {
+        console.error({ endpoint: "/qons", error: err instanceof Error ? err.message : err });
+        return jsonResponse({ error: "qons temporarily unavailable" }, 503, cors);
+      }
+    }
+
+    // Members --------------------------------------------------------------------
+    if (url.pathname === "/members") {
+      try {
+        const result = await queryMembers(env, url.searchParams);
+        return jsonResponse(result, 200, cors);
+      } catch (err) {
+        console.error({ endpoint: "/members", error: err instanceof Error ? err.message : err });
+        return jsonResponse({ error: "members temporarily unavailable" }, 503, cors);
+      }
+    }
+
     if (url.pathname === "/alerts/events") {
       try {
         const limit = Math.min(parseInt(url.searchParams.get("limit") ?? "50", 10) || 50, 200);
@@ -293,6 +330,10 @@ export default {
     if (event.cron === "*/30 * * * *") {
       ctx.waitUntil(pollAndArchive(env).then((r) => {
         console.log("archive poll", JSON.stringify(r));
+      }));
+      // Re-derive member roster from senators_details archive on every RSS poll.
+      ctx.waitUntil(ingestMembers(env).then((r) => {
+        console.log("member ingest", JSON.stringify(r));
       }));
       return;
     }

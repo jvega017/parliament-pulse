@@ -1,9 +1,27 @@
+import { useEffect, useState } from "react";
 import { Icon } from "../icons";
 import { DemoBanner } from "../shell/DemoBanner";
 import { useStore } from "../store/useStore";
+import { fetchBills, type BillRow } from "../lib/archive";
 
 export function PageBills(): JSX.Element {
   const { liveSignals, openSignal } = useStore();
+  const [archiveRows, setArchiveRows] = useState<BillRow[]>([]);
+  const [archiveTotal, setArchiveTotal] = useState(0);
+  const [archiveLoading, setArchiveLoading] = useState(true);
+  const [archiveQ, setArchiveQ] = useState("");
+  const apiBase = (import.meta.env.VITE_API_BASE ?? "").replace(/\/$/, "");
+
+  useEffect(() => {
+    if (!apiBase) { setArchiveLoading(false); return; }
+    const ctrl = new AbortController();
+    setArchiveLoading(true);
+    fetchBills({ q: archiveQ || undefined, limit: 100 }, ctrl.signal)
+      .then((r) => { setArchiveRows(r.rows); setArchiveTotal(r.total); })
+      .catch(() => null)
+      .finally(() => setArchiveLoading(false));
+    return () => ctrl.abort();
+  }, [apiBase, archiveQ]);
 
   // Bills Digests come through the ParlInfo Bills Digests RSS feed (kind="digest").
   // These are real Parliamentary Library publications — scored by the live engine.
@@ -159,6 +177,78 @@ export function PageBills(): JSX.Element {
                 ))}
               </div>
             )}
+          </div>
+        </div>
+
+        <div className="panel">
+          <div className="panel-head">
+            <h3 className="panel-title">Archive — all Bills Digests</h3>
+            <span className="panel-kicker" style={{ color: archiveTotal > 0 ? "var(--teal)" : undefined }}>
+              {archiveLoading ? "loading…" : `${archiveTotal} in D1`}
+            </span>
+          </div>
+          <div className="panel-body">
+            <input
+              type="search"
+              value={archiveQ}
+              onChange={(e) => setArchiveQ(e.target.value)}
+              placeholder="Search title…"
+              className="search"
+              style={{ padding: "7px 10px", width: "100%", marginBottom: 10 }}
+            />
+            {archiveLoading && <div style={{ fontSize: 12, color: "var(--ink-3)" }}>Loading…</div>}
+            {!archiveLoading && archiveRows.length === 0 && (
+              <div className="empty">
+                <strong>No Bills Digests in archive yet.</strong>
+                <span>Bills Digests persist to D1 on each RSS poll. Check back after the next cron.</span>
+              </div>
+            )}
+            {archiveRows.map((row, i) => (
+              <a
+                key={row.guid}
+                href={row.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr auto",
+                  padding: "10px 8px",
+                  borderBottom: i < archiveRows.length - 1 ? "1px solid var(--line)" : 0,
+                  gap: 10,
+                  alignItems: "start",
+                  borderRadius: 6,
+                  textDecoration: "none",
+                  color: "inherit",
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 500, lineHeight: 1.4, color: "var(--ink)" }}>
+                    {row.title}
+                  </div>
+                  {row.description && (
+                    <div style={{ fontSize: 11.5, color: "var(--ink-3)", marginTop: 3, lineHeight: 1.4 }}>
+                      {row.description.slice(0, 120)}{row.description.length > 120 ? "…" : ""}
+                    </div>
+                  )}
+                  <span className="mono" style={{ fontSize: 10.5, color: "var(--ink-3)", marginTop: 4, display: "block" }}>
+                    {row.pub_date ? row.pub_date.slice(0, 10) : "—"}
+                  </span>
+                </div>
+                <div>
+                  {row.attention && (
+                    <span
+                      className="tag"
+                      style={{
+                        color: row.attention === "high" ? "var(--brass)" : row.attention === "med" ? "var(--caution)" : "var(--ink-3)",
+                        borderColor: row.attention === "high" ? "var(--brass)" : row.attention === "med" ? "var(--caution)" : undefined,
+                      }}
+                    >
+                      {row.attention}
+                    </span>
+                  )}
+                </div>
+              </a>
+            ))}
           </div>
         </div>
 
