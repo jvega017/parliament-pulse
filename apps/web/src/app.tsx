@@ -17,6 +17,7 @@ import { PageWatchlists } from "./pages/PageWatchlists";
 import { PageRadar } from "./pages/PageRadar";
 import { PageSources } from "./pages/PageSources";
 import { PageArchive } from "./pages/PageArchive";
+import { PageAlerts } from "./pages/PageAlerts";
 import { PageStatus } from "./pages/PageStatus";
 import { initSentry } from "./lib/observability";
 import { ThemeBoot } from "./shell/ThemeBoot";
@@ -74,6 +75,7 @@ const NAV_SHORTCUTS: Record<string, string> = {
   w: "watchlists",
   s: "sources",
   a: "archive",
+  n: "alerts",
   t: "status",
 };
 
@@ -174,6 +176,8 @@ function PageSwitch({ page }: { page: string }): JSX.Element {
       return <PageSources />;
     case "archive":
       return <PageArchive />;
+    case "alerts":
+      return <PageAlerts />;
     case "status":
       return <PageStatus />;
     case "committees":

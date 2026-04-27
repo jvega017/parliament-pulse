@@ -30,6 +30,7 @@ const NAV: NavItem[] = [
   { id: "bills", label: "Bills Digests", group: "Intelligence", count: null },
   { id: "patterns", label: "QON patterns", group: "Intelligence", count: null, deferred: true },
   { id: "archive", label: "Archive", group: "Intelligence", count: null },
+  { id: "alerts", label: "Alert rules", group: "Intelligence", count: null },
   { id: "watchlists", label: "Watchlists", group: "Configuration", count: null },
   { id: "sources", label: "Sources", group: "Configuration", count: null },
   { id: "status", label: "Status", group: "Configuration", count: null },
@@ -47,6 +48,7 @@ const ICONS: Record<string, IconName> = {
   sources: "sources",
   status: "check",
   archive: "brief",
+  alerts: "bell",
   live: "signal",
 };
 

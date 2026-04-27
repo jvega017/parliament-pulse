@@ -2,6 +2,7 @@
 // Cron pollers write into D1; the /archive HTTP endpoint reads from it.
 
 import { APH_FEEDS, type FeedMeta, sourceGroupFor } from "./feeds";
+import { scoreForArchive, matchAlertRules, type AlertRule, type NewItem } from "./workerScoring";
 
 export interface Env {
   CACHE: KVNamespace;
@@ -21,6 +22,10 @@ export interface ArchiveRow {
   kind: string;
   first_seen_at: string;
   last_seen_at: string;
+  attention: string | null;
+  confidence: number | null;
+  entities_json: string | null;
+  scoring_explanation: string | null;
 }
 
 const USER_AGENT =
@@ -68,17 +73,17 @@ function pluck(block: string, tag: string): string | null {
 }
 
 export async function pollAndArchive(env: Env): Promise<{
-  perFeed: Array<{ feed: string; ok: boolean; new: number; seen: number; error?: string }>;
+  perFeed: Array<{ feed: string; ok: boolean; new: number; seen: number; dedup: number; error?: string }>;
 }> {
   const now = new Date().toISOString();
-  const perFeed: Array<{ feed: string; ok: boolean; new: number; seen: number; error?: string }> = [];
+  const perFeed: Array<{ feed: string; ok: boolean; new: number; seen: number; dedup: number; error?: string }> = [];
 
   // Fetch all feeds concurrently with an 8-second per-feed timeout to prevent
   // a slow upstream from blocking the entire cron. Results are collected and
   // inserted into D1 after all fetches complete.
   const FETCH_TIMEOUT_MS = 8_000;
   type FetchOk = { ok: true; meta: FeedMeta; xml: string };
-  type FetchErr = { ok: false; feedUrl: string; new: 0; seen: 0; error: string };
+  type FetchErr = { ok: false; feedUrl: string; new: 0; seen: 0; dedup: 0; error: string };
   const feedResults = await Promise.all(
     APH_FEEDS.map(async (feedMeta): Promise<FetchOk | FetchErr> => {
       try {
@@ -92,25 +97,33 @@ export async function pollAndArchive(env: Env): Promise<{
         if (res.status === 429) {
           const retryAfter = res.headers.get("retry-after");
           console.warn("APH returned 429", { feed: feedMeta.url, retryAfter });
-          return { ok: false, feedUrl: feedMeta.url, new: 0, seen: 0, error: "HTTP 429 Too Many Requests" };
+          return { ok: false, feedUrl: feedMeta.url, new: 0, seen: 0, dedup: 0, error: "HTTP 429 Too Many Requests" };
         }
         if (!res.ok) {
-          return { ok: false, feedUrl: feedMeta.url, new: 0, seen: 0, error: `HTTP ${res.status}` };
+          return { ok: false, feedUrl: feedMeta.url, new: 0, seen: 0, dedup: 0, error: `HTTP ${res.status}` };
         }
         const xml = await res.text();
         return { ok: true, meta: feedMeta, xml };
       } catch (err) {
         return {
-          ok: false, feedUrl: feedMeta.url, new: 0, seen: 0,
+          ok: false, feedUrl: feedMeta.url, new: 0, seen: 0, dedup: 0,
           error: err instanceof Error ? err.message : "unknown",
         };
       }
     }),
   );
 
+  // In-poll title deduplication: tracks normalised title hashes across all feeds
+  // in this cron run to prevent inserting different-GUID items with identical titles.
+  const seenTitleHashes = new Set<string>();
+
+  function normTitle(t: string): string {
+    return t.toLowerCase().replace(/[^a-z0-9\s]/g, "").replace(/\s+/g, " ").trim();
+  }
+
   for (const feedResult of feedResults) {
     if (!feedResult.ok) {
-      perFeed.push({ feed: feedResult.feedUrl, ok: false, new: 0, seen: 0, error: feedResult.error });
+      perFeed.push({ feed: feedResult.feedUrl, ok: false, new: 0, seen: 0, dedup: 0, error: feedResult.error });
       continue;
     }
     const { meta: feed, xml } = feedResult;
@@ -118,43 +131,79 @@ export async function pollAndArchive(env: Env): Promise<{
       const items = parseFeed(xml, feed);
       let added = 0;
       let updated = 0;
+      let dedupSkipped = 0;
       const sourceGroup = sourceGroupFor(feed.label);
+      const nowDate = new Date(now);
       for (const item of items) {
+        const titleHash = normTitle(item.title);
+        if (seenTitleHashes.has(titleHash)) { dedupSkipped += 1; continue; }
+        seenTitleHashes.add(titleHash);
+        const scored = scoreForArchive(item.title, feed.kind, item.pubDate, nowDate);
         const r = await env.ARCHIVE.prepare(
-          `INSERT INTO signals (guid, title, link, pub_date, feed_url, feed_label, source_group, kind, first_seen_at, last_seen_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-           ON CONFLICT(guid) DO UPDATE SET last_seen_at = excluded.last_seen_at, title = excluded.title`,
+          `INSERT INTO signals
+             (guid, title, link, pub_date, feed_url, feed_label, source_group, kind,
+              first_seen_at, last_seen_at,
+              attention, confidence, score_json, entities_json, scoring_explanation)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT(guid) DO UPDATE SET
+             last_seen_at        = excluded.last_seen_at,
+             title               = excluded.title,
+             attention           = excluded.attention,
+             confidence          = excluded.confidence,
+             score_json          = excluded.score_json,
+             entities_json       = excluded.entities_json,
+             scoring_explanation = excluded.scoring_explanation`,
         )
           .bind(
-            item.guid,
-            item.title,
-            item.link,
-            item.pubDate,
-            feed.url,
-            feed.label,
-            sourceGroup,
-            feed.kind,
-            now,
-            now,
+            item.guid, item.title, item.link, item.pubDate,
+            feed.url, feed.label, sourceGroup, feed.kind,
+            now, now,
+            scored.attention, scored.confidence,
+            scored.scoreJson, scored.entitiesJson, scored.explanation,
           )
           .run();
         if (r.meta?.changes && r.meta.changes > 0) {
-          // Cannot distinguish insert vs update from D1 changes count without
-          // a SELECT, so we count both and surface the total.
           if (r.meta.last_row_id && r.meta.last_row_id > 0) added += 1;
           else updated += 1;
         }
       }
-      perFeed.push({ feed: feed.url, ok: true, new: added, seen: items.length });
+      perFeed.push({ feed: feed.url, ok: true, new: added, seen: items.length, dedup: dedupSkipped });
     } catch (err) {
       perFeed.push({
-        feed: feed.url,
-        ok: false,
-        new: 0,
-        seen: 0,
+        feed: feed.url, ok: false, new: 0, seen: 0, dedup: 0,
         error: err instanceof Error ? err.message : "unknown",
       });
     }
+  }
+
+  // Evaluate alert rules against items seen in this poll window.
+  // Watermark stored in KV prevents re-firing on re-poll of the same items.
+  try {
+    const wmKey = "alert:watermark";
+    const watermark = (await env.CACHE.get(wmKey)) ?? new Date(0).toISOString();
+    const rulesRes = await env.ARCHIVE.prepare(
+      `SELECT id, name, terms, attention_min, source_group, kind, active FROM alert_rules WHERE active = 1`,
+    ).all<AlertRule>();
+    const rules = rulesRes.results ?? [];
+    if (rules.length > 0) {
+      const newItemsRes = await env.ARCHIVE.prepare(
+        `SELECT guid, title, link, kind, source_group, attention FROM signals WHERE first_seen_at > ? AND first_seen_at <= ?`,
+      ).bind(watermark, now).all<NewItem>();
+      const newItems = newItemsRes.results ?? [];
+      if (newItems.length > 0) {
+        const events = matchAlertRules(rules, newItems, now);
+        for (const ev of events) {
+          // INSERT OR IGNORE: UNIQUE index on (rule_id, signal_guid) prevents duplication.
+          await env.ARCHIVE.prepare(
+            `INSERT OR IGNORE INTO alert_events (rule_id, signal_guid, fired_at, title, link, attention)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+          ).bind(ev.rule_id, ev.signal_guid, ev.fired_at, ev.title, ev.link, ev.attention).run();
+        }
+      }
+    }
+    await env.CACHE.put(wmKey, now, { expirationTtl: 60 * 60 * 24 * 7 });
+  } catch (alertErr) {
+    console.warn("alert evaluation failed", alertErr instanceof Error ? alertErr.message : alertErr);
   }
 
   return { perFeed };
@@ -211,12 +260,15 @@ export async function queryArchive(env: Env, params: URLSearchParams): Promise<{
   const limit = Math.min(parseInt(params.get("limit") ?? "100", 10) || 100, 500);
   const offset = Math.max(parseInt(params.get("offset") ?? "0", 10) || 0, 0);
 
+  const attention = params.get("attention");
+
   const where: string[] = [];
   const binds: unknown[] = [];
   if (from) { where.push("pub_date >= ?"); binds.push(from); }
   if (to) { where.push("pub_date <= ?"); binds.push(to); }
   if (kind) { where.push("kind = ?"); binds.push(kind); }
   if (group) { where.push("source_group = ?"); binds.push(group); }
+  if (attention) { where.push("attention = ?"); binds.push(attention); }
   if (q) {
     where.push("LOWER(title) LIKE ? ESCAPE '\\'");
     binds.push(`%${escapeLike(q.toLowerCase())}%`);
@@ -231,7 +283,8 @@ export async function queryArchive(env: Env, params: URLSearchParams): Promise<{
   const total = totalStmt?.n ?? 0;
 
   const rowsRes = await env.ARCHIVE.prepare(
-    `SELECT guid, title, link, pub_date, feed_url, feed_label, source_group, kind, first_seen_at, last_seen_at
+    `SELECT guid, title, link, pub_date, feed_url, feed_label, source_group, kind,
+            first_seen_at, last_seen_at, attention, confidence, entities_json, scoring_explanation
        FROM signals
        ${whereSql}
        ORDER BY COALESCE(pub_date, first_seen_at) DESC
@@ -267,4 +320,86 @@ export async function watchlistAnalytics(env: Env, params: URLSearchParams): Pro
     series.push({ term, count: r?.n ?? 0, last_seen: r?.last_seen ?? null });
   }
   return { series };
+}
+
+export async function timelineArchive(env: Env, params: URLSearchParams): Promise<{
+  days: Array<{ day: string; total: number; high: number; med: number; low: number }>;
+}> {
+  const from = params.get("from");
+  const to   = params.get("to");
+  const kind = params.get("kind");
+  const group = params.get("source_group");
+
+  const where: string[] = [];
+  const binds: unknown[] = [];
+  if (from)  { where.push("COALESCE(pub_date, first_seen_at) >= ?"); binds.push(from); }
+  if (to)    { where.push("COALESCE(pub_date, first_seen_at) <= ?"); binds.push(`${to}T23:59:59`); }
+  if (kind)  { where.push("kind = ?"); binds.push(kind); }
+  if (group) { where.push("source_group = ?"); binds.push(group); }
+  const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
+
+  const res = await env.ARCHIVE.prepare(
+    `SELECT
+       DATE(COALESCE(pub_date, first_seen_at)) AS day,
+       COUNT(*) AS total,
+       SUM(CASE WHEN attention = 'high' THEN 1 ELSE 0 END) AS high,
+       SUM(CASE WHEN attention = 'med'  THEN 1 ELSE 0 END) AS med,
+       SUM(CASE WHEN attention = 'low' OR attention IS NULL THEN 1 ELSE 0 END) AS low
+     FROM signals
+     ${whereSql}
+     GROUP BY day
+     ORDER BY day`,
+  ).bind(...binds).all<{ day: string; total: number; high: number; med: number; low: number }>();
+
+  return { days: res.results ?? [] };
+}
+
+// ---- Alert rules CRUD -------------------------------------------------------
+
+export async function listAlertRules(env: Env): Promise<{ rules: AlertRule[] }> {
+  const res = await env.ARCHIVE.prepare(
+    `SELECT id, name, terms, attention_min, source_group, kind, created_at, active FROM alert_rules ORDER BY id DESC`,
+  ).all<AlertRule & { created_at: string }>();
+  return { rules: (res.results ?? []) as unknown as AlertRule[] };
+}
+
+export async function createAlertRule(env: Env, body: {
+  name: string;
+  terms?: string;
+  attention_min?: string;
+  source_group?: string | null;
+  kind?: string | null;
+}): Promise<{ id: number }> {
+  const now = new Date().toISOString();
+  const res = await env.ARCHIVE.prepare(
+    `INSERT INTO alert_rules (name, terms, attention_min, source_group, kind, created_at, active)
+     VALUES (?, ?, ?, ?, ?, ?, 1)`,
+  )
+    .bind(
+      body.name,
+      body.terms ?? "",
+      body.attention_min ?? "high",
+      body.source_group ?? null,
+      body.kind ?? null,
+      now,
+    )
+    .run();
+  return { id: res.meta.last_row_id ?? 0 };
+}
+
+export async function deleteAlertRule(env: Env, id: number): Promise<void> {
+  await env.ARCHIVE.prepare(`DELETE FROM alert_rules WHERE id = ?`).bind(id).run();
+}
+
+export async function listAlertEvents(env: Env, limit = 50): Promise<{
+  events: Array<{ id: number; rule_id: number; rule_name: string; signal_guid: string; fired_at: string; title: string; link: string; attention: string }>;
+}> {
+  const res = await env.ARCHIVE.prepare(
+    `SELECT e.id, e.rule_id, r.name AS rule_name, e.signal_guid, e.fired_at, e.title, e.link, e.attention
+       FROM alert_events e
+       JOIN alert_rules r ON r.id = e.rule_id
+       ORDER BY e.fired_at DESC
+       LIMIT ?`,
+  ).bind(limit).all<{ id: number; rule_id: number; rule_name: string; signal_guid: string; fired_at: string; title: string; link: string; attention: string }>();
+  return { events: res.results ?? [] };
 }

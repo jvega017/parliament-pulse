@@ -17,6 +17,11 @@ import {
   pollAndArchive,
   queryArchive,
   watchlistAnalytics,
+  timelineArchive,
+  listAlertRules,
+  createAlertRule,
+  deleteAlertRule,
+  listAlertEvents,
   type Env,
 } from "./archive";
 import { ingestQons } from "./hansard";
@@ -65,7 +70,7 @@ export default {
     if (req.method === "OPTIONS") return new Response(null, { headers: cors });
 
     if (url.pathname === "/healthz") {
-      return jsonResponse({ ok: true, version: "0.10.0" }, 200, cors);
+      return jsonResponse({ ok: true, version: "0.11.0", scoring_engine: "v1.1-deterministic" }, 200, cors);
     }
 
     if (url.pathname === "/healthz/connectors") {
@@ -115,6 +120,16 @@ export default {
       }
     }
 
+    if (url.pathname === "/archive/timeline") {
+      try {
+        const result = await timelineArchive(env, url.searchParams);
+        return jsonResponse(result, 200, cors);
+      } catch (err) {
+        console.error({ endpoint: "/archive/timeline", error: err instanceof Error ? err.message : err, ts: new Date().toISOString() });
+        return jsonResponse({ error: "timeline temporarily unavailable" }, 503, cors);
+      }
+    }
+
     if (url.pathname === "/digest/subscribe" && req.method === "POST") {
       // Simple per-IP rate limit: max 3 subscribe attempts per minute via KV.
       const ip = req.headers.get("cf-connecting-ip") ?? "unknown";
@@ -152,6 +167,52 @@ export default {
       } catch (err) {
         console.error({ endpoint: "/digest/subscribe", error: err instanceof Error ? err.message : err, ts: new Date().toISOString() });
         return jsonResponse({ error: "subscribe temporarily unavailable" }, 503, cors);
+      }
+    }
+
+    // Alert rules ----------------------------------------------------------
+    if (url.pathname === "/alerts") {
+      if (req.method === "GET") {
+        try {
+          const result = await listAlertRules(env);
+          return jsonResponse(result, 200, cors);
+        } catch (err) {
+          return jsonResponse({ error: "alerts unavailable" }, 503, cors);
+        }
+      }
+      if (req.method === "POST") {
+        try {
+          const body = (await req.json()) as { name?: string; terms?: string; attention_min?: string; source_group?: string; kind?: string };
+          if (!body.name?.trim()) return jsonResponse({ error: "name required" }, 400, cors);
+          const result = await createAlertRule(env, { ...body, name: body.name! });
+          return jsonResponse(result, 201, cors);
+        } catch (err) {
+          return jsonResponse({ error: "create failed" }, 503, cors);
+        }
+      }
+      return jsonResponse({ error: "method not allowed" }, 405, cors);
+    }
+
+    if (/^\/alerts\/(\d+)$/.test(url.pathname)) {
+      const id = parseInt(url.pathname.split("/")[2] ?? "0", 10);
+      if (req.method === "DELETE") {
+        try {
+          await deleteAlertRule(env, id);
+          return jsonResponse({ ok: true }, 200, cors);
+        } catch (err) {
+          return jsonResponse({ error: "delete failed" }, 503, cors);
+        }
+      }
+      return jsonResponse({ error: "method not allowed" }, 405, cors);
+    }
+
+    if (url.pathname === "/alerts/events") {
+      try {
+        const limit = Math.min(parseInt(url.searchParams.get("limit") ?? "50", 10) || 50, 200);
+        const result = await listAlertEvents(env, limit);
+        return jsonResponse(result, 200, cors);
+      } catch (err) {
+        return jsonResponse({ error: "events unavailable" }, 503, cors);
       }
     }
 

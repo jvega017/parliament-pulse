@@ -30,6 +30,7 @@ interface SignalRow {
   feed_label: string;
   source_group: string;
   kind: string;
+  attention: string | null;
 }
 
 const ATTENTION_RANK: Record<string, number> = { high: 0, med: 1, low: 2 };
@@ -46,7 +47,7 @@ export async function sendDailyDigest(env: EnvWithSecrets): Promise<{
 
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const items = await env.ARCHIVE.prepare(
-    `SELECT guid, title, link, pub_date, feed_label, source_group, kind
+    `SELECT guid, title, link, pub_date, feed_label, source_group, kind, attention
        FROM signals
        WHERE first_seen_at >= ?
        ORDER BY COALESCE(pub_date, first_seen_at) DESC
@@ -71,22 +72,22 @@ export async function sendDailyDigest(env: EnvWithSecrets): Promise<{
   for (const sub of subscribers) {
     const minRank = ATTENTION_RANK[sub.attention_min] ?? 0;
     const filtered = newItems.filter((item) => {
-      // Inferred attention: HIGH if item title matches one of the user's
-      // watchlist terms, MED if it carries an inquiry/hearing/report kind,
-      // LOW otherwise. Matches the client-side scoring shape closely enough
-      // for digest filtering without re-running scoring server-side.
-      const lower = item.title.toLowerCase();
-      const matchesWl = sub.watchlists
-        .split(",")
-        .map((s) => s.trim().toLowerCase())
-        .filter(Boolean)
-        .some((term) => lower.includes(term));
-      const inferred = matchesWl
-        ? "high"
-        : ["inquiry", "hearing", "report"].includes(item.kind)
-          ? "med"
+      // Use stored attention level from D1 (set by server-side scoring engine).
+      // Falls back to keyword inference only when attention column is null
+      // (items ingested before migration 0003 was applied).
+      let resolved = item.attention;
+      if (!resolved) {
+        const lower = item.title.toLowerCase();
+        const matchesWl = sub.watchlists
+          .split(",")
+          .map((s) => s.trim().toLowerCase())
+          .filter(Boolean)
+          .some((term) => lower.includes(term));
+        resolved = matchesWl ? "high"
+          : ["inquiry", "hearing", "report"].includes(item.kind) ? "med"
           : "low";
-      return (ATTENTION_RANK[inferred] ?? 2) <= minRank;
+      }
+      return (ATTENTION_RANK[resolved] ?? 2) <= minRank;
     });
     if (filtered.length === 0) {
       skipped += 1;

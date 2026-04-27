@@ -230,7 +230,7 @@ export function Drawer(): JSX.Element {
                 <h4>
                   Attention score breakdown
                   <span
-                    title="Weighted sum: authority 0.25, portfolio 0.35, novelty 0.10, time 0.20, scrutiny 0.10. Momentum and ops zeroed (no time-series data yet). High ≥0.65, medium ≥0.40."
+                    title="Weighted sum: authority 0.25, portfolio 0.35, novelty 0.10, time 0.20, scrutiny 0.10. Momentum shown as batch co-occurrence (weight=0, display only). Ops zeroed. High ≥0.65, medium ≥0.40."
                     style={{
                       marginLeft: 8,
                       cursor: "help",

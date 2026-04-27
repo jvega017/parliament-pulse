@@ -64,14 +64,29 @@ export function useLiveSignals(
   }, [apiBase, refreshTick]);
 
   const signals: Signal[] = feedResult
-    ? feedResult.items
-        .map((item, i) => signalFromFeedItem(item, watchlists, i))
-        .sort((a, b) => {
-          const rank = { high: 0, med: 1, low: 2 } as const;
-          const d = rank[a.attention] - rank[b.attention];
-          if (d !== 0) return d;
-          return b.confidence - a.confidence;
-        })
+    ? (() => {
+        // Compute batch-level momentum hints: normalise kind co-occurrence count.
+        // Items from high-frequency kinds (e.g. many inquiries in one poll) get a
+        // higher momentum value. Weight is still 0 in the scoring formula so this
+        // does not affect attention levels — it populates the breakdown display only.
+        const kindCounts = new Map<string, number>();
+        for (const item of feedResult.items) {
+          kindCounts.set(item.kind, (kindCounts.get(item.kind) ?? 0) + 1);
+        }
+        const maxKindCount = Math.max(...kindCounts.values(), 1);
+        const now = new Date();
+        return feedResult.items
+          .map((item, i) => {
+            const momentumHint = Math.min(1, (kindCounts.get(item.kind) ?? 1) / maxKindCount);
+            return signalFromFeedItem(item, watchlists, i, now, momentumHint);
+          })
+          .sort((a, b) => {
+            const rank = { high: 0, med: 1, low: 2 } as const;
+            const d = rank[a.attention] - rank[b.attention];
+            if (d !== 0) return d;
+            return b.confidence - a.confidence;
+          });
+      })()
     : [];
 
   return { signals, feedResult, loading, lastError };

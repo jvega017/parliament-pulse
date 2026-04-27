@@ -3,8 +3,10 @@ import { Icon } from "../icons";
 import { DemoBanner } from "../shell/DemoBanner";
 import {
   fetchConnectorHealth,
+  fetchAlertRules,
   subscribeDigest,
   type ConnectorHealth,
+  type AlertRule,
 } from "../lib/archive";
 import { useStore } from "../store/useStore";
 import { APH_CONNECTORS } from "../data/fixtures";
@@ -21,6 +23,8 @@ export function PageStatus(): JSX.Element {
   const [email, setEmail] = useState("");
   const [attentionMin, setAttentionMin] = useState<"high" | "med" | "low">("high");
   const [submitting, setSubmitting] = useState(false);
+  const [alertRules, setAlertRules] = useState<AlertRule[]>([]);
+  const [scoringVersion] = useState("v1.1-deterministic");
 
   const apiBase = (import.meta.env.VITE_API_BASE ?? "").replace(/\/$/, "");
 
@@ -43,6 +47,14 @@ export function PageStatus(): JSX.Element {
       .then((r) => setConnectors(r.connectors ?? []))
       .catch(() => setConnectors([]))
       .finally(() => setLoadingConn(false));
+    return () => ctrl.abort();
+  }, []);
+
+  useEffect(() => {
+    const ctrl = new AbortController();
+    fetchAlertRules(ctrl.signal)
+      .then((r) => setAlertRules(r.rules))
+      .catch(() => setAlertRules([]));
     return () => ctrl.abort();
   }, []);
 
@@ -98,6 +110,55 @@ export function PageStatus(): JSX.Element {
             <span className="unit">live</span>
           </div>
           <div className="stat-meta">re-verified by cron every 14 days</div>
+        </div>
+        <div className="panel stat">
+          <div className="stat-label">Scoring engine</div>
+          <div className="stat-value" style={{ color: "var(--teal)", fontSize: 15 }}>
+            {scoringVersion}
+          </div>
+          <div className="stat-meta">7-dim · authority-weighted · no AI</div>
+        </div>
+        <div className="panel stat">
+          <div className="stat-label">Alert rules</div>
+          <div className="stat-value">
+            {alertRules.length}
+            <span className="unit">active</span>
+          </div>
+          <div className="stat-meta">D1-backed · fires on each cron poll</div>
+        </div>
+        <div className="panel stat">
+          <div className="stat-label">D1 migrations</div>
+          <div className="stat-value" style={{ color: "var(--ok)", fontSize: 15 }}>
+            0003
+          </div>
+          <div className="stat-meta">intelligence columns · alert tables</div>
+        </div>
+      </div>
+
+      <div className="panel" style={{ marginBottom: 16 }}>
+        <div className="panel-head">
+          <h3 className="panel-title">Intelligence capabilities</h3>
+          <span className="panel-kicker">active in this build</span>
+        </div>
+        <div className="panel-body">
+          <dl className="kv" style={{ gridTemplateColumns: "220px 1fr" }}>
+            <dt>Scoring engine</dt>
+            <dd>7-dimension deterministic scoring (authority, portfolio, novelty, time, scrutiny). No AI, no LLM. Client-side with watchlist context.</dd>
+            <dt>Server-side scoring</dt>
+            <dd>Authority + recency scored at cron poll time (portfolio zeroed server-side — watchlists are client-only). Stored in D1 <code>attention</code> and <code>confidence</code> columns.</dd>
+            <dt>Entity extraction</dt>
+            <dd>Regex-based bill references and dollar amounts extracted from RSS title and description. Up to 5 entities per signal.</dd>
+            <dt>Title deduplication</dt>
+            <dd>Normalised-title hash dedup within each cron poll. Prevents cross-feed duplicates in the same 30-minute window.</dd>
+            <dt>Alert rules engine</dt>
+            <dd>Keyword + metadata rules evaluated on every cron poll. Events stored in D1 with a KV watermark to prevent re-firing.</dd>
+            <dt>Briefability ranking</dt>
+            <dd>Queue on the Briefings page sorted by attention weight × confidence × recency (7-day decay).</dd>
+            <dt>Session-new tracking</dt>
+            <dd><code>lastVisit</code> timestamp in localStorage. Signals published after your last visit show a NEW badge.</dd>
+            <dt>Momentum / ops</dt>
+            <dd>Currently zeroed (weight 0). Momentum requires D1 time-series frequency data — planned for a future cron enrichment pass.</dd>
+          </dl>
         </div>
       </div>
 

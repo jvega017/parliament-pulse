@@ -137,6 +137,7 @@ export function scoreFeedItem(
   item: FeedItem,
   watchlists: Watchlist[],
   now: Date = new Date(),
+  momentumHint = 0,
 ): ScoringResult {
   // Include description in keyword matching — RSS descriptions often contain
   // more context than the title alone (committee name, portfolio keywords, etc.)
@@ -159,10 +160,10 @@ export function scoreFeedItem(
     authority,
     portfolio: portfolio.score,
     novelty,
-    momentum: 0, // not derived — weight is 0
+    momentum: momentumHint, // derived from live batch co-occurrence; weight still 0
     time,
     scrutiny,
-    ops: 0,      // not derived — weight is 0
+    ops: 0,
   };
 
   let overall = 0;
@@ -287,6 +288,7 @@ function buildScoringExplanation(
   item: FeedItem,
   hours: number,
   overallPct: number,
+  momentumPct: number,
 ): string {
   const attWord = result.attention === "high" ? "High" : result.attention === "med" ? "Medium" : "Low";
   const parts: string[] = [`${attWord} attention (${overallPct}/100).`];
@@ -308,6 +310,7 @@ function buildScoringExplanation(
   else if (hours < 48) parts.push("Published yesterday.");
   else parts.push(`Published ${Math.round(hours / 24)}d ago.`);
 
+  if (momentumPct > 0) parts.push(`Batch momentum ${momentumPct}% (${item.kind} frequency in this poll).`);
   parts.push("Scored deterministically — no AI involved in this output.");
   return parts.join(" ");
 }
@@ -321,12 +324,14 @@ export function signalFromFeedItem(
   watchlists: Watchlist[],
   idx: number,
   now: Date = new Date(),
+  momentumHint = 0,
 ): Signal {
-  const result = scoreFeedItem(item, watchlists, now);
+  const result = scoreFeedItem(item, watchlists, now, momentumHint);
   const { action, reason } = actionFor(result.attention, item.kind, result.matchedWatchlists);
   const id = shortId(item.link, idx);
   const hours = ageHours(item.pubDate, now);
   const overallPct = Math.round(result.overall * 100);
+  const momentumPct = Math.round(momentumHint * 100);
 
   return {
     id,
@@ -367,6 +372,6 @@ export function signalFromFeedItem(
     updates: [],
     members: [],
     entities: extractEntities(item.title, item.description),
-    scoringExplanation: buildScoringExplanation(result, item, hours, overallPct),
+    scoringExplanation: buildScoringExplanation(result, item, hours, overallPct, momentumPct),
   };
 }

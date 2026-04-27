@@ -11,6 +11,10 @@ export interface ArchiveRow {
   kind: string;
   first_seen_at: string;
   last_seen_at: string;
+  attention: string | null;
+  confidence: number | null;
+  entities_json: string | null;
+  scoring_explanation: string | null;
 }
 
 export interface ArchiveQueryParams {
@@ -18,9 +22,32 @@ export interface ArchiveQueryParams {
   to?: string;
   kind?: string;
   source_group?: string;
+  attention?: string;
   q?: string;
   limit?: number;
   offset?: number;
+}
+
+export interface AlertRule {
+  id: number;
+  name: string;
+  terms: string;
+  attention_min: "high" | "med" | "low";
+  source_group: string | null;
+  kind: string | null;
+  created_at: string;
+  active: number;
+}
+
+export interface AlertEvent {
+  id: number;
+  rule_id: number;
+  rule_name: string;
+  signal_guid: string;
+  fired_at: string;
+  title: string;
+  link: string;
+  attention: string;
 }
 
 function apiBase(): string {
@@ -88,10 +115,61 @@ export async function subscribeDigest(payload: {
   return { ok: !!json.ok };
 }
 
+export async function fetchTimeline(
+  params: { from?: string; to?: string; kind?: string; source_group?: string },
+  signal?: AbortSignal,
+): Promise<{ days: Array<{ day: string; total: number; high: number; med: number; low: number }> }> {
+  const u = new URL(`${apiBase()}/archive/timeline`);
+  for (const [k, v] of Object.entries(params)) {
+    if (v) u.searchParams.set(k, v);
+  }
+  const res = await fetch(u.toString(), { signal });
+  if (!res.ok) throw new Error(`timeline ${res.status}`);
+  return (await res.json()) as { days: Array<{ day: string; total: number; high: number; med: number; low: number }> };
+}
+
+export async function fetchAlertRules(signal?: AbortSignal): Promise<{ rules: AlertRule[] }> {
+  const res = await fetch(`${apiBase()}/alerts`, { signal });
+  if (!res.ok) throw new Error(`alerts ${res.status}`);
+  return (await res.json()) as { rules: AlertRule[] };
+}
+
+export async function createAlertRule(body: {
+  name: string;
+  terms: string;
+  attention_min: "high" | "med" | "low";
+  source_group?: string;
+  kind?: string;
+}, signal?: AbortSignal): Promise<{ id: number }> {
+  const res = await fetch(`${apiBase()}/alerts`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+    signal,
+  });
+  if (!res.ok) throw new Error(`create alert ${res.status}`);
+  return (await res.json()) as { id: number };
+}
+
+export async function deleteAlertRule(id: number): Promise<void> {
+  const res = await fetch(`${apiBase()}/alerts/${id}`, { method: "DELETE" });
+  if (!res.ok) throw new Error(`delete alert ${res.status}`);
+}
+
+export async function fetchAlertEvents(limit = 50, signal?: AbortSignal): Promise<{ events: AlertEvent[] }> {
+  const u = new URL(`${apiBase()}/alerts/events`);
+  u.searchParams.set("limit", String(limit));
+  const res = await fetch(u.toString(), { signal });
+  if (!res.ok) throw new Error(`alert events ${res.status}`);
+  return (await res.json()) as { events: AlertEvent[] };
+}
+
 export function downloadArchiveCsv(rows: ArchiveRow[], filename: string): void {
   const cols: Array<keyof ArchiveRow> = [
     "pub_date",
     "title",
+    "attention",
+    "confidence",
     "feed_label",
     "source_group",
     "kind",

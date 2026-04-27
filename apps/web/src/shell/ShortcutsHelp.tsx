@@ -22,6 +22,9 @@ const SHORTCUTS: Array<{ keys: string[]; desc: string }> = [
   { keys: ["g", "q"], desc: "Go to QON patterns" },
   { keys: ["g", "w"], desc: "Go to Watchlists" },
   { keys: ["g", "s"], desc: "Go to Sources" },
+  { keys: ["g", "a"], desc: "Go to Archive" },
+  { keys: ["g", "n"], desc: "Go to Alert rules" },
+  { keys: ["g", "t"], desc: "Go to Status" },
   { keys: ["d"], desc: "Toggle compact / comfortable density" },
 ];
 

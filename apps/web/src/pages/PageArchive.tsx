@@ -5,14 +5,45 @@ import {
   downloadArchiveCsv,
   fetchAnalytics,
   fetchArchive,
+  fetchTimeline,
   type ArchiveRow,
 } from "../lib/archive";
 import { useStore } from "../store/useStore";
 import { WATCHLISTS } from "../data/fixtures";
 
+interface SavedSearch {
+  id: string;
+  name: string;
+  from: string;
+  to: string;
+  kind: string;
+  group: string;
+  attention: string;
+  q: string;
+}
+
+const SS_KEY = "pp-archive-searches-v1";
+
+function loadSavedSearches(): SavedSearch[] {
+  try {
+    const raw = localStorage.getItem(SS_KEY);
+    return raw ? (JSON.parse(raw) as SavedSearch[]) : [];
+  } catch { return []; }
+}
+function persistSavedSearches(list: SavedSearch[]): void {
+  try { localStorage.setItem(SS_KEY, JSON.stringify(list)); } catch { /* quota */ }
+}
+
 const KINDS = ["", "inquiry", "hearing", "report", "digest", "signal"];
 const GROUPS = ["", "Senate", "House", "Library", "Custom"];
+const ATTENTIONS = ["", "high", "med", "low"];
 const PAGE_SIZE = 50;
+
+const ATT_STYLE: Record<string, { color: string; bg: string; label: string }> = {
+  high: { color: "var(--escalate)", bg: "#df827618", label: "HIGH" },
+  med:  { color: "var(--caution)",  bg: "#e0b55818", label: "MED" },
+  low:  { color: "var(--ink-4)",    bg: "transparent", label: "LOW" },
+};
 
 function startOfYear(): string {
   const d = new Date();
@@ -23,11 +54,12 @@ function todayIso(): string {
 }
 
 export function PageArchive(): JSX.Element {
-  const { toast } = useStore();
+  const { toast, confirm } = useStore();
   const [from, setFrom] = useState<string>(startOfYear());
   const [to, setTo] = useState<string>(todayIso());
   const [kind, setKind] = useState<string>("");
   const [group, setGroup] = useState<string>("");
+  const [attention, setAttention] = useState<string>("");
   const [q, setQ] = useState<string>("");
   const [page, setPage] = useState<number>(0);
   const [rows, setRows] = useState<ArchiveRow[]>([]);
@@ -36,6 +68,37 @@ export function PageArchive(): JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const [analytics, setAnalytics] = useState<Array<{ term: string; count: number; last_seen: string | null }>>([]);
   const [analyticsLoading, setAnalyticsLoading] = useState<boolean>(false);
+  const [timeline, setTimeline] = useState<Array<{ day: string; total: number; high: number; med: number; low: number }>>([]);
+  const [timelineLoading, setTimelineLoading] = useState<boolean>(false);
+  const [savedSearches, setSavedSearches] = useState<SavedSearch[]>(() => loadSavedSearches());
+
+  function saveCurrentSearch(): void {
+    const name = window.prompt("Name this search:");
+    if (!name?.trim()) return;
+    const entry: SavedSearch = {
+      id: `ss-${Date.now()}`,
+      name: name.trim(), from, to, kind, group, attention, q,
+    };
+    const updated = [entry, ...savedSearches];
+    setSavedSearches(updated);
+    persistSavedSearches(updated);
+    toast(`Search "${entry.name}" saved`, "brass");
+  }
+
+  function applySearch(ss: SavedSearch): void {
+    setFrom(ss.from); setTo(ss.to); setKind(ss.kind);
+    setGroup(ss.group); setAttention(ss.attention); setQ(ss.q);
+    setPage(0);
+  }
+
+  async function deleteSearch(ss: SavedSearch): Promise<void> {
+    const ok = await confirm(`Delete saved search "${ss.name}"?`);
+    if (!ok) return;
+    const updated = savedSearches.filter((s) => s.id !== ss.id);
+    setSavedSearches(updated);
+    persistSavedSearches(updated);
+    toast(`Search "${ss.name}" deleted`);
+  }
 
   const offset = page * PAGE_SIZE;
 
@@ -44,7 +107,7 @@ export function PageArchive(): JSX.Element {
     setLoading(true);
     setError(null);
     fetchArchive(
-      { from, to, kind, source_group: group, q, limit: PAGE_SIZE, offset },
+      { from, to, kind, source_group: group, attention, q, limit: PAGE_SIZE, offset },
       ctrl.signal,
     )
       .then((r) => {
@@ -61,7 +124,7 @@ export function PageArchive(): JSX.Element {
       })
       .finally(() => setLoading(false));
     return () => ctrl.abort();
-  }, [from, to, kind, group, q, offset]);
+  }, [from, to, kind, group, attention, q, offset]);
 
   // Watchlist analytics: build a single query for the standard watchlist
   // terms (one term per watchlist for chart density, not all terms).
@@ -80,8 +143,19 @@ export function PageArchive(): JSX.Element {
     return () => ctrl.abort();
   }, [analyticsTerms, from, to]);
 
+  useEffect(() => {
+    const ctrl = new AbortController();
+    setTimelineLoading(true);
+    fetchTimeline({ from, to, kind, source_group: group }, ctrl.signal)
+      .then((r) => setTimeline(r.days))
+      .catch(() => setTimeline([]))
+      .finally(() => setTimelineLoading(false));
+    return () => ctrl.abort();
+  }, [from, to, kind, group]);
+
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const maxAnalytics = Math.max(...analytics.map((a) => a.count), 1);
+  const maxTimeline = Math.max(...timeline.map((d) => d.total), 1);
 
   return (
     <div className="page-fade">
@@ -96,6 +170,13 @@ export function PageArchive(): JSX.Element {
           </div>
         </div>
         <div style={{ display: "flex", gap: 10 }}>
+          <button
+            type="button"
+            className="btn ghost"
+            onClick={saveCurrentSearch}
+          >
+            <Icon name="flag" size={13} /> Save search
+          </button>
           <button
             type="button"
             className="btn"
@@ -115,7 +196,7 @@ export function PageArchive(): JSX.Element {
           <h3 className="panel-title">Filters</h3>
           <span className="panel-kicker">{total.toLocaleString()} items match</span>
         </div>
-        <div className="panel-body" style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10 }}>
+        <div className="panel-body" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 10 }}>
           <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11.5, color: "var(--ink-3)" }}>
             From
             <input
@@ -157,6 +238,16 @@ export function PageArchive(): JSX.Element {
             </select>
           </label>
           <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11.5, color: "var(--ink-3)" }}>
+            Attention
+            <select
+              value={attention}
+              onChange={(e) => { setAttention(e.target.value); setPage(0); }}
+              style={{ padding: 7, background: "var(--panel-2)", color: "var(--ink)", border: "1px solid var(--line-2)", borderRadius: 6 }}
+            >
+              {ATTENTIONS.map((a) => <option key={a || "all-att"} value={a}>{a || "All levels"}</option>)}
+            </select>
+          </label>
+          <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11.5, color: "var(--ink-3)" }}>
             Search title
             <input
               type="text"
@@ -167,6 +258,96 @@ export function PageArchive(): JSX.Element {
               style={{ padding: 7 }}
             />
           </label>
+        </div>
+      </div>
+
+      {savedSearches.length > 0 && (
+        <div className="panel" style={{ marginBottom: 16 }}>
+          <div className="panel-head">
+            <h3 className="panel-title">Saved searches</h3>
+            <span className="panel-kicker">{savedSearches.length} saved</span>
+          </div>
+          <div className="panel-body" style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {savedSearches.map((ss) => (
+              <div
+                key={ss.id}
+                style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  background: "var(--panel-2)", border: "1px solid var(--line-2)",
+                  borderRadius: 6, padding: "4px 10px",
+                }}
+              >
+                <button
+                  type="button"
+                  style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink)", fontSize: 12.5, fontWeight: 500, padding: 0 }}
+                  onClick={() => applySearch(ss)}
+                  title={`${ss.from} → ${ss.to}${ss.attention ? ` · ${ss.attention}` : ""}${ss.q ? ` · "${ss.q}"` : ""}`}
+                >
+                  {ss.name}
+                </button>
+                <button
+                  type="button"
+                  style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-4)", padding: "0 0 0 2px", lineHeight: 1 }}
+                  onClick={() => void deleteSearch(ss)}
+                  title="Delete saved search"
+                  aria-label={`Delete saved search ${ss.name}`}
+                >
+                  <Icon name="close" size={10} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="panel" style={{ marginBottom: 16 }}>
+        <div className="panel-head">
+          <h3 className="panel-title">Volume timeline</h3>
+          <span className="panel-kicker">
+            {timelineLoading ? "Computing…" : `${timeline.length} days · by attention level`}
+          </span>
+        </div>
+        <div className="panel-body">
+          {timeline.length === 0 && !timelineLoading ? (
+            <div className="empty">
+              <strong>Timeline unavailable.</strong>
+              <span>Once the D1 archive Worker is deployed and items are indexed, daily volume appears here.</span>
+            </div>
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <div
+                style={{
+                  display: "flex", alignItems: "flex-end", gap: 3,
+                  height: 80, minWidth: Math.max(timeline.length * 14, 200),
+                }}
+                role="img"
+                aria-label={`Signal volume timeline: ${timeline.length} days`}
+              >
+                {timeline.map((d) => {
+                  const totalH = (d.total / maxTimeline) * 80;
+                  const highH  = (d.high  / maxTimeline) * 80;
+                  const medH   = (d.med   / maxTimeline) * 80;
+                  const lowH   = totalH - highH - medH;
+                  return (
+                    <div
+                      key={d.day}
+                      title={`${d.day}: ${d.total} total (${d.high} high, ${d.med} med, ${d.low} low)`}
+                      style={{ display: "flex", flexDirection: "column-reverse", width: 10, flex: "0 0 10px", cursor: "default" }}
+                    >
+                      <div style={{ height: lowH, background: "var(--line-2)", borderRadius: "2px 2px 0 0" }} />
+                      <div style={{ height: medH, background: "var(--caution)", opacity: 0.7 }} />
+                      <div style={{ height: highH, background: "var(--escalate)", opacity: 0.85, borderRadius: "2px 2px 0 0" }} />
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{ display: "flex", gap: 12, marginTop: 8, fontSize: 11, color: "var(--ink-3)" }}>
+                <span><span style={{ display: "inline-block", width: 8, height: 8, background: "var(--escalate)", borderRadius: 2, marginRight: 4 }} />High</span>
+                <span><span style={{ display: "inline-block", width: 8, height: 8, background: "var(--caution)", borderRadius: 2, marginRight: 4 }} />Med</span>
+                <span><span style={{ display: "inline-block", width: 8, height: 8, background: "var(--line-2)", borderRadius: 2, marginRight: 4 }} />Low</span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -221,18 +402,34 @@ export function PageArchive(): JSX.Element {
                 <tr>
                   <th style={{ width: 110 }}>Date</th>
                   <th>Title</th>
-                  <th style={{ width: 130 }}>Source</th>
+                  <th style={{ width: 80 }}>Attention</th>
+                  <th style={{ width: 110 }}>Source</th>
                   <th style={{ width: 90 }}>Kind</th>
                   <th style={{ width: 60 }}></th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r) => (
-                  <tr key={r.guid}>
+                {rows.map((r) => {
+                  const att = r.attention ?? "low";
+                  const attStyle = ATT_STYLE[att] ?? ATT_STYLE.low;
+                  return (
+                  <tr key={r.guid} title={r.scoring_explanation ?? undefined}>
                     <td className="mono" style={{ fontSize: 11.5, color: "var(--ink-3)" }}>
                       {r.pub_date ? r.pub_date.slice(0, 10) : "—"}
                     </td>
                     <td>{r.title}</td>
+                    <td>
+                      <span
+                        className="mono"
+                        style={{
+                          fontSize: 9.5, letterSpacing: "0.1em",
+                          color: attStyle.color, background: attStyle.bg,
+                          padding: "1px 5px", borderRadius: 3,
+                        }}
+                      >
+                        {attStyle.label}
+                      </span>
+                    </td>
                     <td className="mono" style={{ fontSize: 11.5, color: "var(--ink-3)" }}>
                       {r.source_group}
                     </td>
@@ -251,7 +448,8 @@ export function PageArchive(): JSX.Element {
                       </a>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           )}
