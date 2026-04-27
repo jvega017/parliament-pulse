@@ -22,6 +22,7 @@ const INITIAL_STATE: PersistedState = {
   watchlistCreated: [],
   feeds: [],
   notes: {},
+  lastVisit: 0,
 };
 
 function loadState(): PersistedState {
@@ -67,6 +68,9 @@ export function StoreProvider({
   setPage,
 }: StoreProviderProps): JSX.Element {
   const [state, setState] = useState<PersistedState>(() => loadState());
+  // Capture the lastVisit from the previous session before we update it.
+  // This lets SignalCard show NEW on items published after the user's last visit.
+  const [prevVisit] = useState<number>(() => loadState().lastVisit ?? 0);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [modal, setModal] = useState<StoreValue["modal"]>(null);
   // Deep-link: ?signal=<id> opens the drawer on load, ?brief=<id> opens the brief overlay.
@@ -115,6 +119,11 @@ export function StoreProvider({
   useEffect(() => {
     persistState(state);
   }, [state]);
+
+  // Update lastVisit on session start so next visit compares against now.
+  useEffect(() => {
+    setState((s) => ({ ...s, lastVisit: Date.now() }));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -340,6 +349,7 @@ export function StoreProvider({
       deleteWatchlist,
       density,
       setDensity,
+      lastSessionTime: prevVisit,
       confirmRequest,
       confirm: confirmFn,
       resolveConfirm,
@@ -370,6 +380,7 @@ export function StoreProvider({
       shortcutsOpen,
       density,
       confirmRequest,
+      prevVisit,
       confirmFn,
       resolveConfirm,
       toast,

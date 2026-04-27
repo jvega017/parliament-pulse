@@ -168,6 +168,43 @@ export function Drawer(): JSX.Element {
                 <p>{signal.attentionReason}</p>
               </div>
 
+              {signal.scoringExplanation && (
+                <div className="drawer-section">
+                  <h4>
+                    Scoring basis
+                    <span
+                      style={{ marginLeft: 8, fontWeight: 400, fontSize: 11, color: "var(--teal)", fontFamily: "var(--mono)", letterSpacing: "0.06em" }}
+                    >
+                      [deterministic · no AI]
+                    </span>
+                  </h4>
+                  <div className="callout callout-info" style={{ fontSize: 12.5 }}>
+                    {signal.scoringExplanation}
+                  </div>
+                </div>
+              )}
+
+              {(signal.entities?.length ?? 0) > 0 && (
+                <div className="drawer-section">
+                  <h4>Extracted entities</h4>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {signal.entities!.map((e, i) => (
+                      <span
+                        key={i}
+                        className={`badge ${e.kind === "bill" ? "badge-teal" : "badge-warn"}`}
+                        title={e.text}
+                        style={{ maxWidth: 320, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                      >
+                        {e.kind === "bill" ? "Bill" : "$"} {e.text.length > 50 ? `${e.text.slice(0, 50)}…` : e.text}
+                      </span>
+                    ))}
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 6 }}>
+                    Extracted by regex from RSS title and description — verify against primary source.
+                  </div>
+                </div>
+              )}
+
               <div className="drawer-section">
                 <h4>Recommended action</h4>
                 <div

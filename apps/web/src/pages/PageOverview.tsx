@@ -48,6 +48,7 @@ export function PageOverview(): JSX.Element {
     liveFeedResult,
     openBrief,
     openSignal,
+    lastSessionTime,
   } = useStore();
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
@@ -78,6 +79,9 @@ export function PageOverview(): JSX.Element {
   const filteredMed = visibleSignals.filter((s) => s.attention === "med");
   const filteredLow = visibleSignals.filter((s) => s.attention === "low");
   const totalLive = liveSignals.length;
+  const newCount = lastSessionTime > 0
+    ? liveSignals.filter((s) => s.pubMs && s.pubMs > lastSessionTime).length
+    : 0;
   // Source health from the real poll, not the fixture row count.
   const healthyFeeds = liveFeedResult
     ? Object.values(liveFeedResult.feedStatus).filter((s) => s.ok).length
@@ -102,6 +106,11 @@ export function PageOverview(): JSX.Element {
           <div className="page-sub">
             {totalLive} live signals scored from official APH RSS.{" "}
             {liveHigh.length} high, {liveMed.length} medium, {liveLow.length} low.
+            {newCount > 0 && (
+              <span style={{ color: "var(--ok)", marginLeft: 6 }}>
+                {newCount} new since last session.
+              </span>
+            )}
             {liveLoading && " Polling..."}
           </div>
         </div>

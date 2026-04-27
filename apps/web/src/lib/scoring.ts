@@ -15,6 +15,7 @@ import type {
   Watchlist,
 } from "../types";
 import type { FeedItem } from "./aphFeed";
+import { extractEntities } from "./entityExtract";
 
 export interface ScoringResult {
   score: ScoreDimensions;
@@ -281,6 +282,36 @@ function tagsFor(result: ScoringResult, kind: FeedItem["kind"]): Tag[] {
   return tags;
 }
 
+function buildScoringExplanation(
+  result: ScoringResult,
+  item: FeedItem,
+  hours: number,
+  overallPct: number,
+): string {
+  const attWord = result.attention === "high" ? "High" : result.attention === "med" ? "Medium" : "Low";
+  const parts: string[] = [`${attWord} attention (${overallPct}/100).`];
+
+  if (result.matchedWatchlists.length > 0) {
+    const list = result.matchedWatchlists.slice(0, 2).join(", ");
+    const extra = result.matchedWatchlists.length > 2 ? ` +${result.matchedWatchlists.length - 2} more` : "";
+    parts.push(`Watchlist match: ${list}${extra}.`);
+  } else {
+    parts.push("No watchlist match — elevated by authority and recency.");
+  }
+
+  const auth = Math.round(result.score.authority * 100);
+  parts.push(`Source type: ${item.kind} (authority ${auth}/100).`);
+
+  if (hours < 1) parts.push("Breaking: published within 1h.");
+  else if (hours < 4) parts.push("Published within 4h.");
+  else if (hours < 24) parts.push("Published today.");
+  else if (hours < 48) parts.push("Published yesterday.");
+  else parts.push(`Published ${Math.round(hours / 24)}d ago.`);
+
+  parts.push("Scored deterministically — no AI involved in this output.");
+  return parts.join(" ");
+}
+
 /**
  * Transform a live RSS FeedItem into the Signal shape the UI renders.
  * Every field except `id` is derived from the item or the scoring result.
@@ -294,6 +325,8 @@ export function signalFromFeedItem(
   const result = scoreFeedItem(item, watchlists, now);
   const { action, reason } = actionFor(result.attention, item.kind, result.matchedWatchlists);
   const id = shortId(item.link, idx);
+  const hours = ageHours(item.pubDate, now);
+  const overallPct = Math.round(result.overall * 100);
 
   return {
     id,
@@ -328,10 +361,12 @@ export function signalFromFeedItem(
     provenance: [
       { ts: `${fmtDate(now)} ${fmtTime(now)}`, by: "parser", event: `Fetched via aph-proxy Worker from ${item.sourceLabel}` },
       { ts: `${fmtDate(now)} ${fmtTime(now)}`, by: "enrichment", event: `Keyword scan -> ${result.matchedWatchlists.length} watchlist match(es)` },
-      { ts: `${fmtDate(now)} ${fmtTime(now)}`, by: "scoring", event: `Attention score ${result.overall.toFixed(2)} -> ${result.attention.toUpperCase()}` },
+      { ts: `${fmtDate(now)} ${fmtTime(now)}`, by: "scoring", event: `Attention score ${result.overall.toFixed(2)} -> ${result.attention.toUpperCase()} (deterministic, engine v1.1)` },
       { ts: `${fmtDate(now)} ${fmtTime(now)}`, by: "publish", event: `Published as ${id}` },
     ],
     updates: [],
     members: [],
+    entities: extractEntities(item.title, item.description),
+    scoringExplanation: buildScoringExplanation(result, item, hours, overallPct),
   };
 }

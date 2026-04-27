@@ -14,13 +14,14 @@ export function PageBriefings(): JSX.Element {
   const [sel, setSel] = useState(0);
   const { openBrief, briefStatus, setBriefStatus, liveSignals } = useStore();
 
-  // Queue is built directly from the live signal stream, ranked by attention.
-  // No fake briefs; if there are no live signals, the page shows an empty
-  // state pointing at APH.
-  const ranked = [...liveSignals].sort((a, b) => {
-    const rank = { high: 0, med: 1, low: 2 } as const;
-    return rank[a.attention] - rank[b.attention];
-  });
+  // Briefability score: attention weight × confidence × recency.
+  // High-attention, high-confidence, recent signals surface first.
+  function briefabilityScore(s: Signal): number {
+    const attW = s.attention === "high" ? 3 : s.attention === "med" ? 1.5 : 0.5;
+    const recency = s.pubMs ? Math.max(0, 1 - (Date.now() - s.pubMs) / (7 * 24 * 3_600_000)) : 0.3;
+    return attW * (s.confidence / 5) * (0.5 + 0.5 * recency);
+  }
+  const ranked = [...liveSignals].sort((a, b) => briefabilityScore(b) - briefabilityScore(a));
   const queue = ranked.slice(0, 8);
   const current: Signal | undefined = queue[Math.min(sel, queue.length - 1)];
   const meta = current ? QUEUE_TYPES[current.attention] : null;

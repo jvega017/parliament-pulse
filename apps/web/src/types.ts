@@ -17,6 +17,11 @@ export interface Tag {
   c?: TagColour;
 }
 
+export interface ExtractedEntity {
+  kind: "bill" | "dollar";
+  text: string;
+}
+
 export interface EvidenceLink {
   label: string;
   url: string;
@@ -66,6 +71,8 @@ export interface Signal {
   provenance: ProvenanceEntry[];
   updates: UpdateEntry[];
   members: string[];
+  entities?: ExtractedEntity[];       // regex-extracted bill refs and dollar amounts
+  scoringExplanation?: string;         // plain-English explanation of why this score
 }
 
 export interface Feed {
@@ -247,4 +254,5 @@ export interface PersistedState {
   watchlistCreated: Watchlist[];
   feeds: Feed[];
   notes: Record<string, string>;
+  lastVisit: number; // epoch ms — for "new since last session" tracking
 }

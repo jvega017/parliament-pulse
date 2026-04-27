@@ -56,6 +56,7 @@ export interface StoreValue {
   density: "comfortable" | "compact";
   setDensity: (d: "comfortable" | "compact") => void;
 
+  lastSessionTime: number; // epoch ms of previous session — signals newer than this are "new"
   confirmRequest: ConfirmRequest | null;
   confirm: (msg: string, options?: ConfirmOptions) => Promise<boolean>;
   resolveConfirm: (ok: boolean) => void;

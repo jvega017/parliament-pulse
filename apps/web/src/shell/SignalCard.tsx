@@ -16,11 +16,12 @@ const SG_CLASS: Record<string, string> = {
 };
 
 export function SignalCard({ s }: SignalCardProps): JSX.Element | null {
-  const { openSignal, state } = useStore();
+  const { openSignal, state, lastSessionTime } = useStore();
   if (state.archived[s.id]) return null;
   const feedback = state.feedback[s.id];
   const hasNote = !!state.notes?.[s.id];
   const hasBrief = !!state.briefsGenerated?.[s.id];
+  const isNew = lastSessionTime > 0 && !!s.pubMs && s.pubMs > lastSessionTime;
 
   const dateStamp = s.date !== "—" ? `${s.date} · ` : "";
   const age = s.pubMs ? formatRelative(new Date(s.pubMs)) : null;
@@ -38,6 +39,24 @@ export function SignalCard({ s }: SignalCardProps): JSX.Element | null {
         <span className={`badge ${sgClass}`} style={{ fontSize: 9.5, padding: "1px 5px" }}>
           {s.sourceGroup}
         </span>
+        {isNew && (
+          <span
+            style={{
+              fontSize: 9,
+              fontFamily: "var(--mono)",
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
+              color: "var(--ok)",
+              background: "#84c79c18",
+              border: "1px solid #84c79c50",
+              borderRadius: 4,
+              padding: "1px 5px",
+            }}
+            title="Published after your last session"
+          >
+            new
+          </span>
+        )}
         <Att level={s.attention} />
         <span className="sig-time mono">{dateStamp}{s.time}</span>
         {age && (
