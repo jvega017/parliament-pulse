@@ -123,7 +123,7 @@ export function StoreProvider({
   // Update lastVisit on session start so next visit compares against now.
   useEffect(() => {
     setState((s) => ({ ...s, lastVisit: Date.now() }));
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
