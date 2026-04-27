@@ -116,6 +116,33 @@ export async function pollAndArchive(env: Env): Promise<{
     }),
   );
 
+  // Compute kind-level momentum from D1 history before scoring.
+  // One query: count each kind in the recent 7 days vs the prior 7 days.
+  // Momentum = recent / prior (clamped 0-1); neutral (0.5) when no history.
+  const momentumMap = new Map<string, number>();
+  try {
+    const sevenAgo = new Date(new Date(now).getTime() - 7 * 24 * 3600 * 1000).toISOString();
+    const fourteenAgo = new Date(new Date(now).getTime() - 14 * 24 * 3600 * 1000).toISOString();
+    const momRes = await env.ARCHIVE.prepare(
+      `SELECT kind,
+              SUM(CASE WHEN pub_date >= ? THEN 1 ELSE 0 END)             AS recent,
+              SUM(CASE WHEN pub_date >= ? AND pub_date < ? THEN 1 ELSE 0 END) AS prior
+         FROM signals
+         WHERE pub_date >= ?
+         GROUP BY kind`,
+    ).bind(sevenAgo, fourteenAgo, sevenAgo, fourteenAgo)
+     .all<{ kind: string; recent: number; prior: number }>();
+    for (const row of momRes.results ?? []) {
+      const r = row.recent ?? 0;
+      const p = row.prior ?? 0;
+      if (p === 0 && r === 0) { momentumMap.set(row.kind, 0.5); continue; }
+      if (p === 0) { momentumMap.set(row.kind, 0.9); continue; }
+      momentumMap.set(row.kind, Math.min(1, r / p));
+    }
+  } catch (momErr) {
+    console.warn("momentum query failed", momErr instanceof Error ? momErr.message : momErr);
+  }
+
   // In-poll title deduplication: tracks normalised title hashes across all feeds
   // in this cron run to prevent inserting different-GUID items with identical titles.
   const seenTitleHashes = new Set<string>();
@@ -141,7 +168,8 @@ export async function pollAndArchive(env: Env): Promise<{
         const titleHash = normTitle(item.title);
         if (seenTitleHashes.has(titleHash)) { dedupSkipped += 1; continue; }
         seenTitleHashes.add(titleHash);
-        const scored = scoreForArchive(item.title, feed.kind, item.pubDate, nowDate);
+        const momentumHint = momentumMap.get(feed.kind) ?? 0.5;
+        const scored = scoreForArchive(item.title, feed.kind, item.pubDate, nowDate, momentumHint);
         const r = await env.ARCHIVE.prepare(
           `INSERT INTO signals
              (guid, title, link, pub_date, feed_url, feed_label, source_group, kind,

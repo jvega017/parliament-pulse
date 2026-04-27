@@ -86,19 +86,29 @@ function extractEntities(title: string): Array<{ kind: string; text: string }> {
   return out.slice(0, 5);
 }
 
+// Momentum: 0-1 frequency trend. Computed server-side from D1 history by
+// pollAndArchive and passed in. Weight is 0 so it does not move attention
+// levels — it populates the score breakdown display only.
+// Enable the weight by setting W_MOM > 0 and reducing other weights by the
+// same amount once 14+ days of D1 history have accumulated (target: early May 2026).
+const W_MOM = 0; // weight zero — display only
+const W_AUTH_ADJ = W_AUTH; // unchanged until W_MOM is enabled
+
 export function scoreForArchive(
   title: string,
   kind: string,
   pubDate: string | null,
   now: Date = new Date(),
+  momentumHint = 0,
 ): WorkerScoreResult {
   const h = ageHours(pubDate, now);
   const auth = authorityFromKind(kind);
   const time = scoreTime(h);
   const nov  = scoreNovelty(h);
   const scr  = scoreScrutiny(title, kind);
+  const mom  = Math.max(0, Math.min(1, momentumHint));
 
-  const overall = auth * W_AUTH + time * W_TIME + nov * W_NOV + scr * W_SCR;
+  const overall = auth * W_AUTH_ADJ + time * W_TIME + nov * W_NOV + scr * W_SCR + mom * W_MOM;
   const overallPct = Math.round(overall * 100);
   const attention: AttentionLevel = overall >= 0.65 ? "high" : overall >= 0.40 ? "med" : "low";
   const confidence = confidenceFromKind(kind);
@@ -107,7 +117,7 @@ export function scoreForArchive(
     authority: Math.round(auth * 100) / 100,
     portfolio: 0,
     novelty:   Math.round(nov  * 100) / 100,
-    momentum:  0,
+    momentum:  Math.round(mom  * 100) / 100,
     time:      Math.round(time * 100) / 100,
     scrutiny:  Math.round(scr  * 100) / 100,
     ops:       0,
@@ -117,9 +127,10 @@ export function scoreForArchive(
   const attWord = attention === "high" ? "High" : attention === "med" ? "Medium" : "Low";
   const ageStr  = h < 1 ? "within 1h" : h < 4 ? "within 4h" : h < 24 ? "today"
     : h < 48 ? "yesterday" : `${Math.round(h / 24)}d ago`;
+  const momStr  = mom > 0 ? ` Momentum ${Math.round(mom * 100)}/100 (kind frequency trend).` : "";
   const explanation =
     `${attWord} attention (${overallPct}/100). Source: ${kind} (authority ${Math.round(auth * 100)}/100). ` +
-    `Published ${ageStr}. Portfolio scored client-side from watchlists.`;
+    `Published ${ageStr}.${momStr} Portfolio scored client-side from watchlists.`;
 
   return {
     attention, confidence, overallPct,

@@ -65,6 +65,27 @@ function jsonResponse(body: unknown, status: number, extra: HeadersInit): Respon
   });
 }
 
+// KV-backed fixed-window rate limiter. Returns true when the request is
+// allowed; false when the per-IP window budget has been exhausted.
+// Key format: rl:{endpoint}:{ip}:{window_bucket}
+// Race condition (GET then PUT) is intentional — over-counting is harmless
+// and under-counting would be worse for a policy audience.
+async function checkRateLimit(
+  kv: KVNamespace,
+  ip: string,
+  endpoint: string,
+  maxPerWindow: number,
+  windowSec: number,
+): Promise<boolean> {
+  const bucket = Math.floor(Date.now() / 1000 / windowSec);
+  const key = `rl:${endpoint}:${ip}:${bucket}`;
+  const raw = await kv.get(key);
+  const count = raw ? parseInt(raw, 10) : 0;
+  if (count >= maxPerWindow) return false;
+  await kv.put(key, String(count + 1), { expirationTtl: windowSec * 2 });
+  return true;
+}
+
 export default {
   async fetch(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(req.url);
@@ -96,11 +117,13 @@ export default {
     }
 
     if (url.pathname === "/archive") {
-      // If the env has REQUIRE_ACCESS=true, demand a Cloudflare Access JWT
-      // header. Cloudflare Access injects this when a Zero Trust application
-      // protects this Worker route. We do NOT verify the JWT signature here
-      // (Access is validating at the edge); we only require the header so
-      // direct curl access without Access still bounces.
+      // Rate limit: 120 requests per minute per IP.
+      const ip = req.headers.get("cf-connecting-ip") ?? "unknown";
+      if (!(await checkRateLimit(env.CACHE, ip, "archive", 120, 60))) {
+        return jsonResponse({ error: "rate limit exceeded — max 120/min" }, 429, cors);
+      }
+      // Optional Cloudflare Access gate. Enable by setting REQUIRE_ACCESS = "true"
+      // in wrangler.toml [vars] and creating a Cloudflare Zero Trust policy.
       const requireAccess = env.REQUIRE_ACCESS === "true";
       if (requireAccess && !req.headers.get("cf-access-jwt-assertion")) {
         return jsonResponse({ error: "access required" }, 401, cors);
@@ -212,6 +235,10 @@ export default {
 
     // Bills (archive view — kind=digest) ----------------------------------------
     if (url.pathname === "/bills") {
+      const ip = req.headers.get("cf-connecting-ip") ?? "unknown";
+      if (!(await checkRateLimit(env.CACHE, ip, "bills", 60, 60))) {
+        return jsonResponse({ error: "rate limit exceeded — max 60/min" }, 429, cors);
+      }
       try {
         const result = await queryBills(env, url.searchParams);
         return jsonResponse(result, 200, cors);
@@ -223,6 +250,10 @@ export default {
 
     // QONs -----------------------------------------------------------------------
     if (url.pathname === "/qons") {
+      const ip = req.headers.get("cf-connecting-ip") ?? "unknown";
+      if (!(await checkRateLimit(env.CACHE, ip, "qons", 30, 60))) {
+        return jsonResponse({ error: "rate limit exceeded — max 30/min" }, 429, cors);
+      }
       try {
         const result = await queryQons(env, url.searchParams);
         return jsonResponse(result, 200, cors);
@@ -234,6 +265,10 @@ export default {
 
     // Members --------------------------------------------------------------------
     if (url.pathname === "/members") {
+      const ip = req.headers.get("cf-connecting-ip") ?? "unknown";
+      if (!(await checkRateLimit(env.CACHE, ip, "members", 30, 60))) {
+        return jsonResponse({ error: "rate limit exceeded — max 30/min" }, 429, cors);
+      }
       try {
         const result = await queryMembers(env, url.searchParams);
         return jsonResponse(result, 200, cors);

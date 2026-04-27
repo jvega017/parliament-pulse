@@ -21,19 +21,39 @@ database_id = "2147ccbf-c032-4513-8e5b-6cd131fb6f10"
 migrations_dir = "migrations"
 
 [vars]
-# Comma-separated list of origins allowed to call this Worker.
+# Comma-separated list of origins allowed to call this Worker (CORS).
+# Add your custom domain here if you add one, e.g.:
+#   "http://127.0.0.1:5173,http://localhost:5173,https://parliament-pulse.pages.dev,https://pulse.prometheuspolicylab.com"
 ALLOWED_ORIGINS = "http://127.0.0.1:5173,http://localhost:5173,https://parliament-pulse.pages.dev"
+
+# Access gate for /archive endpoint.
+# Set to "true" to require a Cloudflare Access JWT header.
+# Activate via: Cloudflare dashboard → Zero Trust → Access → Applications → add this Worker.
+# Leave "false" for a public-access policy intelligence tool.
+REQUIRE_ACCESS = "false"
 
 [observability]
 enabled = true
 
 # Cron triggers.
-#   */30 * * * *   poll APH RSS every 30 minutes and upsert into D1
+#   */30 * * * *   poll APH RSS every 30 minutes and upsert into D1; re-derive member roster
 #   0 0 */14 * *   re-verify the 12 APH connector URLs every 14 days
 #   0 19 * * *     daily 05:00 AEST: Hansard QON ingest + digest delivery
 [triggers]
 crons = ["*/30 * * * *", "0 0 */14 * *", "0 19 * * *"]
 
-# Optional secret for digest delivery via SendGrid. Set with:
-#   wrangler secret put SENDGRID_API_KEY
-# When unset, sendDailyDigest is a no-op (subscribers still recorded in D1).
+# ---- Secrets (set with `wrangler secret put <NAME>`) -----------------------
+#
+# SENDGRID_API_KEY   — activates email digest delivery (optional)
+#                      wrangler secret put SENDGRID_API_KEY
+#
+# DIGEST_FROM_EMAIL  — sender address for digest emails
+#                      defaults to "alerts@parliament-pulse.local" if unset
+#                      must be a verified SendGrid sender domain
+#                      wrangler secret put DIGEST_FROM_EMAIL
+#
+# Rate limits (no secret needed — built into Worker code):
+#   /archive  120 req/min per IP
+#   /bills     60 req/min per IP
+#   /qons      30 req/min per IP
+#   /members   30 req/min per IP
