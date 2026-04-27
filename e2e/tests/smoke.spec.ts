@@ -6,12 +6,12 @@ test.describe("Parliament Pulse smoke", () => {
     await expect(page).toHaveTitle(/Parliament Pulse/);
     await expect(page.getByText("Parliament Pulse").first()).toBeVisible();
     // Version chip is rendered by DemoBanner (vX.Y.Z · sha)
-    await expect(page.locator('a[title*="Deployed build"]')).toBeVisible();
+    await expect(page.locator('[title*="Deployed build"]')).toBeVisible();
   });
 
   test("primary nav surfaces are reachable", async ({ page }) => {
     await page.goto("/");
-    for (const label of ["Overview", "Live parliament", "Attention radar", "Briefings", "Bills intelligence", "Watchlists", "Sources", "Status", "Archive"]) {
+    for (const label of ["Overview", "Live parliament", "Attention radar", "Briefings", "Bills Digests", "Watchlists", "Sources", "Status", "Archive"]) {
       await expect(page.getByRole("button", { name: label, exact: false }).first()).toBeVisible();
     }
   });
