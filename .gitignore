@@ -1,0 +1,24 @@
+# Generated single-file bundles
+parliament-pulse.html
+parliament-pulse-updated.html
+parliament-pulse-beta.html
+
+# Temp/utility scripts
+cf-list.ps1
+cf-worker-url.ps1
+verify.ps1
+check2.ps1
+check3.ps1
+
+# Build artefacts
+*.pyc
+__pycache__/
+
+# Node
+node_modules/
+
+# Shell/session artefacts
+*.feedIdx
+x.id
+"!state*"
+.wrangler/

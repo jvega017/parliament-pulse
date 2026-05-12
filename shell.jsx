@@ -1,0 +1,642 @@
+// Shell: Sidebar, Topbar (with working global search), SignalCard, Drawer
+
+const IS_MAC = /Mac|iPad/i.test(navigator.platform);
+
+function DesignStateBanner() {
+  const key = "pp-design-banner-dismissed";
+  const [visible, setVisible] = React.useState(() => !sessionStorage.getItem(key));
+  if (!visible) return null;
+  return (
+    <div className="design-banner" role="status">
+      <Icon name="signal" size={14} stroke="var(--brass)" />
+      <span><strong>Design state.</strong> All signals and intelligence outputs are fixture data included for demonstration. No live analysis has occurred. </span>
+      <button aria-label="Dismiss notice" onClick={() => { sessionStorage.setItem(key, "1"); setVisible(false); }}>×</button>
+    </div>
+  );
+}
+
+const NAV = [
+  { id: "overview", label: "Overview", group: "Today", count: 12 },
+  { id: "live", label: "Live parliament", group: "Today", count: null, live: true },
+  { id: "signals", label: "All signals", group: "Today", count: 6 },
+  { id: "radar", label: "Attention radar", group: "Today", count: 6 },
+  { id: "committees", label: "Committees", group: "Parliament", count: 7 },
+  { id: "bills", label: "Bills intelligence", group: "Parliament", count: 5 },
+  { id: "parliament", label: "Daily program", group: "Parliament", count: 3 },
+  { id: "patterns", label: "QON patterns", group: "Parliament", count: 1 },
+  { id: "briefings", label: "Briefings", group: "Workflow", count: 4 },
+  { id: "watchlists", label: "Watchlists", group: "Workflow", count: 12 },
+  { id: "sources", label: "Sources", group: "Admin", count: 15 },
+];
+
+const ICONS = {
+  overview: "overview", radar: "radar", committees: "committee", bills: "bill",
+  parliament: "parliament", patterns: "pattern", briefings: "brief",
+  watchlists: "watch", sources: "sources", live: "signal", signals: "signal",
+};
+
+function Sidebar({ page, setPage }) {
+  const { state } = useStore();
+  const liveCount = React.useMemo(() => {
+    const active = SIGNALS.filter(s => !state.archived[s.id]);
+    return {
+      overview: active.length,
+      radar:    active.filter(s => s.attention !== "low").length,
+      signals:  active.length,
+    };
+  }, [state.archived]);
+  const groups = [...new Set(NAV.map(n => n.group))];
+  return (
+    <aside className="side">
+      <div className="brand">
+        <div className="brand-mark">
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+            {/* Prometheus flame — stylised, institutional */}
+            <path d="M11 2 C 7 5, 6 9, 8 12 C 5 11, 4 13, 5 15 C 6 17, 9 18, 11 18 C 13 18, 16 17, 17 15 C 18 13, 17 11, 14 12 C 16 9, 15 5, 11 2 Z" fill="url(#flame)" opacity="0.92"/>
+            <path d="M11 6 C 9 8, 9 11, 11 13 C 13 11, 13 8, 11 6 Z" fill="#fff5e8" opacity="0.9"/>
+            <defs>
+              <linearGradient id="flame" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#f5b36a"/>
+                <stop offset="100%" stopColor="#d4894a"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <div>
+          <div style={{display:"flex", alignItems:"center", gap:7}}>
+            <div className="brand-name">Parliament Pulse</div>
+            <span style={{fontFamily:"var(--mono)", fontSize:9, color:"var(--brass)", background:"#c9a36a16", border:"1px solid #c9a36a44", padding:"1px 5px", borderRadius:3, letterSpacing:".14em", textTransform:"uppercase", verticalAlign:"middle"}}>Beta</span>
+          </div>
+          <div className="brand-sub">Prometheus Policy Lab</div>
+        </div>
+      </div>
+      <nav className="nav" aria-label="Main navigation">
+        {groups.map(g => (
+          <div key={g}>
+            <div className="nav-group">{g}</div>
+            {NAV.filter(n => n.group === g).map(n => (
+              <div
+                key={n.id}
+                className={"nav-item" + (page === n.id ? " active" : "")}
+                onClick={() => setPage(n.id)}
+                role="button" tabIndex={0}
+                aria-current={page === n.id ? "page" : undefined}
+                onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setPage(n.id); } }}
+              >
+                <Icon name={ICONS[n.id]} size={15} className="ico" />
+                <span>{n.label}</span>
+                {n.live && <span className="count" style={{color:"#fff", background:"#c26865", animation:"pulse 1.8s infinite"}}>LIVE</span>}
+                {!n.live && n.count !== null && <span className="count">{liveCount[n.id] ?? n.count}</span>}
+              </div>
+            ))}
+          </div>
+        ))}
+      </nav>
+      <div className="side-foot">
+        <div className="avatar">JV</div>
+        <div style={{lineHeight:1.2}}>
+          <div style={{fontSize:12.5, fontWeight:500}}>Juan Vega</div>
+          <div style={{fontFamily:"var(--mono)", fontSize:10, color:"var(--ink-4)"}}>Principal Policy Officer · Futures & Foresight</div>
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+function ShortcutHelp() {
+  const [open, setOpen] = React.useState(false);
+  const shortcuts = [
+    ["j / k", "Navigate to next / previous signal"],
+    ["Enter / Space", "Open focused signal or nav item"],
+    ["Esc", "Close drawer or modal"],
+    ["b", "Copy brief to clipboard (while signal open)"],
+    ["w", "Add signal to watchlist (while signal open)"],
+    ["a", "Archive signal and advance (while signal open)"],
+    [IS_MAC ? "⌘K" : "Ctrl+K", "Focus global search"],
+  ];
+  return (
+    <div style={{position:"relative"}}>
+      <button className="btn ghost sm" title="Keyboard shortcuts" onClick={() => setOpen(o => !o)} aria-label="View keyboard shortcuts" aria-expanded={open}>
+        <Icon name="pattern" size={13} />
+      </button>
+      {open && (
+        <div style={{position:"absolute", top:"calc(100% + 8px)", right:0, background:"#131c28", border:"1px solid var(--line-2)", borderRadius:10, boxShadow:"0 20px 50px #00000080", zIndex:40, width:320, padding:"12px 14px"}} role="dialog" aria-label="Keyboard shortcuts">
+          <div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginBottom:10}}>Keyboard shortcuts</div>
+          {shortcuts.map(([k, d]) => (
+            <div key={k} style={{display:"flex", justifyContent:"space-between", alignItems:"center", padding:"5px 0", borderBottom:"1px solid var(--line)", fontSize:12.5}}>
+              <span style={{color:"var(--ink-2)"}}>{d}</span>
+              <kbd style={{fontFamily:"var(--mono)", fontSize:11, background:"#ffffff0a", border:"1px solid var(--line-2)", borderRadius:4, padding:"2px 7px", color:"var(--brass)", marginLeft:10, whiteSpace:"nowrap"}}>{k}</kbd>
+            </div>
+          ))}
+          <button style={{marginTop:10, background:"none", border:"none", color:"var(--ink-4)", cursor:"pointer", fontSize:12, padding:0}} onClick={() => setOpen(false)}>Close</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Topbar({ setPage }) {
+  const { openModal, openSignal, toast } = useStore();
+  const [q, setQ] = React.useState("");
+  const [open, setOpen] = React.useState(false);
+  const [cursor, setCursor] = React.useState(-1);
+  const [isDark, setIsDark] = React.useState(() => localStorage.getItem("pp-theme") !== "light");
+  const ref = React.useRef(null);
+
+  React.useEffect(() => {
+    const h = (e) => {
+      if (e.key === "k" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); ref.current?.focus(); }
+      if (e.key === "Escape" && !open) { ref.current?.blur(); }
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [open]);
+
+  const results = React.useMemo(() => {
+    if (!q.trim()) return null;
+    const term = q.toLowerCase();
+    const sig = SIGNALS.filter(s =>
+      s.title.toLowerCase().includes(term) || s.summary.toLowerCase().includes(term) || s.id.toLowerCase().includes(term));
+    const bills = Object.values(ENTITIES.bills).filter(b => b.title.toLowerCase().includes(term) || b.ref.toLowerCase().includes(term));
+    const comm = Object.values(ENTITIES.committees).filter(c => c.name.toLowerCase().includes(term));
+    const mem = Object.values(ENTITIES.members).filter(m => m.name.toLowerCase().includes(term));
+    const feeds = APH_FEEDS.filter(f => f.name.toLowerCase().includes(term));
+    return { sig, bills, comm, mem, feeds };
+  }, [q]);
+
+  // Flat ordered list for keyboard cursor
+  const flat = React.useMemo(() => {
+    if (!results) return [];
+    return [
+      ...results.sig.slice(0,4).map(s => ({ kind:"signal", key:s.id, label:s.title, sub:s.id, act:() => { openSignal(s.id); } })),
+      ...results.bills.map(b => ({ kind:"bill", key:b.ref, label:b.title, sub:b.ref, act:() => { openModal("bill", b.ref); } })),
+      ...results.comm.map(c => ({ kind:"committee", key:c.id, label:c.name, sub:c.chamber, act:() => { openModal("committee", c.id); } })),
+      ...results.mem.map(m => ({ kind:"member", key:m.id, label:m.name, sub:m.party, act:() => { openModal("member", m.id); } })),
+      ...results.feeds.slice(0,4).map(f => ({ kind:"feed", key:f.id, label:f.name, sub:f.group, act:() => { openModal("feed", f.id); } })),
+    ];
+  }, [results]);
+
+  React.useEffect(() => setCursor(-1), [q]);
+
+  const selectItem = (item) => { item.act(); setOpen(false); setQ(""); setCursor(-1); };
+
+  const onKeyDown = (e) => {
+    if (!open || !results) return;
+    if (e.key === "ArrowDown") { e.preventDefault(); setCursor(c => Math.min(c + 1, flat.length - 1)); return; }
+    if (e.key === "ArrowUp")   { e.preventDefault(); setCursor(c => Math.max(c - 1, -1)); return; }
+    if (e.key === "Escape")    { setOpen(false); setCursor(-1); ref.current?.blur(); return; }
+    if (e.key === "Enter" && cursor >= 0 && flat[cursor]) { e.preventDefault(); selectItem(flat[cursor]); return; }
+  };
+
+  // Map flat index back to per-group index offsets for rendering
+  const sigOff  = 0;
+  const billOff = results ? results.sig.slice(0,4).length : 0;
+  const commOff = billOff + (results ? results.bills.length : 0);
+  const memOff  = commOff + (results ? results.comm.length : 0);
+  const feedOff = memOff  + (results ? results.mem.length : 0);
+
+  return (
+    <div className="topbar">
+      <div className="search" onClick={() => setOpen(true)}>
+        <Icon name="search" size={14} stroke="var(--ink-3)" />
+        <input ref={ref} value={q}
+          role="combobox"
+          onChange={e => { setQ(e.target.value); setOpen(true); }}
+          onFocus={() => setOpen(true)}
+          onBlur={() => setTimeout(() => { setOpen(false); setCursor(-1); }, 200)}
+          onKeyDown={onKeyDown}
+          aria-label="Search parliament signals, bills, committees and members"
+          aria-expanded={open && !!results}
+          aria-autocomplete="list"
+          aria-controls="search-listbox"
+          aria-activedescendant={cursor >= 0 ? `search-option-${cursor}` : undefined}
+          placeholder="Search signals, bills, committees, members, feeds…" />
+        {q ? (
+          <button onClick={() => { setQ(""); setOpen(false); setCursor(-1); ref.current?.focus(); }}
+            aria-label="Clear search" title="Clear search"
+            style={{background:"none", border:"none", cursor:"pointer", padding:"2px 4px", color:"var(--ink-3)", display:"flex", alignItems:"center", flexShrink:0}}>
+            <Icon name="close" size={12} />
+          </button>
+        ) : (
+          <span className="kbd">{IS_MAC ? "⌘K" : "Ctrl+K"}</span>
+        )}
+        {open && results && (
+          <div id="search-listbox" role="listbox" className="search-results" onMouseDown={e=>e.preventDefault()}>
+            {results.sig.length > 0 && <>
+              <div className="sr-group">Signals</div>
+              {results.sig.slice(0,4).map((s, i) => (
+                <div key={s.id} id={`search-option-${sigOff + i}`} role="option" aria-selected={cursor === sigOff + i}
+                  className={"sr-item" + (cursor === sigOff + i ? " active" : "")}
+                  onClick={() => selectItem(flat[sigOff + i])}>
+                  <span className="k">{s.id}</span><span>{s.title}</span>
+                </div>
+              ))}
+            </>}
+            {results.bills.length > 0 && <>
+              <div className="sr-group">Bills</div>
+              {results.bills.map((b, i) => (
+                <div key={b.ref} id={`search-option-${billOff + i}`} role="option" aria-selected={cursor === billOff + i}
+                  className={"sr-item" + (cursor === billOff + i ? " active" : "")}
+                  onClick={() => selectItem(flat[billOff + i])}>
+                  <span className="k">{b.ref}</span><span>{b.title}</span>
+                </div>
+              ))}
+            </>}
+            {results.comm.length > 0 && <>
+              <div className="sr-group">Committees</div>
+              {results.comm.map((c, i) => (
+                <div key={c.id} id={`search-option-${commOff + i}`} role="option" aria-selected={cursor === commOff + i}
+                  className={"sr-item" + (cursor === commOff + i ? " active" : "")}
+                  onClick={() => selectItem(flat[commOff + i])}>
+                  <span className="k">{c.chamber}</span><span>{c.name}</span>
+                </div>
+              ))}
+            </>}
+            {results.mem.length > 0 && <>
+              <div className="sr-group">Members</div>
+              {results.mem.map((m, i) => (
+                <div key={m.id} id={`search-option-${memOff + i}`} role="option" aria-selected={cursor === memOff + i}
+                  className={"sr-item" + (cursor === memOff + i ? " active" : "")}
+                  onClick={() => selectItem(flat[memOff + i])}>
+                  <span className="k">{m.party}</span><span>{m.name}</span>
+                </div>
+              ))}
+            </>}
+            {results.feeds.length > 0 && <>
+              <div className="sr-group">Sources</div>
+              {results.feeds.slice(0,4).map((f, i) => (
+                <div key={f.id} id={`search-option-${feedOff + i}`} role="option" aria-selected={cursor === feedOff + i}
+                  className={"sr-item" + (cursor === feedOff + i ? " active" : "")}
+                  onClick={() => selectItem(flat[feedOff + i])}>
+                  <span className="k">{f.group}</span><span>{f.name}</span>
+                </div>
+              ))}
+            </>}
+            {q && !results.sig.length && !results.bills.length && !results.comm.length && !results.mem.length && !results.feeds.length && (
+              <div className="sr-item" role="option" aria-selected="false" style={{color:"var(--ink-4)", cursor:"default"}}>No matches for "{q}"</div>
+            )}
+          </div>
+        )}
+      </div>
+      <div className="top-right">
+        <span className="chip clk" onClick={() => setPage("live")} style={{borderColor:"#c26865", color:"#fff", background:"#c268651a"}}>
+          <span className="dot" style={{background:"#c26865", animation:"pulse 1.4s infinite"}}/> Parliament live
+        </span>
+        <span className="chip"><span className="dot" /> 13/15 sources</span>
+        <button className="btn ghost sm" title="Refresh all feeds" onClick={() => { window.__refreshLiveFeeds?.(); toast("Feeds refreshing…"); }}><Icon name="refresh" size={13} /> Refresh</button>
+        <button className="btn sm" onClick={() => toast("3 new alerts")}><Icon name="bell" size={13} /> Alerts</button>
+        <button className="btn primary sm" onClick={() => setPage("briefings")}><Icon name="plus" size={13} /> New brief</button>
+        <ShortcutHelp />
+        <button className="btn ghost sm" title={isDark ? "Switch to light mode" : "Switch to dark mode"} onClick={() => {
+          const next = isDark ? "light" : "dark";
+          document.documentElement.dataset.theme = next;
+          localStorage.setItem("pp-theme", next);
+          setIsDark(!isDark);
+        }}><Icon name={isDark ? "sun" : "moon"} size={13} /></button>
+      </div>
+    </div>
+  );
+}
+
+function Att({ level }) {
+  const map = { high: "High", med: "Medium", low: "Low" };
+  return <span className={"att " + level}>{map[level]}</span>;
+}
+
+function Conf({ n = 3 }) {
+  return (
+    <span className="conf" title={`Confidence ${n}/5`}>
+      {[1,2,3,4,5].map(i => <span key={i} className={i<=n?"on":""} />)}
+    </span>
+  );
+}
+
+function SignalCard({ s }) {
+  const { openSignal, state } = useStore();
+  const archived = state.archived[s.id];
+  if (archived) return null;
+  return (
+    <div className="signal" data-att={s.attention} onClick={() => openSignal(s.id)} role="button" tabIndex={0} aria-label={`Signal: ${s.title}`} onKeyDown={e => (e.key === "Enter" || e.key === " ") && openSignal(s.id)}>
+      <div className="sig-head">
+        <span className="sig-id mono">{s.id}</span>
+        <span className="sig-source mono">· {s.source}</span>
+        <Att level={s.attention} />
+        <span className="chip-fixture">Fixture</span>
+        <span className="sig-time mono">{s.time}</span>
+      </div>
+      <div className="sig-title serif">{s.title}</div>
+      <div className="sig-sum">{s.summary.length > 120 ? s.summary.slice(0, 120).replace(/\s\S+$/, "") + "…" : s.summary}</div>
+      <div className="sig-tags">
+        {s.tags.map((t, i) => <span key={i} className={"tag " + (t.c || "")}>{t.l}</span>)}
+      </div>
+      <div className="sig-action">
+        <span className="sig-action-label">Recommended</span>
+        <span className="sig-action-value">{s.action}</span>
+        <Conf n={s.confidence} />
+      </div>
+      {state.feedback[s.id] && (
+        <div style={{marginTop:8, fontSize:11.5, color:"var(--brass)"}}>
+          <Icon name="check" size={12} style={{verticalAlign:"-2px", marginRight:4}}/> Feedback: {state.feedback[s.id].label}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function generateBriefMarkdown(s) {
+  const evidence = (s.evidence || []).map(e => `- [${e.label}](${e.url})`).join("\n");
+  return [
+    `# Executive Brief — ${s.title}`,
+    `Date: ${s.date} | Source: ${s.source} | Priority: ${(s.attention || "").toUpperCase()}`,
+    ``,
+    `## Summary`,
+    s.summary,
+    ``,
+    `## Why it matters`,
+    s.attentionReason,
+    ``,
+    `## Recommended action`,
+    `**${s.action}**`,
+    s.actionReason,
+    ``,
+    `## Evidence`,
+    evidence || "_No evidence links recorded._",
+    ``,
+    `## Provenance`,
+    `Signal ID: ${s.id} | Confidence: ${s.confidence}/5 | Human review: ${s.humanReview}`,
+    `Generated: ${new Date().toISOString()}`,
+  ].join("\n");
+}
+
+function Drawer() {
+  const { signalId, openSignal, closeSignal, state, modal, saveFeedback, archive, addWatchlist, saveNote, generateBrief, toast } = useStore();
+  const signal = React.useMemo(() => SIGNALS.find(s => s.id === signalId), [signalId]);
+  const [fb, setFb] = React.useState(null);
+  const [note, setNote] = React.useState("");
+  const sigIdxRef = React.useRef(0);
+  const drawerBodyRef = React.useRef(null);
+  const prevFocusRef = React.useRef(null);
+  const closeButtonRef = React.useRef(null);
+
+  // Visible signals (non-archived) — computed early so keyboard deps can reference it
+  const visibleSigs = React.useMemo(() => SIGNALS.filter(x => !state.archived[x.id]), [state.archived]);
+
+  // Sync index ref and scroll drawer to top when signal changes
+  React.useEffect(() => {
+    const idx = SIGNALS.findIndex(s => s.id === signalId);
+    if (idx !== -1) sigIdxRef.current = idx;
+    if (drawerBodyRef.current) drawerBodyRef.current.scrollTop = 0;
+  }, [signalId]);
+
+  // Focus management: save trigger element, move focus into drawer, restore on close
+  React.useEffect(() => {
+    if (signalId) {
+      prevFocusRef.current = document.activeElement;
+      requestAnimationFrame(() => closeButtonRef.current?.focus());
+    } else if (prevFocusRef.current) {
+      prevFocusRef.current.focus();
+      prevFocusRef.current = null;
+    }
+  }, [signalId]);
+
+  // Tab trap inside drawer
+  React.useEffect(() => {
+    if (!signalId) return;
+    const trap = (e) => {
+      if (e.key !== "Tab") return;
+      const drawerEl = closeButtonRef.current?.closest("aside.drawer");
+      if (!drawerEl) return;
+      const focusable = Array.from(drawerEl.querySelectorAll("button, [href], input, textarea, select, [tabindex]:not([tabindex='-1'])")).filter(el => !el.disabled);
+      if (!focusable.length) return;
+      const first = focusable[0], last = focusable[focusable.length - 1];
+      if (e.shiftKey) { if (document.activeElement === first) { e.preventDefault(); last.focus(); } }
+      else            { if (document.activeElement === last)  { e.preventDefault(); first.focus(); } }
+    };
+    document.addEventListener("keydown", trap);
+    return () => document.removeEventListener("keydown", trap);
+  }, [signalId]);
+
+  React.useEffect(() => {
+    setFb(state.feedback[signalId]?.label || null);
+  }, [signalId, state.feedback]);
+
+  // Note only resets on signal navigation — intentionally excludes state.notes so that
+  // concurrent state updates (e.g. archiving a different signal) cannot wipe in-progress typing.
+  React.useEffect(() => {
+    setNote(state.notes[signalId] || "");
+  }, [signalId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Keyboard navigation: j/k to navigate, Escape to close, b to brief, w to watchlist
+  React.useEffect(() => {
+    const handler = (e) => {
+      if (modal) return; // disable when detail modal is open
+      const tag = document.activeElement?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (e.key === "Escape" && signalId) { e.preventDefault(); closeSignal(); return; }
+      if (e.key === "j" || e.key === "k") {
+        e.preventDefault();
+        const cur = visibleSigs.findIndex(s => s.id === signalId);
+        const next = e.key === "j"
+          ? Math.min(cur + 1, visibleSigs.length - 1)
+          : Math.max(cur - 1, 0);
+        if (visibleSigs[next]) openSignal(visibleSigs[next].id);
+      }
+      if (e.key === "b" && signalId) {
+        e.preventDefault();
+        const s = SIGNALS.find(x => x.id === signalId);
+        if (s) {
+          navigator.clipboard.writeText(generateBriefMarkdown(s))
+            .then(() => { generateBrief(s.id, "Executive brief"); toast("Brief copied to clipboard", "brass", { label: "Open briefings", fn: () => window.__setPage("briefings") }); })
+            .catch(() => toast("Clipboard unavailable — brief not copied", "error"));
+        }
+      }
+      if (e.key === "w" && signalId) {
+        e.preventDefault();
+        addWatchlist(signalId);
+      }
+      if (e.key === "a" && signalId) {
+        e.preventDefault();
+        const cur = visibleSigs.findIndex(s => s.id === signalId);
+        const nextSig = visibleSigs[cur + 1] || visibleSigs[cur - 1];
+        archive(signalId);
+        if (nextSig) openSignal(nextSig.id); else closeSignal();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [signalId, modal, visibleSigs, openSignal, closeSignal, archive, addWatchlist, generateBrief, toast]);
+
+  const on = !!signal;
+  const s = signal || {};
+  const labels = ["Correct priority","Too high","Too low","Wrong topic","Wrong portfolio","Duplicate","Noise","Needs human review"];
+  const sigPos = visibleSigs.findIndex(x => x.id === signalId);
+  return (
+    <>
+      <div className={"drawer-back" + (on ? " on" : "")} onClick={closeSignal} aria-hidden="true" />
+      <aside className={"drawer" + (on ? " on" : "")} role="dialog" aria-modal="true" aria-label={on ? s.title : "Signal detail"}>
+        {on && (
+          <>
+            <div className="drawer-head">
+              <div>
+                <div className="mono" style={{fontSize:10, color:"var(--ink-4)", letterSpacing:".16em", textTransform:"uppercase"}}>
+                  {s.id} · {s.date}
+                </div>
+                <div className="serif" style={{fontSize:20, marginTop:4, maxWidth:460, lineHeight:1.25}}>{s.title}</div>
+              </div>
+              <div style={{marginLeft:"auto", display:"flex", alignItems:"center", gap:12, flexShrink:0}}>
+                {sigPos !== -1 && (
+                  <span className="mono" style={{fontSize:10.5, color:"var(--ink-4)", textAlign:"right", lineHeight:1.3}}>
+                    <span style={{display:"block"}}>{sigPos + 1} / {visibleSigs.length}</span>
+                    <span style={{fontSize:9, letterSpacing:".1em", opacity:.7}}>SIGNAL</span>
+                  </span>
+                )}
+                <button ref={closeButtonRef} className="btn ghost sm" aria-label="Close signal detail" onClick={closeSignal}><Icon name="close" size={14} /></button>
+              </div>
+            </div>
+            <div className="drawer-body" ref={drawerBodyRef}>
+              <div className="drawer-section">
+                <h4>Recommended action</h4>
+                <div style={{padding:"12px 14px", border:"1px solid #c9a36a44", borderRadius:8, background:"#c9a36a0d"}}>
+                  <div style={{fontWeight:600, color:"var(--brass)"}}>{s.action}</div>
+                  <div style={{color:"var(--ink-2)", fontSize:13, marginTop:4}}>{s.actionReason}</div>
+                </div>
+              </div>
+              <div className="drawer-section"><h4>Summary</h4><p>{s.summary}</p></div>
+              <div className="drawer-section"><h4>Why it matters</h4><p>{s.attentionReason}</p></div>
+              <div className="drawer-section">
+                <h4>Signal metadata</h4>
+                <dl className="kv">
+                  <dt>Source</dt><dd>{s.source}</dd>
+                  <dt>Source group</dt><dd>{s.sourceGroup}</dd>
+                  <dt>Authority</dt><dd>{s.sourceAuthority}</dd>
+                  <dt>Attention</dt><dd><Att level={s.attention} /></dd>
+                  <dt>Confidence</dt><dd><Conf n={s.confidence} /> <span style={{color:"var(--ink-3)", marginLeft:8, fontFamily:"var(--mono)", fontSize:11}}>{s.confidence}/5</span></dd>
+                  <dt>Human review</dt><dd>{s.humanReview}</dd>
+                </dl>
+              </div>
+              {s.score && (
+                <div className="drawer-section">
+                  <h4>Attention score breakdown</h4>
+                  {Object.entries(s.score).map(([k,v]) => {
+                    const lab = {authority:"Source authority", portfolio:"Portfolio relevance", novelty:"Novelty", momentum:"Momentum", time:"Time sensitivity", scrutiny:"Scrutiny relevance", ops:"Operational impact"};
+                    return (
+                      <div key={k} style={{display:"grid", gridTemplateColumns:"160px 1fr 40px", gap:10, alignItems:"center", padding:"4px 0"}}>
+                        <div style={{fontSize:12.5, color:"var(--ink-2)"}}>{lab[k]}</div>
+                        <div className="bar"><div className="fill" style={{width:`${v*100}%`}} /></div>
+                        <div className="mono" style={{fontSize:11, color:"var(--ink-3)", textAlign:"right"}}>{Math.round(v*100)}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              <div className="drawer-section">
+                <h4>Evidence · open the actual source</h4>
+                {s.evidence?.map((e,i) => (
+                  <a key={i} href={e.url} target="_blank" rel="noopener noreferrer" style={{
+                    display:"flex", alignItems:"center", gap:10, padding:"10px 12px",
+                    border:"1px solid var(--line-2)", borderRadius:8, color:"var(--ink)",
+                    textDecoration:"none", marginBottom:6, fontSize:13,
+                  }}>
+                    <Icon name="link" size={14} stroke="var(--teal)" />
+                    <span>{e.label}</span>
+                    <span className="mono" style={{color:"var(--ink-4)", fontSize:11, marginLeft:"auto", maxWidth:240, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>{e.url.replace(/^https?:\/\//,"")}</span>
+                    <Icon name="ext" size={12} stroke="var(--ink-3)" />
+                  </a>
+                ))}
+              </div>
+
+              {s.provenance && s.provenance.length > 0 && (
+                <div className="drawer-section">
+                  <h4>Provenance · how this signal was produced</h4>
+                  <div style={{border:"1px solid var(--line-2)", borderRadius:8, overflow:"hidden"}}>
+                    {s.provenance.map((p,i) => (
+                      <div key={i} style={{display:"grid", gridTemplateColumns:"78px 90px 1fr", gap:10, padding:"8px 12px", fontSize:12, borderBottom: i<s.provenance.length-1 ? "1px solid var(--line)" : 0, background: i%2 ? "#ffffff03" : "transparent"}}>
+                        <div className="mono" style={{color:"var(--ink-4)", fontSize:10.5}}>{p.ts}</div>
+                        <div><span className="tag" style={{fontSize:10, padding:"1px 6px"}}>{p.by}</span></div>
+                        <div style={{color:"var(--ink-2)"}}>{p.event}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {s.updates && s.updates.length > 0 && (
+                <div className="drawer-section">
+                  <h4>Updates to this signal · who / what / when</h4>
+                  {s.updates.map((u,i) => (
+                    <div key={i} style={{display:"grid", gridTemplateColumns:"60px 140px 1fr", gap:10, padding:"8px 0", borderBottom: i<s.updates.length-1 ? "1px solid var(--line)" : 0, fontSize:12.5}}>
+                      <div className="mono" style={{color:"var(--ink-4)", fontSize:11}}>{u.ts}</div>
+                      <div style={{color:"var(--brass)"}}>{u.who}</div>
+                      <div style={{color:"var(--ink-2)"}}>{u.what}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {s.members && s.members.length > 0 && (
+                <div className="drawer-section">
+                  <h4>People referenced</h4>
+                  <div style={{display:"flex", flexWrap:"wrap", gap:6}}>
+                    {s.members.map(mid => {
+                      const m = window.ENTITIES?.members?.[mid];
+                      if (!m) return null;
+                      return <span key={mid} className="tag brass clk" onClick={() => window.__openModal?.("member", mid)}>{m.name}</span>;
+                    })}
+                  </div>
+                </div>
+              )}
+              <div className="drawer-section">
+                <h4>Analyst note</h4>
+                <textarea value={note} onChange={e=>setNote(e.target.value)} onBlur={()=>saveNote(s.id, note)}
+                  placeholder="Private notes (auto-saved)" rows={3}
+                  style={{width:"100%", background:"var(--panel)", border:"1px solid var(--line-2)", borderRadius:8, color:"var(--ink)", padding:"8px 10px", fontFamily:"var(--sans)", fontSize:13, resize:"vertical"}}/>
+              </div>
+              <div className="drawer-section">
+                <h4>Analyst feedback · is this right?</h4>
+                <div className="feedback-row">
+                  {labels.map(l => (
+                    <button key={l} className={"fb" + (fb === l ? " on" : "")} onClick={() => { setFb(l); saveFeedback(s.id, l, ""); }}>
+                      {l === "Correct priority" && <Icon name="check" size={12} style={{marginRight:6, verticalAlign:"-2px"}}/>}
+                      {l}
+                    </button>
+                  ))}
+                </div>
+                {fb && fb !== "Correct priority" && (
+                  <div style={{marginTop:10, padding:"10px 12px", background:"#ffffff04", border:"1px dashed var(--line-2)", borderRadius:8, fontSize:12.5, color:"var(--ink-2)"}}>
+                    <div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em"}}>Feedback recorded</div>
+                    <div style={{marginTop:4}}>Logged for analyst review. Portfolio mapping is manual in this build.</div>
+                  </div>
+                )}
+                {fb === "Correct priority" && (
+                  <div style={{marginTop:10, color:"var(--ok)", fontSize:12.5}}>
+                    <Icon name="check" size={13} style={{verticalAlign:"-2px", marginRight:4}}/>Logged. Weights retained.
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="drawer-foot">
+              <button className="btn primary" onClick={() => {
+                navigator.clipboard.writeText(generateBriefMarkdown(s))
+                  .then(() => { generateBrief(s.id, "Executive brief"); toast("Brief copied to clipboard", "brass", { label: "Open briefings", fn: () => window.__setPage("briefings") }); })
+                  .catch(() => toast("Clipboard unavailable — brief not copied", "error"));
+              }}><Icon name="brief" size={13} /> Generate brief</button>
+              <button className="btn" onClick={() => addWatchlist(s.id)}><Icon name="watch" size={13} /> Watchlist</button>
+              <button className="btn" onClick={() => {
+                const cur = visibleSigs.findIndex(x => x.id === signalId);
+                const nextSig = visibleSigs[cur + 1] || visibleSigs[cur - 1];
+                archive(signalId);
+                if (nextSig) openSignal(nextSig.id); else closeSignal();
+              }}>Archive</button>
+              <button className="btn ghost" style={{marginLeft:"auto"}} onClick={closeSignal}>Close</button>
+              <div style={{width:"100%", marginTop:6, fontFamily:"var(--mono)", fontSize:10, color:"var(--ink-4)", textAlign:"center", letterSpacing:".12em"}}>
+                j/k navigate · Esc close · b brief · w watchlist · a archive
+              </div>
+            </div>
+          </>
+        )}
+      </aside>
+    </>
+  );
+}
+
+Object.assign(window, { Sidebar, Topbar, SignalCard, Drawer, Att, Conf, DesignStateBanner });
