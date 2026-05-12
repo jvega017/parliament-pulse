@@ -46,6 +46,19 @@ function Sidebar({ page, setPage }) {
     };
   }, [state.archived]);
   const groups = [...new Set(NAV.map(n => n.group))];
+  // Streak: consecutive days the tool has been opened — reflection of practice, not gamification
+  const [streak] = React.useState(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    const last = localStorage.getItem("pp-last-open-date");
+    const count = parseInt(localStorage.getItem("pp-streak-count") || "0");
+    if (last === today) return count || 1;
+    const yest = new Date(); yest.setDate(yest.getDate() - 1);
+    const yStr = yest.toISOString().slice(0, 10);
+    const newCount = (last === yStr) ? count + 1 : 1;
+    localStorage.setItem("pp-streak-count", String(newCount));
+    localStorage.setItem("pp-last-open-date", today);
+    return newCount;
+  });
   return (
     <aside className="side">
       <div className="brand">
@@ -85,7 +98,7 @@ function Sidebar({ page, setPage }) {
               >
                 <Icon name={ICONS[n.id]} size={15} className="ico" />
                 <span>{n.label}</span>
-                {n.live && <span className="count" style={{color:"#fff", background:"var(--escalate)", animation:"pulse 1.8s infinite"}}>LIVE</span>}
+                {n.live && <span className="count" style={{color:"#fff", background:"var(--escalate)", boxShadow:"0 0 0 3px #c2454940"}}>LIVE</span>}
                 {!n.live && n.count !== null && <span className="count">{liveCount[n.id] ?? n.count}</span>}
               </div>
             ))}
@@ -97,6 +110,9 @@ function Sidebar({ page, setPage }) {
         <div style={{lineHeight:1.2}}>
           <div style={{fontSize:12.5, fontWeight:500}}>Juan Vega</div>
           <div style={{fontFamily:"var(--mono)", fontSize:10, color:"var(--ink-4)"}}>Principal Policy Officer · Futures & Foresight</div>
+          <div style={{fontFamily:"var(--mono)", fontSize:10, color:"var(--ink-4)", marginTop:3, opacity:.75}}>
+            {streak === 1 ? "Active today" : `Active ${Math.min(streak, 5)} day${streak > 1 ? "s" : ""} this week`}
+          </div>
         </div>
       </div>
     </aside>
@@ -279,8 +295,8 @@ function Topbar({ setPage }) {
         )}
       </div>
       <div className="top-right">
-        <span className="chip clk live-chip" onClick={() => setPage("live")} style={{borderColor:"var(--escalate)", color:"#fff", background:"#d06a5e1a"}}>
-          <span className="dot" style={{background:"var(--escalate)", animation:"pulse 1.4s infinite"}}/> Parliament live
+        <span className="chip clk live-chip" onClick={() => setPage("live")} style={{borderColor:"var(--escalate)", color:"#fff", background:"#c454491a"}}>
+          <span className="dot" style={{background:"var(--escalate)"}}/> Parliament live
         </span>
         <span className="chip sources-chip"><span className="dot" /> 13/15 sources</span>
         <button className="btn ghost sm shortcut-btn" title="Refresh all feeds" onClick={() => { if (window.__refreshLiveFeeds) { window.__refreshLiveFeeds(); toast("Feeds refreshing…"); } else { toast("Refresh available on the Live parliament page", "ok"); } }}><Icon name="refresh" size={13} /> Refresh</button>

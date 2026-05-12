@@ -92,7 +92,38 @@ function PageOverview() {
         </div>
       </div>
 
-      {/* LIVE NOW STRIP — session info is fixture data; see Live parliament for real RSS */}
+      {/* STATS FIRST — critical HUD tier: analyst's session status before situational feed */}
+      <div className="grid g-4" style={{marginBottom:16}}>
+        <div className="panel stat">
+          <div className="stat-label">New signals today</div>
+          <div className="stat-value">{priority.length + rest.length}</div>
+          <div className="stat-meta"><span style={{color:"var(--ok)"}}>▲ {priority.length}</span> vs yesterday</div>
+        </div>
+        <div className="panel stat">
+          <div className="stat-label">Priority signals</div>
+          <div className="stat-value" style={{color: priority.length > 0 ? "var(--escalate)" : "var(--ok)"}}>
+            {priority.length}
+          </div>
+          <div className="stat-meta">
+            <span>{priority.length > 0 ? "Requires review" : "All actioned"}</span>
+            <span style={{marginLeft:"auto", fontFamily:"var(--mono)", fontSize:10}}>
+              {SIGNALS.filter(s => state.archived[s.id]).length}/{SIGNALS.length} done
+            </span>
+          </div>
+        </div>
+        <div className="panel stat">
+          <div className="stat-label">Committee activity</div>
+          <div className="stat-value">7<span className="unit">items</span></div>
+          <div className="stat-meta">2 hearings · 1 new inquiry · 1 report</div>
+        </div>
+        <div className="panel stat">
+          <div className="stat-label">Source health</div>
+          <div className="stat-value">13/15<span className="unit">live</span></div>
+          <div className="stat-meta"><span style={{color:"var(--caution)"}}>1 delayed · 1 review</span></div>
+        </div>
+      </div>
+
+      {/* LIVE NOW STRIP — situational context; below stats in HUD hierarchy */}
       <div className="live-strip" style={{display:"grid", gridTemplateColumns:"auto 1fr auto auto auto", gap:14, alignItems:"center", padding:"12px 16px", marginBottom:16}}>
         <div style={{display:"flex", alignItems:"center", gap:8}}>
           <span style={{width:8, height:8, borderRadius:"50%", background:"var(--escalate)", boxShadow:"0 0 12px var(--escalate)", animation:"pulse 1.4s infinite"}}/>
@@ -108,29 +139,6 @@ function PageOverview() {
         <a href="https://www.aph.gov.au/Parliamentary_Business/Hansard" target="_blank" rel="noopener noreferrer" className="btn sm ghost" style={{textDecoration:"none"}}><Icon name="ext" size={12}/> Hansard</a>
         <a href="https://www.youtube.com/@AUSParliamentLive/streams" target="_blank" rel="noopener noreferrer" className="btn sm ghost" style={{textDecoration:"none"}}><Icon name="ext" size={12}/> YouTube</a>
         <button className="btn sm primary" onClick={()=> goto && goto("live")}><Icon name="signal" size={12}/> Watch live</button>
-      </div>
-
-      <div className="grid g-4" style={{marginBottom:18}}>
-        <div className="panel stat">
-          <div className="stat-label">New signals today</div>
-          <div className="stat-value">{priority.length + rest.length}</div>
-          <div className="stat-meta"><span style={{color:"var(--ok)"}}>▲ {priority.length}</span> vs yesterday</div>
-        </div>
-        <div className="panel stat">
-          <div className="stat-label">Priority signals</div>
-          <div className="stat-value" style={{color:"var(--brass)"}}>{priority.length}</div>
-          <div className="stat-meta">Watchlist-matched · requires review</div>
-        </div>
-        <div className="panel stat">
-          <div className="stat-label">Committee activity</div>
-          <div className="stat-value">7<span className="unit">items</span></div>
-          <div className="stat-meta">2 hearings · 1 new inquiry · 1 report</div>
-        </div>
-        <div className="panel stat">
-          <div className="stat-label">Source health</div>
-          <div className="stat-value">13/15<span className="unit">live</span></div>
-          <div className="stat-meta"><span style={{color:"var(--caution)"}}>1 delayed · 1 review</span></div>
-        </div>
       </div>
 
       <div className="grid g-overview">
@@ -170,6 +178,13 @@ function PageOverview() {
               <span className="chip-fixture" style={{marginLeft:"auto"}}>Fixture</span>
             </div>
             <div className="panel-body">
+              {/* Return hook — surfaces analyst's prior session activity */}
+              <div style={{marginBottom:10, paddingBottom:10, borderBottom:"1px solid var(--line)", fontSize:12, color:"var(--ink-3)"}}>
+                {Object.keys(state.archived).length > 0
+                  ? `You actioned ${Object.keys(state.archived).length} signal${Object.keys(state.archived).length !== 1 ? "s" : ""} this session.`
+                  : "No signals actioned yet this session."}{" "}
+                {SIGNALS.length} new signals today.
+              </div>
               <div className="timeline">
                 <div className="tl-item"><div className="tl-time">08:15 · Senate</div><div className="tl-body">New inquiry opened: <a href="#" onClick={e=>{e.preventDefault(); openModal("inquiry","Commonwealth procurement governance (new)");}} style={{color:"var(--ink)"}}>Digital procurement governance</a></div></div>
                 <div className="tl-item teal"><div className="tl-time">07:48 · Library</div><div className="tl-body">Bills Digest: <a href="#" onClick={e=>{e.preventDefault(); openModal("bill","BILL-2026-048");}} style={{color:"var(--ink)"}}>Digital ID Amendment (Assurance) Bill 2026</a></div></div>

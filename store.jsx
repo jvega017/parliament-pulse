@@ -57,8 +57,10 @@ function StoreProvider({ children }) {
     toast(`Feedback logged: ${label}`, "brass");
   };
   const archive = (signalId) => {
+    const remaining = SIGNALS.filter(x => !state.archived[x.id] && x.id !== signalId).length;
     setState(s => ({ ...s, archived: { ...s.archived, [signalId]: true } }));
-    toast("Signal archived", "ok", { label: "Undo", fn: () => unarchive(signalId) });
+    const msg = remaining > 0 ? `${signalId} archived · ${remaining} remaining` : "All signals reviewed";
+    toast(msg, "ok", { label: "Undo", fn: () => unarchive(signalId) });
   };
   const unarchive = (signalId) => {
     setState(s => { const n = { ...s.archived }; delete n[signalId]; return { ...s, archived: n }; });
