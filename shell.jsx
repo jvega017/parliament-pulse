@@ -85,7 +85,7 @@ function Sidebar({ page, setPage }) {
               >
                 <Icon name={ICONS[n.id]} size={15} className="ico" />
                 <span>{n.label}</span>
-                {n.live && <span className="count" style={{color:"#fff", background:"#c26865", animation:"pulse 1.8s infinite"}}>LIVE</span>}
+                {n.live && <span className="count" style={{color:"#fff", background:"var(--escalate)", animation:"pulse 1.8s infinite"}}>LIVE</span>}
                 {!n.live && n.count !== null && <span className="count">{liveCount[n.id] ?? n.count}</span>}
               </div>
             ))}
@@ -279,12 +279,12 @@ function Topbar({ setPage }) {
         )}
       </div>
       <div className="top-right">
-        <span className="chip clk" onClick={() => setPage("live")} style={{borderColor:"#c26865", color:"#fff", background:"#c268651a"}}>
-          <span className="dot" style={{background:"#c26865", animation:"pulse 1.4s infinite"}}/> Parliament live
+        <span className="chip clk live-chip" onClick={() => setPage("live")} style={{borderColor:"var(--escalate)", color:"#fff", background:"#d06a5e1a"}}>
+          <span className="dot" style={{background:"var(--escalate)", animation:"pulse 1.4s infinite"}}/> Parliament live
         </span>
-        <span className="chip"><span className="dot" /> 13/15 sources</span>
-        <button className="btn ghost sm" title="Refresh all feeds" onClick={() => { window.__refreshLiveFeeds?.(); toast("Feeds refreshing…"); }}><Icon name="refresh" size={13} /> Refresh</button>
-        <button className="btn sm" onClick={() => toast("3 new alerts")}><Icon name="bell" size={13} /> Alerts</button>
+        <span className="chip sources-chip"><span className="dot" /> 13/15 sources</span>
+        <button className="btn ghost sm shortcut-btn" title="Refresh all feeds" onClick={() => { if (window.__refreshLiveFeeds) { window.__refreshLiveFeeds(); toast("Feeds refreshing…"); } else { toast("Refresh available on the Live parliament page", "ok"); } }}><Icon name="refresh" size={13} /> Refresh</button>
+        <button className="btn sm" onClick={() => toast("No new alerts")}><Icon name="bell" size={13} /> Alerts</button>
         <button className="btn primary sm" onClick={() => setPage("briefings")}><Icon name="plus" size={13} /> New brief</button>
         <ShortcutHelp />
         <button className="btn ghost sm" title={isDark ? "Switch to light mode" : "Switch to dark mode"} onClick={() => {
@@ -346,6 +346,8 @@ function SignalCard({ s }) {
 function generateBriefMarkdown(s) {
   const evidence = (s.evidence || []).map(e => `- [${e.label}](${e.url})`).join("\n");
   return [
+    `> DRAFT — generated from fixture demonstration data. Not for distribution.`,
+    ``,
     `# Executive Brief — ${s.title}`,
     `Date: ${s.date} | Source: ${s.source} | Priority: ${(s.attention || "").toUpperCase()}`,
     ``,
@@ -481,7 +483,7 @@ function Drawer() {
                 <div className="mono" style={{fontSize:10, color:"var(--ink-4)", letterSpacing:".16em", textTransform:"uppercase"}}>
                   {s.id} · {s.date}
                 </div>
-                <div className="serif" style={{fontSize:20, marginTop:4, maxWidth:460, lineHeight:1.25}}>{s.title}</div>
+                <div className="h-drawer" style={{marginTop:4, maxWidth:460}}>{s.title}</div>
               </div>
               <div style={{marginLeft:"auto", display:"flex", alignItems:"center", gap:12, flexShrink:0}}>
                 {sigPos !== -1 && (
@@ -628,9 +630,6 @@ function Drawer() {
                 if (nextSig) openSignal(nextSig.id); else closeSignal();
               }}>Archive</button>
               <button className="btn ghost" style={{marginLeft:"auto"}} onClick={closeSignal}>Close</button>
-              <div style={{width:"100%", marginTop:6, fontFamily:"var(--mono)", fontSize:10, color:"var(--ink-4)", textAlign:"center", letterSpacing:".12em"}}>
-                j/k navigate · Esc close · b brief · w watchlist · a archive
-              </div>
             </div>
           </>
         )}

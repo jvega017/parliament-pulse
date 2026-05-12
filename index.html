@@ -26,7 +26,7 @@
     --ink:          #eef0ea;
     --ink-2:        #c2cad4;
     --ink-3:        #8794a5;
-    --ink-4:        #6e7f90;
+    --ink-4:        #7d8f9f;
 
     /* PRIMARY ACCENT — Prometheus ember. Used for brand, priority, live signals. */
     --brass:        #e09359;
@@ -306,7 +306,8 @@
     font-weight: 600;
   }
   .btn.primary:hover { filter: brightness(1.05); }
-  .btn.ghost { background: transparent; }
+  .btn.ghost { background: transparent; border-color: transparent; }
+  .btn.ghost:hover { border-color: var(--line-2); }
   .btn.sm { padding: 4px 9px; font-size: 12px; }
 
   /* ---------- Content ---------- */
@@ -347,6 +348,8 @@
     border-bottom: 1px solid var(--line);
   }
   .panel-title { font-weight: 600; font-size: 13.5px; margin: 0; color: var(--ink); letter-spacing: .005em; }
+  .h-drawer { font-family: var(--serif); font-size: 20px; font-weight: 500; line-height: 1.25; letter-spacing: -0.01em; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
   .panel-kicker { font-family: var(--mono); font-size: 10px; color: var(--ink-4); text-transform: uppercase; letter-spacing: .16em; }
   .panel-body { padding: 14px 16px; }
   .panel-foot { padding: 10px 16px; border-top: 1px solid var(--line); display:flex; align-items:center; gap:10px; }
@@ -591,7 +594,7 @@
   .search input:focus-visible { outline: none; }
 
   /* Signal card attention-level left border */
-  .signal[data-att="high"] { border-left: 4px solid var(--escalate); }
+  .signal[data-att="high"] { border-left: 4px solid var(--escalate); background: linear-gradient(160deg, #271e21 0%, #1a1e28 100%); }
   .signal[data-att="med"]  { border-left: 4px solid var(--caution); }
   .signal[data-att="low"]  { border-left: 4px solid var(--ok); }
 
@@ -629,10 +632,16 @@
     .g-4 { grid-template-columns: repeat(2, 1fr); }
     .g-overview { grid-template-columns: 1fr; }
   }
+  @media (max-width: 900px) {
+    .chip.sources-chip, .shortcut-btn { display: none !important; }
+  }
   @media (max-width: 780px) {
     .app { grid-template-columns: 1fr; }
     .side { position: static; height: auto; }
     .g-2, .g-3 { grid-template-columns: 1fr; }
+    .chip.live-chip { display: none !important; }
+    .search { max-width: 240px; }
+    .top-right { flex-wrap: wrap; gap: 6px; }
   }
 
   /* ---- Modal ---- */
