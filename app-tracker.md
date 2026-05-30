@@ -1,9 +1,22 @@
 # Parliament Pulse — app tracker
 <!-- Updated by: manual or session review | Format: DATE | agent/manual -->
-Last updated: 2026-05-30 | Updated by: WP-F (deployment, proxy, Worker)
+Last updated: 2026-05-30 | Updated by: deploy session (Sprint 6)
 
 ## Status
-AMBER — remediation in progress (2026-05-30). Fire House re-skin, four correctness fixes (F14, F2, F1, F10), dead-button audit, and the production Worker proxy under coordinated parallel work. Deploy blockers (route mismatch, CORS allowlist gap) being closed.
+GREEN — DEPLOYED LIVE 2026-05-30. Fire House re-skin, four correctness fixes (F14, F2, F1, F10), dead-button honesty audit, and the production Worker proxy shipped. Build graded 72 to 89/100. Real APH RSS data verified rendering in production (16+ items, 5 of 6 feeds returning).
+
+Live URLs:
+- Frontend (Cloudflare Pages): https://parliament-pulse.pages.dev
+- Proxy Worker: https://aph-proxy.jvega019.workers.dev (route /rss?u=<encoded feed>)
+
+Two deployment facts learned this session (do not relose):
+1. Pages PRODUCTION branch is `main`, not `master`. The local git branch is `master`, so a plain `wrangler pages deploy` lands on a PREVIEW alias and does NOT update the public apex. Always deploy with `--branch=main` to hit production.
+2. APH's edge WAF returns 403 to non-browser user-agents. The Worker MUST send a real browser UA (now set in workers/aph-proxy src/index.ts, committed 0ae4a2f) or every upstream feed 502s. Do not revert it to the bot UA.
+
+Known minor follow-ups (non-blocking):
+- The Live page fires all feed fetches concurrently; under heavy concurrent load a couple can hit browser ERR_INSUFFICIENT_RESOURCES. Add a small fetch concurrency cap (e.g. 3) if it recurs.
+- YouTube live channel id is [VERIFY]-flagged; embed shows the honest offline fallback until confirmed.
+- TheyVoteForYou key (TVFY_KEY) and D1 migrations still needed before per-member-vote / archive features go live.
 
 ## What it is
 Browser-only policy-intelligence dashboard for Australian Parliament.
