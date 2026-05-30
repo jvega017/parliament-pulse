@@ -189,9 +189,26 @@ window.ENTITIES = {
 };
 
 // Live Parliament YouTube channel IDs — @AUSParliamentLive
-// Channel ID verified May 2026: UCzx6ti0rql6Q2Dc2zSAPmuA
+// [VERIFY] Channel id UCzx6ti0rql6Q2Dc2zSAPmuA and APH_YT_CHANNEL (in pages.jsx) are
+// asserted in-code but were NOT verified against the live YouTube channel this session.
+// Confirm the channel id and that the live_stream embed still resolves before relying
+// on it. Do not treat this id as confirmed.
 // Using channel live embed; falls back to latest uploads if no live stream is active.
 window.PARL_STREAMS = [
-  { id: "house", label: "House of Representatives", channel: "UCzx6ti0rql6Q2Dc2zSAPmuA", desc: "Official Australian Parliament House channel" },
-  { id: "senate", label: "Senate chamber", channel: "UCzx6ti0rql6Q2Dc2zSAPmuA", desc: "Senate proceedings (shared APH channel)" },
+  { id: "house", label: "House of Representatives", channel: "UCzx6ti0rql6Q2Dc2zSAPmuA", desc: "Official Australian Parliament House channel" }, // [VERIFY] channel id
+  { id: "senate", label: "Senate chamber", channel: "UCzx6ti0rql6Q2Dc2zSAPmuA", desc: "Senate proceedings (shared APH channel)" }, // [VERIFY] channel id
 ];
+
+// ---------- Honesty: representative-data flags on entities ----------
+// Every entity in ENTITIES is representative (no live feed backs committee profiles,
+// member activity counts, minister rosters, or bill provisions per the remediation
+// data audit). Stamp representative:true onto every entity so the click-through
+// modals can render a "Representative data" chip honestly. The ministers already
+// carry the "(fixture)" name convention; this extends the same honesty to all
+// entity types. This only ADDS a field; it does not change any field the UI reads.
+Object.keys(window.ENTITIES).forEach(group => {
+  const bucket = window.ENTITIES[group];
+  Object.keys(bucket).forEach(key => {
+    if (bucket[key] && bucket[key].representative === undefined) bucket[key].representative = true;
+  });
+});

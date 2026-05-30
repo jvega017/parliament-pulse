@@ -1,5 +1,34 @@
+# Cloudflare Pages _headers
+# Order matters: most specific paths first. The .jsx and .js MIME rules below
+# are load-bearing. The app loads modules via <script type="text/babel" src="*.jsx">
+# and Pages would otherwise serve .jsx with a non-script Content-Type, which
+# modern browsers refuse to execute. Do not remove or reorder these two rules
+# above the catch-all security block.
+
 /*.jsx
   Content-Type: text/javascript; charset=utf-8
 
 /*.js
   Content-Type: text/javascript; charset=utf-8
+
+# Security headers for every HTML response (and all other paths). The MIME
+# rules above already set Content-Type for scripts, so adding these headers to
+# /* does not disturb script delivery.
+#
+# CSP notes (browser-only React-over-Babel build):
+#   script-src needs 'unsafe-eval' and 'unsafe-inline' because Babel standalone
+#     compiles JSX in the browser and injects compiled code at runtime. Removing
+#     these breaks the app until JSX is precompiled (see README production path).
+#   The CDN host is unpkg.com (React, ReactDOM, Babel standalone).
+#   style-src and font-src allow Google Fonts (IBM Plex Sans, Mono, Serif).
+#   connect-src allows the production Worker origin (RSS proxy fetch) and the
+#     local dev proxy at localhost:3001 / 127.0.0.1:3001.
+#   frame-src allows the YouTube live embed.
+#   img-src allows YouTube thumbnail and data URIs.
+# When JSX is precompiled and React is pinned to production .min.js, tighten
+# script-src by dropping 'unsafe-eval' and 'unsafe-inline'.
+/*
+  X-Frame-Options: SAMEORIGIN
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://i.ytimg.com https://*.ytimg.com; connect-src 'self' https://aph-proxy.jvega019.workers.dev http://localhost:3001 http://127.0.0.1:3001; frame-src https://www.youtube.com https://www.youtube-nocookie.com; base-uri 'self'; form-action 'self'; object-src 'none'; frame-ancestors 'self'

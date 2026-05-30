@@ -46,31 +46,42 @@ function Sidebar({ page, setPage }) {
     };
   }, [state.archived]);
   const groups = [...new Set(NAV.map(n => n.group))];
-  // Streak: consecutive days the tool has been opened — reflection of practice, not gamification
-  const [streak] = React.useState(() => {
+  // Streak: consecutive days the tool has been opened — reflection of practice, not gamification.
+  // Compute the display value without side effects so the lazy initialiser is pure (StrictMode-safe).
+  const [streak, setStreak] = React.useState(() => {
     const today = new Date().toISOString().slice(0, 10);
     const last = localStorage.getItem("pp-last-open-date");
     const count = parseInt(localStorage.getItem("pp-streak-count") || "0");
     if (last === today) return count || 1;
     const yest = new Date(); yest.setDate(yest.getDate() - 1);
     const yStr = yest.toISOString().slice(0, 10);
-    const newCount = (last === yStr) ? count + 1 : 1;
+    return (last === yStr) ? count + 1 : 1;
+  });
+  // F5: the localStorage WRITE runs once on mount inside an effect, so React StrictMode's
+  // double-invocation of the render body cannot double-count or corrupt the streak.
+  React.useEffect(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    if (localStorage.getItem("pp-last-open-date") === today) return;
+    const count = parseInt(localStorage.getItem("pp-streak-count") || "0");
+    const yest = new Date(); yest.setDate(yest.getDate() - 1);
+    const yStr = yest.toISOString().slice(0, 10);
+    const newCount = (localStorage.getItem("pp-last-open-date") === yStr) ? count + 1 : 1;
     localStorage.setItem("pp-streak-count", String(newCount));
     localStorage.setItem("pp-last-open-date", today);
-    return newCount;
-  });
+    setStreak(newCount);
+  }, []);
   return (
     <aside className="side">
       <div className="brand">
         <div className="brand-mark">
-          <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+          <svg width="26" height="26" viewBox="0 0 22 22" fill="none">
             {/* Prometheus flame — stylised, institutional */}
-            <path d="M11 2 C 7 5, 6 9, 8 12 C 5 11, 4 13, 5 15 C 6 17, 9 18, 11 18 C 13 18, 16 17, 17 15 C 18 13, 17 11, 14 12 C 16 9, 15 5, 11 2 Z" fill="url(#flame)" opacity="0.92"/>
-            <path d="M11 6 C 9 8, 9 11, 11 13 C 13 11, 13 8, 11 6 Z" fill="#fff5e8" opacity="0.9"/>
+            <path d="M11 2 C 7 5, 6 9, 8 12 C 5 11, 4 13, 5 15 C 6 17, 9 18, 11 18 C 13 18, 16 17, 17 15 C 18 13, 17 11, 14 12 C 16 9, 15 5, 11 2 Z" fill="url(#flame)" opacity="0.95"/>
+            <path d="M11 6 C 9 8, 9 11, 11 13 C 13 11, 13 8, 11 6 Z" fill="#fff" opacity="0.88"/>
             <defs>
               <linearGradient id="flame" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#f5b36a"/>
-                <stop offset="100%" stopColor="#d4894a"/>
+                <stop offset="0%" stopColor="var(--brass-2)"/>
+                <stop offset="100%" stopColor="var(--brass)"/>
               </linearGradient>
             </defs>
           </svg>
@@ -78,7 +89,7 @@ function Sidebar({ page, setPage }) {
         <div>
           <div style={{display:"flex", alignItems:"center", gap:7}}>
             <div className="brand-name">Parliament Pulse</div>
-            <span style={{fontFamily:"var(--mono)", fontSize:9, color:"var(--brass)", background:"#c9a36a16", border:"1px solid #c9a36a44", padding:"1px 5px", borderRadius:3, letterSpacing:".14em", textTransform:"uppercase", verticalAlign:"middle"}}>Beta</span>
+            <span className="chip-fixture" style={{verticalAlign:"middle"}}>Beta</span>
           </div>
           <div className="brand-sub">Prometheus Policy Lab</div>
         </div>
@@ -98,7 +109,7 @@ function Sidebar({ page, setPage }) {
               >
                 <Icon name={ICONS[n.id]} size={15} className="ico" />
                 <span>{n.label}</span>
-                {n.live && <span className="count" style={{color:"#fff", background:"var(--escalate)", boxShadow:"0 0 0 3px #c2454940"}}>LIVE</span>}
+                {n.live && <span className="count nav-live" style={{color:"#fff", background:"var(--ember-flash)"}}>LIVE</span>}
                 {!n.live && n.count !== null && <span className="count">{liveCount[n.id] ?? n.count}</span>}
               </div>
             ))}
@@ -136,12 +147,12 @@ function ShortcutHelp() {
         <Icon name="pattern" size={13} />
       </button>
       {open && (
-        <div style={{position:"absolute", top:"calc(100% + 8px)", right:0, background:"#131c28", border:"1px solid var(--line-2)", borderRadius:10, boxShadow:"0 20px 50px #00000080", zIndex:40, width:320, padding:"12px 14px"}} role="dialog" aria-label="Keyboard shortcuts">
+        <div style={{position:"absolute", top:"calc(100% + 8px)", right:0, background:"var(--panel-2)", border:"1px solid var(--line-bright)", borderRadius:10, boxShadow:"var(--shadow)", zIndex:40, width:320, padding:"12px 14px"}} role="dialog" aria-label="Keyboard shortcuts">
           <div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginBottom:10}}>Keyboard shortcuts</div>
           {shortcuts.map(([k, d]) => (
             <div key={k} style={{display:"flex", justifyContent:"space-between", alignItems:"center", padding:"5px 0", borderBottom:"1px solid var(--line)", fontSize:12.5}}>
               <span style={{color:"var(--ink-2)"}}>{d}</span>
-              <kbd style={{fontFamily:"var(--mono)", fontSize:11, background:"#ffffff0a", border:"1px solid var(--line-2)", borderRadius:4, padding:"2px 7px", color:"var(--brass)", marginLeft:10, whiteSpace:"nowrap"}}>{k}</kbd>
+              <kbd style={{fontFamily:"var(--mono)", fontSize:11, background:"var(--panel-hi)", border:"1px solid var(--line-2)", borderRadius:4, padding:"2px 7px", color:"var(--brass)", marginLeft:10, whiteSpace:"nowrap"}}>{k}</kbd>
             </div>
           ))}
           <button style={{marginTop:10, background:"none", border:"none", color:"var(--ink-4)", cursor:"pointer", fontSize:12, padding:0}} onClick={() => setOpen(false)}>Close</button>
@@ -157,7 +168,16 @@ function Topbar({ setPage }) {
   const [open, setOpen] = React.useState(false);
   const [cursor, setCursor] = React.useState(-1);
   const [isDark, setIsDark] = React.useState(() => localStorage.getItem("pp-theme") !== "light");
+  const [focused, setFocused] = React.useState(false);
   const ref = React.useRef(null);
+
+  // Plex Mono live clock — Brisbane local time, refreshed every second
+  const fmtClock = () => new Date().toLocaleTimeString("en-AU", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  const [clock, setClock] = React.useState(fmtClock);
+  React.useEffect(() => {
+    const id = setInterval(() => setClock(fmtClock()), 1000);
+    return () => clearInterval(id);
+  }, []);
 
   React.useEffect(() => {
     const h = (e) => {
@@ -213,13 +233,14 @@ function Topbar({ setPage }) {
 
   return (
     <div className="topbar">
-      <div className="search" onClick={() => setOpen(true)}>
-        <Icon name="search" size={14} stroke="var(--ink-3)" />
+      <div className={"search" + (focused ? " focused" : "")} onClick={() => setOpen(true)}
+        style={focused ? {borderColor:"var(--brass)", boxShadow:"0 0 0 3px var(--brass-soft)"} : undefined}>
+        <Icon name="search" size={14} stroke={focused ? "var(--brass)" : "var(--ink-3)"} />
         <input ref={ref} value={q}
           role="combobox"
           onChange={e => { setQ(e.target.value); setOpen(true); }}
-          onFocus={() => setOpen(true)}
-          onBlur={() => setTimeout(() => { setOpen(false); setCursor(-1); }, 200)}
+          onFocus={() => { setOpen(true); setFocused(true); }}
+          onBlur={() => { setFocused(false); setTimeout(() => { setOpen(false); setCursor(-1); }, 200); }}
           onKeyDown={onKeyDown}
           aria-label="Search parliament signals, bills, committees and members"
           aria-expanded={open && !!results}
@@ -295,11 +316,19 @@ function Topbar({ setPage }) {
         )}
       </div>
       <div className="top-right">
-        <span className="chip clk live-chip" onClick={() => setPage("live")} style={{borderColor:"var(--escalate)", color:"#fff", background:"#c454491a"}}>
-          <span className="dot" style={{background:"var(--escalate)"}}/> Parliament live
+        <span className="mono top-clock" aria-label="Local time" title="Local time" style={{fontSize:12, color:"var(--ink-3)", letterSpacing:".06em", fontVariantNumeric:"tabular-nums"}}>{clock}</span>
+        <span className="chip clk live-chip" onClick={() => setPage("live")} style={{borderColor:"var(--ember-flash)", color:"var(--ink)", background:"transparent"}}>
+          <span className="dot pulse-dot" style={{background:"var(--ember-flash)"}}/> Parliament live
         </span>
-        <span className="chip sources-chip"><span className="dot" /> 13/15 sources</span>
-        <button className="btn ghost sm shortcut-btn" title="Refresh all feeds" onClick={() => { if (window.__refreshLiveFeeds) { window.__refreshLiveFeeds(); toast("Feeds refreshing…"); } else { toast("Refresh available on the Live parliament page", "ok"); } }}><Icon name="refresh" size={13} /> Refresh</button>
+        <span className="chip sources-chip" title="Sources reporting healthy"><span className="dot" /> {(window.__sourceHealth && window.__sourceHealth.healthy != null) ? `${window.__sourceHealth.healthy}/${window.__sourceHealth.total} sources` : "13/15 sources"}</span>
+        <button className="btn ghost sm shortcut-btn" title="Go to Live parliament and refresh feeds there" onClick={() => {
+          setPage("live");
+          // Honest refresh: navigate to Live, then poll once the page has mounted its hook.
+          // No success toast is shown for a refresh that has not actually run.
+          setTimeout(() => {
+            if (window.__refreshLiveFeeds) { window.__refreshLiveFeeds(); toast("Refreshing live feeds…"); }
+          }, 200);
+        }}><Icon name="refresh" size={13} /> Refresh live</button>
         <button className="btn sm" onClick={() => toast("No new alerts")}><Icon name="bell" size={13} /> Alerts</button>
         <button className="btn primary sm" onClick={() => setPage("briefings")}><Icon name="plus" size={13} /> New brief</button>
         <ShortcutHelp />
@@ -320,9 +349,15 @@ function Att({ level }) {
 }
 
 function Conf({ n = 3 }) {
+  // 5-segment ember-to-gold ramp: lit segments climb from incandescent ember to gold
+  // so the bar reads quantitatively, not just as a count.
+  const ramp = ["var(--brass)", "var(--brass)", "var(--brass-2)", "var(--gold)", "var(--gold)"];
   return (
     <span className="conf" title={`Confidence ${n}/5`}>
-      {[1,2,3,4,5].map(i => <span key={i} className={i<=n?"on":""} />)}
+      {[1,2,3,4,5].map(i => (
+        <span key={i} className={i<=n?"on":""}
+          style={i<=n ? {background: ramp[i-1]} : undefined} />
+      ))}
     </span>
   );
 }
@@ -391,6 +426,19 @@ function Drawer() {
   const signal = React.useMemo(() => SIGNALS.find(s => s.id === signalId), [signalId]);
   const [fb, setFb] = React.useState(null);
   const [note, setNote] = React.useState("");
+  // F12: keep the live note text and the signal it belongs to in refs so we can flush it
+  // to the store on drawer close and before j/k navigation, not only on textarea blur.
+  const noteRef = React.useRef("");
+  const noteSigRef = React.useRef(null);
+  React.useEffect(() => { noteRef.current = note; }, [note]);
+  React.useEffect(() => { noteSigRef.current = signalId; }, [signalId]);
+  const flushNote = React.useCallback(() => {
+    const sid = noteSigRef.current;
+    if (sid && noteRef.current !== (state.notes[sid] || "")) {
+      saveNote(sid, noteRef.current);
+    }
+  }, [saveNote, state.notes]);
+  const closeWithFlush = React.useCallback(() => { flushNote(); closeSignal(); }, [flushNote, closeSignal]);
   const sigIdxRef = React.useRef(0);
   const drawerBodyRef = React.useRef(null);
   const prevFocusRef = React.useRef(null);
@@ -450,14 +498,14 @@ function Drawer() {
       if (modal) return; // disable when detail modal is open
       const tag = document.activeElement?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
-      if (e.key === "Escape" && signalId) { e.preventDefault(); closeSignal(); return; }
+      if (e.key === "Escape" && signalId) { e.preventDefault(); flushNote(); closeSignal(); return; }
       if (e.key === "j" || e.key === "k") {
         e.preventDefault();
         const cur = visibleSigs.findIndex(s => s.id === signalId);
         const next = e.key === "j"
           ? Math.min(cur + 1, visibleSigs.length - 1)
           : Math.max(cur - 1, 0);
-        if (visibleSigs[next]) openSignal(visibleSigs[next].id);
+        if (visibleSigs[next] && visibleSigs[next].id !== signalId) { flushNote(); openSignal(visibleSigs[next].id); }
       }
       if (e.key === "b" && signalId) {
         e.preventDefault();
@@ -474,6 +522,7 @@ function Drawer() {
       }
       if (e.key === "a" && signalId) {
         e.preventDefault();
+        flushNote();
         const cur = visibleSigs.findIndex(s => s.id === signalId);
         const nextSig = visibleSigs[cur + 1] || visibleSigs[cur - 1];
         archive(signalId);
@@ -482,7 +531,7 @@ function Drawer() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [signalId, modal, visibleSigs, openSignal, closeSignal, archive, addWatchlist, generateBrief, toast]);
+  }, [signalId, modal, visibleSigs, openSignal, closeSignal, archive, addWatchlist, generateBrief, toast, flushNote]);
 
   const on = !!signal;
   const s = signal || {};
@@ -490,7 +539,7 @@ function Drawer() {
   const sigPos = visibleSigs.findIndex(x => x.id === signalId);
   return (
     <>
-      <div className={"drawer-back" + (on ? " on" : "")} onClick={closeSignal} aria-hidden="true" />
+      <div className={"drawer-back" + (on ? " on" : "")} onClick={closeWithFlush} aria-hidden="true" />
       <aside className={"drawer" + (on ? " on" : "")} role="dialog" aria-modal="true" aria-label={on ? s.title : "Signal detail"}>
         {on && (
           <>
@@ -508,13 +557,13 @@ function Drawer() {
                     <span style={{fontSize:9, letterSpacing:".1em", opacity:.7}}>SIGNAL</span>
                   </span>
                 )}
-                <button ref={closeButtonRef} className="btn ghost sm" aria-label="Close signal detail" onClick={closeSignal}><Icon name="close" size={14} /></button>
+                <button ref={closeButtonRef} className="btn ghost sm" aria-label="Close signal detail" onClick={closeWithFlush}><Icon name="close" size={14} /></button>
               </div>
             </div>
             <div className="drawer-body" ref={drawerBodyRef}>
               <div className="drawer-section">
                 <h4>Recommended action</h4>
-                <div style={{padding:"12px 14px", border:"1px solid #c9a36a44", borderRadius:8, background:"#c9a36a0d"}}>
+                <div style={{padding:"12px 14px", border:"1px solid var(--brass-soft)", borderRadius:8, background:"var(--panel-hi)"}}>
                   <div style={{fontWeight:600, color:"var(--brass)"}}>{s.action}</div>
                   <div style={{color:"var(--ink-2)", fontSize:13, marginTop:4}}>{s.actionReason}</div>
                 </div>
@@ -568,7 +617,7 @@ function Drawer() {
                   <h4>Provenance · how this signal was produced</h4>
                   <div style={{border:"1px solid var(--line-2)", borderRadius:8, overflow:"hidden"}}>
                     {s.provenance.map((p,i) => (
-                      <div key={i} style={{display:"grid", gridTemplateColumns:"78px 90px 1fr", gap:10, padding:"8px 12px", fontSize:12, borderBottom: i<s.provenance.length-1 ? "1px solid var(--line)" : 0, background: i%2 ? "#ffffff03" : "transparent"}}>
+                      <div key={i} style={{display:"grid", gridTemplateColumns:"78px 90px 1fr", gap:10, padding:"8px 12px", fontSize:12, borderBottom: i<s.provenance.length-1 ? "1px solid var(--line)" : 0, background: i%2 ? "var(--panel-hi)" : "transparent"}}>
                         <div className="mono" style={{color:"var(--ink-4)", fontSize:10.5}}>{p.ts}</div>
                         <div><span className="tag" style={{fontSize:10, padding:"1px 6px"}}>{p.by}</span></div>
                         <div style={{color:"var(--ink-2)"}}>{p.event}</div>
@@ -620,7 +669,7 @@ function Drawer() {
                   ))}
                 </div>
                 {fb && fb !== "Correct priority" && (
-                  <div style={{marginTop:10, padding:"10px 12px", background:"#ffffff04", border:"1px dashed var(--line-2)", borderRadius:8, fontSize:12.5, color:"var(--ink-2)"}}>
+                  <div style={{marginTop:10, padding:"10px 12px", background:"var(--panel-hi)", border:"1px dashed var(--line-2)", borderRadius:8, fontSize:12.5, color:"var(--ink-2)"}}>
                     <div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em"}}>Feedback recorded</div>
                     <div style={{marginTop:4}}>Logged for analyst review. Portfolio mapping is manual in this build.</div>
                   </div>
@@ -640,12 +689,13 @@ function Drawer() {
               }}><Icon name="brief" size={13} /> Generate brief</button>
               <button className="btn" onClick={() => addWatchlist(s.id)}><Icon name="watch" size={13} /> Watchlist</button>
               <button className="btn" onClick={() => {
+                flushNote();
                 const cur = visibleSigs.findIndex(x => x.id === signalId);
                 const nextSig = visibleSigs[cur + 1] || visibleSigs[cur - 1];
                 archive(signalId);
                 if (nextSig) openSignal(nextSig.id); else closeSignal();
               }}>Archive</button>
-              <button className="btn ghost" style={{marginLeft:"auto"}} onClick={closeSignal}>Close</button>
+              <button className="btn ghost" style={{marginLeft:"auto"}} onClick={closeWithFlush}>Close</button>
             </div>
           </>
         )}

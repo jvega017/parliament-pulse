@@ -1,24 +1,109 @@
-// ---------- Mock data for Civic Signal ----------
+// ---------- Data registry and representative fixtures for Parliament Pulse ----------
+//
+// SOURCE_REGISTRY is the single canonical source of truth for every feed the app
+// fetches. It replaces the old duplication between data.jsx APH_FEEDS and the
+// pages.jsx APH_FEED_URLS list. WP-C reads window.SOURCE_REGISTRY using exactly the
+// field names below, so do not rename or remove any of them:
+//   id, label, url, authority, fpr, confidence, module,
+//   lastStatusCode, errorDetail, lastItemCount
+//
+// Only the SIX APH RSS feeds verified live this session are included. The parlinfo
+// Bills Digests feed has been removed: it sits behind an Azure WAF JavaScript
+// challenge and returns 403 even through a stealth proxy, so it is not usable.
+//
+// Live-health fields (lastStatusCode, errorDetail, lastItemCount) start null and are
+// populated at runtime by the poller. Static config (authority, fpr, confidence) is
+// held constant. Legacy display fields (name, group, status, last, today, modules,
+// parser) are kept so existing consumers in shell.jsx, store.jsx and pages.jsx that
+// read APH_FEEDS continue to work unchanged; APH_FEEDS is a const alias of the
+// registry below.
 
-const APH_FEEDS = [
-  { id: "s-new-inquiries", group: "Senate", name: "New Senate committee inquiries", url: "https://www.aph.gov.au/senate/rss/new_inquiries", status: "live", last: "08:15", today: 2, fpr: "Low", modules: ["Committees", "Emerging Issues"], parser: "Valid", authority: "Official", confidence: "High" },
-  { id: "s-reports", group: "Senate", name: "Senate committee reports tabled", url: "https://www.aph.gov.au/senate/rss/reports", status: "live", last: "07:42", today: 1, fpr: "Low", modules: ["Committees", "Briefings"], parser: "Valid", authority: "Official", confidence: "High" },
-  { id: "s-today-hearings", group: "Senate", name: "Today's Senate committee hearings", url: "https://www.aph.gov.au/senate/rss/red", status: "live", last: "08:02", today: 4, fpr: "Low", modules: ["Today's Signal", "Committees"], parser: "Valid", authority: "Official", confidence: "High" },
-  { id: "s-upcoming", group: "Senate", name: "Upcoming Senate committee hearings", url: "https://www.aph.gov.au/senate/rss/upcoming_hearings", status: "live", last: "07:58", today: 6, fpr: "Low", modules: ["Committees", "Briefing Queue"], parser: "Valid", authority: "Official", confidence: "High" },
-  { id: "s-senators", group: "Senate", name: "Updates to Senators' details", url: "https://www.aph.gov.au/senate/rss/senators_details", status: "delayed", last: "yesterday", today: 0, fpr: "Low", modules: ["Source archive"], parser: "Warning", authority: "Official", confidence: "Medium" },
-
-  { id: "h-news", group: "House", name: "About the House News", url: "https://www.aph.gov.au/house/rss/house_news", status: "live", last: "08:04", today: 1, fpr: "Med", modules: ["Parliament"], parser: "Valid", authority: "Official", confidence: "Medium" },
-  { id: "h-media", group: "House", name: "House Media Releases", url: "https://www.aph.gov.au/house/rss/media_releases", status: "live", last: "08:11", today: 3, fpr: "Med", modules: ["Today's Signal"], parser: "Valid", authority: "Official", confidence: "Medium" },
-  { id: "h-inquiries", group: "House", name: "House Inquiries", url: "https://www.aph.gov.au/house/rss/house_inquiries", status: "live", last: "07:55", today: 1, fpr: "Low", modules: ["Committees"], parser: "Valid", authority: "Official", confidence: "High" },
-  { id: "h-joint", group: "House", name: "Joint Inquiries", url: "https://www.aph.gov.au/house/rss/joint_inquiries", status: "live", last: "07:51", today: 0, fpr: "Low", modules: ["Committees"], parser: "Valid", authority: "Official", confidence: "High" },
-  { id: "h-program", group: "House", name: "House Daily Program", url: "https://www.aph.gov.au/house/rss/daily_program", status: "live", last: "08:10", today: 1, fpr: "Low", modules: ["Parliament", "Today's Signal"], parser: "Valid", authority: "Official", confidence: "High" },
-  { id: "h-today", group: "House", name: "Today's House hearings", url: "https://www.aph.gov.au/house/rss/todays_hearings", status: "live", last: "08:09", today: 2, fpr: "Low", modules: ["Committees"], parser: "Valid", authority: "Official", confidence: "High" },
-  { id: "h-div", group: "House", name: "House Divisions", url: "https://www.aph.gov.au/house/rss/divisions", status: "live", last: "08:12", today: 0, fpr: "Low", modules: ["Parliament", "Bills"], parser: "Valid", authority: "Official", confidence: "High" },
-
-  { id: "l-bills", group: "Library", name: "Bills Digests", url: "https://parlinfo.aph.gov.au/parlInfo/feeds/rss.w3p;…billsdgs", status: "live", last: "06:30", today: 2, fpr: "Low", modules: ["Bills", "Briefings"], parser: "Valid", authority: "Official", confidence: "High" },
-  { id: "l-pubs", group: "Library", name: "Library Publications", url: "http://parlinfo.aph.gov.au/parlInfo/feeds/rss.w3p;…prspub", status: "live", last: "06:30", today: 1, fpr: "Low", modules: ["Emerging Issues"], parser: "Valid", authority: "Official", confidence: "High" },
-  { id: "l-flag", group: "Library", name: "FlagPost", url: "https://www.aph.gov.au/.../FlagPost/Blog_entries", status: "review", last: "—", today: null, fpr: "—", modules: ["Emerging Issues"], parser: "Needs validation", authority: "Official", confidence: "Medium" },
+const SOURCE_REGISTRY = [
+  {
+    id: "h-media",
+    label: "House Media Releases",
+    url: "https://www.aph.gov.au/house/rss/media_releases",
+    authority: "Official",
+    fpr: "Med",
+    confidence: "High",
+    module: "Media",
+    lastStatusCode: null,
+    errorDetail: null,
+    lastItemCount: null,
+    // legacy display fields for existing APH_FEEDS consumers
+    name: "House Media Releases", group: "House", status: "live", last: "08:11", today: 3, modules: ["Media", "Overview"], parser: "Valid",
+  },
+  {
+    id: "s-reports",
+    label: "Senate Committee Reports Tabled",
+    url: "https://www.aph.gov.au/senate/rss/reports",
+    authority: "Official",
+    fpr: "Low",
+    confidence: "High",
+    module: "Committees",
+    lastStatusCode: null,
+    errorDetail: null,
+    lastItemCount: null,
+    name: "Senate Committee Reports Tabled", group: "Senate", status: "live", last: "07:42", today: 1, modules: ["Committees", "Briefings"], parser: "Valid",
+  },
+  {
+    id: "s-new-inquiries",
+    label: "Senate New Inquiries",
+    url: "https://www.aph.gov.au/senate/rss/new_inquiries",
+    authority: "Official",
+    fpr: "Low",
+    confidence: "High",
+    module: "Committees",
+    lastStatusCode: null,
+    errorDetail: null,
+    lastItemCount: null,
+    name: "Senate New Inquiries", group: "Senate", status: "live", last: "08:15", today: 2, modules: ["Committees", "Emerging Issues"], parser: "Valid",
+  },
+  {
+    id: "s-upcoming",
+    label: "Senate Upcoming Hearings",
+    url: "https://www.aph.gov.au/senate/rss/upcoming_hearings",
+    authority: "Official",
+    fpr: "Low",
+    confidence: "High",
+    module: "What's On",
+    lastStatusCode: null,
+    errorDetail: null,
+    lastItemCount: null,
+    name: "Senate Upcoming Hearings", group: "Senate", status: "live", last: "07:58", today: 6, modules: ["What's On", "Committees"], parser: "Valid",
+  },
+  {
+    id: "h-div",
+    label: "House Divisions",
+    url: "https://www.aph.gov.au/house/rss/divisions",
+    authority: "Official",
+    fpr: "Low",
+    confidence: "High",
+    module: "Divisions",
+    lastStatusCode: null,
+    errorDetail: null,
+    lastItemCount: null,
+    name: "House Divisions", group: "House", status: "live", last: "08:12", today: 0, modules: ["Divisions"], parser: "Valid",
+  },
+  {
+    id: "h-program",
+    label: "House Daily Program",
+    url: "https://www.aph.gov.au/house/rss/daily_program",
+    authority: "Official",
+    fpr: "Low",
+    confidence: "High",
+    module: "Parliament",
+    lastStatusCode: null,
+    errorDetail: null,
+    lastItemCount: null,
+    name: "House Daily Program", group: "House", status: "live", last: "08:10", today: 1, modules: ["Parliament", "Live"], parser: "Valid",
+  },
 ];
+
+// APH_FEEDS is retained as an alias pointing at the registry so existing code that
+// reads APH_FEEDS (shell.jsx search, store.jsx feed modal, pages.jsx source table)
+// keeps working. The registry is the source of truth; do not maintain two lists.
+const APH_FEEDS = SOURCE_REGISTRY;
 
 const SIGNALS = [
   {
@@ -284,6 +369,40 @@ const BRIEFING_QUEUE = [
   { type: "Estimates Monitor Note", for: "Estimates pack", status: "In progress", at: "06:44", ready: false },
 ];
 
+// ---------- Honesty: representative-data flags ----------
+//
+// Per the remediation honesty rule, every dataset NOT backed by a verified live
+// feed must be clearly marked so the UI can render a "Representative data" chip and
+// no control fires a success toast implying a backend action that did not happen.
+//
+// DATASET_FLAGS maps each global dataset name to whether it is representative
+// (non-live fixture) or live (sourced from the SOURCE_REGISTRY poll at runtime).
+// The Sources, Overview and Parliament/Today modules read live items from the
+// poller; the arrays below are the representative fallback and enrichment fixtures.
+// Each item additionally carries representative:true so per-card chips are honest.
+//
+// SOURCE_REGISTRY itself is live: it is the registry of verified feeds, not a fixture.
+const DATASET_FLAGS = {
+  SOURCE_REGISTRY: { representative: false, note: "Verified APH feeds, polled live via the Worker proxy." },
+  SIGNALS:         { representative: true,  note: "Enrichment pipeline (attention, scoring, provenance, NER) is not built. Representative data." },
+  COMMITTEE_ITEMS: { representative: true,  note: "Committee profiles and schedules are partly representative. Hearings and reports go live via RSS." },
+  BILLS:           { representative: true,  note: "Bill stage and provisions need scraping or PDF extraction. Representative data." },
+  DIVISIONS:       { representative: true,  note: "Per-member tallies need TheyVoteForYou. Result text only is near-live. Representative data." },
+  WATCHLISTS:      { representative: true,  note: "Keyword matcher over the signal stream is not built. Representative data." },
+  RADAR:           { representative: true,  note: "Clustering layer over enriched signals is not built. Representative data." },
+  QON_PATTERN:     { representative: true,  note: "Questions on Notice need ParlInfo and Hansard scraping plus NLP. Representative data." },
+  BRIEFING_QUEUE:  { representative: true,  note: "A shared briefings queue needs a backend that does not exist. Representative data." },
+};
+
+// Stamp representative:true onto every item of each representative dataset so the UI
+// can render the chip at the card level. This only ADDS a field; it never changes the
+// existing field shape that pages.jsx and the drawer read.
+[SIGNALS, COMMITTEE_ITEMS, BILLS, DIVISIONS, WATCHLISTS, RADAR, BRIEFING_QUEUE].forEach(arr => {
+  arr.forEach(item => { if (item && item.representative === undefined) item.representative = true; });
+});
+QON_PATTERN.representative = true;
+
 Object.assign(window, {
-  APH_FEEDS, SIGNALS, COMMITTEE_ITEMS, BILLS, DIVISIONS, WATCHLISTS, RADAR, QON_PATTERN, BRIEFING_QUEUE
+  SOURCE_REGISTRY, DATASET_FLAGS, APH_FEEDS,
+  SIGNALS, COMMITTEE_ITEMS, BILLS, DIVISIONS, WATCHLISTS, RADAR, QON_PATTERN, BRIEFING_QUEUE
 });

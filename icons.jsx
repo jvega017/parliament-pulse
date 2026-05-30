@@ -1,6 +1,9 @@
-// Simple, consistent stroke icons
-const Icon = ({ name, size = 16, stroke = "currentColor", ...rest }) => {
-  const props = { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke, strokeWidth: 1.6, strokeLinecap: "round", strokeLinejoin: "round", ...rest };
+// Simple, consistent stroke icons.
+// Stroke weight is uniform across every glyph so the set reads as one family.
+// Bumped from 1.6 to 1.75 to sit confidently against the bolder Fire House shell;
+// override per-icon with a strokeWidth prop where a lighter weight is wanted.
+const Icon = ({ name, size = 16, stroke = "currentColor", strokeWidth = 1.75, ...rest }) => {
+  const props = { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke, strokeWidth, strokeLinecap: "round", strokeLinejoin: "round", ...rest };
   switch (name) {
     case "overview": return <svg {...props}><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>;
     case "signal": return <svg {...props}><path d="M4 12h3l3-8 4 16 3-8h3"/></svg>;
@@ -28,6 +31,21 @@ const Icon = ({ name, size = 16, stroke = "currentColor", ...rest }) => {
     case "book": return <svg {...props}><path d="M4 5a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5"/></svg>;
     case "moon": return <svg {...props}><path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z"/></svg>;
     case "sun":  return <svg {...props}><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>;
+    // --- Redesign additions (Fire House re-skin) ---
+    // Stat-trend slot: ember up, steel-ash down. Caller sets the stroke colour.
+    case "trend-up":   return <svg {...props}><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h6v6"/></svg>;
+    case "trend-down": return <svg {...props}><path d="M3 7l6 6 4-4 8 8"/><path d="M14 17h6v-6"/></svg>;
+    case "trend-flat": return <svg {...props}><path d="M3 12h14"/><path d="M14 8l4 4-4 4"/></svg>;
+    // Live-pulse glyph: a broadcasting dot for the LIVE badge and live-strip.
+    // The slow ember-pulse is driven by CSS on the wrapping element, not here.
+    case "live-pulse": return <svg {...props}><circle cx="12" cy="12" r="2.5" fill={stroke} stroke="none"/><path d="M7.5 16.5a6 6 0 0 1 0-9"/><path d="M16.5 7.5a6 6 0 0 1 0 9"/><path d="M4.7 19.3a10 10 0 0 1 0-14.6"/><path d="M19.3 4.7a10 10 0 0 1 0 14.6"/></svg>;
+    // Command-strip hero glyph: a pulse/activity line inside a frame, for the dominant KPI tile.
+    case "command":    return <svg {...props}><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 14h4l2-5 3 8 2-4h7"/></svg>;
+    // Hero KPI accent: an upward spark for the count-up headline number.
+    case "spark":      return <svg {...props}><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg>;
+    // Secondary hero stats: activity (throughput) and gauge (attention level).
+    case "activity":   return <svg {...props}><path d="M3 12h4l2-7 4 14 2-7h6"/></svg>;
+    case "gauge":      return <svg {...props}><path d="M4 18a8 8 0 1 1 16 0"/><path d="M12 18l4-5"/><circle cx="12" cy="18" r="1.2" fill={stroke} stroke="none"/></svg>;
     default: return <svg {...props}><circle cx="12" cy="12" r="9"/></svg>;
   }
 };

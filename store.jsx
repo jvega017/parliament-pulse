@@ -3,23 +3,87 @@ const StoreCtx = React.createContext(null);
 
 function useStore() { return React.useContext(StoreCtx); }
 
+// Canonical default shape. Returning users from older builds may have saved
+// state that is missing newer keys, so every read merges over this object.
+const STORE_DEFAULTS = {
+  owners: {}, // { entityId: ownerName }
+  feedback: {}, // { signalId: { label, reason, ts } }
+  archived: {}, // { signalId: true }
+  briefsGenerated: {}, // { signalId: { ts, type } }
+  watchlistAdds: {}, // { entityKey: true }
+  watchlistCreated: [], // extra watchlists
+  feeds: [], // extra custom feeds
+  notes: {}, // { signalId: "text" }
+};
+
+// Merge a parsed blob over the defaults. Top-level keys are taken from the saved
+// blob where present; the nested object keys (notes, feeds, owners, feedback,
+// watchlistCreated and the rest) are coerced back to their default type so a
+// corrupt or partial save can never crash a render that spreads or maps them.
+function hydrateState(parsed) {
+  if (!parsed || typeof parsed !== "object") return { ...STORE_DEFAULTS };
+  const merged = { ...STORE_DEFAULTS, ...parsed };
+  for (const key of Object.keys(STORE_DEFAULTS)) {
+    const def = STORE_DEFAULTS[key];
+    const val = parsed[key];
+    if (Array.isArray(def)) {
+      merged[key] = Array.isArray(val) ? val : [];
+    } else if (def && typeof def === "object") {
+      merged[key] = (val && typeof val === "object" && !Array.isArray(val)) ? { ...def, ...val } : { ...def };
+    }
+  }
+  return merged;
+}
+
+// Explicit keyword and tag lists per watchlist name, so signal matching is
+// stable rather than relying on the first word of the watchlist name. Keys are
+// the canonical WATCHLISTS names. Created watchlists fall back to a tokenised
+// match on their own name (see watchlistKeywords).
+const WATCHLIST_KEYWORDS = {
+  "Digital government": ["digital", "service delivery", "myGov", "platform"],
+  "AI & automation": ["ai", "automation", "automated", "assurance", "algorithm", "machine learning"],
+  "Cyber security": ["cyber", "security", "breach", "ransomware", "incident"],
+  "Digital identity": ["digital id", "identity", "credential", "verification"],
+  "Data sharing & privacy": ["data", "privacy", "sharing", "consent", "personal information"],
+  "Procurement": ["procurement", "contract", "tender", "consultancy"],
+  "Service delivery": ["service delivery", "service", "client", "channel"],
+  "Infrastructure & connectivity": ["infrastructure", "connectivity", "network", "5g", "broadband"],
+  "Health digital systems": ["health", "ehealth", "medical", "telehealth"],
+  "Parliamentary scrutiny": ["scrutiny", "estimates", "committee", "inquiry", "tabled"],
+  "Estimates preparation": ["estimates", "budget", "appropriation", "portfolio"],
+  "Queensland federal signals": ["queensland", "qld", "brisbane", "state"],
+};
+
+// Resolve the keyword list for any watchlist. Canonical lists win; created
+// watchlists tokenise their own name into match terms.
+function watchlistKeywords(w) {
+  const explicit = WATCHLIST_KEYWORDS[w.name];
+  if (explicit && explicit.length) return explicit;
+  if (Array.isArray(w.keywordList) && w.keywordList.length) return w.keywordList;
+  return w.name.toLowerCase().split(/\s+|&/).map(t => t.trim()).filter(t => t.length > 2);
+}
+
+// Count signals matching a watchlist by tag against the keyword list.
+function watchlistMatches(w) {
+  const terms = watchlistKeywords(w);
+  if (typeof SIGNALS === "undefined" || !Array.isArray(SIGNALS)) return [];
+  return SIGNALS.filter(s => (s.tags || []).some(t => {
+    const label = (t.l || "").toLowerCase();
+    return terms.some(term => label.includes(term.toLowerCase()));
+  }));
+}
+
 function StoreProvider({ children }) {
   // Owners assigned to signals/bills, feedback given, watchlist additions, toasts
   const [state, setState] = React.useState(() => {
     try {
       const raw = localStorage.getItem("cs-state-v1");
-      if (raw) return JSON.parse(raw);
-    } catch(e){}
-    return {
-      owners: {}, // { entityId: ownerName }
-      feedback: {}, // { signalId: { label, reason, ts } }
-      archived: {}, // { signalId: true }
-      briefsGenerated: {}, // { signalId: { ts, type } }
-      watchlistAdds: {}, // { entityKey: true }
-      watchlistCreated: [], // extra watchlists
-      feeds: [], // extra custom feeds
-      notes: {}, // { signalId: "text" }
-    };
+      if (raw) return hydrateState(JSON.parse(raw));
+    } catch(e){
+      // Corrupt or incompatible saved state. Fall through to defaults so the
+      // app still loads rather than throwing on hydration.
+    }
+    return { ...STORE_DEFAULTS };
   });
 
   React.useEffect(() => {
@@ -57,8 +121,14 @@ function StoreProvider({ children }) {
     toast(`Feedback logged: ${label}`, "brass");
   };
   const archive = (signalId) => {
-    const remaining = SIGNALS.filter(x => !state.archived[x.id] && x.id !== signalId).length;
-    setState(s => ({ ...s, archived: { ...s.archived, [signalId]: true } }));
+    let remaining = 0;
+    setState(s => {
+      const archived = { ...s.archived, [signalId]: true };
+      // Compute the count from the NEXT state so rapid successive archives do
+      // not read a stale snapshot. Clamp at 0 for safety.
+      remaining = Math.max(0, SIGNALS.filter(x => !archived[x.id]).length);
+      return { ...s, archived };
+    });
     const msg = remaining > 0 ? `${signalId} archived · ${remaining} remaining` : "All signals reviewed";
     toast(msg, "ok", { label: "Undo", fn: () => unarchive(signalId) });
   };
@@ -66,11 +136,33 @@ function StoreProvider({ children }) {
     setState(s => { const n = { ...s.archived }; delete n[signalId]; return { ...s, archived: n }; });
   };
   const addWatchlist = (key) => {
-    setState(s => ({ ...s, watchlistAdds: { ...s.watchlistAdds, [key]: true } }));
-    toast("Added to watchlist", "brass");
+    // Persist the flag and report the real running count so the action is
+    // observable, not a bare success toast. The flag survives reload and can
+    // be read back via state.watchlistAdds.
+    let total = 0;
+    setState(s => {
+      const watchlistAdds = { ...s.watchlistAdds, [key]: true };
+      total = Object.keys(watchlistAdds).length;
+      return { ...s, watchlistAdds };
+    });
+    toast(`Saved to watchlist · ${total} tracked`, "brass");
   };
+  const isWatched = (key) => !!state.watchlistAdds[key];
   const createWatchlist = (name) => {
-    setState(s => ({ ...s, watchlistCreated: [...s.watchlistCreated, { name, keywords: 0, matches: 0, trend: [0,0,0,0,0,0,0] }] }));
+    // Seed sensibly: derive keyword terms from the name and compute real match
+    // counts against the current signal stream so a new watchlist is not a dead
+    // zero row. trend is left flat and the entry is flagged new for the UI.
+    const keywordList = name.toLowerCase().split(/\s+|&/).map(t => t.trim()).filter(t => t.length > 2);
+    const matches = watchlistMatches({ name, keywordList }).length;
+    const entry = {
+      name,
+      keywordList,
+      keywords: keywordList.length,
+      matches,
+      trend: [0, 0, 0, 0, 0, 0, matches],
+      created: true,
+    };
+    setState(s => ({ ...s, watchlistCreated: [...s.watchlistCreated, entry] }));
     toast(`Watchlist "${name}" created`, "brass");
   };
   const generateBrief = (signalId, type) => {
@@ -90,16 +182,23 @@ function StoreProvider({ children }) {
       modal, openModal, closeModal,
       signalId, openSignal, closeSignal,
       assignOwner, saveFeedback, archive, unarchive,
-      addWatchlist, createWatchlist, generateBrief, addFeed, saveNote,
+      addWatchlist, isWatched, createWatchlist, generateBrief, addFeed, saveNote,
     }}>
       {children}
       <div className="toast-wrap" aria-live="polite" aria-atomic="false">
         {toasts.map(t => (
-          <div key={t.id} className={"toast" + (t.kind === "error" ? " toast-err" : "")}>
+          <div
+            key={t.id}
+            className={"toast" + (t.kind === "error" ? " toast-err" : "")}
+            style={{
+              border: "1px solid var(--line-bright)",
+              borderLeft: "3px solid " + (t.kind === "error" ? "var(--ember-flash)" : "var(--brass)"),
+            }}
+          >
             <Icon
               name={t.kind === "error" ? "close" : "check"}
               size={14}
-              stroke={t.kind === "error" ? "var(--escalate)" : t.kind === "brass" ? "var(--brass)" : "var(--ok)"}
+              stroke={t.kind === "error" ? "var(--ember-flash)" : t.kind === "brass" ? "var(--brass)" : "var(--ok)"}
             />
             <span>{t.msg}</span>
             {t.action && (
@@ -142,7 +241,16 @@ function DetailModal() {
 
   return (
     <div className="modal-back" onClick={closeModal}>
-      <div className="modal" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true">
+      <div
+        className="modal"
+        onClick={e => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        style={{
+          border: "1px solid var(--line-bright)",
+          boxShadow: "0 1px 0 #00000060, 0 40px 90px -32px #000000bf, inset 0 0 0 1px #ffffff08",
+        }}
+      >
         {render()}
       </div>
     </div>
@@ -456,23 +564,34 @@ function FeedDetail({ id }) {
 }
 
 function WatchlistDetail({ id }) {
-  const w = WATCHLISTS.find(x => x.name === id);
-  const { closeModal, toast } = useStore();
+  const { closeModal, toast, state } = useStore();
+  // F2: resolve against the merged list so user-created watchlists open their
+  // detail rather than a "Not found" modal.
+  const all = [...WATCHLISTS, ...(state.watchlistCreated || [])];
+  const w = all.find(x => x.name === id);
   if (!w) return <ModalHead kicker="Watchlist" title="Not found" />;
-  const max = Math.max(...w.trend);
+  // F2: guard the spark divisor so an all-zero trend cannot divide by zero.
+  const trend = Array.isArray(w.trend) ? w.trend : [];
+  const max = Math.max(...trend, 1);
+  // F16: stable keyword matching against signal tags, not a name-prefix substring.
+  const matchingSignals = watchlistMatches(w).slice(0, 3);
   return (
     <>
-      <ModalHead kicker="Watchlist" title={w.name} />
+      <ModalHead kicker={w.created ? "Watchlist · New" : "Watchlist"} title={w.name} />
       <div className="modal-body">
+        {w.created && (
+          <div className="empty" style={{marginBottom:14}}>Created watchlist. Keyword matching runs against the current signal stream. Trend builds as new signals arrive.</div>
+        )}
         <div className="grid g-3" style={{gap:12}}>
           <div className="panel stat"><div className="stat-label">Matches</div><div className="stat-value" style={{fontSize:26}}>{w.matches}</div></div>
           <div className="panel stat"><div className="stat-label">Keywords</div><div className="stat-value" style={{fontSize:26}}>{w.keywords}</div></div>
           <div className="panel stat"><div className="stat-label">7-day trend</div>
-            <div className="spark" style={{marginTop:8}}>{w.trend.map((v,i) => <span key={i} style={{height:(v/max*24+3)+"px"}}/>)}</div>
+            <div className="spark" style={{marginTop:8}}>{trend.map((v,i) => <span key={i} style={{height:(v/max*24+3)+"px"}}/>)}</div>
           </div>
         </div>
         <h4 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:6}}>Matching signals</h4>
-        {SIGNALS.filter(s => s.tags.some(t => t.l.toLowerCase().includes(w.name.toLowerCase().split(" ")[0]))).slice(0,3).map(s => (
+        {matchingSignals.length === 0 && <div className="empty">No matching signals in the current stream.</div>}
+        {matchingSignals.map(s => (
           <div key={s.id} style={{padding:"8px 12px", border:"1px solid var(--line-2)", borderRadius:8, marginBottom:6}}>
             <div style={{fontSize:12.5, fontWeight:500}}>{s.title}</div>
             <div className="mono" style={{fontSize:10.5, color:"var(--ink-4)", marginTop:2}}>{s.id} · {s.source}</div>
@@ -480,7 +599,7 @@ function WatchlistDetail({ id }) {
         ))}
       </div>
       <div className="modal-foot">
-        <button className="btn primary" onClick={() => { toast("Watchlist digest sent", "brass"); closeModal(); }}>Send digest</button>
+        <button className="btn primary" onClick={() => { toast("Watchlist digest sent (demo)", "brass"); closeModal(); }}>Send digest</button>
         <button className="btn" onClick={() => toast("Configuration saved")}>Edit</button>
       </div>
     </>

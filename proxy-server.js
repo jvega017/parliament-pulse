@@ -61,8 +61,11 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Basic safety: only allow aph.gov.au and parlinfo.aph.gov.au
-  const allowed = ["aph.gov.au", "parlinfo.aph.gov.au", "www.aph.gov.au"];
+  // Basic safety: only allow aph.gov.au hosts. parlinfo.aph.gov.au is NOT
+  // included: it sits behind an Azure WAF JavaScript challenge that returns 403
+  // to a plain fetch, so the production Worker does not route it either. Keep
+  // this list aligned with the Worker ALLOWED_HOSTS.
+  const allowed = ["aph.gov.au", "www.aph.gov.au"];
   let parsedTarget;
   try { parsedTarget = url.parse(targetUrl); } catch(e) {
     res.writeHead(400, CORS_HEADERS);
@@ -82,6 +85,6 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, "127.0.0.1", () => {
   console.log(`Parliament Pulse CORS proxy running at http://localhost:${PORT}/proxy?url=...`);
-  console.log("Allowed domains: aph.gov.au, parlinfo.aph.gov.au");
+  console.log("Allowed domains: aph.gov.au (www included)");
   console.log("Press Ctrl+C to stop.");
 });
