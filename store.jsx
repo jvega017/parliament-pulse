@@ -110,6 +110,15 @@ function StoreProvider({ children }) {
   const [signalId, setSignalId] = React.useState(null);
   const openSignal = s => setSignalId(typeof s === "string" ? s : s?.id);
   const closeSignal = () => setSignalId(null);
+  const [visibleSignalOrder, setVisibleSignalOrder] = React.useState(null);
+  const [signalSearchQuery, setSignalSearchQuery] = React.useState("");
+  const pendingLiveRefreshRef = React.useRef(false);
+  const requestLiveRefresh = () => { pendingLiveRefreshRef.current = true; };
+  const consumeLiveRefresh = () => {
+    const pending = pendingLiveRefreshRef.current;
+    pendingLiveRefreshRef.current = false;
+    return pending;
+  };
 
   React.useEffect(() => {
     const prev = document.body.style.overflow;
@@ -152,14 +161,28 @@ function StoreProvider({ children }) {
     // observable, not a bare success toast. The flag survives reload and can
     // be read back via state.watchlistAdds.
     let total = 0;
+    let already = false;
     setState(s => {
+      if (s.watchlistAdds[key]) {
+        already = true;
+        total = Object.keys(s.watchlistAdds).length;
+        return s;
+      }
       const watchlistAdds = { ...s.watchlistAdds, [key]: true };
       total = Object.keys(watchlistAdds).length;
       return { ...s, watchlistAdds };
     });
-    toast(`Saved to watchlist · ${total} tracked`, "brass");
+    toast(already ? "Already on watchlist" : `Saved to watchlist, ${total} tracked`, "brass");
   };
   const isWatched = (key) => !!state.watchlistAdds[key];
+  const removeWatchlist = (key) => {
+    setState(s => {
+      const watchlistAdds = { ...s.watchlistAdds };
+      delete watchlistAdds[key];
+      return { ...s, watchlistAdds };
+    });
+    toast("Removed from watchlist", "brass");
+  };
   const createWatchlist = (name) => {
     // Seed sensibly: derive keyword terms from the name and compute real match
     // counts against the current signal stream so a new watchlist is not a dead
@@ -193,8 +216,11 @@ function StoreProvider({ children }) {
       state, setState, toast, toasts,
       modal, openModal, closeModal,
       signalId, openSignal, closeSignal,
+      visibleSignalOrder, setVisibleSignalOrder,
+      signalSearchQuery, setSignalSearchQuery,
+      requestLiveRefresh, consumeLiveRefresh,
       assignOwner, saveFeedback, archive, unarchive,
-      addWatchlist, isWatched, createWatchlist, generateBrief, addFeed, saveNote,
+      addWatchlist, removeWatchlist, isWatched, createWatchlist, generateBrief, addFeed, saveNote,
     }}>
       {children}
       <div className="toast-wrap" aria-live="polite" aria-atomic="false">
@@ -234,7 +260,7 @@ function DetailModal() {
 
   React.useEffect(() => {
     if (!modal) return;
-    const h = (e) => { if (e.key === "Escape") closeModal(); };
+    const h = (e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); closeModal(); } };
     document.addEventListener("keydown", h);
     return () => document.removeEventListener("keydown", h);
   }, [modal, closeModal]);
@@ -320,8 +346,10 @@ function ModalHead({ kicker, title, right, onClose, representative = false, titl
 
 function CommitteeDetail({ id, titleId, closeButtonRef }) {
   const c = ENTITIES.committees[id];
-  const { openModal, closeModal, toast } = useStore();
+  const { openModal, closeModal, toast, addWatchlist, isWatched } = useStore();
   if (!c) return <ModalHead kicker="Committee" title="Not found" titleId={titleId} closeButtonRef={closeButtonRef} />;
+  const watchKey = `committee:${id}`;
+  const watched = isWatched(watchKey);
   return (
     <>
       <ModalHead kicker={`Committee · ${c.chamber}`} title={c.name} representative={!!c.representative} titleId={titleId} closeButtonRef={closeButtonRef} />
@@ -359,7 +387,7 @@ function CommitteeDetail({ id, titleId, closeButtonRef }) {
       </div>
       <div className="modal-foot">
         <button className="btn primary" onClick={() => { toast("Committee prep pack queued", "brass"); closeModal(); }}><Icon name="brief" size={13}/> Prep pack</button>
-        <button className="btn" onClick={() => { toast("Committee added to watchlist", "brass"); }}><Icon name="watch" size={13}/> Watch committee</button>
+        <button className="btn" onClick={() => addWatchlist(watchKey)} style={watched ? {borderColor:"var(--brass)", color:"var(--brass)"} : undefined}><Icon name="watch" size={13}/> {watched ? "Watching committee" : "Watch committee"}</button>
         <button className="btn ghost" style={{marginLeft:"auto"}} onClick={closeModal}>Close</button>
       </div>
     </>
@@ -437,10 +465,12 @@ function InquiryDetail({ id, titleId, closeButtonRef }) {
 
 function BillDetail({ id, titleId, closeButtonRef }) {
   const b = ENTITIES.bills[id];
-  const { closeModal, toast, state, assignOwner, openModal } = useStore();
+  const { closeModal, toast, state, assignOwner, openModal, addWatchlist, isWatched } = useStore();
   const [owner, setOwner] = React.useState(state.owners[id] || (b?.owner === "—" ? "" : b?.owner || ""));
   if (!b) return <ModalHead kicker="Bill" title="Not found" titleId={titleId} closeButtonRef={closeButtonRef} />;
   const min = ENTITIES.ministers[b.minister];
+  const watchKey = `bill:${id}`;
+  const watched = isWatched(watchKey);
   return (
     <>
       <ModalHead kicker={`Bill · ${b.ref}`} title={b.title} representative={!!b.representative} titleId={titleId} closeButtonRef={closeButtonRef} />
@@ -488,7 +518,7 @@ function BillDetail({ id, titleId, closeButtonRef }) {
       </div>
       <div className="modal-foot">
         <button className="btn primary" onClick={() => { toast("Bill brief drafted", "brass"); closeModal(); }}><Icon name="brief" size={13}/> Draft bill brief</button>
-        <button className="btn" onClick={() => { toast("Bill added to watchlist", "brass"); }}><Icon name="watch" size={13}/> Track bill</button>
+        <button className="btn" onClick={() => addWatchlist(watchKey)} style={watched ? {borderColor:"var(--brass)", color:"var(--brass)"} : undefined}><Icon name="watch" size={13}/> {watched ? "Tracking bill" : "Track bill"}</button>
       </div>
     </>
   );
@@ -496,8 +526,10 @@ function BillDetail({ id, titleId, closeButtonRef }) {
 
 function MemberDetail({ id, titleId, closeButtonRef }) {
   const m = ENTITIES.members[id];
-  const { closeModal, toast } = useStore();
+  const { closeModal, addWatchlist, isWatched } = useStore();
   if (!m) return <ModalHead kicker="Member" title="Not found" titleId={titleId} closeButtonRef={closeButtonRef} />;
+  const watchKey = `member:${id}`;
+  const watched = isWatched(watchKey);
   return (
     <>
       <ModalHead kicker={`${m.party} · ${m.state}`} title={m.name} representative={!!m.representative} titleId={titleId} closeButtonRef={closeButtonRef} />
@@ -519,7 +551,7 @@ function MemberDetail({ id, titleId, closeButtonRef }) {
         </ul>
       </div>
       <div className="modal-foot">
-        <button className="btn primary" onClick={() => { toast("Tracking member", "brass"); closeModal(); }}>Track member</button>
+        <button className="btn primary" onClick={() => { addWatchlist(watchKey); closeModal(); }} style={watched ? {borderColor:"var(--brass)", color:"var(--brass)"} : undefined}>{watched ? "Tracking member" : "Track member"}</button>
       </div>
     </>
   );
@@ -677,4 +709,4 @@ function RadarDetail({ id, titleId, closeButtonRef }) {
   );
 }
 
-Object.assign(window, { StoreProvider, useStore, DetailModal });
+Object.assign(window, { StoreProvider, useStore, DetailModal, watchlistKeywords, watchlistMatches });

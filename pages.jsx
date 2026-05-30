@@ -246,7 +246,7 @@ function PageOverview() {
             </div>
             <div className="panel-body" style={{paddingTop:6}}>
               {BRIEFING_QUEUE.map((b,i) => (
-                <div key={i} style={{display:"grid", gridTemplateColumns:"1fr auto", padding:"10px 0", borderBottom: i<BRIEFING_QUEUE.length-1 ? "1px solid var(--line)" : 0, gap:10}}>
+                <div key={b.type + b.for} style={{display:"grid", gridTemplateColumns:"1fr auto", padding:"10px 0", borderBottom: i<BRIEFING_QUEUE.length-1 ? "1px solid var(--line)" : 0, gap:10}}>
                   <div>
                     <div style={{fontSize:13, fontWeight:500}}>{b.type}</div>
                     <div style={{fontSize:11.5, color:"var(--ink-3)"}}>For {b.for} · <span className="mono">{b.at}</span></div>
@@ -427,7 +427,7 @@ function safeHttpUrl(u) {
 
 function PageLive() {
   const [which, setWhich] = useState("house");
-  const { toast, openModal } = useStore();
+  const { toast, openModal, consumeLiveRefresh } = useStore();
 
   const [events, setEvents] = useState([]);
   const [feedStatus, setFeedStatus] = useState({}); // url -> {ok, count, error}
@@ -528,6 +528,7 @@ function PageLive() {
     };
 
     window.__refreshLiveFeeds = poll;
+    if (consumeLiveRefresh()) toast("Refreshing live feeds...", "brass");
     poll();
     const id = setInterval(poll, 120000); // 2 min
     return () => { cancelled = true; clearInterval(id); window.__refreshLiveFeeds = null; };
@@ -890,10 +891,6 @@ function PageCommittees() {
   const upcoming = COMMITTEE_ITEMS.filter(i => !i.when.startsWith("Today") && !i.when.startsWith("Yesterday"));
   const recent = COMMITTEE_ITEMS.filter(i => i.when.startsWith("Yesterday"));
 
-  // Match committee name from item.name → id in ENTITIES.committees
-  const matchId = (name) => Object.values(ENTITIES.committees).find(c => name.toLowerCase().includes(c.name.toLowerCase().split(" ")[0]))?.id
-    || Object.keys(ENTITIES.committees)[0];
-
   const CommitteeTable = ({ rows, compact }) => (
     <table className="ds">
       <thead><tr>
@@ -902,8 +899,10 @@ function PageCommittees() {
         <th>Portfolio</th><th>Attention</th>
       </tr></thead>
       <tbody>
-        {rows.map((r,i) => (
-          <tr key={i} onClick={() => openModal("committee", matchId(r.name))}>
+        {rows.map((r,i) => {
+          const canOpen = !!(r.id && ENTITIES.committees[r.id]);
+          return (
+          <tr key={r.name + r.when} onClick={canOpen ? () => openModal("committee", r.id) : undefined} style={canOpen ? undefined : {opacity:.6, cursor:"not-allowed"}}>
             <td className="mono" style={{fontSize:11.5, color:"var(--ink-2)"}}>{r.when}</td>
             <td><span className="tag">{r.type}</span></td>
             <td>{r.name}{compact && <div style={{color:"var(--ink-3)", fontSize:12}}>{r.topic}</div>}</td>
@@ -911,7 +910,8 @@ function PageCommittees() {
             <td className="mono" style={{fontSize:11.5, color:"var(--ink-3)"}}>{r.portfolio}</td>
             <td><Att level={r.att} /></td>
           </tr>
-        ))}
+          );
+        })}
       </tbody>
     </table>
   );
@@ -1115,7 +1115,7 @@ function PageParliament() {
           <div className="panel-head"><h2 className="panel-title">Recent divisions</h2><span className="panel-kicker">House</span></div>
           <div className="panel-body">
             {DIVISIONS.map((d, i) => (
-              <div key={i} className="clk" onClick={() => openModal("division", d)} style={{padding:"10px 8px", borderBottom: i<DIVISIONS.length-1 ? "1px solid var(--line)" : 0, borderRadius:6}}>
+              <div key={d.when + d.bill} className="clk" onClick={() => openModal("division", d)} style={{padding:"10px 8px", borderBottom: i<DIVISIONS.length-1 ? "1px solid var(--line)" : 0, borderRadius:6}}>
                 <div className="mono" style={{fontSize:10.5, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".12em"}}>{d.when} · {d.bill}</div>
                 <div style={{fontSize:13, marginTop:2}}>{d.q}</div>
                 <div style={{fontSize:12, color: d.result.startsWith("Agreed") ? "var(--ok)" : "var(--escalate)", marginTop:2}}>{d.result}</div>
@@ -1194,11 +1194,12 @@ function PagePatterns() {
         <div style={{borderTop:"1px dashed var(--line-2)", paddingTop:14}}>
           <div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", marginBottom:8}}>Evidence · click member for profile</div>
           {QON_PATTERN.items.map((q,i) => {
-            const mid = q.who.includes("Hollis") ? "hollis" : q.who.includes("Quirke") ? "quirke" : "rafferty";
+            const mid = q.memberId;
+            const canOpen = !!(mid && ENTITIES.members[mid]);
             return (
-              <div key={i} style={{display:"grid", gridTemplateColumns:"130px 200px 1fr 90px", gap:12, padding:"8px 0", borderBottom: i<QON_PATTERN.items.length-1 ? "1px solid var(--line)" : 0, alignItems:"start", fontSize:12.5}}>
+              <div key={q.when + q.who} style={{display:"grid", gridTemplateColumns:"130px 200px 1fr 90px", gap:12, padding:"8px 0", borderBottom: i<QON_PATTERN.items.length-1 ? "1px solid var(--line)" : 0, alignItems:"start", fontSize:12.5}}>
                 <div className="mono" style={{color:"var(--ink-3)"}}>{q.when}</div>
-                <div><span className="tag brass clk" onClick={() => openModal("member", mid)}>{q.who}</span></div>
+                <div><span className={"tag brass" + (canOpen ? " clk" : "")} onClick={canOpen ? () => openModal("member", mid) : undefined} style={canOpen ? undefined : {opacity:.65, cursor:"not-allowed"}}>{q.who}</span></div>
                 <div style={{color:"var(--ink-2)"}}>{q.q}</div>
                 <div style={{textAlign:"right"}}><span className="tag">{q.chamber}</span></div>
               </div>
@@ -1242,8 +1243,8 @@ function PagePatterns() {
 
 // ---------- BRIEFINGS ----------
 function PageBriefings() {
-  const [sel, setSel] = useState(0);
-  const { toast, state } = useStore();
+  const [selId, setSelId] = useState(null);
+  const { toast, state, setSignalSearchQuery } = useStore();
 
   // Merge drawer-generated briefs into the queue
   const generated = Object.entries(state.briefsGenerated || {}).map(([sid, v]) => {
@@ -1260,9 +1261,9 @@ function PageBriefings() {
     { type: "Estimates Monitor Note", for: "Estimates pack", status: "In progress" },
   ];
   const briefs = [...generated, ...staticBriefs];
-  // F10: clamp the selected index so a shrinking queue can never index out of range.
-  const safeSel = briefs.length === 0 ? 0 : Math.min(sel, briefs.length - 1);
-  const selected = briefs[safeSel];
+  const briefId = (b) => b._sid || `${b.type}|${b.for}`;
+  const selected = briefs.find(b => briefId(b) === selId) || briefs[0];
+  const selectedId = selected ? briefId(selected) : null;
   return (
     <div className="page">
       <div className="design-banner" role="status" style={{marginBottom:12, borderRadius:8}}>
@@ -1275,20 +1276,23 @@ function PageBriefings() {
           <h1 className="page-title">Briefings</h1>
           <div className="page-sub">Every brief follows a required structure: What happened · Source · Why it matters · Recommended action · Evidence · Uncertainty · Human review.</div>
         </div>
-        <button className="btn primary" title="Generate a brief from a signal to add it to this queue" onClick={() => toast("Open a signal and choose Generate brief to add one here")}><Icon name="plus" size={13}/> New brief</button>
+        <button className="btn primary" title="Open signals to generate a brief" onClick={() => { setSignalSearchQuery(""); window.__setPage?.("signals"); }}><Icon name="plus" size={13}/> New brief</button>
       </div>
 
       <div className="grid" style={{gridTemplateColumns:"280px 1fr", gap:16}}>
         <div className="panel">
           <div className="panel-head"><h2 className="panel-title">Queue</h2><span className="panel-kicker">{briefs.length} pending</span></div>
           <div>
-            {briefs.map((b, i) => (
-              <div key={i} onClick={() => setSel(i)} style={{padding:"12px 14px", borderBottom:"1px solid var(--line)", cursor:"pointer", background: safeSel===i ? "var(--panel-hi)" : "transparent", borderLeft: safeSel===i ? "2px solid var(--brass)" : "2px solid transparent"}}>
+            {briefs.map((b, i) => {
+              const id = briefId(b);
+              return (
+              <div key={id} onClick={() => setSelId(id)} style={{padding:"12px 14px", borderBottom:"1px solid var(--line)", cursor:"pointer", background: selectedId===id ? "var(--panel-hi)" : "transparent", borderLeft: selectedId===id ? "2px solid var(--brass)" : "2px solid transparent"}}>
                 <div style={{fontSize:13, fontWeight:500}}>{b.type}</div>
                 <div style={{fontSize:11.5, color:"var(--ink-3)"}}>For {b.for}</div>
                 <div className="mono" style={{fontSize:10, marginTop:4, color: b.status === "Drafted" || b.status.startsWith("Copied") ? "var(--ok)" : b.status === "In progress" ? "var(--caution)" : "var(--info)", textTransform:"uppercase", letterSpacing:".12em"}}>{b.status}</div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -1357,10 +1361,15 @@ function PageBriefings() {
 
 // ---------- WATCHLISTS ----------
 function PageWatchlists() {
-  const { openModal, createWatchlist, state } = useStore();
+  const { openModal, createWatchlist, state, removeWatchlist } = useStore();
   const [newName, setNewName] = useState("");
   const all = [...WATCHLISTS, ...state.watchlistCreated];
   const [selectedWl, setSelectedWl] = useState(() => all[0]);
+  const selectedKeywords = watchlistKeywords(selectedWl || all[0]);
+  const trackedItems = Object.keys(state.watchlistAdds || {}).map(key => {
+    const sig = SIGNALS.find(s => s.id === key);
+    return { key, title: sig ? sig.title : key, meta: sig ? `${sig.id} · ${sig.source}` : "Entity watch" };
+  });
   return (
     <div className="page">
       <div className="design-banner" role="status" style={{marginBottom:12, borderRadius:8}}>
@@ -1400,15 +1409,37 @@ function PageWatchlists() {
 
       <div className="panel" style={{marginTop:18}}>
         <div className="panel-head">
-          <h2 className="panel-title">{selectedWl?.name || "Digital government"} · configuration</h2>
-          <span className="panel-kicker">Selected watchlist</span>
+          <h2 className="panel-title">Tracked items</h2>
+          <span className="panel-kicker">{trackedItems.length} saved</span>
         </div>
         <div className="panel-body">
+          {trackedItems.length === 0 ? (
+            <div className="empty">No tracked items yet. Use Watchlist, Track, or Watch controls to add one.</div>
+          ) : trackedItems.map(item => (
+            <div key={item.key} style={{display:"grid", gridTemplateColumns:"1fr auto", gap:12, padding:"10px 0", borderBottom:"1px solid var(--line)", alignItems:"center"}}>
+              <div>
+                <div style={{fontSize:13, fontWeight:500}}>{item.title}</div>
+                <div className="mono" style={{fontSize:10.5, color:"var(--ink-4)", marginTop:2}}>{item.meta}</div>
+              </div>
+              <button className="btn sm ghost" onClick={() => removeWatchlist(item.key)}>Remove</button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="panel" style={{marginTop:18}}>
+        <div className="panel-head">
+          <h2 className="panel-title">{selectedWl?.name || "Digital government"} · configuration</h2>
+          <span className="panel-kicker">Selected watchlist</span>
+          <span className="chip-fixture" style={{marginLeft:8}}>Fixture</span>
+        </div>
+        <div className="panel-body">
+          <div className="empty" style={{marginBottom:14}}>Keyword chips follow the selected watchlist. Thresholds, linked committees, and audit entries are illustrative in this build.</div>
           <div className="grid g-2">
             <div>
               <div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", marginBottom:6}}>Keywords</div>
               <div style={{display:"flex", flexWrap:"wrap", gap:6}}>
-                {["digital transformation","ICT procurement","MyGov","service delivery","APS digital","digital identity","digital strategy","cloud services","data sharing","Digital Transformation Agency"].map(k => <span key={k} className="tag brass">{k}</span>)}
+                {selectedKeywords.map(k => <span key={k} className="tag brass">{k}</span>)}
               </div>
               <div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", margin:"14px 0 6px"}}>Linked committees</div>
               <div style={{display:"flex", flexWrap:"wrap", gap:6}}>
@@ -1470,7 +1501,7 @@ function PageRadar() {
             <div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em"}}>Confidence</div>
           </div>
           {RADAR.map((r,i) => (
-            <div key={i} className="clk" onClick={() => openModal("radar", r.issue)} style={{display:"grid", gridTemplateColumns:"1fr 100px 80px 120px 140px", padding:"14px 8px", borderBottom: i<RADAR.length-1 ? "1px solid var(--line)" : 0, gap:14, alignItems:"center", borderRadius:6}}>
+            <div key={r.issue} className="clk" onClick={() => openModal("radar", r.issue)} style={{display:"grid", gridTemplateColumns:"1fr 100px 80px 120px 140px", padding:"14px 8px", borderBottom: i<RADAR.length-1 ? "1px solid var(--line)" : 0, gap:14, alignItems:"center", borderRadius:6}}>
               <div>
                 <div style={{fontSize:14, fontWeight:500}}>{r.issue}</div>
                 <div style={{fontSize:12, color:"var(--ink-3)", marginTop:2}}>{r.reason}</div>
@@ -1491,16 +1522,28 @@ function PageRadar() {
 
 // ---------- SIGNALS ----------
 function PageSignals() {
-  const { state, openSignal } = useStore();
+  const { state, setVisibleSignalOrder, signalSearchQuery, setSignalSearchQuery } = useStore();
   const [filter, setFilter] = useState("all");
   const [sort, setSort] = useState("time");
 
   const visible = React.useMemo(() => {
     let sigs = SIGNALS.filter(s => !state.archived[s.id]);
+    const query = (signalSearchQuery || "").trim().toLowerCase();
+    if (query) sigs = sigs.filter(s =>
+      s.title.toLowerCase().includes(query) ||
+      s.summary.toLowerCase().includes(query) ||
+      s.id.toLowerCase().includes(query) ||
+      (s.tags || []).some(t => (t.l || "").toLowerCase().includes(query))
+    );
     if (filter !== "all") sigs = sigs.filter(s => s.attention === filter);
     if (sort === "score") sigs = [...sigs].sort((a, b) => (b.score?.authority || 0) - (a.score?.authority || 0));
     return sigs;
-  }, [state.archived, filter, sort]);
+  }, [state.archived, filter, sort, signalSearchQuery]);
+
+  React.useEffect(() => {
+    setVisibleSignalOrder(visible.map(s => s.id));
+    return () => setVisibleSignalOrder(null);
+  }, [visible, setVisibleSignalOrder]);
 
   const counts = React.useMemo(() => ({
     all: SIGNALS.filter(s => !state.archived[s.id]).length,
@@ -1527,6 +1570,13 @@ function PageSignals() {
           </select>
         </div>
       </div>
+
+      {signalSearchQuery && (
+        <div className="empty" style={{marginBottom:14, display:"flex", alignItems:"center", justifyContent:"space-between", gap:12}}>
+          <span>Filtered by search: "{signalSearchQuery}"</span>
+          <button className="btn sm ghost" onClick={() => setSignalSearchQuery("")}>Clear search</button>
+        </div>
+      )}
 
       <div role="group" aria-label="Filter signals by attention level" style={{display:"flex", gap:8, marginBottom:16, flexWrap:"wrap"}}>
         {[["all","All"], ["high","High"], ["med","Medium"], ["low","Low"]].map(([val, label]) => (

@@ -305,13 +305,13 @@ const SIGNALS = [
 ];
 
 const COMMITTEE_ITEMS = [
-  { when: "Today, 10:00", type: "Hearing", name: "Legal & Constitutional Affairs Legislation Committee", topic: "AI assurance in regulated services", portfolio: "Digital government", att: "high" },
-  { when: "Today, 13:30", type: "Hearing", name: "Finance & Public Administration References", topic: "Commonwealth procurement & contract governance", portfolio: "Procurement", att: "high" },
-  { when: "25 Apr, 09:00", type: "Hearing", name: "Economics Legislation Committee", topic: "Consumer Data Right — expansion review", portfolio: "Data & privacy", att: "med" },
-  { when: "26 Apr, 14:00", type: "Hearing", name: "Rural & Regional Affairs Committee", topic: "Regional connectivity outcomes", portfolio: "Infrastructure", att: "med" },
-  { when: "28 Apr, 11:00", type: "Hearing", name: "Joint Committee on Law Enforcement", topic: "Scam activity trends", portfolio: "Cyber security", att: "low" },
-  { when: "Yesterday", type: "Report tabled", name: "Environment & Communications References", topic: "Regional 5G rollout — interim report", portfolio: "Infrastructure", att: "med" },
-  { when: "Yesterday", type: "New inquiry", name: "Joint Committee on Public Accounts & Audit", topic: "Digital transformation program governance", portfolio: "Digital government", att: "high" },
+  { id: "legcon", when: "Today, 10:00", type: "Hearing", name: "Legal & Constitutional Affairs Legislation Committee", topic: "AI assurance in regulated services", portfolio: "Digital government", att: "high" },
+  { id: "finpa", when: "Today, 13:30", type: "Hearing", name: "Finance & Public Administration References", topic: "Commonwealth procurement & contract governance", portfolio: "Procurement", att: "high" },
+  { id: "econ", when: "25 Apr, 09:00", type: "Hearing", name: "Economics Legislation Committee", topic: "Consumer Data Right — expansion review", portfolio: "Data & privacy", att: "med" },
+  { id: "rra", when: "26 Apr, 14:00", type: "Hearing", name: "Rural & Regional Affairs Committee", topic: "Regional connectivity outcomes", portfolio: "Infrastructure", att: "med" },
+  { id: "jcle", when: "28 Apr, 11:00", type: "Hearing", name: "Joint Committee on Law Enforcement", topic: "Scam activity trends", portfolio: "Cyber security", att: "low" },
+  { id: "envcomms", when: "Yesterday", type: "Report tabled", name: "Environment & Communications References", topic: "Regional 5G rollout — interim report", portfolio: "Infrastructure", att: "med" },
+  { id: "jcpaa", when: "Yesterday", type: "New inquiry", name: "Joint Committee on Public Accounts & Audit", topic: "Digital transformation program governance", portfolio: "Digital government", att: "high" },
 ];
 
 const BILLS = [
@@ -361,10 +361,10 @@ const QON_PATTERN = {
   trigger: "Audit report tabled 22 Apr",
   confidence: "Moderate",
   items: [
-    { when: "22 Apr 14:12", who: "Sen. A. Hollis (Opposition)", chamber: "Senate", q: "Details of contract governance framework for digital programs over $100m since FY23–24" },
-    { when: "22 Apr 15:40", who: "Sen. M. Quirke (Crossbench)", chamber: "Senate", q: "Number of variations to digital procurement contracts in the last 24 months, by department" },
-    { when: "23 Apr 11:02", who: "Hon. P. Rafferty MP", chamber: "House", q: "Status of Departmental response to ANAO report on digital program governance" },
-    { when: "23 Apr 16:18", who: "Sen. A. Hollis (Opposition)", chamber: "Senate", q: "Use of limited tender for digital platforms where contract value exceeded $10m" },
+    { memberId: "hollis", when: "22 Apr 14:12", who: "Sen. A. Hollis (Opposition)", chamber: "Senate", q: "Details of contract governance framework for digital programs over $100m since FY23–24" },
+    { memberId: "quirke", when: "22 Apr 15:40", who: "Sen. M. Quirke (Crossbench)", chamber: "Senate", q: "Number of variations to digital procurement contracts in the last 24 months, by department" },
+    { memberId: "rafferty", when: "23 Apr 11:02", who: "Hon. P. Rafferty MP", chamber: "House", q: "Status of Departmental response to ANAO report on digital program governance" },
+    { memberId: "hollis", when: "23 Apr 16:18", who: "Sen. A. Hollis (Opposition)", chamber: "Senate", q: "Use of limited tender for digital platforms where contract value exceeded $10m" },
   ],
 };
 

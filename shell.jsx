@@ -37,14 +37,22 @@ const ICONS = {
 
 function Sidebar({ page, setPage }) {
   const { state } = useStore();
-  const liveCount = React.useMemo(() => {
+  const navCount = React.useMemo(() => {
     const active = SIGNALS.filter(s => !state.archived[s.id]);
     return {
       overview: active.length,
+      live: null,
       radar:    active.filter(s => s.attention !== "low").length,
       signals:  active.length,
+      committees: COMMITTEE_ITEMS.length,
+      bills: BILLS.length,
+      parliament: DIVISIONS.length,
+      patterns: QON_PATTERN.items.length,
+      briefings: BRIEFING_QUEUE.length + Object.keys(state.briefsGenerated || {}).length,
+      watchlists: WATCHLISTS.length + (state.watchlistCreated || []).length,
+      sources: sourceCounts().total + (state.feeds || []).length,
     };
-  }, [state.archived]);
+  }, [state.archived, state.briefsGenerated, state.watchlistCreated, state.feeds]);
   const groups = [...new Set(NAV.map(n => n.group))];
   // Streak: consecutive days the tool has been opened — reflection of practice, not gamification.
   // Compute the display value without side effects so the lazy initialiser is pure (StrictMode-safe).
@@ -110,7 +118,7 @@ function Sidebar({ page, setPage }) {
                 <Icon name={ICONS[n.id]} size={15} className="ico" />
                 <span>{n.label}</span>
                 {n.live && <span className="count nav-live">LIVE</span>}
-                {!n.live && n.count !== null && <span className="count">{liveCount[n.id] ?? n.count}</span>}
+                {!n.live && navCount[n.id] !== null && <span className="count">{navCount[n.id]}</span>}
               </div>
             ))}
           </div>
@@ -163,13 +171,14 @@ function ShortcutHelp() {
 }
 
 function Topbar({ setPage }) {
-  const { openModal, openSignal, toast } = useStore();
+  const { openModal, openSignal, toast, modal, signalId, setSignalSearchQuery, requestLiveRefresh, consumeLiveRefresh } = useStore();
   const [q, setQ] = React.useState("");
   const [open, setOpen] = React.useState(false);
   const [cursor, setCursor] = React.useState(-1);
   const [isDark, setIsDark] = React.useState(() => localStorage.getItem("pp-theme") !== "light");
   const [focused, setFocused] = React.useState(false);
   const ref = React.useRef(null);
+  const searchRef = React.useRef(null);
 
   // Plex Mono live clock — Brisbane local time, refreshed every second
   const fmtClock = () => new Date().toLocaleTimeString("en-AU", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
@@ -182,20 +191,35 @@ function Topbar({ setPage }) {
   React.useEffect(() => {
     const h = (e) => {
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); ref.current?.focus(); }
-      if (e.key === "Escape" && !open) { ref.current?.blur(); }
+      if (e.key === "Escape") {
+        if (modal || signalId) return;
+        if (open) { e.preventDefault(); setOpen(false); setCursor(-1); ref.current?.blur(); return; }
+        ref.current?.blur();
+      }
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
-  }, [open]);
+  }, [modal, signalId, open]);
+
+  React.useEffect(() => {
+    const h = (e) => {
+      if (!searchRef.current || searchRef.current.contains(e.target)) return;
+      setOpen(false);
+      setFocused(false);
+      setCursor(-1);
+    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
 
   const results = React.useMemo(() => {
     if (!q.trim()) return null;
     const term = q.toLowerCase();
     const sig = SIGNALS.filter(s =>
       s.title.toLowerCase().includes(term) || s.summary.toLowerCase().includes(term) || s.id.toLowerCase().includes(term));
-    const bills = Object.values(ENTITIES.bills).filter(b => b.title.toLowerCase().includes(term) || b.ref.toLowerCase().includes(term));
-    const comm = Object.values(ENTITIES.committees).filter(c => c.name.toLowerCase().includes(term));
-    const mem = Object.values(ENTITIES.members).filter(m => m.name.toLowerCase().includes(term));
+    const bills = Object.values(ENTITIES.bills).filter(b => [b.title, b.ref, b.portfolio, b.stage].some(v => (v || "").toLowerCase().includes(term)));
+    const comm = Object.values(ENTITIES.committees).filter(c => [c.name, c.portfolio, c.chamber].some(v => (v || "").toLowerCase().includes(term)));
+    const mem = Object.values(ENTITIES.members).filter(m => [m.name, m.party, (m.roles || []).join(" ")].some(v => (v || "").toLowerCase().includes(term)));
     const feeds = APH_FEEDS.filter(f => f.name.toLowerCase().includes(term));
     return { sig, bills, comm, mem, feeds };
   }, [q]);
@@ -205,6 +229,7 @@ function Topbar({ setPage }) {
     if (!results) return [];
     return [
       ...results.sig.slice(0,4).map(s => ({ kind:"signal", key:s.id, label:s.title, sub:s.id, act:() => { openSignal(s.id); } })),
+      ...(results.sig.length > 4 ? [{ kind:"signalsAll", key:"signals-all", label:`See all ${results.sig.length} signals`, sub:q, act:() => { setSignalSearchQuery(q); setPage("signals"); } }] : []),
       ...results.bills.map(b => ({ kind:"bill", key:b.ref, label:b.title, sub:b.ref, act:() => { openModal("bill", b.ref); } })),
       ...results.comm.map(c => ({ kind:"committee", key:c.id, label:c.name, sub:c.chamber, act:() => { openModal("committee", c.id); } })),
       ...results.mem.map(m => ({ kind:"member", key:m.id, label:m.name, sub:m.party, act:() => { openModal("member", m.id); } })),
@@ -226,21 +251,22 @@ function Topbar({ setPage }) {
 
   // Map flat index back to per-group index offsets for rendering
   const sigOff  = 0;
-  const billOff = results ? results.sig.slice(0,4).length : 0;
+  const sigFlatCount = results ? results.sig.slice(0,4).length + (results.sig.length > 4 ? 1 : 0) : 0;
+  const billOff = sigFlatCount;
   const commOff = billOff + (results ? results.bills.length : 0);
   const memOff  = commOff + (results ? results.comm.length : 0);
   const feedOff = memOff  + (results ? results.mem.length : 0);
 
   return (
     <div className="topbar">
-      <div className={"search" + (focused ? " focused" : "")} onClick={() => setOpen(true)}
+      <div ref={searchRef} className={"search" + (focused ? " focused" : "")} onClick={() => setOpen(true)}
         style={focused ? {borderColor:"var(--brass)", boxShadow:"0 0 0 3px var(--brass-soft)"} : undefined}>
         <Icon name="search" size={14} stroke={focused ? "var(--brass)" : "var(--ink-3)"} />
         <input ref={ref} value={q}
           role="combobox"
           onChange={e => { setQ(e.target.value); setOpen(true); }}
           onFocus={() => { setOpen(true); setFocused(true); }}
-          onBlur={() => { setFocused(false); setTimeout(() => { setOpen(false); setCursor(-1); }, 200); }}
+          onBlur={() => setFocused(false)}
           onKeyDown={onKeyDown}
           aria-label="Search parliament signals, bills, committees and members"
           aria-expanded={open && !!results}
@@ -258,23 +284,30 @@ function Topbar({ setPage }) {
           <span className="kbd">{IS_MAC ? "⌘K" : "Ctrl+K"}</span>
         )}
         {open && results && (
-          <div id="search-listbox" role="listbox" className="search-results" onMouseDown={e=>e.preventDefault()}>
+          <div id="search-listbox" role="listbox" className="search-results">
             {results.sig.length > 0 && <>
-              <div className="sr-group">Signals</div>
+              <div className="sr-group">Signals ({results.sig.length})</div>
               {results.sig.slice(0,4).map((s, i) => (
                 <div key={s.id} id={`search-option-${sigOff + i}`} role="option" aria-selected={cursor === sigOff + i}
                   className={"sr-item" + (cursor === sigOff + i ? " active" : "")}
-                  onClick={() => selectItem(flat[sigOff + i])}>
+                  onMouseDown={e => { e.preventDefault(); selectItem(flat[sigOff + i]); }}>
                   <span className="k">{s.id}</span><span>{s.title}</span>
                 </div>
               ))}
+              {results.sig.length > 4 && (
+                <div id={`search-option-${sigOff + 4}`} role="option" aria-selected={cursor === sigOff + 4}
+                  className={"sr-item" + (cursor === sigOff + 4 ? " active" : "")}
+                  onMouseDown={e => { e.preventDefault(); selectItem(flat[sigOff + 4]); }}>
+                  <span className="k">All</span><span>See all {results.sig.length} signals</span>
+                </div>
+              )}
             </>}
             {results.bills.length > 0 && <>
               <div className="sr-group">Bills</div>
               {results.bills.map((b, i) => (
                 <div key={b.ref} id={`search-option-${billOff + i}`} role="option" aria-selected={cursor === billOff + i}
                   className={"sr-item" + (cursor === billOff + i ? " active" : "")}
-                  onClick={() => selectItem(flat[billOff + i])}>
+                  onMouseDown={e => { e.preventDefault(); selectItem(flat[billOff + i]); }}>
                   <span className="k">{b.ref}</span><span>{b.title}</span>
                 </div>
               ))}
@@ -284,7 +317,7 @@ function Topbar({ setPage }) {
               {results.comm.map((c, i) => (
                 <div key={c.id} id={`search-option-${commOff + i}`} role="option" aria-selected={cursor === commOff + i}
                   className={"sr-item" + (cursor === commOff + i ? " active" : "")}
-                  onClick={() => selectItem(flat[commOff + i])}>
+                  onMouseDown={e => { e.preventDefault(); selectItem(flat[commOff + i]); }}>
                   <span className="k">{c.chamber}</span><span>{c.name}</span>
                 </div>
               ))}
@@ -294,17 +327,17 @@ function Topbar({ setPage }) {
               {results.mem.map((m, i) => (
                 <div key={m.id} id={`search-option-${memOff + i}`} role="option" aria-selected={cursor === memOff + i}
                   className={"sr-item" + (cursor === memOff + i ? " active" : "")}
-                  onClick={() => selectItem(flat[memOff + i])}>
+                  onMouseDown={e => { e.preventDefault(); selectItem(flat[memOff + i]); }}>
                   <span className="k">{m.party}</span><span>{m.name}</span>
                 </div>
               ))}
             </>}
             {results.feeds.length > 0 && <>
-              <div className="sr-group">Sources</div>
+              <div className="sr-group">Sources ({results.feeds.length})</div>
               {results.feeds.slice(0,4).map((f, i) => (
                 <div key={f.id} id={`search-option-${feedOff + i}`} role="option" aria-selected={cursor === feedOff + i}
                   className={"sr-item" + (cursor === feedOff + i ? " active" : "")}
-                  onClick={() => selectItem(flat[feedOff + i])}>
+                  onMouseDown={e => { e.preventDefault(); selectItem(flat[feedOff + i]); }}>
                   <span className="k">{f.group}</span><span>{f.name}</span>
                 </div>
               ))}
@@ -322,14 +355,12 @@ function Topbar({ setPage }) {
         </span>
         <span className="chip sources-chip" title="Official feeds configured"><span className="dot" /> {sourceCounts().total} sources</span>
         <button className="btn ghost sm shortcut-btn" title="Go to Live parliament and refresh feeds there" onClick={() => {
+          requestLiveRefresh();
           setPage("live");
-          // Honest refresh: navigate to Live, then poll once the page has mounted its hook.
-          // No success toast is shown for a refresh that has not actually run.
-          setTimeout(() => {
-            if (window.__refreshLiveFeeds) { window.__refreshLiveFeeds(); toast("Refreshing live feeds…"); }
-          }, 200);
+          if (window.__refreshLiveFeeds) { consumeLiveRefresh(); window.__refreshLiveFeeds(); toast("Refreshing live feeds..."); }
+          else toast("Opening Live page to refresh feeds", "brass");
         }}><Icon name="refresh" size={13} /> Refresh live</button>
-        <button className="btn sm" onClick={() => toast("No new alerts")}><Icon name="bell" size={13} /> Alerts</button>
+        <button className="btn sm" title="Placeholder: alerts backend not wired" onClick={() => toast("Alerts (demo): no alerts backend is wired", "brass")}><Icon name="bell" size={13} /> Alerts</button>
         <button className="btn primary sm" onClick={() => setPage("briefings")}><Icon name="plus" size={13} /> New brief</button>
         <ShortcutHelp />
         <button className="btn ghost sm" title={isDark ? "Switch to light mode" : "Switch to dark mode"} aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"} onClick={() => {
@@ -363,8 +394,9 @@ function Conf({ n = 3 }) {
 }
 
 function SignalCard({ s }) {
-  const { openSignal, state } = useStore();
+  const { openSignal, state, isWatched } = useStore();
   const archived = state.archived[s.id];
+  const watched = isWatched(s.id);
   if (archived) return null;
   return (
     <div className="signal" data-att={s.attention} onClick={() => openSignal(s.id)} role="button" tabIndex={0} aria-label={`Signal: ${s.title}`} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openSignal(s.id); } }}>
@@ -373,6 +405,7 @@ function SignalCard({ s }) {
         <span className="sig-source mono">· {s.source}</span>
         <Att level={s.attention} />
         <span className="chip-fixture">Fixture</span>
+        {watched && <span className="tag brass">Watching</span>}
         <span className="sig-time mono">{s.time}</span>
       </div>
       <div className="sig-title serif">{s.title}</div>
@@ -388,6 +421,11 @@ function SignalCard({ s }) {
       {state.feedback[s.id] && (
         <div style={{marginTop:8, fontSize:11.5, color:"var(--brass)"}}>
           <Icon name="check" size={12} style={{verticalAlign:"-2px", marginRight:4}}/> Feedback: {state.feedback[s.id].label}
+        </div>
+      )}
+      {watched && (
+        <div style={{marginTop:8, fontSize:11.5, color:"var(--brass)"}}>
+          <Icon name="watch" size={12} style={{verticalAlign:"-2px", marginRight:4}}/> On watchlist
         </div>
       )}
     </div>
@@ -422,20 +460,25 @@ function generateBriefMarkdown(s) {
 }
 
 function Drawer() {
-  const { signalId, openSignal, closeSignal, state, modal, saveFeedback, archive, addWatchlist, saveNote, generateBrief, toast } = useStore();
+  const { signalId, openSignal, closeSignal, state, modal, saveFeedback, archive, addWatchlist, isWatched, saveNote, generateBrief, toast, visibleSignalOrder } = useStore();
   const signal = React.useMemo(() => SIGNALS.find(s => s.id === signalId), [signalId]);
   const [fb, setFb] = React.useState(null);
   const [note, setNote] = React.useState("");
+  const [noteSaved, setNoteSaved] = React.useState(false);
   // F12: keep the live note text and the signal it belongs to in refs so we can flush it
   // to the store on drawer close and before j/k navigation, not only on textarea blur.
   const noteRef = React.useRef("");
   const noteSigRef = React.useRef(null);
+  const noteSavedTimerRef = React.useRef(null);
   React.useEffect(() => { noteRef.current = note; }, [note]);
   React.useEffect(() => { noteSigRef.current = signalId; }, [signalId]);
   const flushNote = React.useCallback(() => {
     const sid = noteSigRef.current;
     if (sid && noteRef.current !== (state.notes[sid] || "")) {
       saveNote(sid, noteRef.current);
+      setNoteSaved(true);
+      clearTimeout(noteSavedTimerRef.current);
+      noteSavedTimerRef.current = setTimeout(() => setNoteSaved(false), 1600);
     }
   }, [saveNote, state.notes]);
   const closeWithFlush = React.useCallback(() => { flushNote(); closeSignal(); }, [flushNote, closeSignal]);
@@ -445,14 +488,20 @@ function Drawer() {
   const closeButtonRef = React.useRef(null);
 
   // Visible signals (non-archived) — computed early so keyboard deps can reference it
-  const visibleSigs = React.useMemo(() => SIGNALS.filter(x => !state.archived[x.id]), [state.archived]);
+  const visibleSigs = React.useMemo(() => {
+    const fallback = SIGNALS.filter(x => !state.archived[x.id]);
+    if (!Array.isArray(visibleSignalOrder) || visibleSignalOrder.length === 0) return fallback;
+    const byId = new Map(SIGNALS.map(x => [x.id, x]));
+    const ordered = visibleSignalOrder.map(id => byId.get(id)).filter(x => x && !state.archived[x.id]);
+    return ordered.length ? ordered : fallback;
+  }, [visibleSignalOrder, state.archived]);
 
   // Sync index ref and scroll drawer to top when signal changes
   React.useEffect(() => {
-    const idx = SIGNALS.findIndex(s => s.id === signalId);
+    const idx = visibleSigs.findIndex(s => s.id === signalId);
     if (idx !== -1) sigIdxRef.current = idx;
     if (drawerBodyRef.current) drawerBodyRef.current.scrollTop = 0;
-  }, [signalId]);
+  }, [signalId, visibleSigs]);
 
   // Focus management: save trigger element, move focus into drawer, restore on close
   React.useEffect(() => {
@@ -490,6 +539,7 @@ function Drawer() {
   // concurrent state updates (e.g. archiving a different signal) cannot wipe in-progress typing.
   React.useEffect(() => {
     setNote(state.notes[signalId] || "");
+    setNoteSaved(false);
   }, [signalId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Keyboard navigation: j/k to navigate, Escape to close, b to brief, w to watchlist
@@ -535,6 +585,7 @@ function Drawer() {
 
   const on = !!signal;
   const s = signal || {};
+  const watched = signalId ? isWatched(signalId) : false;
   const labels = ["Correct priority","Too high","Too low","Wrong topic","Wrong portfolio","Duplicate","Noise","Needs human review"];
   const sigPos = visibleSigs.findIndex(x => x.id === signalId);
   return (
@@ -653,8 +704,8 @@ function Drawer() {
                 </div>
               )}
               <div className="drawer-section">
-                <h3>Analyst note</h3>
-                <textarea value={note} onChange={e=>setNote(e.target.value)} onBlur={()=>saveNote(s.id, note)}
+                <h3>Analyst note {noteSaved && <span className="mono" style={{fontSize:10, color:"var(--brass)", marginLeft:8}}>Saved</span>}</h3>
+                <textarea value={note} onChange={e=>setNote(e.target.value)} onBlur={flushNote}
                   placeholder="Private notes (auto-saved)" rows={3}
                   style={{width:"100%", background:"var(--panel)", border:"1px solid var(--line-2)", borderRadius:8, color:"var(--ink)", padding:"8px 10px", fontFamily:"var(--sans)", fontSize:13, resize:"vertical"}}/>
               </div>
@@ -668,17 +719,6 @@ function Drawer() {
                     </button>
                   ))}
                 </div>
-                {fb && fb !== "Correct priority" && (
-                  <div style={{marginTop:10, padding:"10px 12px", background:"var(--panel-hi)", border:"1px dashed var(--line-2)", borderRadius:8, fontSize:12.5, color:"var(--ink-2)"}}>
-                    <div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em"}}>Feedback recorded</div>
-                    <div style={{marginTop:4}}>Logged for analyst review. Portfolio mapping is manual in this build.</div>
-                  </div>
-                )}
-                {fb === "Correct priority" && (
-                  <div style={{marginTop:10, color:"var(--ok)", fontSize:12.5}}>
-                    <Icon name="check" size={13} style={{verticalAlign:"-2px", marginRight:4}}/>Logged. Weights retained.
-                  </div>
-                )}
               </div>
             </div>
             <div className="drawer-foot">
@@ -687,7 +727,7 @@ function Drawer() {
                   .then(() => { generateBrief(s.id, "Executive brief"); toast("Brief copied to clipboard", "brass", { label: "Open briefings", fn: () => window.__setPage("briefings") }); })
                   .catch(() => toast("Clipboard unavailable — brief not copied", "error"));
               }}><Icon name="brief" size={13} /> Generate brief</button>
-              <button className="btn" onClick={() => addWatchlist(s.id)}><Icon name="watch" size={13} /> Watchlist</button>
+              <button className="btn" onClick={() => addWatchlist(s.id)} style={watched ? {borderColor:"var(--brass)", color:"var(--brass)"} : undefined}><Icon name="watch" size={13} /> {watched ? "Watching" : "Watchlist"}</button>
               <button className="btn" onClick={() => {
                 flushNote();
                 const cur = visibleSigs.findIndex(x => x.id === signalId);
