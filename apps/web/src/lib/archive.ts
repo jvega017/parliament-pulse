@@ -181,7 +181,7 @@ export async function fetchBills(
   const u = new URL(`${apiBase()}/bills`);
   if (params.q) u.searchParams.set("q", params.q);
   if (params.limit) u.searchParams.set("limit", String(params.limit));
-  if (params.offset) u.searchParams.set("offset", String(params.offset));
+  if (params.offset !== undefined && params.offset > 0) u.searchParams.set("offset", String(params.offset));
   const res = await fetch(u.toString(), { signal });
   if (!res.ok) throw new Error(`bills ${res.status}`);
   return (await res.json()) as { rows: BillRow[]; total: number };
@@ -235,6 +235,22 @@ export async function fetchMembers(
   return (await res.json()) as { members: MemberRow[]; total: number };
 }
 
+export async function fetchWatchlistTrend(
+  terms: string[],
+  signal?: AbortSignal,
+): Promise<{ days: Array<{ day: string; count: number }> }> {
+  if (!terms.length || !apiBase()) return { days: [] };
+  const u = new URL(`${apiBase()}/archive/watchlist-trend`);
+  u.searchParams.set("terms", terms.join(","));
+  try {
+    const res = await fetch(u.toString(), { signal });
+    if (!res.ok) return { days: [] };
+    return (await res.json()) as { days: Array<{ day: string; count: number }> };
+  } catch {
+    return { days: [] };
+  }
+}
+
 export function downloadArchiveCsv(rows: ArchiveRow[], filename: string): void {
   const cols: Array<keyof ArchiveRow> = [
     "pub_date",
@@ -258,11 +274,12 @@ export function downloadArchiveCsv(rows: ArchiveRow[], filename: string): void {
     ...rows.map((r) => cols.map((c) => escape(r[c])).join(",")),
   ].join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const objectUrl = URL.createObjectURL(blob);
   const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
+  a.href = objectUrl;
   a.download = filename;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-  URL.revokeObjectURL(a.href);
+  URL.revokeObjectURL(objectUrl);
 }

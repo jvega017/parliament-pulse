@@ -45,13 +45,14 @@ function clusterLiveSignals(signals: Signal[]): RadarRow[] {
   rows.sort((a, b) => {
     const ord = { high: 0, med: 1, low: 2 } as const;
     if (ord[a.att] !== ord[b.att]) return ord[a.att] - ord[b.att];
-    return b.sources - a.sources;
+    if (b.sources !== a.sources) return b.sources - a.sources;
+    return a.issue.localeCompare(b.issue); // deterministic tiebreaker
   });
   return rows;
 }
 
 export function PageRadar(): JSX.Element {
-  const { openSignal, liveSignals } = useStore();
+  const { openSignal, liveSignals, goto } = useStore();
   const rows = useMemo(() => clusterLiveSignals(liveSignals), [liveSignals]);
 
   return (
@@ -71,7 +72,7 @@ export function PageRadar(): JSX.Element {
       <div className="panel">
         <div className="panel-head">
           <h3 className="panel-title">Active clusters</h3>
-          <span className="panel-kicker">
+          <span className="panel-kicker" aria-live="polite" aria-atomic="true">
             {rows.length === 0 ? "Awaiting first poll" : `${rows.length} clusters · live`}
           </span>
         </div>
@@ -81,21 +82,26 @@ export function PageRadar(): JSX.Element {
               <strong>No clusters yet.</strong>
               <span>
                 Clusters appear once the APH RSS pump returns items that match
-                a watchlist or share a source. Try refreshing, or open the live
-                feed directly.
+                a watchlist or share a source. Add keywords on Watchlists to
+                bias cluster labelling toward your portfolio.
               </span>
-              <a
-                className="btn"
-                href="https://www.aph.gov.au/Help/RSS_feeds"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ marginTop: 4 }}
-              >
-                <Icon name="ext" size={13} /> APH RSS directory
-              </a>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center", marginTop: 4 }}>
+                <button type="button" className="btn" onClick={() => goto("watchlists")}>
+                  <Icon name="watch" size={13} /> Configure watchlists
+                </button>
+                <a
+                  className="btn"
+                  href="https://www.aph.gov.au/Help/RSS_feeds"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Icon name="ext" size={13} /> APH RSS directory
+                </a>
+              </div>
             </div>
           ) : (
-            <>
+            <div style={{ overflowX: "auto" }}>
+              <div style={{ minWidth: 560 }}>
               <div
                 style={{
                   display: "grid",
@@ -174,7 +180,8 @@ export function PageRadar(): JSX.Element {
                 </button>
                 );
               })}
-            </>
+              </div>
+            </div>
           )}
         </div>
       </div>

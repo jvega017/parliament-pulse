@@ -2,10 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { Icon } from "../icons";
 import { Att, ModalHead } from "../shell/common";
 import { APH_FEEDS, DIVISIONS, WATCHLISTS, RADAR } from "../data/fixtures";
-import { fetchBills, fetchMembers, type BillRow, type MemberRow } from "../lib/archive";
+import { fetchBills, fetchMembers, fetchQons, fetchWatchlistTrend, type BillRow, type MemberRow } from "../lib/archive";
 import { ENTITIES } from "../data/entities";
 import { useFocusTrap } from "../lib/useFocusTrap";
-import { exportSignalsDigestCsv } from "../lib/export";
+import { exportSignalsDigestCsv, formatRelative } from "../lib/export";
 import { useStore } from "./useStore";
 import type { Division, Hearing, ModalState } from "../types";
 
@@ -58,12 +58,19 @@ function ModalBody({ modal }: { modal: ModalState }): JSX.Element {
 
 function CommitteeDetail({ id }: { id: string }): JSX.Element {
   const committee = ENTITIES.committees[id];
-  const { openModal, closeModal, addWatchlist, state } = useStore();
+  const { openModal, closeModal, addWatchlist, state, liveSignals, openSignal } = useStore();
   const watchlistKey = `committee:${id}`;
   const watching = !!state.watchlistAdds[watchlistKey];
   if (!committee) {
     return <ModalHead kicker="Committee" title="Not found" onClose={closeModal} />;
   }
+
+  const nameWords = committee.name.toLowerCase().split(/\s+/).filter(w => w.length > 4);
+  const relatedSignals = liveSignals.filter(s => {
+    const text = (s.title + " " + s.summary).toLowerCase();
+    return nameWords.slice(0, 3).some(w => text.includes(w));
+  }).slice(0, 4);
+
   return (
     <>
       <ModalHead
@@ -75,15 +82,21 @@ function CommitteeDetail({ id }: { id: string }): JSX.Element {
         <p style={{ color: "var(--ink-2)", marginTop: 0 }}>{committee.bio}</p>
         <dl className="kv" style={{ marginTop: 14 }}>
           <dt>Chair</dt>
-          <dd>{committee.chair}</dd>
+          <dd>
+            {committee.chair || (
+              <a href={committee.url} target="_blank" rel="noopener noreferrer" style={{ color: "var(--teal)", fontSize: 12 }}>
+                See APH page
+              </a>
+            )}
+          </dd>
           <dt>Members</dt>
-          <dd>{committee.members}</dd>
+          <dd>{committee.members > 0 ? committee.members : "—"}</dd>
           <dt>Portfolio</dt>
-          <dd>{committee.portfolio}</dd>
+          <dd>{committee.portfolio || "—"}</dd>
           <dt>Active inquiries</dt>
-          <dd>{committee.active}</dd>
+          <dd>{committee.active > 0 ? committee.active : "—"}</dd>
           <dt>Reports (30d)</dt>
-          <dd>{committee.recentReports}</dd>
+          <dd>{committee.recentReports > 0 ? committee.recentReports : "—"}</dd>
           <dt>Source</dt>
           <dd>
             <a
@@ -139,18 +152,45 @@ function CommitteeDetail({ id }: { id: string }): JSX.Element {
 
         <Section title="Open inquiries">
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-            {committee.inquiries.map((q, i) => (
-              <button
-                key={i}
-                type="button"
-                className="tag clk"
-                onClick={() => openModal({ kind: "inquiry", id: q })}
-              >
-                {q}
-              </button>
-            ))}
+            {committee.inquiries.length === 0 ? (
+              <div className="empty" style={{ padding: 0 }}>
+                <a href={committee.url} target="_blank" rel="noopener noreferrer" style={{ color: "var(--teal)", fontSize: 12 }}>
+                  See open inquiries on APH
+                </a>
+              </div>
+            ) : (
+              committee.inquiries.map((q, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  className="tag clk"
+                  onClick={() => openModal({ kind: "inquiry", id: q })}
+                >
+                  {q}
+                </button>
+              ))
+            )}
           </div>
         </Section>
+
+        {relatedSignals.length > 0 && (
+          <Section title="Related live signals">
+            {relatedSignals.map(s => (
+              <button
+                key={s.id}
+                type="button"
+                className="clk"
+                onClick={() => { closeModal(); openSignal(s.id); }}
+                style={{ display: "flex", flexDirection: "column", padding: "8px 12px", border: "1px solid var(--line-2)", borderRadius: 8, marginBottom: 6, width: "100%", textAlign: "left" }}
+              >
+                <div style={{ fontSize: 12.5, fontWeight: 500 }}>{s.title}</div>
+                <div className="mono" style={{ fontSize: 10.5, color: "var(--ink-3)", marginTop: 2 }}>
+                  {s.id} · {s.source} · {s.attention.toUpperCase()}
+                </div>
+              </button>
+            ))}
+          </Section>
+        )}
       </div>
       <div className="modal-foot">
         <a
@@ -382,6 +422,7 @@ function InquiryDetail({ name }: { name: string }): JSX.Element {
             <input
               value={owner}
               onChange={(e) => setOwner(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && owner.trim()) assignOwner(name, owner.trim()); }}
               placeholder="Owner name"
               className="search"
               style={{ padding: "7px 10px", flex: 1 }}
@@ -436,9 +477,11 @@ function BillDetail({ id }: { id: string }): JSX.Element {
 
   useEffect(() => {
     if (bill || !apiBase) return;
-    fetchBills({ q: id, limit: 1 })
+    const ctrl = new AbortController();
+    fetchBills({ q: id, limit: 1 }, ctrl.signal)
       .then((r) => setArchiveBill(r.rows[0] ?? null))
       .catch(() => null);
+    return () => ctrl.abort();
   }, [id, bill, apiBase]);
 
   if (!bill) {
@@ -573,6 +616,7 @@ function BillDetail({ id }: { id: string }): JSX.Element {
             <input
               value={owner}
               onChange={(e) => setOwner(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && owner.trim()) assignOwner(id, owner.trim()); }}
               placeholder="Owner name"
               className="search"
               style={{ padding: "7px 10px", flex: 1 }}
@@ -633,15 +677,26 @@ function MemberDetail({ id }: { id: string }): JSX.Element {
   const { closeModal, addWatchlist, state } = useStore();
   const [archiveMember, setArchiveMember] = useState<MemberRow | null>(null);
   const [loadingMember, setLoadingMember] = useState(false);
+  const [qonCount, setQonCount] = useState<number | null>(null);
   const apiBase = (import.meta.env.VITE_API_BASE ?? "").replace(/\/$/, "");
 
   useEffect(() => {
     if (m || !apiBase) return;
+    const ctrl = new AbortController();
     setLoadingMember(true);
-    fetchMembers({ q: id })
-      .then((r) => setArchiveMember(r.members[0] ?? null))
+    fetchMembers({ q: id }, ctrl.signal)
+      .then((r) => {
+        const found = r.members[0] ?? null;
+        setArchiveMember(found);
+        if (found && apiBase) {
+          fetchQons({ q: found.name, limit: 500 }, ctrl.signal)
+            .then((qr) => setQonCount(qr.total))
+            .catch(() => setQonCount(null));
+        }
+      })
       .catch(() => null)
       .finally(() => setLoadingMember(false));
+    return () => ctrl.abort();
   }, [id, m, apiBase]);
 
   if (!m) {
@@ -662,6 +717,15 @@ function MemberDetail({ id }: { id: string }): JSX.Element {
                 {display.state && <span className="tag teal">{display.state}</span>}
                 {display.chamber && <span className="tag">{display.chamber}</span>}
               </div>
+              {qonCount !== null && (
+                <div className="grid g-3" style={{ gap: 10, marginBottom: 14 }}>
+                  <div className="panel stat">
+                    <div className="stat-label">QONs (D1)</div>
+                    <div className="stat-value" style={{ fontSize: 24 }}>{qonCount}</div>
+                    <div className="stat-meta">Questions on Notice</div>
+                  </div>
+                </div>
+              )}
               <Section title="APH profile">
                 <a
                   href={display.profile_url}
@@ -672,11 +736,15 @@ function MemberDetail({ id }: { id: string }): JSX.Element {
                   <Icon name="ext" size={12} /> Open full profile on APH
                 </a>
               </Section>
-              <Section title="Note">
-                <p style={{ margin: 0, color: "var(--ink-3)", fontSize: 12 }}>
-                  Committee memberships, QON counts, and Hansard mentions will appear
-                  once the member enrichment pipeline is complete (Q3 2026).
-                </p>
+              <Section title="QON patterns">
+                <a
+                  href={`https://parlinfo.aph.gov.au/parlInfo/search/summary/summary.w3p;query=Dataset%3Aqon%20Author_Phrase%3A%22${encodeURIComponent(display.name)}%22`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: "var(--teal)", fontSize: 12 }}
+                >
+                  <Icon name="ext" size={12} /> View QONs on ParlInfo
+                </a>
               </Section>
             </>
           )}
@@ -757,7 +825,7 @@ function MemberDetail({ id }: { id: string }): JSX.Element {
             </a>
             <a
               className="btn"
-              href={`https://www.aph.gov.au/Senators_and_Members/Parliamentarian?MPID=${encodeURIComponent(m.name.replace(/\s+/g, "+"))}`}
+              href={`https://www.aph.gov.au/Senators_and_Members?q=${encodeURIComponent(m.name)}&mem=1&par=-1&sen=1&sta=-1`}
               target="_blank"
               rel="noopener noreferrer"
               style={{ fontSize: 12 }}
@@ -790,9 +858,11 @@ function MinisterDetail({ id: _id }: { id: string }): JSX.Element {
 
   useEffect(() => {
     if (m || !apiBase) return;
-    fetchMembers({ q: _id })
+    const ctrl = new AbortController();
+    fetchMembers({ q: _id }, ctrl.signal)
       .then((r) => setArchiveMember(r.members[0] ?? null))
       .catch(() => null);
+    return () => ctrl.abort();
   }, [_id, m, apiBase]);
 
   if (!m) {
@@ -823,10 +893,12 @@ function MinisterDetail({ id: _id }: { id: string }): JSX.Element {
             </>
           ) : (
             <div className="empty">
-              <strong>Ministry list ingest is not yet wired.</strong>
+              <strong>Minister not found in member roster.</strong>
               <span>
-                Minister detail will populate once the official Ministry list is
-                connected. Portfolio assignments are announced by the PM and published on pmc.gov.au.
+                The roster is built from senators_details RSS and updated every
+                30 minutes. House ministers and newly sworn-in ministers appear
+                after their next RSS update. Check pmc.gov.au for the authoritative
+                ministry list.
               </span>
               <a
                 className="btn primary"
@@ -958,7 +1030,7 @@ function DivisionDetail({ data }: { data: Division }): JSX.Element {
 
 function FeedDetail({ id }: { id: string }): JSX.Element {
   const f = APH_FEEDS.find((x) => x.id === id);
-  const { closeModal, triggerRefresh } = useStore();
+  const { closeModal, triggerRefresh, liveFeedResult } = useStore();
   if (!f) {
     return <ModalHead kicker="Feed" title="Not found" onClose={closeModal} />;
   }
@@ -1006,9 +1078,9 @@ function FeedDetail({ id }: { id: string }): JSX.Element {
           <dt>Parser</dt>
           <dd>{f.parser}</dd>
           <dt>Last refresh</dt>
-          <dd className="mono">{f.last}</dd>
+          <dd className="mono">{liveFeedResult ? formatRelative(liveFeedResult.lastPoll) : "—"}</dd>
           <dt>Items today</dt>
-          <dd className="mono">{f.today ?? "—"}</dd>
+          <dd className="mono">{liveFeedResult?.feedStatus[f.url]?.count ?? f.today ?? "—"}</dd>
           <dt>False positive</dt>
           <dd>{f.fpr}</dd>
           <dt>Modules</dt>
@@ -1047,20 +1119,44 @@ function FeedDetail({ id }: { id: string }): JSX.Element {
 
 function WatchlistDetail({ name }: { name: string }): JSX.Element {
   const { closeModal, toast, state, updateWatchlistTerms, liveSignals } = useStore();
-  // User-created watchlists take precedence over fixture ones of the same name.
   const w =
     state.watchlistCreated.find((x) => x.name === name) ??
     WATCHLISTS.find((x) => x.name === name);
   const userOwned = state.watchlistCreated.some((x) => x.name === name);
   const [termsInput, setTermsInput] = useState(w?.terms.join(", ") ?? "");
+  const [trend, setTrend] = useState<Array<{ day: string; count: number }>>([]);
+  const apiBase = (import.meta.env.VITE_API_BASE ?? "").replace(/\/$/, "");
+
+  useEffect(() => {
+    if (!w || !apiBase || w.terms.length === 0) return;
+    const ctrl = new AbortController();
+    fetchWatchlistTrend(w.terms, ctrl.signal)
+      .then(r => setTrend(r.days))
+      .catch(() => {});
+    return () => ctrl.abort();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apiBase, name]);
+
+  // Reset termsInput when the watchlist being viewed changes.
+  useEffect(() => {
+    const current = state.watchlistCreated.find((x) => x.name === name) ?? WATCHLISTS.find((x) => x.name === name);
+    setTermsInput(current?.terms.join(", ") ?? "");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [name]);
+
   if (!w) {
     return <ModalHead kicker="Watchlist" title="Not found" onClose={closeModal} />;
   }
-  // Match live signals that the scoring engine tagged with this watchlist name
-  // (brass tag = first matched watchlist). Fall back to term scan for built-ins.
-  const matches = liveSignals.filter((s) =>
-    s.tags.some((t) => t.c === "brass" && t.l.toLowerCase() === w.name.toLowerCase()),
-  ).slice(0, 5);
+  // Tag-based + term-based match count — full list, not capped.
+  const allTermMatches = liveSignals.filter((s) => {
+    const title = s.title.toLowerCase();
+    return (
+      s.tags.some((t) => t.c === "brass" && t.l.toLowerCase() === w.name.toLowerCase()) ||
+      w.terms.some((t) => t && title.includes(t.toLowerCase()))
+    );
+  });
+  // Show up to 5 in the UI but pass the full list to CSV export.
+  const matches = allTermMatches.slice(0, 5);
 
   return (
     <>
@@ -1070,7 +1166,7 @@ function WatchlistDetail({ name }: { name: string }): JSX.Element {
           <div className="panel stat">
             <div className="stat-label">Live matches</div>
             <div className="stat-value" style={{ fontSize: 26 }}>
-              {matches.length}
+              {allTermMatches.length}
             </div>
           </div>
           <div className="panel stat">
@@ -1081,16 +1177,39 @@ function WatchlistDetail({ name }: { name: string }): JSX.Element {
           </div>
           <div className="panel stat">
             <div className="stat-label">7-day trend</div>
-            <div
-              style={{
-                marginTop: 10,
-                fontSize: 11.5,
-                color: "var(--ink-3)",
-                fontStyle: "italic",
-              }}
-            >
-              No historical data yet
-            </div>
+            {trend.length > 0 ? (
+              <div
+                style={{ display: "flex", gap: 3, alignItems: "flex-end", height: 32, marginTop: 8 }}
+                title={trend.map(d => `${d.day.slice(5)}: ${d.count}`).join(", ")}
+                role="img"
+                aria-label={`7-day signal trend for ${w.name}`}
+              >
+                {((): JSX.Element[] => {
+                  const maxCount = Math.max(...trend.map(t => t.count), 1);
+                  return trend.map(({ day, count }) => {
+                    const pct = Math.max(Math.round((count / maxCount) * 100), count > 0 ? 15 : 4);
+                    return (
+                      <div
+                        key={day}
+                        style={{
+                          flex: 1,
+                          background: count > 0 ? "var(--brass)" : "var(--line-2)",
+                          height: `${pct}%`,
+                          borderRadius: "2px 2px 0 0",
+                          transition: "height 0.2s",
+                        }}
+                        title={`${day.slice(5)}: ${count}`}
+                      />
+                    );
+                  });
+                })()}
+              </div>
+            ) : (
+              <div style={{ marginTop: 8, fontSize: 11.5, color: "var(--ink-3)", fontStyle: "italic" }}>
+                No history yet
+              </div>
+            )}
+            <div className="stat-meta" style={{ marginTop: 6 }}>Last 7 days · D1</div>
           </div>
         </div>
         <Section title="Terms used for live scoring">
@@ -1133,6 +1252,12 @@ function WatchlistDetail({ name }: { name: string }): JSX.Element {
                   id="watchlist-terms"
                   value={termsInput}
                   onChange={(e) => setTermsInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      const terms = termsInput.split(",").map((t) => t.trim().toLowerCase()).filter(Boolean);
+                      updateWatchlistTerms(w.name, terms);
+                    }
+                  }}
                   className="search"
                   style={{ flex: 1, padding: "7px 10px" }}
                 />
@@ -1161,7 +1286,7 @@ function WatchlistDetail({ name }: { name: string }): JSX.Element {
           )}
         </Section>
 
-        <Section title="Matching signals">
+        <Section title={allTermMatches.length > 5 ? `Matching signals (showing 5 of ${allTermMatches.length})` : "Matching signals"}>
           {matches.length === 0 && <div className="empty">No recent matches.</div>}
           {matches.map((s) => (
             <div
@@ -1188,13 +1313,13 @@ function WatchlistDetail({ name }: { name: string }): JSX.Element {
         <button
           type="button"
           className="btn primary"
-          disabled={matches.length === 0}
+          disabled={allTermMatches.length === 0}
           onClick={() => {
             exportSignalsDigestCsv(
               `watchlist-${w.name.toLowerCase().replace(/\s+/g, "-")}-digest.csv`,
-              matches,
+              allTermMatches,
             );
-            toast("Digest CSV downloaded", "brass");
+            toast(`Digest CSV downloaded — ${allTermMatches.length} signal${allTermMatches.length === 1 ? "" : "s"}`, "brass");
           }}
         >
           <Icon name="download" size={13} /> Download digest CSV

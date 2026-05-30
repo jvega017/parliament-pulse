@@ -9,6 +9,8 @@ export interface Env {
   ALLOWED_ORIGINS: string;
   ARCHIVE: D1Database;
   REQUIRE_ACCESS?: string;
+  RESEND_API_KEY?: string;
+  DIGEST_FROM_EMAIL?: string;
 }
 
 export interface ArchiveRow {
@@ -622,4 +624,47 @@ export async function queryMembers(env: Env, params: URLSearchParams): Promise<{
   ).bind(...binds, limit, offset).all<MemberRow>();
 
   return { members: rows.results ?? [], total };
+}
+
+// ---- Watchlist 7-day trend --------------------------------------------------
+// Returns signal counts per day for the last 7 days matching any of the given
+// keyword terms. Days with zero matches are included so the chart has a stable
+// 7-bar shape. Accepts up to 5 terms.
+
+export async function watchlistTrend(env: Env, params: URLSearchParams): Promise<{
+  days: Array<{ day: string; count: number }>;
+}> {
+  const rawTerms = params.get("terms") ?? "";
+  const terms = rawTerms.split(",").map(t => t.trim()).filter(Boolean).slice(0, 5);
+  if (terms.length === 0) return { days: buildEmptyWeek() };
+
+  const termConditions = terms.map(() => `LOWER(title) LIKE ?`).join(" OR ");
+  const termBinds = terms.map(t => `%${t.toLowerCase().replace(/[%_\\]/g, "\\$&")}%`);
+
+  const rows = await env.ARCHIVE.prepare(
+    `SELECT DATE(pub_date) AS day, COUNT(*) AS count
+       FROM signals
+      WHERE (${termConditions})
+        AND pub_date >= datetime('now', '-7 days')
+      GROUP BY DATE(pub_date)
+      ORDER BY day ASC`,
+  ).bind(...termBinds).all<{ day: string; count: number }>();
+
+  const result = buildEmptyWeek();
+  for (const row of rows.results ?? []) {
+    const entry = result.find(d => d.day === row.day);
+    if (entry) entry.count = row.count;
+  }
+  return { days: result };
+}
+
+function buildEmptyWeek(): Array<{ day: string; count: number }> {
+  const days: Array<{ day: string; count: number }> = [];
+  const today = new Date();
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    days.push({ day: d.toISOString().slice(0, 10), count: 0 });
+  }
+  return days;
 }

@@ -1,5 +1,10 @@
 -- Intelligence enrichment: scored columns on signals, alert tables, saved searches.
--- Applied after 0002_indexes.sql. Safe to re-run (IF NOT EXISTS / column guards).
+-- Applied after 0002_indexes.sql.
+--
+-- IMPORTANT: The ALTER TABLE statements are NOT idempotent (SQLite has no
+-- ADD COLUMN IF NOT EXISTS). Do not run this file manually.
+-- Always apply via: wrangler d1 migrations apply parliament-pulse-archive --remote
+-- Wrangler tracks applied migrations in the d1_migrations table.
 
 -- Scored columns on signals (DEFAULT so existing rows get safe fallbacks).
 ALTER TABLE signals ADD COLUMN attention          TEXT    DEFAULT 'low';

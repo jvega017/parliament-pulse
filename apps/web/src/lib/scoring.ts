@@ -267,7 +267,7 @@ function sourceGroupFor(item: FeedItem): Signal["sourceGroup"] {
     return "Library";
   }
   if (label.includes("senate") || label.includes("senators")) return "Senate";
-  if (label.includes("joint") || label.includes("committee")) return "Custom";
+  if (label.includes("joint")) return "House"; // joint committees managed by House secretariat
   return "House";
 }
 
@@ -332,11 +332,14 @@ export function signalFromFeedItem(
   const hours = ageHours(item.pubDate, now);
   const overallPct = Math.round(result.overall * 100);
   const momentumPct = Math.round(momentumHint * 100);
+  // Compute formatted date/time once to avoid repeated calls.
+  const fmtedDate = fmtDate(item.pubDate);
+  const fmtedTime = fmtTime(item.pubDate);
 
   return {
     id,
-    time: fmtTime(item.pubDate),
-    date: fmtDate(item.pubDate),
+    time: fmtedTime,
+    date: fmtedDate,
     pubMs: item.pubDate?.getTime(),
     source: item.sourceLabel,
     sourceGroup: sourceGroupFor(item),
@@ -344,7 +347,7 @@ export function signalFromFeedItem(
     summary:
       result.matchedWatchlists.length > 0
         ? `Matches: ${result.matchedWatchlists.join(", ")}. ${item.sourceLabel}.`
-        : `${item.sourceLabel} · ${item.kind}. Published ${fmtDate(item.pubDate) !== "—" ? fmtDate(item.pubDate) : "recently"}.`,
+        : `${item.sourceLabel} · ${item.kind}. Published ${fmtedDate !== "—" ? fmtedDate : "recently"}.`,
     tags: tagsFor(result, item.kind),
     attention: result.attention,
     attentionReason:
@@ -357,21 +360,25 @@ export function signalFromFeedItem(
     sourceAuthority: "Official",
     humanReview: result.attention === "high" ? "Required" : "Optional",
     evidence: [
-      { label: `Open item: ${item.title.slice(0, 60)}${item.title.length > 60 ? "..." : ""}`, url: item.link },
+      { label: `Open item: ${item.title.length > 60 ? item.title.slice(0, 60) + "…" : item.title}`, url: item.link },
       { label: `${item.sourceLabel} (RSS feed)`, url: item.sourceUrl },
       { label: "ParlInfo full-text search", url: "https://parlinfo.aph.gov.au/" },
       { label: "APH RSS feed directory", url: "https://www.aph.gov.au/Help/RSS_feeds" },
     ],
     score: result.score,
-    provenance: [
-      { ts: `${fmtDate(now)} ${fmtTime(now)}`, by: "parser", event: `Fetched via aph-proxy Worker from ${item.sourceLabel}` },
-      { ts: `${fmtDate(now)} ${fmtTime(now)}`, by: "enrichment", event: `Keyword scan -> ${result.matchedWatchlists.length} watchlist match(es)` },
-      { ts: `${fmtDate(now)} ${fmtTime(now)}`, by: "scoring", event: `Attention score ${result.overall.toFixed(2)} -> ${result.attention.toUpperCase()} (deterministic, engine v1.1)` },
-      { ts: `${fmtDate(now)} ${fmtTime(now)}`, by: "publish", event: `Published as ${id}` },
-    ],
+    provenance: (() => {
+      const ts = `${fmtDate(now)} ${fmtTime(now)}`;
+      return [
+        { ts, by: "parser", event: `Fetched via aph-proxy Worker from ${item.sourceLabel}` },
+        { ts, by: "enrichment", event: `Keyword scan -> ${result.matchedWatchlists.length} watchlist match(es)` },
+        { ts, by: "scoring", event: `Attention score ${result.overall.toFixed(2)} -> ${result.attention.toUpperCase()} (deterministic, engine v1.1)` },
+        { ts, by: "publish", event: `Published as ${id}` },
+      ];
+    })(),
     updates: [],
     members: [],
     entities: extractEntities(item.title, item.description),
     scoringExplanation: buildScoringExplanation(result, item, hours, overallPct, momentumPct),
+    matchedWatchlists: result.matchedWatchlists,
   };
 }

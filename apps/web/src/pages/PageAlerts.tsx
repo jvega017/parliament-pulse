@@ -24,8 +24,8 @@ export function PageAlerts(): JSX.Element {
   const { toast, confirm } = useStore();
   const [rules, setRules] = useState<AlertRule[]>([]);
   const [events, setEvents] = useState<AlertEvent[]>([]);
-  const [rulesLoading, setRulesLoading] = useState(false);
-  const [eventsLoading, setEventsLoading] = useState(false);
+  const [rulesLoading, setRulesLoading] = useState(true);
+  const [eventsLoading, setEventsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // New-rule form state
@@ -37,10 +37,9 @@ export function PageAlerts(): JSX.Element {
   const [kind, setKind] = useState("");
   const [saving, setSaving] = useState(false);
 
-  function loadRules(): void {
-    const ctrl = new AbortController();
+  function loadRules(signal?: AbortSignal): void {
     setRulesLoading(true);
-    fetchAlertRules(ctrl.signal)
+    fetchAlertRules(signal)
       .then((r) => setRules(r.rules))
       .catch((e: unknown) => {
         if (e instanceof DOMException && e.name === "AbortError") return;
@@ -49,18 +48,20 @@ export function PageAlerts(): JSX.Element {
       .finally(() => setRulesLoading(false));
   }
 
-  function loadEvents(): void {
-    const ctrl = new AbortController();
+  function loadEvents(signal?: AbortSignal): void {
     setEventsLoading(true);
-    fetchAlertEvents(50, ctrl.signal)
+    fetchAlertEvents(50, signal)
       .then((r) => setEvents(r.events))
       .catch(() => setEvents([]))
       .finally(() => setEventsLoading(false));
   }
 
   useEffect(() => {
-    loadRules();
-    loadEvents();
+    const ctrl = new AbortController();
+    loadRules(ctrl.signal);
+    loadEvents(ctrl.signal);
+    return () => ctrl.abort();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function handleCreate(): Promise<void> {
@@ -71,7 +72,7 @@ export function PageAlerts(): JSX.Element {
       toast(`Alert rule "${name.trim()}" created`, "brass");
       setName(""); setTerms(""); setAttMin("high"); setSrcGroup(""); setKind("");
       setFormOpen(false);
-      loadRules();
+      loadRules(undefined);
     } catch (e: unknown) {
       toast(e instanceof Error ? e.message : "create failed", "warn");
     } finally {
@@ -117,13 +118,14 @@ export function PageAlerts(): JSX.Element {
           <div className="panel-head">
             <h3 className="panel-title">Create alert rule</h3>
           </div>
-          <div className="panel-body" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+          <div className="panel-body" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 12 }}>
             <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11.5, color: "var(--ink-3)" }}>
               Rule name *
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && name.trim()) void handleCreate(); }}
                 placeholder="e.g. AI governance"
                 className="search"
                 style={{ padding: 7 }}
@@ -256,7 +258,8 @@ export function PageAlerts(): JSX.Element {
                         type="button"
                         className="btn ghost sm"
                         onClick={() => void handleDelete(rule)}
-                        title="Delete rule"
+                        title={`Delete rule "${rule.name}"`}
+                        aria-label={`Delete rule "${rule.name}"`}
                       >
                         <Icon name="close" size={12} />
                       </button>
@@ -279,12 +282,23 @@ export function PageAlerts(): JSX.Element {
             type="button"
             className="btn ghost sm"
             style={{ marginLeft: "auto" }}
-            onClick={() => { loadRules(); loadEvents(); }}
+            onClick={() => { loadRules(undefined); loadEvents(undefined); }}
           >
             <Icon name="refresh" size={12} /> Refresh
           </button>
         </div>
         <div className="panel-body">
+          {eventsLoading && events.length === 0 && (
+            <div style={{ padding: "8px 0" }}>
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} style={{ display: "flex", gap: 12, padding: "8px 0", borderBottom: "1px solid var(--line)" }}>
+                  <div className="skeleton" style={{ height: 12, width: 120, flexShrink: 0 }} />
+                  <div className="skeleton" style={{ height: 12, flex: 1 }} />
+                  <div className="skeleton" style={{ height: 12, width: 80, flexShrink: 0 }} />
+                </div>
+              ))}
+            </div>
+          )}
           {events.length === 0 && !eventsLoading ? (
             <div className="empty">
               <strong>No events yet.</strong>
@@ -328,6 +342,7 @@ export function PageAlerts(): JSX.Element {
                           rel="noopener noreferrer"
                           className="mono"
                           style={{ color: "var(--teal)", fontSize: 11 }}
+                          aria-label={`Open source for: ${ev.title}`}
                         >
                           Open ↗
                         </a>

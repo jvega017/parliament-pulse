@@ -1,6 +1,9 @@
 -- Wave 24: members table + description column on signals.
 -- description stores the RSS <description> text so member party/state
 -- can be parsed from senators_details items in subsequent runs.
+--
+-- IMPORTANT: ALTER TABLE statements are NOT idempotent.
+-- Always apply via: wrangler d1 migrations apply parliament-pulse-archive --remote
 
 ALTER TABLE signals ADD COLUMN description TEXT;
 

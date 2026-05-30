@@ -1,13 +1,29 @@
+import { useState } from "react";
 import { Icon } from "../icons";
 
-// Build SHA injected at build time via Vite env. Allows beta testers to
-// reference an exact deployed commit when filing feedback. Falls back to
-// "dev" in local dev where the env var is not set.
 const BUILD_SHA = (import.meta.env.VITE_COMMIT_SHA ?? "dev").slice(0, 7);
-// App version from package.json, also injected at build time via define().
 const APP_VERSION = import.meta.env.VITE_APP_VERSION ?? "0.0.0";
+const DISMISS_KEY = "pp-demobanner-dismissed";
+const DISMISS_TTL_MS = 7 * 24 * 3_600_000; // re-show after 7 days
 
-export function DemoBanner(): JSX.Element {
+function isDismissed(): boolean {
+  try {
+    const raw = localStorage.getItem(DISMISS_KEY);
+    if (!raw) return false;
+    return Date.now() - Number(raw) < DISMISS_TTL_MS;
+  } catch { return false; }
+}
+
+export function DemoBanner(): JSX.Element | null {
+  const [dismissed, setDismissed] = useState(() => isDismissed());
+
+  if (dismissed) return null;
+
+  function dismiss(): void {
+    try { localStorage.setItem(DISMISS_KEY, String(Date.now())); } catch { /* quota */ }
+    setDismissed(true);
+  }
+
   return (
     <aside
       aria-label="Limited beta scope"
@@ -30,8 +46,9 @@ export function DemoBanner(): JSX.Element {
       <span style={{ flex: 1 }}>
         <strong style={{ color: "var(--teal)" }}>Limited beta.</strong> Live
         APH RSS (8 feeds) drives Overview, Live, Radar, Briefings, Bills Digests,
-        Committees, and Watchlists. Member, minister, and division detail are
-        deferred — those surfaces link out to{" "}
+        Committees, Watchlists, Archive, and Alerts. QON patterns and Bills
+        archive draw from D1. House member detail and division vote records link
+        out to{" "}
         <a
           href="https://www.aph.gov.au"
           target="_blank"
@@ -40,8 +57,7 @@ export function DemoBanner(): JSX.Element {
         >
           aph.gov.au
         </a>{" "}
-        until ingest lands. No data is fabricated; deferred surfaces show honest
-        empty states.
+        until full ingest lands. No data is fabricated.
       </span>
       <span
         className="mono"
@@ -54,6 +70,14 @@ export function DemoBanner(): JSX.Element {
       >
         v{APP_VERSION} · {BUILD_SHA}
       </span>
+      <button
+        type="button"
+        onClick={dismiss}
+        aria-label="Dismiss this notice for 7 days"
+        style={{ flexShrink: 0, background: "none", border: "none", cursor: "pointer", color: "var(--ink-3)", padding: "0 0 0 8px" }}
+      >
+        <Icon name="close" size={13} />
+      </button>
     </aside>
   );
 }

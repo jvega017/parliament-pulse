@@ -46,8 +46,10 @@ export const APH_FEED_URLS: FeedMeta[] = [
   { url: "https://www.aph.gov.au/house/rss/house_inquiries", label: "House committee inquiries", kind: "inquiry" },
   // Joint committees (managed by House secretariat)
   { url: "https://www.aph.gov.au/house/rss/joint_inquiries", label: "Joint committee inquiries", kind: "inquiry" },
-  // Parliamentary Library — Bills Digests 2026
-  { url: "https://parlinfo.aph.gov.au/parlInfo/feeds/rss.w3p;adv=yes;orderBy=date-eFirst;page=0;query=Date%3AthisYear%20Dataset%3Abillsdgs;resCount=100", label: "Bills Digests 2026", kind: "digest" },
+  // Parliamentary Library — Bills Digests current year.
+  // URL uses Date:thisYear so the query is always current, but the label
+  // uses a getter so it updates at year boundary without a module reload.
+  { url: "https://parlinfo.aph.gov.au/parlInfo/feeds/rss.w3p;adv=yes;orderBy=date-eFirst;page=0;query=Date%3AthisYear%20Dataset%3Abillsdgs;resCount=100", get label() { return `Bills Digests ${new Date().getFullYear()}`; }, kind: "digest" as const },
 ];
 
 function parseRssXml(xml: string, feed: FeedMeta): FeedItem[] {
@@ -83,7 +85,9 @@ function parseRssXml(xml: string, feed: FeedMeta): FeedItem[] {
     });
   });
 
-  return items.slice(0, 8);
+  // Cap per-feed: most feeds have <15 items; Bills Digests requests 100.
+  const cap = feed.kind === "digest" ? 60 : 15;
+  return items.slice(0, cap);
 }
 
 export async function fetchFeedViaProxy(
@@ -219,5 +223,5 @@ export async function fetchAllFeeds(
     return true;
   });
 
-  return { items: deduped.slice(0, 30), feedStatus, lastPoll: new Date() };
+  return { items: deduped.slice(0, 60), feedStatus, lastPoll: new Date() };
 }

@@ -88,13 +88,20 @@ rate limits protect against bulk extraction (120 req/min on /archive).
 
 ### Email digest activation
 
+Email delivery uses **Resend** — free tier gives 3,000 emails/month, no credit card.
+
+1. Sign up at https://resend.com
+2. Add and verify your sender domain (Domains tab)
+3. Create an API key (API Keys tab)
+
 ```bash
 cd workers/aph-proxy
-wrangler secret put SENDGRID_API_KEY      # paste your SendGrid API key
-wrangler secret put DIGEST_FROM_EMAIL     # e.g. alerts@prometheuspolicylab.com
+wrangler secret put RESEND_API_KEY        # paste your Resend API key
+wrangler secret put DIGEST_FROM_EMAIL     # e.g. noreply@prometheuspolicylab.com
 ```
 
-The sender domain must be verified in SendGrid (Domain Authentication).
+The sender address must match your verified domain in Resend.
+For local/staging testing use `onboarding@resend.dev` (Resend's shared test sender).
 Subscribers collected in D1 will receive their first digest at 05:00 AEST
 after the secrets are set.
 

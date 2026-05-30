@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { Sidebar } from "./shell/Sidebar";
 import { Topbar } from "./shell/Topbar";
+import { RecessBanner } from "./shell/RecessBanner";
 import { Drawer } from "./shell/Drawer";
 import { BriefPrint } from "./shell/BriefPrint";
 import { ShortcutsHelp } from "./shell/ShortcutsHelp";
@@ -26,9 +27,37 @@ import { useLiveSignals } from "./lib/useLiveSignals";
 import { WATCHLISTS } from "./data/fixtures";
 import { useStore } from "./store/useStore";
 
+const PAGE_TITLES: Record<string, string> = {
+  overview: "Overview",
+  live: "Live",
+  radar: "Radar",
+  briefings: "Briefings",
+  committees: "Committees",
+  bills: "Bills",
+  parliament: "Parliament",
+  patterns: "QON Patterns",
+  watchlists: "Watchlists",
+  sources: "Sources",
+  archive: "Archive",
+  alerts: "Alerts",
+  status: "Status",
+};
+
 function readPageParam(): string {
   if (typeof window === "undefined") return "overview";
   return new URLSearchParams(window.location.search).get("page") ?? "overview";
+}
+
+function navigateTo(page: string): void {
+  const url = new URL(window.location.href);
+  const current = url.searchParams.get("page") ?? "overview";
+  if (current === page) return; // avoid duplicate history entries
+  if (page === "overview") {
+    url.searchParams.delete("page");
+  } else {
+    url.searchParams.set("page", page);
+  }
+  window.history.pushState({}, "", url);
 }
 
 // Initialise Sentry early. No-op if VITE_SENTRY_DSN is not set.
@@ -36,6 +65,20 @@ initSentry();
 
 export function App(): JSX.Element {
   const [page, setPage] = useState<string>(readPageParam);
+
+  // Sync document title and URL on every page change.
+  useEffect(() => {
+    const label = PAGE_TITLES[page] ?? page;
+    document.title = `${label} | Parliament Pulse`;
+    navigateTo(page);
+  }, [page]);
+
+  // Handle browser back/forward.
+  useEffect(() => {
+    const onPop = (): void => setPage(readPageParam());
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
 
   return (
     <StoreProvider page={page} setPage={setPage}>
@@ -49,6 +92,7 @@ export function App(): JSX.Element {
         <Sidebar page={page} onNavigate={setPage} />
         <div className="main">
           <Topbar />
+          <RecessBanner />
           <main id="main-content" className="content" tabIndex={-1}>
             <PageSwitch page={page} />
           </main>
@@ -81,6 +125,10 @@ const NAV_SHORTCUTS: Record<string, string> = {
 
 function GlobalShortcuts({ setPage }: { setPage: (p: string) => void }): null {
   const { density, setDensity } = useStore();
+  // Use a ref for density so the handler never needs re-registration when density changes.
+  const densityRef = useRef(density);
+  densityRef.current = density;
+
   // "g" prefix then a letter jumps to the mapped page, like Gmail/Linear.
   useEffect(() => {
     let gMode = false;
@@ -110,7 +158,7 @@ function GlobalShortcuts({ setPage }: { setPage: (p: string) => void }): null {
       }
       if (e.key.toLowerCase() === "d") {
         e.preventDefault();
-        setDensity(density === "compact" ? "comfortable" : "compact");
+        setDensity(densityRef.current === "compact" ? "comfortable" : "compact");
       }
     };
     window.addEventListener("keydown", handler);
@@ -118,7 +166,7 @@ function GlobalShortcuts({ setPage }: { setPage: (p: string) => void }): null {
       window.removeEventListener("keydown", handler);
       if (gTimer) window.clearTimeout(gTimer);
     };
-  }, [setPage, density, setDensity]);
+  }, [setPage, setDensity]); // density removed from deps — read via ref
   return null;
 }
 
@@ -129,14 +177,14 @@ function LiveSignalsPump(): null {
     () => [...WATCHLISTS, ...state.watchlistCreated],
     [state.watchlistCreated],
   );
-  const { signals, loading, feedResult } = useLiveSignals(
+  const { signals, loading, feedResult, pollIntervalMs } = useLiveSignals(
     apiBase,
     mergedWatchlists,
     refreshTick,
   );
   useEffect(() => {
-    setLiveSignals(signals, loading, feedResult);
-  }, [signals, loading, feedResult, setLiveSignals]);
+    setLiveSignals(signals, loading, feedResult, pollIntervalMs);
+  }, [signals, loading, feedResult, pollIntervalMs, setLiveSignals]);
 
   // One-shot /healthz probe on mount so infra outages surface explicitly
   // rather than showing as empty signal lists.
@@ -166,7 +214,7 @@ function LiveSignalsPump(): null {
   return null;
 }
 
-function PageSwitch({ page }: { page: string }): JSX.Element {
+const PageSwitch = memo(function PageSwitch({ page }: { page: string }): JSX.Element {
   switch (page) {
     case "overview":
       return <PageOverview />;
@@ -197,4 +245,4 @@ function PageSwitch({ page }: { page: string }): JSX.Element {
     default:
       return <PageOverview />;
   }
-}
+});

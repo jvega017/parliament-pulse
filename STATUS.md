@@ -1,6 +1,6 @@
 # Parliament Pulse — Service Status
 
-Last updated 2026-04-26 (Wave 14). Live infrastructure state:
+Last updated 2026-04-28. Live infrastructure state:
 [`/?page=status`](https://parliament-pulse.pages.dev/?page=status).
 
 ## Live data sources
@@ -17,53 +17,53 @@ through the `aph-proxy` Cloudflare Worker. No fabricated records.
 | Today in chamber | Live signals filtered by source label | Per poll |
 | Committees · activity | Live signals filtered by kind=inquiry/hearing/report | Per poll |
 | Committees · directory | Verified APH committee names + canonical URLs | Static |
-| Bills monitor | Bills Digests (kind=digest) from ParlInfo RSS 2026 | Per poll |
+| Bills Digests | kind=digest from ParlInfo RSS + D1 archive | Per poll + cron 30 min |
+| QON patterns | D1 archive of Questions on Notice ingested daily | Cron 05:00 AEST |
+| Members | Senate roster from senators_details RSS, stored in D1 | Cron 30 min |
 | Watchlists | Keyword sets matched against live RSS titles | Per poll |
-| Sources | Real feed status from `liveFeedResult.feedStatus` | Per poll |
+| Alert rules | Keyword + metadata rules, events stored in D1 | Per cron poll |
 | Archive | D1 archive of every poll observation | Cron every 30 min |
 | Status | Worker `/healthz`, connector check D1, digest signups | On load |
 
 ## Backend (D1 + cron, Worker `aph-proxy`)
 
-| Job | Cron | Job |
+| Job | Cron | Description |
 |---|---|---|
-| Archive poll | `*/30 * * * *` | Reads each APH RSS, upserts into `signals` table by guid |
+| Archive poll + member ingest | `*/30 * * * *` | Reads each APH RSS, upserts into `signals`; re-derives senator roster |
 | Connector verify | `0 0 */14 * *` | Pings the 12 canonical APH connector URLs, writes to `connector_checks` |
-| Hansard QON ingest | `0 19 * * *` | ParlInfo full-text scrape into `qons` (skeleton; richer NER pending) |
-| Digest delivery | `0 19 * * *` | SendGrid email to subscribers with last 24h items (gated by SENDGRID_API_KEY) |
+| Hansard QON ingest | `0 19 * * *` | ParlInfo scrape into `qons` table; member/chamber/target extracted |
+| Digest delivery | `0 19 * * *` | Resend email to subscribers with last 24h items (gated by RESEND_API_KEY) |
 
 ## Activation checklist
 
-The following one-time steps activate the backend:
-
-```
+```bash
 # Create D1 archive
 wrangler d1 create parliament-pulse-archive
 # replace database_id in workers/aph-proxy/wrangler.toml with the printed value
 
-# Apply schema
-wrangler d1 migrations apply parliament-pulse-archive --remote
+# Apply schema (4 migrations)
+cd workers/aph-proxy
+wrangler d1 migrations apply ARCHIVE --remote
 
-# (optional) Activate digest delivery
-wrangler secret put SENDGRID_API_KEY
-wrangler secret put DIGEST_FROM_EMAIL
+# Activate email digest delivery (Resend — free, 3,000 emails/month)
+# Sign up at https://resend.com, verify sender domain, get API key
+wrangler secret put RESEND_API_KEY
+wrangler secret put DIGEST_FROM_EMAIL    # e.g. noreply@prometheuspolicylab.com
 
-# (optional) Activate Sentry
-# add VITE_SENTRY_DSN to apps/web/.env.production and rebuild
-
-# (optional) Activate Cloudflare Access on /archive
-# see docs/cloudflare-access.md, then set Worker var REQUIRE_ACCESS=true
+# (optional) Gate /archive endpoint with Cloudflare Access
+# Cloudflare Dashboard → Zero Trust → Access → Applications → add Worker URL
+# then set Worker var REQUIRE_ACCESS=true in wrangler.toml and redeploy
 ```
 
 ## Deferred ingest surfaces
 
-| Surface | Why deferred | CTA target |
+| Surface | Status | CTA target |
 |---|---|---|
-| Bills detail | Bills Search ingest not built | aph.gov.au/Parliamentary_Business/Bills_Legislation |
-| Member detail | Senators and Members roster ingest not built | aph.gov.au/Senators_and_Members |
-| Minister detail | Ministry list ingest not built | pmc.gov.au/government/ministries |
-| Divisions | APH division feeds dormant | parlinfo.aph.gov.au |
-| Hansard QON pattern engine | Skeleton ingest live; richer NER pending | ParlInfo |
+| Bills archive | Live (D1 kind=digest, /bills endpoint) | —  |
+| Senate member detail | Live (senators_details RSS → D1 members table) | — |
+| House member detail | Deferred — APH members_updates RSS returns empty containers | aph.gov.au/Senators_and_Members |
+| Minister detail | Deferred — pmc.gov.au scrape not built | pmc.gov.au/government/ministries |
+| Divisions | Deferred — APH division feeds dormant | parlinfo.aph.gov.au |
 
 ## Frontend services
 
@@ -76,13 +76,17 @@ wrangler secret put DIGEST_FROM_EMAIL
 ## Worker
 
 * Endpoint: `https://aph-proxy.jvega019.workers.dev`
-* Health: `/healthz`, `/healthz/connectors`
-* Archive: `/archive`, `/archive/analytics`
+* Health: `GET /healthz`, `GET /healthz/connectors`
+* Archive: `GET /archive`, `GET /archive/analytics`, `GET /archive/timeline`
+* Bills: `GET /bills?q=&limit=&offset=`
+* QONs: `GET /qons?q=&chamber=&limit=`
+* Members: `GET /members?q=&party=&chamber=`
+* Alerts: `GET /alerts`, `POST /alerts`, `DELETE /alerts/:id`, `GET /alerts/events`
 * Digest: `POST /digest/subscribe`
-* Allowlist for `/rss?u=`: `www.aph.gov.au`, `aph.gov.au`,
-  `parlinfo.aph.gov.au`, `parlwork.aph.gov.au`, `www.youtube.com`
+* RSS proxy: `GET /rss?u=<aph-url>` (allowlist: aph.gov.au, parlinfo, parlwork, youtube)
 * Cache: KV, 5 min TTL per upstream URL
-* Storage: D1 `parliament-pulse-archive`
+* Storage: D1 `parliament-pulse-archive` (migrations 0001–0004)
+* Security: X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy on all responses
 
 ## Versioning
 

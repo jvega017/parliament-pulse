@@ -28,6 +28,7 @@ export interface StoreValue {
   liveSignals: Signal[];
   liveLoading: boolean;
   liveFeedResult: FeedResult | null;
+  livePollIntervalMs: number;
   refreshTick: number;
 
   toast: (msg: string, kind?: Toast["kind"]) => void;
@@ -36,7 +37,7 @@ export interface StoreValue {
   openSignal: (id: string) => void;
   closeSignal: () => void;
   goto: (page: string) => void;
-  setLiveSignals: (signals: Signal[], loading: boolean, feedResult: FeedResult | null) => void;
+  setLiveSignals: (signals: Signal[], loading: boolean, feedResult: FeedResult | null, pollIntervalMs?: number) => void;
   openBrief: (signalId: string | null) => void;
   briefSignalId: string | null;
   closeBrief: () => void;

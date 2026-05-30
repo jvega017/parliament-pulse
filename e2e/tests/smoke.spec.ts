@@ -11,7 +11,7 @@ test.describe("Parliament Pulse smoke", () => {
 
   test("primary nav surfaces are reachable", async ({ page }) => {
     await page.goto("/");
-    for (const label of ["Overview", "Live parliament", "Attention radar", "Briefings", "Bills Digests", "Watchlists", "Sources", "Status", "Archive"]) {
+    for (const label of ["Overview", "Live parliament", "Attention radar", "Briefings", "Today in chamber", "Committees", "Bills Digests", "QON patterns", "Archive", "Alert rules", "Watchlists", "Sources", "Status"]) {
       await expect(page.getByRole("button", { name: label, exact: false }).first()).toBeVisible();
     }
   });
@@ -23,10 +23,49 @@ test.describe("Parliament Pulse smoke", () => {
     await expect(page.getByText(/APH connector health/i)).toBeVisible();
   });
 
+  test("status page shows scoring engine and D1 migration stat", async ({ page }) => {
+    await page.goto("/?page=status");
+    await expect(page.getByText(/scoring engine/i)).toBeVisible();
+    await expect(page.getByText(/D1 migrations/i)).toBeVisible();
+  });
+
   test("archive filters render even without backend", async ({ page }) => {
     await page.goto("/?page=archive");
     await expect(page.getByRole("heading", { name: "Archive" })).toBeVisible();
     await expect(page.getByText(/Filters/)).toBeVisible();
+  });
+
+  test("archive save-search inline form opens on button click", async ({ page }) => {
+    await page.goto("/?page=archive");
+    await page.getByRole("button", { name: /Save search/i }).click();
+    await expect(page.getByPlaceholder(/AI governance/i)).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Save$/ })).toBeVisible();
+    // Cancel closes the form
+    await page.getByRole("button", { name: /Cancel/ }).click();
+    await expect(page.getByPlaceholder(/AI governance/i)).not.toBeVisible();
+  });
+
+  test("bills page renders both panels", async ({ page }) => {
+    await page.goto("/?page=bills");
+    await expect(page.getByRole("heading", { name: "Bills Digests" })).toBeVisible();
+    await expect(page.getByText(/Bills Digests/i).first()).toBeVisible();
+    await expect(page.getByText(/Archive — all Bills Digests/i)).toBeVisible();
+  });
+
+  test("QON patterns page renders with search and chamber filter", async ({ page }) => {
+    await page.goto("/?page=patterns");
+    await expect(page.getByRole("heading", { name: "QON pattern engine" })).toBeVisible();
+    await expect(page.getByPlaceholder(/Search member, topic/i)).toBeVisible();
+    await expect(page.getByRole("combobox", { name: /Filter by chamber/i })).toBeVisible();
+  });
+
+  test("alerts page renders rules panel and create-rule form", async ({ page }) => {
+    await page.goto("/?page=alerts");
+    await expect(page.getByRole("heading", { name: "Alert rules" })).toBeVisible();
+    await expect(page.getByText(/Rules/)).toBeVisible();
+    await page.getByRole("button", { name: /New rule/i }).click();
+    await expect(page.getByPlaceholder(/AI governance/i)).toBeVisible();
+    await expect(page.getByRole("button", { name: /Create rule/ })).toBeVisible();
   });
 
   test("theme toggle flips data-theme attribute", async ({ page }) => {

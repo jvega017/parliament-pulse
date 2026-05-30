@@ -105,6 +105,13 @@ export function PageLive(): JSX.Element {
   const liveCount = Object.values(feedStatus).filter((s) => s.ok).length;
   const totalFeeds = APH_FEED_URLS.length;
 
+  // Derive quiet-vs-error state once, outside JSX, to avoid IIFE in render.
+  let emptyState: "quiet" | "error" | null = null;
+  if (!loading && items.length === 0) {
+    const allOk = Object.values(feedStatus).every((s) => s.ok);
+    emptyState = allOk && Object.keys(feedStatus).length > 0 ? "quiet" : "error";
+  }
+
   return (
     <div className="page-fade">
       <div className="page-head">
@@ -150,10 +157,7 @@ export function PageLive(): JSX.Element {
         </div>
       </div>
 
-      <div
-        className="grid"
-        style={{ gridTemplateColumns: "1.7fr 1fr", gap: 16 }}
-      >
+      <div className="grid grid-live">
         <div>
           <div className="live-wrap">
             {mode === "embed" && (
@@ -170,7 +174,7 @@ export function PageLive(): JSX.Element {
               <div className="live-badge" title={liveVideo.title}>
                 <span className="pulse" />{" "}
                 {liveVideo.title.length > 48
-                  ? `${liveVideo.title.slice(0, 48).toUpperCase()}...`
+                  ? `${liveVideo.title.slice(0, 48).toUpperCase()}…`
                   : liveVideo.title.toUpperCase()}
               </div>
             )}
@@ -203,7 +207,7 @@ export function PageLive(): JSX.Element {
                 }}
                 title="Show alternate sources if no stream is live"
               >
-                NO STREAM?
+                Stream offline?
               </button>
             )}
             {mode === "offline" && (
@@ -402,7 +406,7 @@ export function PageLive(): JSX.Element {
                 Drawer evidence and brief footnotes also point here so a
                 reviewer can trace any claim back to the primary source.
               </p>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 8 }}>
                 {APH_CONNECTORS.map((c) => (
                   <a
                     key={c.id}
@@ -439,10 +443,11 @@ export function PageLive(): JSX.Element {
           </div>
           <div
             className="panel-body"
-            style={{ maxHeight: 720, overflowY: "auto" }}
+            style={{ maxHeight: "70vh", overflowY: "auto" }}
             role="feed"
             aria-busy={loading}
             aria-live="polite"
+            aria-label="Live RSS signal events"
           >
             {loading && items.length === 0 && (
               <div style={{ padding: "10px 4px" }}>
@@ -479,42 +484,25 @@ export function PageLive(): JSX.Element {
                 </div>
               </div>
             )}
-            {!loading && items.length === 0 && (() => {
-              // Distinguish legitimate quiet (every feed succeeded with 0 items)
-              // from an error condition (some feed reported ok=false).
-              const allOk = Object.values(feedStatus).every((s) => s.ok);
-              const cleanQuiet = allOk && Object.keys(feedStatus).length > 0;
-              if (cleanQuiet) {
-                return (
-                  <div style={{ padding: "14px 8px", fontSize: 12.5, color: "var(--ink-3)" }}>
-                    <div
-                      style={{ color: "var(--ok)", fontWeight: 500, marginBottom: 6 }}
-                    >
-                      Feeds quiet
-                    </div>
-                    All {Object.keys(feedStatus).length} APH feeds returned no
-                    new items in the latest poll. This is normal during recess
-                    or outside sitting hours.
-                  </div>
-                );
-              }
-              return (
-                <div style={{ padding: "14px 8px", fontSize: 12.5, color: "var(--ink-3)" }}>
-                  <div
-                    style={{
-                      color: "var(--caution)",
-                      fontWeight: 500,
-                      marginBottom: 6,
-                    }}
-                  >
-                    No items returned
-                  </div>
-                  Some feeds did not respond. This can happen if APH is rate
-                  limiting the proxy or a feed is temporarily down. Click the
-                  feed names in the Sources page to open the raw URLs.
+            {emptyState === "quiet" && (
+              <div style={{ padding: "14px 8px", fontSize: 12.5, color: "var(--ink-3)" }}>
+                <div style={{ color: "var(--ok)", fontWeight: 500, marginBottom: 6 }}>
+                  Feeds quiet
                 </div>
-              );
-            })()}
+                All {Object.keys(feedStatus).length} APH feeds returned no new items
+                in the latest poll. This is normal during recess or outside sitting hours.
+              </div>
+            )}
+            {emptyState === "error" && (
+              <div style={{ padding: "14px 8px", fontSize: 12.5, color: "var(--ink-3)" }}>
+                <div style={{ color: "var(--caution)", fontWeight: 500, marginBottom: 6 }}>
+                  No items returned
+                </div>
+                Some feeds did not respond. This can happen if APH is rate limiting
+                the proxy or a feed is temporarily down. Click feed names in the
+                Sources page to open the raw URLs.
+              </div>
+            )}
             {items.map((e, i) => (
               <a
                 key={e.link + (e.pubDate?.getTime() ?? "")}

@@ -4,7 +4,7 @@
 // NEVER cached here — the Worker already handles 5-min KV cache. This SW
 // only exists so the user can open the app while offline (mobile/train).
 
-const VERSION = "pp-shell-v1";
+const VERSION = "pp-shell-v0.12";
 const SHELL = ["/", "/index.html", "/manifest.webmanifest", "/icon.svg"];
 
 self.addEventListener("install", (e) => {

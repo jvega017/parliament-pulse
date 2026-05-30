@@ -1,31 +1,41 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Icon } from "../icons";
 import { DemoBanner } from "../shell/DemoBanner";
 import { useStore } from "../store/useStore";
 import { fetchBills, type BillRow } from "../lib/archive";
+import { useDebounce } from "../lib/useDebounce";
 
 export function PageBills(): JSX.Element {
   const { liveSignals, openSignal } = useStore();
   const [archiveRows, setArchiveRows] = useState<BillRow[]>([]);
   const [archiveTotal, setArchiveTotal] = useState(0);
   const [archiveLoading, setArchiveLoading] = useState(true);
+  const [archiveError, setArchiveError] = useState<string | null>(null);
   const [archiveQ, setArchiveQ] = useState("");
+  const debouncedQ = useDebounce(archiveQ, 300);
   const apiBase = (import.meta.env.VITE_API_BASE ?? "").replace(/\/$/, "");
 
   useEffect(() => {
-    if (!apiBase) { setArchiveLoading(false); return; }
+    if (!apiBase) { setArchiveLoading(false); setArchiveError("Worker not configured — set VITE_API_BASE"); return; }
     const ctrl = new AbortController();
     setArchiveLoading(true);
-    fetchBills({ q: archiveQ || undefined, limit: 100 }, ctrl.signal)
+    setArchiveError(null);
+    fetchBills({ q: debouncedQ || undefined, limit: 100 }, ctrl.signal)
       .then((r) => { setArchiveRows(r.rows); setArchiveTotal(r.total); })
-      .catch(() => null)
+      .catch((e: unknown) => {
+        if (e instanceof DOMException && e.name === "AbortError") return;
+        setArchiveError(e instanceof Error ? e.message : "bills unavailable");
+      })
       .finally(() => setArchiveLoading(false));
     return () => ctrl.abort();
-  }, [apiBase, archiveQ]);
+  }, [apiBase, debouncedQ]);
 
   // Bills Digests come through the ParlInfo Bills Digests RSS feed (kind="digest").
   // These are real Parliamentary Library publications — scored by the live engine.
-  const digests = liveSignals.filter((s) => s.tags.some((t) => t.l === "digest"));
+  const digests = useMemo(
+    () => liveSignals.filter((s) => s.tags.some((t) => t.l === "digest")),
+    [liveSignals],
+  );
 
   return (
     <div className="page-fade">
@@ -68,7 +78,7 @@ export function PageBills(): JSX.Element {
               style={{ color: digests.length > 0 ? "var(--brass)" : undefined }}
             >
               {digests.length > 0
-                ? `${digests.length} live · Parliamentary Library 2026`
+                ? `${digests.length} live · Parliamentary Library ${new Date().getFullYear()}`
                 : "Awaiting next poll"}
             </span>
           </div>
@@ -195,9 +205,16 @@ export function PageBills(): JSX.Element {
               placeholder="Search title…"
               className="search"
               style={{ padding: "7px 10px", width: "100%", marginBottom: 10 }}
+              aria-label="Search Bills Digests archive"
             />
             {archiveLoading && <div style={{ fontSize: 12, color: "var(--ink-3)" }}>Loading…</div>}
-            {!archiveLoading && archiveRows.length === 0 && (
+            {archiveError && (
+              <div className="empty">
+                <strong>Archive unavailable.</strong>
+                <span>{archiveError}. Check the Status page for Worker health.</span>
+              </div>
+            )}
+            {!archiveLoading && !archiveError && archiveRows.length === 0 && (
               <div className="empty">
                 <strong>No Bills Digests in archive yet.</strong>
                 <span>Bills Digests persist to D1 on each RSS poll. Check back after the next cron.</span>

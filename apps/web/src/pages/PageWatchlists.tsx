@@ -6,25 +6,30 @@ import { WATCHLISTS } from "../data/fixtures";
 import type { Watchlist } from "../types";
 
 export function PageWatchlists(): JSX.Element {
-  const { openModal, createWatchlist, deleteWatchlist, state, liveSignals, confirm } = useStore();
+  const { openModal, createWatchlist, deleteWatchlist, state, liveSignals, confirm, toast } = useStore();
   const [newName, setNewName] = useState("");
   const [newTerms, setNewTerms] = useState("");
-  const userWatchlistNames = new Set(state.watchlistCreated.map((w) => w.name));
+  const userWatchlistNames = useMemo(() => new Set(state.watchlistCreated.map((w) => w.name)), [state.watchlistCreated]);
   const all = useMemo(() => [...WATCHLISTS, ...state.watchlistCreated], [state.watchlistCreated]);
 
-  // Live match count per watchlist. The scoring engine has already tagged
-  // each signal with matchedWatchlists; we just count.
+  // Live match count per watchlist. The scoring engine stores matchedWatchlists
+  // on each Signal (title + description haystack), so we read from there
+  // rather than re-scanning titles only (which would under-count).
   const liveMatchCount = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const w of all) counts[w.name] = 0;
     for (const s of liveSignals) {
-      // matchedWatchlists is encoded into the brass tag for live items
-      // (see lib/scoring.tagsFor); we look at the raw signal for portfolio
-      // detail by comparing terms against the title.
-      const title = s.title.toLowerCase();
-      for (const w of all) {
-        if (w.terms.some((t) => t && title.includes(t.toLowerCase()))) {
-          counts[w.name] = (counts[w.name] ?? 0) + 1;
+      if (s.matchedWatchlists) {
+        for (const name of s.matchedWatchlists) {
+          if (name in counts) counts[name]++;
+        }
+      } else {
+        // Fallback for signals without matchedWatchlists (e.g. D1 archive items).
+        const haystack = s.title.toLowerCase();
+        for (const w of all) {
+          if (w.terms.some((t) => t && haystack.includes(t.toLowerCase()))) {
+            counts[w.name] = (counts[w.name] ?? 0) + 1;
+          }
         }
       }
     }
@@ -145,10 +150,10 @@ export function PageWatchlists(): JSX.Element {
         <div>
           <div className="page-kicker">Configuration</div>
           <h1 className="page-title">Watchlists</h1>
-          <div className="page-sub">
+          <div className="page-sub" aria-live="polite" aria-atomic="false">
             Each watchlist is a set of keywords scored against every live RSS
             item. Match counts below are computed from the current poll.
-            Terms are matched against RSS item titles only, not descriptions.
+            Terms are matched against RSS item titles and descriptions.
           </div>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
@@ -164,6 +169,19 @@ export function PageWatchlists(): JSX.Element {
             placeholder="Terms: ai, automation, mygov"
             value={newTerms}
             onChange={(e) => setNewTerms(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key !== "Enter") return;
+              const name = newName.trim();
+              if (!name) { toast("Watchlist name required", "warn"); return; }
+              if (all.some((w) => w.name.toLowerCase() === name.toLowerCase())) {
+                toast(`A watchlist named "${name}" already exists`, "warn");
+                return;
+              }
+              const terms = newTerms.split(",").map((t) => t.trim().toLowerCase()).filter(Boolean);
+              createWatchlist(name, terms);
+              setNewName("");
+              setNewTerms("");
+            }}
             className="search"
             style={{ padding: "7px 10px", minWidth: 240 }}
             aria-label="Comma-separated terms to match in RSS titles"
@@ -174,6 +192,10 @@ export function PageWatchlists(): JSX.Element {
             onClick={() => {
               const name = newName.trim();
               if (!name) return;
+              if (all.some((w) => w.name.toLowerCase() === name.toLowerCase())) {
+                toast(`A watchlist named "${name}" already exists`, "warn");
+                return;
+              }
               const terms = newTerms
                 .split(",")
                 .map((t) => t.trim().toLowerCase())

@@ -21,7 +21,12 @@ export function SignalCard({ s }: SignalCardProps): JSX.Element | null {
   const feedback = state.feedback[s.id];
   const hasNote = !!state.notes?.[s.id];
   const hasBrief = !!state.briefsGenerated?.[s.id];
-  const isNew = lastSessionTime > 0 && !!s.pubMs && s.pubMs > lastSessionTime;
+  // "new" = published after last session; fall back to <24 h only on first ever visit.
+  const isNew = !!s.pubMs && (
+    lastSessionTime > 0
+      ? s.pubMs > lastSessionTime
+      : Date.now() - s.pubMs < 24 * 3_600_000
+  );
 
   const dateStamp = s.date !== "—" ? `${s.date} · ` : "";
   const age = s.pubMs ? formatRelative(new Date(s.pubMs)) : null;
@@ -32,7 +37,7 @@ export function SignalCard({ s }: SignalCardProps): JSX.Element | null {
       type="button"
       className={`signal att-${s.attention}`}
       onClick={() => openSignal(s.id)}
-      aria-label={`Open signal ${s.id}: ${s.title}`}
+      aria-label={`Open signal ${s.id} (${s.attention} attention): ${s.title}`}
     >
       <div className="sig-head">
         <span className="sig-id mono">{s.id}</span>

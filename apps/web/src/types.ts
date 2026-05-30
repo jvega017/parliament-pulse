@@ -73,6 +73,7 @@ export interface Signal {
   members: string[];
   entities?: ExtractedEntity[];       // regex-extracted bill refs and dollar amounts
   scoringExplanation?: string;         // plain-English explanation of why this score
+  matchedWatchlists?: string[];        // watchlist names that fired for this signal
 }
 
 export interface Feed {

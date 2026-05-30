@@ -703,8 +703,14 @@ select:focus-visible {
 .g-4 {
   grid-template-columns: repeat(4, 1fr);
 }
+.g-stat {
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+}
 .g-overview {
   grid-template-columns: 2fr 1fr;
+}
+.grid-live {
+  grid-template-columns: 1.7fr 1fr;
 }
 
 /* ---------- Panel ---------- */
@@ -751,6 +757,8 @@ select:focus-visible {
 }
 .panel-body {
   padding: 16px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 .panel-foot {
   padding: 10px 16px;
@@ -808,6 +816,7 @@ select:focus-visible {
   align-items: center;
   gap: 8px;
   letter-spacing: -0.002em;
+  overflow: hidden; /* prevent layout blowout on very long stat-meta strings */
 }
 
 /* ---------- Signal Card ---------- */
@@ -991,6 +1000,10 @@ html[data-density="compact"] .sig-sum { font-size: 12px; -webkit-line-clamp: 2; 
   color: var(--ink-3);
   font-size: 12.5px;
   font-style: italic;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 /* attention pill */
@@ -1674,6 +1687,19 @@ table.ds tbody tr:hover {
     grid-template-columns: 1fr;
   }
 }
+@media (max-width: 900px) {
+  .grid-live {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 480px) {
+  .g-4 {
+    grid-template-columns: 1fr;
+  }
+  .g-3 {
+    grid-template-columns: 1fr;
+  }
+}
 @media (max-width: 780px) {
   .app {
     grid-template-columns: 1fr;
@@ -1879,7 +1905,7 @@ table.ds tbody tr:hover {
   border: 1px solid var(--line-2);
   border-radius: 10px;
   box-shadow: 0 20px 50px #00000080;
-  z-index: 30;
+  z-index: 100; /* above topbar chips and modals */
   max-height: 420px;
   overflow-y: auto;
 }
@@ -2395,3 +2421,26 @@ table.ds th:last-child,
 table.ds td:last-child {
   padding-right: 16px;
 }
+
+/* -- sr-only: accessible visually-hidden utility ------------ */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* -- Brand flame: warm orange in light mode (svg uses CSS vars) */
+html[data-theme="light"] {
+  --brand-flame-top: #e8823a;
+  --brand-flame-base: #c45f20;
+}
+
+/* pulse animations are already killed by the existing prefers-reduced-motion
+   rule above (animation-iteration-count: 1 !important covers all indefinite
+   animations including inline-style pulse). No additional rule needed here. */

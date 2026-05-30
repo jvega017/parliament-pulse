@@ -244,8 +244,8 @@ export function Drawer(): JSX.Element {
                 {Object.entries(signal.score).map(([k, v]) => {
                   const weight = SCORE_WEIGHTS[k] ?? 0;
                   const zeroed = weight === 0;
-                  const contribution = Math.round(v * weight * 100);
-                  const scorePct = Math.round(v * 100);
+                  const contribution = Math.round(Math.min(v, 1) * weight * 100);
+                  const scorePct = Math.min(100, Math.round(v * 100));
                   const barLevel = zeroed ? "low" : scorePct >= 70 ? "ok" : scorePct >= 40 ? "mid" : "low";
                   return (
                   <div
@@ -282,7 +282,7 @@ export function Drawer(): JSX.Element {
                     <div
                       className="mono"
                       style={{ fontSize: 10, color: "var(--ink-4)", textAlign: "right" }}
-                      title={zeroed ? "Weight zeroed — not yet wired" : `Weight: ${Math.round(weight * 100)}%`}
+                      title={zeroed ? "Weight zeroed — activates once 14+ days of D1 history accumulates (dimension value is computed)" : `Weight: ${Math.round(weight * 100)}%`}
                     >
                       {zeroed ? "—" : `×${Math.round(weight * 100)}%`}
                     </div>
@@ -305,9 +305,11 @@ export function Drawer(): JSX.Element {
               {signal.evidence.length > 0 && (
               <div className="drawer-section">
                 <h4>Evidence · open the actual source</h4>
+                <div role="list">
                 {signal.evidence.map((e) => (
                   <div
                     key={e.url}
+                    role="listitem"
                     style={{
                       display: "flex",
                       alignItems: "center",
@@ -355,6 +357,7 @@ export function Drawer(): JSX.Element {
                       type="button"
                       className="btn ghost sm"
                       title="Copy URL to clipboard"
+                      aria-label={`Copy URL for: ${e.label}`}
                       onClick={() =>
                         navigator.clipboard
                           ?.writeText(e.url)
@@ -363,10 +366,11 @@ export function Drawer(): JSX.Element {
                       }
                       style={{ flexShrink: 0 }}
                     >
-                      <Icon name="link" size={12} />
+                      <Icon name="copy" size={12} />
                     </button>
                   </div>
                 ))}
+                </div>
               </div>
               )}
 
@@ -457,7 +461,6 @@ export function Drawer(): JSX.Element {
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                     {signal.members.map((mid) => {
                       const m = ENTITIES.members[mid];
-                      if (!m) return null;
                       return (
                         <button
                           key={mid}
@@ -465,7 +468,7 @@ export function Drawer(): JSX.Element {
                           className="tag brass clk"
                           onClick={() => openModal({ kind: "member", id: mid })}
                         >
-                          {m.name}
+                          {m?.name ?? mid}
                         </button>
                       );
                     })}
@@ -482,6 +485,7 @@ export function Drawer(): JSX.Element {
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                   onBlur={() => saveNote(signal.id, note)}
+                  onKeyDown={(e) => { if (e.key === "Escape") { e.currentTarget.blur(); saveNote(signal.id, note); } }}
                   placeholder="Private notes (auto-saved)"
                   rows={3}
                   aria-label={`Analyst note for signal ${signal.id}`}
@@ -507,6 +511,7 @@ export function Drawer(): JSX.Element {
                       key={l}
                       type="button"
                       className={`fb${fb === l ? " on" : ""}`}
+                      aria-pressed={fb === l}
                       onClick={() => {
                         setFb(l);
                         saveFeedback(signal.id, l);
@@ -593,6 +598,7 @@ export function Drawer(): JSX.Element {
                 type="button"
                 className="btn"
                 title="Copy deep-link to this signal"
+                aria-label="Copy deep-link to this signal"
                 onClick={() => {
                   const url = new URL(window.location.href);
                   url.searchParams.set("signal", signal.id);
@@ -602,7 +608,7 @@ export function Drawer(): JSX.Element {
                     .catch(() => toast("Copy failed"));
                 }}
               >
-                <Icon name="link" size={13} /> Share
+                <Icon name="copy" size={13} /> Share
               </button>
               <button
                 type="button"
@@ -616,6 +622,7 @@ export function Drawer(): JSX.Element {
                 type="button"
                 className="btn"
                 title="Archive this signal — removes it from the live feed view"
+                aria-label={`Archive signal ${signal.id}`}
                 onClick={() => {
                   archive(signal.id);
                   closeSignal();

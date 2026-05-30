@@ -22,9 +22,13 @@ migrations_dir = "migrations"
 
 [vars]
 # Comma-separated list of origins allowed to call this Worker (CORS).
-# Add your custom domain here if you add one, e.g.:
-#   "http://127.0.0.1:5173,http://localhost:5173,https://parliament-pulse.pages.dev,https://pulse.prometheuspolicylab.com"
-ALLOWED_ORIGINS = "http://127.0.0.1:5173,http://localhost:5173,https://parliament-pulse.pages.dev,https://pulse.prometheuspolicylab.com"
+# Production Pages origin is parliament-pulse.pages.dev plus the custom domain
+# pulse.prometheuspolicylab.com. Dev origins cover both the Vite default (5173)
+# and the README static-server default (python -m http.server 8080), on both
+# localhost and 127.0.0.1. An origin not in this list is rejected by the browser
+# CORS check because the Worker echoes the first list entry, not the caller.
+# Add any new preview or custom origin here before it can call the Worker.
+ALLOWED_ORIGINS = "http://127.0.0.1:5173,http://localhost:5173,http://127.0.0.1:8080,http://localhost:8080,https://parliament-pulse.pages.dev,https://pulse.prometheuspolicylab.com"
 
 # Access gate for /archive endpoint.
 # Set to "true" to require a Cloudflare Access JWT header.
@@ -45,12 +49,14 @@ crons = ["*/30 * * * *", "0 0 */14 * *", "0 19 * * *"]
 
 # ---- Secrets (set with `wrangler secret put <NAME>`) -----------------------
 #
-# SENDGRID_API_KEY   — activates email digest delivery (optional)
-#                      wrangler secret put SENDGRID_API_KEY
+# RESEND_API_KEY     — activates email digest delivery (free, no credit card)
+#                      Sign up at https://resend.com, get API key, verify domain.
+#                      wrangler secret put RESEND_API_KEY
 #
 # DIGEST_FROM_EMAIL  — sender address for digest emails
 #                      defaults to noreply@prometheuspolicylab.com (set below)
-#                      must be a verified SendGrid sender domain
+#                      must be a verified domain in Resend dashboard.
+#                      For local testing use: onboarding@resend.dev
 #                      override with: wrangler secret put DIGEST_FROM_EMAIL
 #
 # Rate limits (no secret needed — built into Worker code):

@@ -19,7 +19,7 @@ export const APH_FEEDS: FeedMeta[] = [
   { url: "https://www.aph.gov.au/house/rss/joint_inquiries", label: "Joint committee inquiries", kind: "inquiry" },
   // Parliamentary Library — Bills Digests (plain-English summaries, Date:thisYear = 2026)
   // This is the primary source for 2026 legislative data in the archive.
-  { url: "https://parlinfo.aph.gov.au/parlInfo/feeds/rss.w3p;adv=yes;orderBy=date-eFirst;page=0;query=Date%3AthisYear%20Dataset%3Abillsdgs;resCount=100", label: "Bills Digests 2026", kind: "digest" },
+  { url: "https://parlinfo.aph.gov.au/parlInfo/feeds/rss.w3p;adv=yes;orderBy=date-eFirst;page=0;query=Date%3AthisYear%20Dataset%3Abillsdgs;resCount=100", label: `Bills Digests ${new Date().getFullYear()}`, kind: "digest" },
 ];
 
 // Canonical 12 connector URLs; cron pings these fortnightly for liveness.

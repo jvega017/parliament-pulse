@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Icon } from "../icons";
 import { DemoBanner } from "../shell/DemoBanner";
 import { useStore } from "../store/useStore";
@@ -7,7 +8,7 @@ export function PageParliament(): JSX.Element {
   const { openModal, openSignal, liveSignals } = useStore();
   // Today-in-chamber items: anything from House Daily Program, Senate Dynamic
   // Red, or upcoming hearings feeds. Pure live derivation.
-  const today = liveSignals.filter((s) => {
+  const today = useMemo(() => liveSignals.filter((s) => {
     const lower = s.source.toLowerCase();
     return (
       lower.includes("daily program") ||
@@ -16,7 +17,7 @@ export function PageParliament(): JSX.Element {
       lower.includes("hearing") ||
       lower.includes("today")
     );
-  });
+  }), [liveSignals]);
 
   return (
     <div className="page-fade">
@@ -55,11 +56,11 @@ export function PageParliament(): JSX.Element {
         <div className="panel">
           <div className="panel-head">
             <h3 className="panel-title">Live chamber items</h3>
-            <span className="panel-kicker">
+            <span className="panel-kicker" aria-live="polite" aria-atomic="true">
               {today.length === 0 ? "Awaiting poll" : `${today.length} items`}
             </span>
           </div>
-          <div className="panel-body">
+          <div className="panel-body" aria-live="polite">
             {today.length === 0 ? (
               <div className="empty">
                 <strong>No chamber items in the current poll.</strong>
@@ -87,6 +88,7 @@ export function PageParliament(): JSX.Element {
                         type="button"
                         className="clk"
                         onClick={() => openSignal(s.id)}
+                        aria-label={`Open signal: ${s.title}`}
                         style={{ padding: 0, color: "var(--ink)", textAlign: "left" }}
                       >
                         {s.title}

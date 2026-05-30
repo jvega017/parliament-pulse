@@ -36,7 +36,7 @@ function downloadMarkdown(filename: string, content: string): void {
   URL.revokeObjectURL(url);
 }
 
-type Classification = "OFFICIAL" | "OFFICIAL: SENSITIVE";
+type Classification = "OFFICIAL" | "OFFICIAL: SENSITIVE" | "PROTECTED";
 
 /**
  * Print-ready brief document.
@@ -47,8 +47,15 @@ type Classification = "OFFICIAL" | "OFFICIAL: SENSITIVE";
 export function BriefPrint(): JSX.Element | null {
   const { briefSignalId, liveSignals, closeBrief, toast } = useStore();
   const overlayRef = useRef<HTMLDivElement>(null);
-  const [classification, setClassification] = useState<Classification>("OFFICIAL");
+  const [classification, setClassification] = useState<Classification>(() => {
+    try { return (localStorage.getItem("pp-brief-class") as Classification) ?? "OFFICIAL"; } catch { return "OFFICIAL"; }
+  });
   useFocusTrap(overlayRef, !!briefSignalId);
+
+  const handleClassification = (c: Classification): void => {
+    setClassification(c);
+    try { localStorage.setItem("pp-brief-class", c); } catch { /* ignore */ }
+  };
 
   useEffect(() => {
     if (!briefSignalId) return;
@@ -108,13 +115,13 @@ export function BriefPrint(): JSX.Element | null {
         <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           <select
             value={classification}
-            onChange={(e) => setClassification(e.target.value as Classification)}
+            onChange={(e) => handleClassification(e.target.value as Classification)}
             aria-label="Document classification"
             className="no-print"
             style={{
               padding: "5px 8px",
               background: "var(--panel-2)",
-              color: classification === "OFFICIAL: SENSITIVE" ? "var(--caution)" : "var(--ink)",
+              color: classification === "PROTECTED" ? "var(--escalate)" : classification === "OFFICIAL: SENSITIVE" ? "var(--caution)" : "var(--ink)",
               border: "1px solid var(--line-2)",
               borderRadius: 6,
               fontFamily: "var(--mono)",
@@ -124,6 +131,7 @@ export function BriefPrint(): JSX.Element | null {
           >
             <option value="OFFICIAL">OFFICIAL</option>
             <option value="OFFICIAL: SENSITIVE">OFFICIAL: SENSITIVE</option>
+            <option value="PROTECTED">PROTECTED</option>
           </select>
           <button
             type="button"
@@ -131,7 +139,7 @@ export function BriefPrint(): JSX.Element | null {
             onClick={() => {
               downloadMarkdown(
                 `${signal.id}-brief.md`,
-                buildBriefMarkdown(signal, SCORE_LABELS),
+                buildBriefMarkdown(signal, SCORE_LABELS, classification),
               );
               toast("Brief downloaded as Markdown", "brass");
             }}
@@ -141,19 +149,21 @@ export function BriefPrint(): JSX.Element | null {
           <button
             type="button"
             className="btn"
+            aria-label="Copy brief as Markdown to clipboard"
             onClick={() => {
               navigator.clipboard
-                ?.writeText(buildBriefMarkdown(signal, SCORE_LABELS))
+                ?.writeText(buildBriefMarkdown(signal, SCORE_LABELS, classification))
                 .then(() => toast("Brief copied to clipboard as Markdown", "brass"))
                 .catch(() => toast("Copy failed"));
             }}
           >
-            <Icon name="download" size={13} /> Copy Markdown
+            <Icon name="copy" size={13} /> Copy Markdown
           </button>
           <button
             type="button"
             className="btn"
             title="Copy deep-link to this brief"
+            aria-label="Copy share link for this brief"
             onClick={() => {
               const url = new URL(window.location.href);
               url.searchParams.set("brief", signal.id);

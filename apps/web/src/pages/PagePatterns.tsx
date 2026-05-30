@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Icon } from "../icons";
 import { DemoBanner } from "../shell/DemoBanner";
 import { useStore } from "../store/useStore";
 import { fetchQons, type QonRow } from "../lib/archive";
+import { useDebounce } from "../lib/useDebounce";
 
 const CHAMBER_COLOURS: Record<string, string> = {
   Senate: "var(--teal)",
@@ -11,7 +12,10 @@ const CHAMBER_COLOURS: Record<string, string> = {
 
 export function PagePatterns(): JSX.Element {
   const { openBrief, liveSignals } = useStore();
-  const topLiveHigh = liveSignals.find((s) => s.attention === "high") ?? liveSignals[0] ?? null;
+  const topLiveHigh = useMemo(
+    () => liveSignals.find((s) => s.attention === "high") ?? liveSignals[0] ?? null,
+    [liveSignals],
+  );
   const [rows, setRows] = useState<QonRow[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -20,29 +24,34 @@ export function PagePatterns(): JSX.Element {
   const [chamber, setChamber] = useState("");
 
   const apiBase = (import.meta.env.VITE_API_BASE ?? "").replace(/\/$/, "");
+  const debouncedQ = useDebounce(q, 300);
 
   useEffect(() => {
-    if (!apiBase) { setLoading(false); return; }
+    if (!apiBase) { setLoading(false); setError("Worker not configured — set VITE_API_BASE"); return; }
     const ctrl = new AbortController();
     setLoading(true);
-    fetchQons({ q: q || undefined, chamber: chamber || undefined, limit: 200 }, ctrl.signal)
+    fetchQons({ q: debouncedQ || undefined, chamber: chamber || undefined, limit: 200 }, ctrl.signal)
       .then((r) => { setRows(r.rows); setTotal(r.total); setError(null); })
       .catch((e) => { if (e instanceof DOMException && e.name === "AbortError") return; setError(e.message); })
       .finally(() => setLoading(false));
     return () => ctrl.abort();
-  }, [apiBase, q, chamber]);
+  }, [apiBase, debouncedQ, chamber]);
 
-  // Cluster QONs by target minister/portfolio for the pattern view
-  const byTarget = new Map<string, QonRow[]>();
-  for (const row of rows) {
-    const key = row.target ?? "Unknown target";
-    const existing = byTarget.get(key) ?? [];
-    existing.push(row);
-    byTarget.set(key, existing);
-  }
-  const clusters = [...byTarget.entries()]
-    .sort((a, b) => b[1].length - a[1].length)
-    .slice(0, 20);
+  // Cluster QONs by target minister/portfolio for the pattern view.
+  // Memoized on `rows` so typing in the search box does not re-cluster
+  // until the debounced fetch returns new data.
+  const clusters = useMemo(() => {
+    const byTarget = new Map<string, QonRow[]>();
+    for (const row of rows) {
+      const key = row.target ?? "Unknown target";
+      const existing = byTarget.get(key) ?? [];
+      existing.push(row);
+      byTarget.set(key, existing);
+    }
+    return [...byTarget.entries()]
+      .sort((a, b) => b[1].length - a[1].length)
+      .slice(0, 20);
+  }, [rows]);
 
   return (
     <div className="page-fade">
@@ -70,9 +79,11 @@ export function PagePatterns(): JSX.Element {
             <button
               type="button"
               className="btn"
+              title={`Open brief for top live signal: ${topLiveHigh.title}`}
+              aria-label={`Open brief for: ${topLiveHigh.title}`}
               onClick={() => openBrief(topLiveHigh.id)}
             >
-              <Icon name="brief" size={13} /> Draft brief
+              <Icon name="brief" size={13} /> Brief top signal
             </button>
           )}
         </div>
@@ -86,6 +97,7 @@ export function PagePatterns(): JSX.Element {
           placeholder="Search member, topic…"
           className="search"
           style={{ padding: "7px 10px", minWidth: 220, flex: 1 }}
+          aria-label="Search QONs by member or topic"
         />
         <select
           value={chamber}
@@ -170,10 +182,15 @@ export function PagePatterns(): JSX.Element {
             <h3 className="panel-title">All QONs</h3>
             <span className="panel-kicker">{loading ? "…" : `${total} records`}</span>
           </div>
-          <div className="panel-body" style={{ maxHeight: 500, overflowY: "auto" }}>
+          <div className="panel-body" style={{ maxHeight: "60vh", overflowY: "auto" }}>
             {loading && <div style={{ padding: 12, color: "var(--ink-3)", fontSize: 12 }}>Loading…</div>}
             {!loading && rows.length === 0 && !error && (
               <div className="empty"><strong>No results.</strong></div>
+            )}
+            {rows.length > 100 && (
+              <div style={{ fontSize: 11.5, color: "var(--ink-3)", padding: "4px 0 8px" }}>
+                Showing 100 of {total} — use search to filter.
+              </div>
             )}
             {rows.slice(0, 100).map((r) => (
               <div

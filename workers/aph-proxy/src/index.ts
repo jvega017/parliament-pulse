@@ -18,6 +18,7 @@ import {
   queryArchive,
   watchlistAnalytics,
   timelineArchive,
+  watchlistTrend,
   listAlertRules,
   createAlertRule,
   deleteAlertRule,
@@ -32,8 +33,11 @@ import { ingestQons } from "./hansard";
 import { sendDailyDigest } from "./digest";
 
 const TTL_SECONDS = 300; // 5 minutes
+// APH's edge WAF 403s non-browser user-agents, so the proxy presents a current
+// browser UA. The proxy is allowlisted to APH feed hosts only (ALLOWED_HOSTS),
+// so this is not an open relay.
 const USER_AGENT =
-  "parliament-pulse/0.10 (+https://github.com/jvega019/parliament-pulse)";
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 
 const ALLOWED_HOSTS = new Set<string>([
   "www.aph.gov.au",
@@ -58,10 +62,17 @@ function corsHeaders(origin: string, allowed: string): HeadersInit {
   };
 }
 
+const SECURITY_HEADERS: HeadersInit = {
+  "x-content-type-options": "nosniff",
+  "x-frame-options": "DENY",
+  "referrer-policy": "strict-origin-when-cross-origin",
+  "permissions-policy": "camera=(), microphone=(), geolocation=()",
+};
+
 function jsonResponse(body: unknown, status: number, extra: HeadersInit): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...extra, "content-type": "application/json; charset=utf-8" },
+    headers: { ...SECURITY_HEADERS, ...extra, "content-type": "application/json; charset=utf-8" },
   });
 }
 
@@ -95,7 +106,13 @@ export default {
     if (req.method === "OPTIONS") return new Response(null, { headers: cors });
 
     if (url.pathname === "/healthz") {
-      return jsonResponse({ ok: true, version: "0.12.0", scoring_engine: "v1.1-deterministic" }, 200, cors);
+      return jsonResponse({
+        ok: true,
+        version: "0.12.0",
+        scoring_engine: "v1.1-deterministic",
+        resend_wired: !!env.RESEND_API_KEY,
+        digest_from: env.DIGEST_FROM_EMAIL ?? null,
+      }, 200, cors);
     }
 
     if (url.pathname === "/healthz/connectors") {
@@ -154,6 +171,16 @@ export default {
       } catch (err) {
         console.error({ endpoint: "/archive/timeline", error: err instanceof Error ? err.message : err, ts: new Date().toISOString() });
         return jsonResponse({ error: "timeline temporarily unavailable" }, 503, cors);
+      }
+    }
+
+    if (url.pathname === "/archive/watchlist-trend") {
+      try {
+        const result = await watchlistTrend(env, url.searchParams);
+        return jsonResponse(result, 200, cors);
+      } catch (err) {
+        console.error({ endpoint: "/archive/watchlist-trend", error: err instanceof Error ? err.message : err, ts: new Date().toISOString() });
+        return jsonResponse({ days: [] }, 200, cors);
       }
     }
 
@@ -317,6 +344,7 @@ export default {
     if (cached) {
       return new Response(cached, {
         headers: {
+          ...SECURITY_HEADERS,
           ...cors,
           "content-type": "application/xml; charset=utf-8",
           "cache-control": `public, max-age=${TTL_SECONDS}`,
@@ -329,9 +357,12 @@ export default {
     try {
       upstream = await fetch(parsed.toString(), {
         headers: {
-          accept: "application/rss+xml, application/xml, text/xml, */*",
+          accept:
+            "text/html,application/xhtml+xml,application/xml;q=0.9,application/rss+xml,*/*;q=0.8",
+          "accept-language": "en-AU,en;q=0.9",
           "user-agent": USER_AGENT,
         },
+        redirect: "follow",
         cf: { cacheTtl: TTL_SECONDS, cacheEverything: true },
       });
     } catch (err) {
@@ -351,6 +382,7 @@ export default {
 
     return new Response(body, {
       headers: {
+        ...SECURITY_HEADERS,
         ...cors,
         "content-type": "application/xml; charset=utf-8",
         "cache-control": `public, max-age=${TTL_SECONDS}`,

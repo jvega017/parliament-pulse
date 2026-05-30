@@ -1,26 +1,44 @@
+import { useMemo } from "react";
 import { Icon } from "../icons";
 import { DemoBanner } from "../shell/DemoBanner";
 import { useStore } from "../store/useStore";
 import { APH_FEEDS, APH_CONNECTORS } from "../data/fixtures";
+import { formatRelative } from "../lib/export";
 import type { Feed } from "../types";
 
 const NOT_YET_CONNECTED = [
-  { name: "Hansard extraction", note: "Needs transcript parser" },
-  { name: "QON tracking", note: "Needs source or parliamentary export" },
-  { name: "Full bill progress", note: "Needs bills database beyond Digest RSS" },
-  { name: "News / media monitoring", note: "Optional bundle, later" },
-  { name: "Internal executive briefings", note: "Governance controls required" },
+  { name: "Hansard transcript extraction", note: "Needs full-text transcript parser (ParlInfo HTML)" },
+  { name: "Full bill progress tracking", note: "Needs bills database beyond Parliamentary Library Digest RSS" },
+  { name: "News / media monitoring", note: "Optional bundle — third-party media APIs required" },
+  { name: "Internal executive briefings", note: "Governance and access controls required before wiring" },
 ];
+
+const FALSE_POS_LABELS = new Set(["Too high", "Too low", "Wrong topic", "Wrong portfolio", "Duplicate", "Noise"]);
 
 export function PageSources(): JSX.Element {
   const { openModal, state, triggerRefresh, requestConnector, connectorRequests, liveFeedResult } = useStore();
 
-  const allFeeds: Feed[] = [...APH_FEEDS, ...state.feeds];
+  const allFeeds: Feed[] = useMemo(() => [...APH_FEEDS, ...state.feeds], [state.feeds]);
 
   // Total items from the most recent poll across all feeds
-  const itemsToday = liveFeedResult
-    ? Object.values(liveFeedResult.feedStatus).reduce((sum, s) => sum + (s.count ?? 0), 0)
-    : null;
+  const itemsToday = useMemo(
+    () => liveFeedResult
+      ? Object.values(liveFeedResult.feedStatus).reduce((sum, s) => sum + (s.count ?? 0), 0)
+      : null,
+    [liveFeedResult],
+  );
+
+  // FPR derived from analyst feedback. Require at least 3 labelled signals.
+  const { feedbackList, fprPct, downCount } = useMemo(() => {
+    const list = Object.values(state.feedback);
+    const pct = list.length >= 3
+      ? Math.round((list.filter(f => FALSE_POS_LABELS.has(f.label)).length / list.length) * 100)
+      : null;
+    const down = liveFeedResult
+      ? Object.values(liveFeedResult.feedStatus).filter((s) => !s.ok).length
+      : 0;
+    return { feedbackList: list, fprPct: pct, downCount: down };
+  }, [state.feedback, liveFeedResult]);
 
   return (
     <div className="page-fade">
@@ -49,6 +67,7 @@ export function PageSources(): JSX.Element {
             type="button"
             className="btn"
             title="Force a fresh poll of all APH feeds"
+            aria-label="Refresh all APH feeds"
             onClick={triggerRefresh}
           >
             <Icon name="refresh" size={13} /> Refresh all
@@ -65,12 +84,14 @@ export function PageSources(): JSX.Element {
         <div className="panel stat">
           <div className="stat-label">Healthy</div>
           <div className="stat-value" style={{ color: "var(--ok)" }}>
-            {allFeeds.filter((f) => f.status === "live").length}
+            {liveFeedResult
+              ? Object.values(liveFeedResult.feedStatus).filter((s) => s.ok).length
+              : allFeeds.filter((f) => f.status === "live").length}
           </div>
           <div className="stat-meta">
-            {allFeeds.filter((f) => f.status !== "live").length === 0
-              ? "All feeds live"
-              : `${allFeeds.filter((f) => f.status !== "live").length} not live`}
+            {liveFeedResult
+              ? (downCount === 0 ? "All feeds responding" : `${downCount} feed(s) down`)
+              : "Awaiting first poll"}
           </div>
         </div>
         <div className="panel stat">
@@ -82,8 +103,16 @@ export function PageSources(): JSX.Element {
         </div>
         <div className="panel stat">
           <div className="stat-label">False positive rate</div>
-          <div className="stat-value" style={{ color: "var(--ink-3)" }}>—</div>
-          <div className="stat-meta">Requires feedback data</div>
+          <div className="stat-value" style={{ color: fprPct !== null ? (fprPct <= 20 ? "var(--ok)" : fprPct <= 40 ? "var(--caution)" : "var(--escalate)") : "var(--ink-3)" }}>
+            {fprPct !== null ? `${fprPct}%` : "—"}
+          </div>
+          <div className="stat-meta">
+            {feedbackList.length >= 3
+              ? `${feedbackList.length} rated · from thumbs up/down`
+              : feedbackList.length > 0
+                ? `${feedbackList.length}/3 rated — need ${3 - feedbackList.length} more`
+                : "Rate signals to compute"}
+          </div>
         </div>
       </div>
 
@@ -111,14 +140,16 @@ export function PageSources(): JSX.Element {
               {allFeeds.map((f) => (
                 <tr
                   key={f.id}
-                  onClick={() => {
-                    if (f.group !== "Custom") openModal({ kind: "feed", id: f.id });
-                  }}
+                  onClick={() => { if (f.group !== "Custom") openModal({ kind: "feed", id: f.id }); }}
+                  tabIndex={f.group !== "Custom" ? 0 : undefined}
+                  style={{ cursor: f.group !== "Custom" ? "pointer" : "default" }}
+                  onKeyDown={(e) => { if (f.group !== "Custom" && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openModal({ kind: "feed", id: f.id }); } }}
+                  aria-label={f.group !== "Custom" ? `View details for ${f.name}` : undefined}
                 >
                   <td>
                     <div style={{ fontWeight: 500 }}>{f.name}</div>
                     <div className="mono" style={{ fontSize: 10.5, color: "var(--ink-3)" }}>
-                      {f.url.length > 56 ? `${f.url.slice(0, 56)}...` : f.url}
+                      {f.url.length > 56 ? `${f.url.slice(0, 56)}…` : f.url}
                     </div>
                   </td>
                   <td>
@@ -129,9 +160,9 @@ export function PageSources(): JSX.Element {
                     {f.status[0]!.toUpperCase() + f.status.slice(1)}
                   </td>
                   <td className="mono" style={{ fontSize: 11.5, color: "var(--ink-3)" }}>
-                    {f.last}
+                    {liveFeedResult ? formatRelative(liveFeedResult.lastPoll) : "—"}
                   </td>
-                  <td className="num">{f.today ?? "—"}</td>
+                  <td className="num">{liveFeedResult?.feedStatus[f.url]?.count ?? f.today ?? "—"}</td>
                   <td>
                     <span className="tag">{f.fpr}</span>
                   </td>

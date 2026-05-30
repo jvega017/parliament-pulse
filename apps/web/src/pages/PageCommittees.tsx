@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Icon } from "../icons";
 import { Att } from "../shell/common";
 import { DemoBanner } from "../shell/DemoBanner";
@@ -24,19 +24,27 @@ function liveCommitteeRows(signals: Signal[]): Array<{
     .filter((row): row is { signal: Signal; type: "Hearing" | "Report tabled" | "New inquiry" } => row !== null);
 }
 
-function committeeSignalCount(signals: Signal[], committeeName: string): number {
-  const lower = committeeName.toLowerCase();
-  // Match on signal title or source label — counts items observed this poll
-  // that mention the committee. Not a formal active inquiry count.
-  return signals.filter(
-    (s) => s.title.toLowerCase().includes(lower) || s.source.toLowerCase().includes(lower),
-  ).length;
-}
-
 export function PageCommittees(): JSX.Element {
   const { openSignal, openModal, liveSignals } = useStore();
   const committees = useMemo(() => Object.values(ENTITIES.committees), []);
   const rows = useMemo(() => liveCommitteeRows(liveSignals), [liveSignals]);
+  const [typeFilter, setTypeFilter] = useState<"all" | "Hearing" | "Report tabled" | "New inquiry">("all");
+  const visibleRows = useMemo(
+    () => typeFilter === "all" ? rows : rows.filter((r) => r.type === typeFilter),
+    [rows, typeFilter],
+  );
+
+  // Memoize per-committee live signal counts to avoid O(n*m) work in render.
+  const committeeLiveCounts = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const c of committees) {
+      const lower = c.name.toLowerCase();
+      map.set(c.id, liveSignals.filter(
+        (s) => s.title.toLowerCase().includes(lower) || s.source.toLowerCase().includes(lower),
+      ).length);
+    }
+    return map;
+  }, [committees, liveSignals]);
 
   return (
     <div className="page-fade">
@@ -67,17 +75,38 @@ export function PageCommittees(): JSX.Element {
         <div className="panel-head">
           <h3 className="panel-title">Live committee activity</h3>
           <span className="panel-kicker">
-            {rows.length === 0 ? "No items yet" : `${rows.length} from RSS`}
+            {rows.length === 0 ? "No items yet" : `${visibleRows.length}${typeFilter !== "all" ? `/${rows.length}` : ""} from RSS`}
           </span>
+          {rows.length > 0 && (
+            <div role="group" aria-label="Filter by committee type" style={{ display: "flex", gap: 4, marginLeft: "auto" }}>
+              {(["all", "Hearing", "Report tabled", "New inquiry"] as const).map((t) => (
+                <button key={t} type="button" className={`fb${typeFilter === t ? " on" : ""}`} onClick={() => setTypeFilter(t)} aria-pressed={typeFilter === t} style={{ fontSize: 11 }}>
+                  {t === "all" ? "All" : t}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <div className="panel-body">
-          {rows.length === 0 ? (
+          {visibleRows.length === 0 ? (
             <div className="empty">
-              <strong>No committee items in the current poll.</strong>
-              <span>
-                The Senate inquiries, reports, and upcoming-hearings feeds are
-                being polled. Items appear here once published.
-              </span>
+              {typeFilter !== "all" ? (
+                <>
+                  <strong>No {typeFilter.toLowerCase()} items in the current poll.</strong>
+                  <span>Try clearing the type filter to see all committee items.</span>
+                  <button type="button" className="btn" style={{ marginTop: 4 }} onClick={() => setTypeFilter("all")}>
+                    Clear filter
+                  </button>
+                </>
+              ) : (
+                <>
+                  <strong>No committee items in the current poll.</strong>
+                  <span>
+                    The Senate inquiries, reports, and upcoming-hearings feeds are
+                    being polled. Items appear here once published.
+                  </span>
+                </>
+              )}
             </div>
           ) : (
             <table className="ds">
@@ -90,8 +119,14 @@ export function PageCommittees(): JSX.Element {
                 </tr>
               </thead>
               <tbody>
-                {rows.map(({ signal, type }) => (
-                  <tr key={signal.id} onClick={() => openSignal(signal.id)}>
+                {visibleRows.map(({ signal, type }) => (
+                  <tr
+                    key={signal.id}
+                    onClick={() => openSignal(signal.id)}
+                    tabIndex={0}
+                    style={{ cursor: "pointer" }}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openSignal(signal.id); } }}
+                  >
                     <td className="mono" style={{ fontSize: 11.5, color: "var(--ink-2)" }}>
                       {signal.date} · {signal.time}
                     </td>
@@ -139,9 +174,15 @@ export function PageCommittees(): JSX.Element {
             </thead>
             <tbody>
               {committees.map((c) => {
-                const liveCount = committeeSignalCount(liveSignals, c.name);
+                const liveCount = committeeLiveCounts.get(c.id) ?? 0;
                 return (
-                <tr key={c.id} onClick={() => openModal({ kind: "committee", id: c.id })}>
+                <tr
+                  key={c.id}
+                  onClick={() => openModal({ kind: "committee", id: c.id })}
+                  tabIndex={0}
+                  style={{ cursor: "pointer" }}
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openModal({ kind: "committee", id: c.id }); } }}
+                >
                   <td style={{ fontWeight: 500 }}>{c.name}</td>
                   <td>
                     <span className="tag">{c.chamber}</span>
@@ -163,6 +204,7 @@ export function PageCommittees(): JSX.Element {
                       className="mono"
                       style={{ fontSize: 11, color: "var(--teal)" }}
                       onClick={(e) => e.stopPropagation()}
+                      aria-label={`Open ${c.name} on APH`}
                     >
                       Open ↗
                     </a>

@@ -1,6 +1,8 @@
-import { useId } from "react";
+import { useId, useMemo } from "react";
 import { Icon, type IconName } from "../icons";
 import { useStore } from "../store/useStore";
+
+const APP_VERSION = import.meta.env.VITE_APP_VERSION ?? "0.0.0";
 
 interface NavItem {
   id: string;
@@ -28,7 +30,7 @@ const NAV: NavItem[] = [
   { id: "parliament", label: "Today in chamber", group: "Intelligence", count: null },
   { id: "committees", label: "Committees", group: "Intelligence", count: null },
   { id: "bills", label: "Bills Digests", group: "Intelligence", count: null },
-  { id: "patterns", label: "QON patterns", group: "Intelligence", count: null, deferred: true },
+  { id: "patterns", label: "QON patterns", group: "Intelligence", count: null },
   { id: "archive", label: "Archive", group: "Intelligence", count: null },
   { id: "alerts", label: "Alert rules", group: "Intelligence", count: null },
   { id: "watchlists", label: "Watchlists", group: "Configuration", count: null },
@@ -47,7 +49,7 @@ const ICONS: Record<string, IconName> = {
   watchlists: "watch",
   sources: "sources",
   status: "check",
-  archive: "brief",
+  archive: "book",
   alerts: "bell",
   live: "signal",
 };
@@ -60,10 +62,10 @@ interface SidebarProps {
 export function Sidebar({ page, onNavigate }: SidebarProps): JSX.Element {
   const groups: NavItem["group"][] = ["Today", "Intelligence", "Configuration"];
   const { mobileNavOpen, closeMobileNav, liveSignals, state } = useStore();
-  const liveHighCount = liveSignals.filter((s) => s.attention === "high").length;
+  const liveHighCount = useMemo(() => liveSignals.filter((s) => s.attention === "high").length, [liveSignals]);
   const liveTotalCount = liveSignals.length;
-  const archiveCount = Object.keys(state.archived).length;
-  const feedbackCount = Object.keys(state.feedback).length;
+  const archiveCount = useMemo(() => Object.keys(state.archived).length, [state.archived]);
+  const feedbackCount = useMemo(() => Object.keys(state.feedback).length, [state.feedback]);
   // useId ensures the SVG gradient id is unique per render so concurrent
   // sidebar instances (mobile overlay + desktop) do not share a defs id.
   const flameId = `flame-${useId()}`;
@@ -96,8 +98,8 @@ export function Sidebar({ page, onNavigate }: SidebarProps): JSX.Element {
             />
             <defs>
               <linearGradient id={flameId} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#f5b36a" />
-                <stop offset="100%" stopColor="#e09359" />
+                <stop offset="0%" stopColor="var(--brand-flame-top, #f5b36a)" />
+                <stop offset="100%" stopColor="var(--brand-flame-base, #e09359)" />
               </linearGradient>
             </defs>
           </svg>
@@ -118,7 +120,7 @@ export function Sidebar({ page, onNavigate }: SidebarProps): JSX.Element {
                   key={n.id}
                   type="button"
                   className={`nav-item${active ? " active" : ""}`}
-                  onClick={() => onNavigate(n.id)}
+                  onClick={() => { onNavigate(n.id); closeMobileNav(); }}
                   aria-current={active ? "page" : undefined}
                 >
                   <Icon
@@ -162,6 +164,15 @@ export function Sidebar({ page, onNavigate }: SidebarProps): JSX.Element {
                       {liveTotalCount}
                     </span>
                   )}
+                  {n.id === "briefings" && liveHighCount > 0 && (
+                    <span
+                      className="count"
+                      title={`${liveHighCount} high-attention signal${liveHighCount === 1 ? "" : "s"} ready to brief`}
+                      style={{ background: "var(--brass)", color: "var(--brass-ink)" }}
+                    >
+                      {liveHighCount}
+                    </span>
+                  )}
                   {n.id === "archive" && archiveCount > 0 && (
                     <span className="count" title={`${archiveCount} archived signals`}>
                       {archiveCount}
@@ -196,10 +207,10 @@ export function Sidebar({ page, onNavigate }: SidebarProps): JSX.Element {
           </div>
         </div>
         <span
-          title="Parliament Pulse — Parliamentary Intelligence Platform"
+          title={`Parliament Pulse v${APP_VERSION} — Parliamentary Intelligence Platform`}
           style={{ color: "var(--ink-4)", fontSize: 10, fontFamily: "var(--mono)", letterSpacing: "0.06em" }}
         >
-          v0
+          v{APP_VERSION}
         </span>
       </div>
     </aside>

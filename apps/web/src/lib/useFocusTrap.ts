@@ -30,10 +30,12 @@ export function useFocusTrap<T extends HTMLElement>(
     const previouslyFocused =
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
 
-    // Focus the first sensible element (heading with tabIndex=-1 or first focusable).
+    // Focus the first sensible element. Exclude elements inside aria-hidden subtrees.
     const focusables = (): HTMLElement[] =>
       Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
-        (el) => el.offsetParent !== null || el.getClientRects().length > 0,
+        (el) =>
+          (el.offsetParent !== null || el.getClientRects().length > 0) &&
+          !el.closest("[aria-hidden='true']"),
       );
 
     const all = focusables();

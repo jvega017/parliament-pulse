@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Icon } from "../icons";
 import { DemoBanner } from "../shell/DemoBanner";
 import { useStore } from "../store/useStore";
@@ -10,22 +10,28 @@ const QUEUE_TYPES: Record<string, { type: string; for: string }> = {
   low: { type: "Archive Note", for: "Records" },
 };
 
+function briefabilityScore(s: Signal): number {
+  const attW = s.attention === "high" ? 3 : s.attention === "med" ? 1.5 : 0.5;
+  const recency = s.pubMs ? Math.max(0, 1 - (Date.now() - s.pubMs) / (7 * 24 * 3_600_000)) : 0.3;
+  return attW * (s.confidence / 5) * (0.5 + 0.5 * recency);
+}
+
 export function PageBriefings(): JSX.Element {
   const [sel, setSel] = useState(0);
   const { openBrief, briefStatus, setBriefStatus, liveSignals } = useStore();
 
-  // Briefability score: attention weight × confidence × recency.
-  // High-attention, high-confidence, recent signals surface first.
-  function briefabilityScore(s: Signal): number {
-    const attW = s.attention === "high" ? 3 : s.attention === "med" ? 1.5 : 0.5;
-    const recency = s.pubMs ? Math.max(0, 1 - (Date.now() - s.pubMs) / (7 * 24 * 3_600_000)) : 0.3;
-    return attW * (s.confidence / 5) * (0.5 + 0.5 * recency);
-  }
-  const ranked = [...liveSignals].sort((a, b) => briefabilityScore(b) - briefabilityScore(a));
-  const queue = ranked.slice(0, 8);
-  const current: Signal | undefined = queue[Math.min(sel, queue.length - 1)];
+  const queue = useMemo(
+    () => [...liveSignals].sort((a, b) => briefabilityScore(b) - briefabilityScore(a)).slice(0, 8),
+    [liveSignals],
+  );
+  // Math.min guards against a stale sel index if queue shrinks — no useEffect needed.
+  const current: Signal | undefined = queue[Math.min(sel, Math.max(0, queue.length - 1))];
   const meta = current ? QUEUE_TYPES[current.attention] : null;
   const status = current ? (briefStatus[current.id] ?? "draft") : "draft";
+  const pendingCount = useMemo(
+    () => queue.filter((s) => (briefStatus[s.id] ?? "draft") !== "approved").length,
+    [queue, briefStatus],
+  );
   const topLiveHigh =
     liveSignals.find((s) => s.attention === "high") ?? liveSignals[0] ?? null;
 
@@ -51,6 +57,7 @@ export function PageBriefings(): JSX.Element {
               ? "Open a print-ready brief from the top live high-attention signal"
               : "Waiting for live signals"
           }
+          aria-label={topLiveHigh ? `New brief from top live signal: ${topLiveHigh.title}` : "New brief — waiting for live signals"}
           onClick={() => {
             if (topLiveHigh) openBrief(topLiveHigh.id);
           }}
@@ -77,12 +84,12 @@ export function PageBriefings(): JSX.Element {
           </a>
         </div>
       ) : (
-        <div className="grid" style={{ gridTemplateColumns: "320px 1fr", gap: 16 }}>
+        <div className="grid" style={{ gridTemplateColumns: "clamp(240px, 30%, 320px) 1fr", gap: 16 }}>
           <div className="panel">
             <div className="panel-head">
               <h3 className="panel-title">Queue</h3>
               <span className="panel-kicker">
-                {queue.filter((s) => (briefStatus[s.id] ?? "draft") !== "approved").length} pending ·{" "}
+                {pendingCount === 0 ? "All approved · " : `${pendingCount} pending · `}
                 top {queue.length} of {liveSignals.length}
               </span>
             </div>
@@ -113,7 +120,7 @@ export function PageBriefings(): JSX.Element {
                       font: "inherit",
                       color: "inherit",
                     }}
-                    aria-current={sel === i ? "true" : undefined}
+                    aria-current={sel === i ? "page" : undefined}
                   >
                     <div style={{ fontSize: 13, fontWeight: 500 }}>{m.type}</div>
                     <div
@@ -155,14 +162,16 @@ export function PageBriefings(): JSX.Element {
                     type="button"
                     className="btn ghost sm"
                     title="Open the print-ready brief and use the browser to save as PDF"
+                    aria-label="Open print-ready brief as PDF"
                     onClick={() => openBrief(current.id)}
                   >
-                    <Icon name="download" size={12} /> Open / Save PDF
+                    <Icon name="print" size={12} /> Open / Save PDF
                   </button>
                   <button
                     type="button"
                     className="btn sm"
                     disabled={status === "sent" || status === "approved"}
+                    aria-label={`Send brief: ${current.title}`}
                     onClick={() => setBriefStatus(current.id, "sent")}
                   >
                     Send
@@ -171,16 +180,17 @@ export function PageBriefings(): JSX.Element {
                     type="button"
                     className="btn primary sm"
                     disabled={status === "approved"}
+                    aria-label={`Approve brief: ${current.title}`}
                     onClick={() => setBriefStatus(current.id, "approved")}
                   >
                     Approve
                   </button>
                 </div>
               </div>
-              <div className="panel-body">
+              <div className="panel-body" style={{ maxHeight: "62vh", overflowY: "auto" }}>
                 <div className="brief">
                   <div className="meta">
-                    PARLIAMENT PULSE · {meta.type.toUpperCase()} · {current.date} {current.time}
+                    PARLIAMENT PULSE · {meta.type.toUpperCase()} · {current.pubMs ? new Date(current.pubMs).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric", timeZone: "Australia/Brisbane" }) : current.date} {current.time}
                   </div>
                   <h3>{current.title}</h3>
                   <h5>What happened</h5>

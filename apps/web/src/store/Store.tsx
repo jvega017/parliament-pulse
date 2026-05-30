@@ -67,10 +67,17 @@ export function StoreProvider({
   page,
   setPage,
 }: StoreProviderProps): JSX.Element {
+  // Load persisted state once. prevVisit reads the same localStorage entry
+  // to capture lastVisit before the session-start effect overwrites it.
   const [state, setState] = useState<PersistedState>(() => loadState());
-  // Capture the lastVisit from the previous session before we update it.
-  // This lets SignalCard show NEW on items published after the user's last visit.
-  const [prevVisit] = useState<number>(() => loadState().lastVisit ?? 0);
+  const [prevVisit] = useState<number>(() => {
+    if (typeof localStorage === "undefined") return 0;
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return 0;
+      return (JSON.parse(raw) as Partial<PersistedState>).lastVisit ?? 0;
+    } catch { return 0; }
+  });
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [modal, setModal] = useState<StoreValue["modal"]>(null);
   // Deep-link: ?signal=<id> opens the drawer on load, ?brief=<id> opens the brief overlay.
@@ -83,6 +90,7 @@ export function StoreProvider({
   const [liveSignals, setLiveSignalsState] = useState<Signal[]>([]);
   const [liveLoading, setLiveLoading] = useState<boolean>(true);
   const [liveFeedResult, setLiveFeedResult] = useState<import("../lib/aphFeed").FeedResult | null>(null);
+  const [livePollIntervalMs, setLivePollIntervalMs] = useState<number>(120_000);
   const [briefSignalId, setBriefSignalId] = useState<string | null>(initialDeepLink.brief);
   const [refreshTick, setRefreshTick] = useState<number>(0);
   // briefStatus mirrors state.briefStatus for callers that already use it.
@@ -128,19 +136,24 @@ export function StoreProvider({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
-      if (modal) setModal(null);
-      else if (signalId) setSignalId(null);
+      // Dismiss in layered order: modal > brief overlay > signal drawer > mobile nav
+      if (modal) { setModal(null); return; }
+      if (briefSignalId !== null) { setBriefSignalId(null); return; }
+      if (signalId) { setSignalId(null); return; }
+      if (mobileNavOpen) setMobileNavOpen(false);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [modal, signalId]);
+  }, [modal, briefSignalId, signalId, mobileNavOpen]);
 
   const toast = useCallback((msg: string, kind: Toast["kind"] = "ok") => {
     const id = `t-${++toastSeq.current}`;
     setToasts((list) => [...list, { id, msg, kind }]);
+    // warn/brass messages need more reading time than ok confirmations.
+    const duration = kind === "warn" || kind === "brass" ? 4500 : 2800;
     window.setTimeout(() => {
       setToasts((list) => list.filter((t) => t.id !== id));
-    }, 2800);
+    }, duration);
   }, []);
 
   // Wire the persistState quota-warning callback so it can fire a toast.
@@ -161,10 +174,11 @@ export function StoreProvider({
   const closeSignal = useCallback(() => setSignalId(null), []);
   const goto = useCallback((p: string) => setPage(p), [setPage]);
   const setLiveSignals = useCallback(
-    (signals: Signal[], loading: boolean, feedResult: import("../lib/aphFeed").FeedResult | null) => {
+    (signals: Signal[], loading: boolean, feedResult: import("../lib/aphFeed").FeedResult | null, pollIntervalMs?: number) => {
       setLiveSignalsState(signals);
       setLiveLoading(loading);
       setLiveFeedResult(feedResult);
+      if (pollIntervalMs !== undefined) setLivePollIntervalMs(pollIntervalMs);
     },
     [],
   );
@@ -205,9 +219,7 @@ export function StoreProvider({
     } catch {
       // ignore
     }
-    if (typeof document !== "undefined") {
-      document.documentElement.dataset.density = d;
-    }
+    // DOM update is handled by the useEffect below — no duplication needed here.
   }, []);
 
   // Apply density class to document on mount and whenever it changes.
@@ -323,6 +335,7 @@ export function StoreProvider({
       liveSignals,
       liveLoading,
       liveFeedResult,
+      livePollIntervalMs,
       briefSignalId,
       toast,
       openModal,
@@ -372,6 +385,7 @@ export function StoreProvider({
       liveSignals,
       liveLoading,
       liveFeedResult,
+      livePollIntervalMs,
       briefSignalId,
       refreshTick,
       connectorRequests,

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Icon } from "../icons";
 import { SignalCard } from "../shell/SignalCard";
 import { DemoBanner } from "../shell/DemoBanner";
@@ -59,29 +59,36 @@ export function PageOverview(): JSX.Element {
   const [attFilter, setAttFilter] = useState<"all" | "high" | "med" | "low">("all");
   const [groupFilter, setGroupFilter] = useState<"all" | "Senate" | "House" | "Library" | "Custom">("all");
 
-  const visibleSignals = liveSignals.filter(
-    (s) =>
-      !state.archived[s.id] &&
-      (attFilter === "all" || s.attention === attFilter) &&
-      (groupFilter === "all" || s.sourceGroup === groupFilter),
+  const visibleSignals = useMemo(
+    () => liveSignals.filter(
+      (s) =>
+        !state.archived[s.id] &&
+        (attFilter === "all" || s.attention === attFilter) &&
+        (groupFilter === "all" || s.sourceGroup === groupFilter),
+    ),
+    [liveSignals, state.archived, attFilter, groupFilter],
   );
 
-  const liveHigh = liveSignals.filter(
-    (s) => s.attention === "high" && !state.archived[s.id],
+  const liveHigh = useMemo(
+    () => liveSignals.filter((s) => s.attention === "high" && !state.archived[s.id]),
+    [liveSignals, state.archived],
   );
-  const liveMed = liveSignals.filter(
-    (s) => s.attention === "med" && !state.archived[s.id],
+  const liveMed = useMemo(
+    () => liveSignals.filter((s) => s.attention === "med" && !state.archived[s.id]),
+    [liveSignals, state.archived],
   );
-  const liveLow = liveSignals.filter(
-    (s) => s.attention === "low" && !state.archived[s.id],
+  const liveLow = useMemo(
+    () => liveSignals.filter((s) => s.attention === "low" && !state.archived[s.id]),
+    [liveSignals, state.archived],
   );
-  const filteredHigh = visibleSignals.filter((s) => s.attention === "high");
-  const filteredMed = visibleSignals.filter((s) => s.attention === "med");
-  const filteredLow = visibleSignals.filter((s) => s.attention === "low");
+  const filteredHigh = useMemo(() => visibleSignals.filter((s) => s.attention === "high"), [visibleSignals]);
+  const filteredMed = useMemo(() => visibleSignals.filter((s) => s.attention === "med"), [visibleSignals]);
+  const filteredLow = useMemo(() => visibleSignals.filter((s) => s.attention === "low"), [visibleSignals]);
   const totalLive = liveSignals.length;
-  const newCount = lastSessionTime > 0
-    ? liveSignals.filter((s) => s.pubMs && s.pubMs > lastSessionTime).length
-    : 0;
+  const newCount = useMemo(
+    () => lastSessionTime > 0 ? liveSignals.filter((s) => s.pubMs && s.pubMs > lastSessionTime).length : 0,
+    [liveSignals, lastSessionTime],
+  );
   // Source health from the real poll, not the fixture row count.
   const healthyFeeds = liveFeedResult
     ? Object.values(liveFeedResult.feedStatus).filter((s) => s.ok).length
@@ -92,10 +99,15 @@ export function PageOverview(): JSX.Element {
   const topLiveId = liveHigh[0]?.id ?? liveSignals[0]?.id ?? null;
   const topLiveTitle = liveHigh[0]?.title ?? liveSignals[0]?.title ?? null;
 
-  // What-changed timeline is derived from the live RSS pump, sorted newest-first.
-  const timeline = [...liveSignals]
-    .sort((a, b) => `${b.date} ${b.time}`.localeCompare(`${a.date} ${a.time}`))
-    .slice(0, 6);
+  // What-changed timeline — sort by pubMs (epoch ms) for accurate recency; fall back to date+time string.
+  const timeline = useMemo(() => [...liveSignals]
+    .sort((a, b) => {
+      if (a.pubMs && b.pubMs) return b.pubMs - a.pubMs;
+      if (a.pubMs) return -1;
+      if (b.pubMs) return 1;
+      return `${b.date} ${b.time}`.localeCompare(`${a.date} ${a.time}`);
+    })
+    .slice(0, 6), [liveSignals]);
 
   return (
     <div className="page-fade">
@@ -194,7 +206,7 @@ export function PageOverview(): JSX.Element {
         )}
       </div>
 
-      <div className="live-strip">
+      <div className="live-strip" role="region" aria-label="Live parliament feed status">
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span
             style={{
@@ -288,7 +300,7 @@ export function PageOverview(): JSX.Element {
         </button>
       </div>
 
-      <div className="grid g-4" style={{ marginBottom: 18 }}>
+      <div className="grid g-stat" style={{ marginBottom: 18 }}>
         <div
           className="panel stat"
           style={{ borderLeft: "3px solid var(--brass)" }}

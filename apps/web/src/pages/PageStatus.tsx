@@ -18,13 +18,15 @@ export function PageStatus(): JSX.Element {
   const { toast } = useStore();
   const [proxyOk, setProxyOk] = useState<boolean | null>(null);
   const [proxyVersion, setProxyVersion] = useState<string | null>(null);
+  const [resendWired, setResendWired] = useState<boolean | null>(null);
+  const [digestFrom, setDigestFrom] = useState<string | null>(null);
   const [connectors, setConnectors] = useState<ConnectorHealth[]>([]);
   const [loadingConn, setLoadingConn] = useState(true);
   const [email, setEmail] = useState("");
   const [attentionMin, setAttentionMin] = useState<"high" | "med" | "low">("high");
   const [submitting, setSubmitting] = useState(false);
   const [alertRules, setAlertRules] = useState<AlertRule[]>([]);
-  const [scoringVersion] = useState("v1.1-deterministic");
+  const [scoringVersion, setScoringVersion] = useState("v1.1-deterministic");
 
   const apiBase = (import.meta.env.VITE_API_BASE ?? "").replace(/\/$/, "");
 
@@ -32,10 +34,13 @@ export function PageStatus(): JSX.Element {
     if (!apiBase) return;
     const ctrl = new AbortController();
     fetch(`${apiBase}/healthz`, { signal: ctrl.signal })
-      .then((r) => r.json() as Promise<{ ok: boolean; version?: string }>)
+      .then((r) => r.json() as Promise<{ ok: boolean; version?: string; resend_wired?: boolean; digest_from?: string | null; scoring_engine?: string }>)
       .then((j) => {
         setProxyOk(j.ok);
         setProxyVersion(j.version ?? null);
+        setResendWired(j.resend_wired ?? false);
+        setDigestFrom(j.digest_from ?? null);
+        if (j.scoring_engine) setScoringVersion(j.scoring_engine);
       })
       .catch(() => setProxyOk(false));
     return () => ctrl.abort();
@@ -60,14 +65,21 @@ export function PageStatus(): JSX.Element {
 
   const onSubscribe = async (): Promise<void> => {
     if (!email) return;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast("Enter a valid email address", "warn");
+      return;
+    }
     setSubmitting(true);
-    const r = await subscribeDigest({ email, watchlists: "", attention_min: attentionMin });
-    setSubmitting(false);
-    if (r.ok) {
-      toast("Digest subscription saved. Activation when delivery worker enabled.", "brass");
-      setEmail("");
-    } else {
-      toast(`Subscription failed: ${r.error ?? "unknown"}`, "warn");
+    try {
+      const r = await subscribeDigest({ email, watchlists: "", attention_min: attentionMin });
+      if (r.ok) {
+        toast("Digest subscription saved. Activation when delivery worker enabled.", "brass");
+        setEmail("");
+      } else {
+        toast(`Subscription failed: ${r.error ?? "unknown"}`, "warn");
+      }
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -133,6 +145,23 @@ export function PageStatus(): JSX.Element {
           </div>
           <div className="stat-meta">members table · description column</div>
         </div>
+        <div className="panel stat">
+          <div className="stat-label">Digest delivery</div>
+          <div
+            className="stat-value"
+            style={{
+              fontSize: 15,
+              color: resendWired === null ? "var(--ink-3)" : resendWired ? "var(--ok)" : "var(--caution)",
+            }}
+          >
+            {resendWired === null ? "checking…" : resendWired ? "active" : "inactive"}
+          </div>
+          <div className="stat-meta">
+            {resendWired
+              ? `Resend wired · ${digestFrom ?? "sender unset"}`
+              : "Set RESEND_API_KEY on the Worker to activate"}
+          </div>
+        </div>
       </div>
 
       <div className="panel" style={{ marginBottom: 16 }}>
@@ -161,7 +190,7 @@ export function PageStatus(): JSX.Element {
             <dt>Member roster</dt>
             <dd>Senators derived from senators_details RSS on each 30-min poll. Stored in D1 members table. House members pending once APH members_updates RSS resumes publishing.</dd>
             <dt>Momentum / ops</dt>
-            <dd>Currently zeroed (weight 0). Momentum requires D1 time-series frequency data — planned for a future cron enrichment pass.</dd>
+            <dd>Computed from D1 7-day frequency trends (recent vs prior period per kind). Weight is 0 — display only until 14+ days of history accumulate (target early May 2026).</dd>
           </dl>
         </div>
       </div>
@@ -172,6 +201,17 @@ export function PageStatus(): JSX.Element {
           <span className="panel-kicker">{APH_CONNECTORS.length} canonical endpoints</span>
         </div>
         <div className="panel-body">
+          {loadingConn && connectors.length === 0 && (
+            <div style={{ padding: "6px 0" }}>
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} style={{ display: "flex", gap: 12, padding: "8px 0", borderBottom: "1px solid var(--line)" }}>
+                  <div className="skeleton" style={{ height: 12, flex: 1 }} />
+                  <div className="skeleton" style={{ height: 12, width: 120, flexShrink: 0 }} />
+                  <div className="skeleton" style={{ height: 12, width: 60, flexShrink: 0 }} />
+                </div>
+              ))}
+            </div>
+          )}
           {connectors.length === 0 && !loadingConn ? (
             <div className="empty">
               <strong>No connector checks recorded yet.</strong>
@@ -228,20 +268,28 @@ export function PageStatus(): JSX.Element {
       <div className="panel">
         <div className="panel-head">
           <h3 className="panel-title">Daily digest signup</h3>
-          <span className="panel-kicker">Email when delivery worker is activated</span>
+          <span className="panel-kicker" style={{ color: resendWired ? "var(--ok)" : undefined }}>
+            {resendWired ? "Delivery active · 05:00 AEST" : "Subscriptions recorded · delivery inactive"}
+          </span>
         </div>
         <div className="panel-body">
           <p style={{ marginTop: 0, color: "var(--ink-3)", fontSize: 12.5 }}>
-            Subscribe to receive a daily digest of new high-attention live
-            signals from the APH RSS feeds. Subscription is recorded in D1; no
-            email is sent until the digest delivery worker is enabled (requires
-            SendGrid credentials).
+            Subscribe to receive a daily digest of new signals at 05:00 AEST.
+            Subscription is recorded in D1.{" "}
+            {resendWired
+              ? <>Delivery is <strong style={{ color: "var(--ok)" }}>active</strong> via Resend — emails will be sent.</>
+              : <>Delivery activates once <code>RESEND_API_KEY</code> is set on the Worker (free, via{" "}
+                <a href="https://resend.com" target="_blank" rel="noopener noreferrer" style={{ color: "var(--teal)" }}>
+                  resend.com
+                </a>).</>
+            }
           </p>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && !submitting) void onSubscribe(); }}
               placeholder="you@agency.gov.au"
               className="search"
               aria-label="Email address for digest subscription"

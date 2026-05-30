@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { Icon } from "../icons";
 import { DemoBanner } from "../shell/DemoBanner";
 import {
@@ -10,6 +10,7 @@ import {
 } from "../lib/archive";
 import { useStore } from "../store/useStore";
 import { WATCHLISTS } from "../data/fixtures";
+import { useDebounce } from "../lib/useDebounce";
 
 interface SavedSearch {
   id: string;
@@ -64,25 +65,42 @@ export function PageArchive(): JSX.Element {
   const [page, setPage] = useState<number>(0);
   const [rows, setRows] = useState<ArchiveRow[]>([]);
   const [total, setTotal] = useState<number>(0);
-  const [loading, setLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [analytics, setAnalytics] = useState<Array<{ term: string; count: number; last_seen: string | null }>>([]);
-  const [analyticsLoading, setAnalyticsLoading] = useState<boolean>(false);
+  const [analyticsLoading, setAnalyticsLoading] = useState<boolean>(true);
   const [timeline, setTimeline] = useState<Array<{ day: string; total: number; high: number; med: number; low: number }>>([]);
-  const [timelineLoading, setTimelineLoading] = useState<boolean>(false);
+  const [timelineLoading, setTimelineLoading] = useState<boolean>(true);
   const [savedSearches, setSavedSearches] = useState<SavedSearch[]>(() => loadSavedSearches());
+  const [saveFormOpen, setSaveFormOpen] = useState(false);
+  const [saveName, setSaveName] = useState("");
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const debouncedQ = useDebounce(q, 300);
+
+  function toggleExpand(guid: string): void {
+    setExpandedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(guid)) { next.delete(guid); } else { next.add(guid); }
+      return next;
+    });
+  }
 
   function saveCurrentSearch(): void {
-    const name = window.prompt("Name this search:");
-    if (!name?.trim()) return;
+    if (!saveName.trim()) return;
+    if (savedSearches.some((s) => s.name.toLowerCase() === saveName.trim().toLowerCase())) {
+      toast(`A search named "${saveName.trim()}" already exists`, "warn");
+      return;
+    }
     const entry: SavedSearch = {
       id: `ss-${Date.now()}`,
-      name: name.trim(), from, to, kind, group, attention, q,
+      name: saveName.trim(), from, to, kind, group, attention, q,
     };
     const updated = [entry, ...savedSearches];
     setSavedSearches(updated);
     persistSavedSearches(updated);
     toast(`Search "${entry.name}" saved`, "brass");
+    setSaveName("");
+    setSaveFormOpen(false);
   }
 
   function applySearch(ss: SavedSearch): void {
@@ -107,7 +125,7 @@ export function PageArchive(): JSX.Element {
     setLoading(true);
     setError(null);
     fetchArchive(
-      { from, to, kind, source_group: group, attention, q, limit: PAGE_SIZE, offset },
+      { from, to, kind, source_group: group, attention, q: debouncedQ, limit: PAGE_SIZE, offset },
       ctrl.signal,
     )
       .then((r) => {
@@ -124,7 +142,7 @@ export function PageArchive(): JSX.Element {
       })
       .finally(() => setLoading(false));
     return () => ctrl.abort();
-  }, [from, to, kind, group, attention, q, offset]);
+  }, [from, to, kind, group, attention, debouncedQ, offset]);
 
   // Watchlist analytics: build a single query for the standard watchlist
   // terms (one term per watchlist for chart density, not all terms).
@@ -132,6 +150,12 @@ export function PageArchive(): JSX.Element {
     () => WATCHLISTS.map((w) => w.terms[0] ?? "").filter(Boolean),
     [],
   );
+  // Map raw term back to the watchlist display name for the chart labels.
+  const termToLabel = useMemo(() => {
+    const map = new Map<string, string>();
+    WATCHLISTS.forEach((w) => { if (w.terms[0]) map.set(w.terms[0], w.name); });
+    return map;
+  }, []);
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -154,8 +178,8 @@ export function PageArchive(): JSX.Element {
   }, [from, to, kind, group]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const maxAnalytics = Math.max(...analytics.map((a) => a.count), 1);
-  const maxTimeline = Math.max(...timeline.map((d) => d.total), 1);
+  const maxAnalytics = useMemo(() => Math.max(...analytics.map((a) => a.count), 1), [analytics]);
+  const maxTimeline = useMemo(() => Math.max(...timeline.map((d) => d.total), 1), [timeline]);
 
   return (
     <div className="page-fade">
@@ -173,7 +197,7 @@ export function PageArchive(): JSX.Element {
           <button
             type="button"
             className="btn ghost"
-            onClick={saveCurrentSearch}
+            onClick={() => setSaveFormOpen((o) => !o)}
           >
             <Icon name="flag" size={13} /> Save search
           </button>
@@ -260,6 +284,32 @@ export function PageArchive(): JSX.Element {
           </label>
         </div>
       </div>
+
+      {saveFormOpen && (
+        <div className="panel" style={{ marginBottom: 16 }}>
+          <div className="panel-head">
+            <h3 className="panel-title">Name this search</h3>
+          </div>
+          <div className="panel-body" style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <input
+              type="text"
+              value={saveName}
+              onChange={(e) => setSaveName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") saveCurrentSearch(); if (e.key === "Escape") setSaveFormOpen(false); }}
+              placeholder="e.g. AI governance 2026"
+              className="search"
+              style={{ padding: 7, flex: 1 }}
+              autoFocus
+            />
+            <button type="button" className="btn primary sm" onClick={saveCurrentSearch} disabled={!saveName.trim()}>
+              Save
+            </button>
+            <button type="button" className="btn ghost sm" onClick={() => setSaveFormOpen(false)}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {savedSearches.length > 0 && (
         <div className="panel" style={{ marginBottom: 16 }}>
@@ -368,7 +418,7 @@ export function PageArchive(): JSX.Element {
             <div style={{ display: "grid", gap: 6 }}>
               {analytics.map((a) => (
                 <div key={a.term} style={{ display: "grid", gridTemplateColumns: "200px 1fr 60px", alignItems: "center", gap: 10 }}>
-                  <div style={{ fontSize: 12.5 }}>{a.term}</div>
+                  <div style={{ fontSize: 12.5 }} title={a.term}>{termToLabel.get(a.term) ?? a.term}</div>
                   <div className="bar"><div className="fill" style={{ width: `${(a.count / maxAnalytics) * 100}%` }} /></div>
                   <div className="mono" style={{ textAlign: "right", color: "var(--ink-2)", fontSize: 12 }}>{a.count}</div>
                 </div>
@@ -389,7 +439,7 @@ export function PageArchive(): JSX.Element {
           {error ? (
             <div className="empty">
               <strong>{error}</strong>
-              <span>The archive endpoint requires the D1 archive Worker to be deployed (see STATUS.md).</span>
+              <span>The archive endpoint requires the D1 archive Worker to be deployed. Check the <strong>Status</strong> page for Worker health.</span>
             </div>
           ) : rows.length === 0 && !loading ? (
             <div className="empty">
@@ -412,42 +462,86 @@ export function PageArchive(): JSX.Element {
                 {rows.map((r) => {
                   const att = r.attention ?? "low";
                   const attStyle = ATT_STYLE[att] ?? ATT_STYLE.low;
+                  const expanded = expandedRows.has(r.guid);
                   return (
-                  <tr key={r.guid} title={r.scoring_explanation ?? undefined}>
-                    <td className="mono" style={{ fontSize: 11.5, color: "var(--ink-3)" }}>
-                      {r.pub_date ? r.pub_date.slice(0, 10) : "—"}
-                    </td>
-                    <td>{r.title}</td>
-                    <td>
-                      <span
-                        className="mono"
-                        style={{
-                          fontSize: 9.5, letterSpacing: "0.1em",
-                          color: attStyle.color, background: attStyle.bg,
-                          padding: "1px 5px", borderRadius: 3,
-                        }}
-                      >
-                        {attStyle.label}
-                      </span>
-                    </td>
-                    <td className="mono" style={{ fontSize: 11.5, color: "var(--ink-3)" }}>
-                      {r.source_group}
-                    </td>
-                    <td>
-                      <span className="tag">{r.kind}</span>
-                    </td>
-                    <td style={{ textAlign: "right" }}>
-                      <a
-                        href={r.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mono"
-                        style={{ color: "var(--teal)", fontSize: 11 }}
-                      >
-                        Open ↗
-                      </a>
-                    </td>
-                  </tr>
+                  <Fragment key={r.guid}>
+                    <tr>
+                      <td className="mono" style={{ fontSize: 11.5, color: "var(--ink-3)" }}>
+                        {r.pub_date ? r.pub_date.slice(0, 10) : "—"}
+                      </td>
+                      <td>{r.title}</td>
+                      <td>
+                        {r.scoring_explanation ? (
+                          <button
+                            type="button"
+                            onClick={() => toggleExpand(r.guid)}
+                            title={expanded ? "Hide score breakdown" : "Show score breakdown"}
+                            aria-label={expanded ? "Hide scoring explanation" : "Show scoring explanation"}
+                            style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                            aria-expanded={expanded}
+                            aria-controls={`score-${r.guid}`}
+                          >
+                            <span
+                              className="mono"
+                              style={{
+                                fontSize: 9.5, letterSpacing: "0.1em",
+                                color: attStyle.color, background: attStyle.bg,
+                                padding: "1px 5px", borderRadius: 3,
+                                textDecoration: expanded ? "underline" : "none",
+                              }}
+                            >
+                              {attStyle.label}
+                            </span>
+                          </button>
+                        ) : (
+                          <span
+                            className="mono"
+                            style={{
+                              fontSize: 9.5, letterSpacing: "0.1em",
+                              color: attStyle.color, background: attStyle.bg,
+                              padding: "1px 5px", borderRadius: 3,
+                            }}
+                          >
+                            {attStyle.label}
+                          </span>
+                        )}
+                      </td>
+                      <td className="mono" style={{ fontSize: 11.5, color: "var(--ink-3)" }}>
+                        {r.source_group}
+                      </td>
+                      <td>
+                        <span className="tag">{r.kind}</span>
+                      </td>
+                      <td style={{ textAlign: "right" }}>
+                        <a
+                          href={r.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mono"
+                          style={{ color: "var(--teal)", fontSize: 11 }}
+                          aria-label={`Open source: ${r.title}`}
+                        >
+                          Open ↗
+                        </a>
+                      </td>
+                    </tr>
+                    {expanded && r.scoring_explanation && (
+                      <tr id={`score-${r.guid}`}>
+                        <td
+                          colSpan={6}
+                          style={{
+                            padding: "4px 10px 10px 10px",
+                            fontSize: 11.5,
+                            color: "var(--ink-3)",
+                            background: "var(--panel-2)",
+                            lineHeight: 1.5,
+                          }}
+                        >
+                          {r.scoring_explanation}
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                   );
                 })}
               </tbody>
@@ -470,6 +564,7 @@ export function PageArchive(): JSX.Element {
               type="button"
               className="btn ghost sm"
               disabled={page === 0}
+              aria-label="Previous page"
               onClick={() => setPage((p) => Math.max(0, p - 1))}
             >
               ← Prev
@@ -481,6 +576,7 @@ export function PageArchive(): JSX.Element {
               type="button"
               className="btn ghost sm"
               disabled={page + 1 >= totalPages}
+              aria-label="Next page"
               onClick={() => setPage((p) => p + 1)}
             >
               Next →

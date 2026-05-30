@@ -1,9 +1,11 @@
-// Daily digest delivery — SendGrid integration.
+// Daily digest delivery — Resend integration.
 //
-// Activation: set the SENDGRID_API_KEY secret on the Worker:
-//   wrangler secret put SENDGRID_API_KEY
-// then optionally:
-//   wrangler secret put DIGEST_FROM_EMAIL  (defaults to alerts@parliament-pulse.local)
+// Resend is free up to 3,000 emails/month (no credit card required).
+// Sign up at https://resend.com, verify your sender domain, then set the secret:
+//   wrangler secret put RESEND_API_KEY
+//
+// Sender domain must be verified in Resend (Domains tab in dashboard).
+// For testing without a domain use "onboarding@resend.dev" as DIGEST_FROM_EMAIL.
 //
 // When the API key is missing, this function is a no-op so subscriptions can
 // be collected before the email integration is wired.
@@ -11,7 +13,7 @@
 import type { Env } from "./archive";
 
 interface EnvWithSecrets extends Env {
-  SENDGRID_API_KEY?: string;
+  RESEND_API_KEY?: string;
   DIGEST_FROM_EMAIL?: string;
 }
 
@@ -40,9 +42,9 @@ export async function sendDailyDigest(env: EnvWithSecrets): Promise<{
   skipped: number;
   reason?: string;
 }> {
-  const apiKey = env.SENDGRID_API_KEY;
+  const apiKey = env.RESEND_API_KEY;
   if (!apiKey) {
-    return { delivered: 0, skipped: 0, reason: "SENDGRID_API_KEY not set" };
+    return { delivered: 0, skipped: 0, reason: "RESEND_API_KEY not set" };
   }
 
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
@@ -65,16 +67,14 @@ export async function sendDailyDigest(env: EnvWithSecrets): Promise<{
   ).all<Subscriber>();
   const subscribers = subs.results ?? [];
 
-  const fromEmail = env.DIGEST_FROM_EMAIL ?? "alerts@parliament-pulse.local";
+  const fromEmail = env.DIGEST_FROM_EMAIL ?? "noreply@prometheuspolicylab.com";
+  const fromField = `Parliament Pulse <${fromEmail}>`;
   let delivered = 0;
   let skipped = 0;
 
   for (const sub of subscribers) {
     const minRank = ATTENTION_RANK[sub.attention_min] ?? 0;
     const filtered = newItems.filter((item) => {
-      // Use stored attention level from D1 (set by server-side scoring engine).
-      // Falls back to keyword inference only when attention column is null
-      // (items ingested before migration 0003 was applied).
       let resolved = item.attention;
       if (!resolved) {
         const lower = item.title.toLowerCase();
@@ -98,24 +98,27 @@ export async function sendDailyDigest(env: EnvWithSecrets): Promise<{
     const html = renderDigestHtml(filtered);
     const text = renderDigestText(filtered);
 
-    const res = await fetch("https://api.sendgrid.com/v3/mail/send", {
+    const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
         authorization: `Bearer ${apiKey}`,
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        personalizations: [{ to: [{ email: sub.email }] }],
-        from: { email: fromEmail, name: "Parliament Pulse" },
+        from: fromField,
+        to: [sub.email],
         subject,
-        content: [
-          { type: "text/plain", value: text },
-          { type: "text/html", value: html },
-        ],
+        html,
+        text,
       }),
     });
-    if (res.ok) delivered += 1;
-    else skipped += 1;
+    if (res.ok || res.status === 200) {
+      delivered += 1;
+    } else {
+      const errBody = (await res.json().catch(() => ({}))) as { message?: string };
+      console.error({ digest_error: errBody.message ?? res.status, email: sub.email });
+      skipped += 1;
+    }
   }
 
   return { delivered, skipped };

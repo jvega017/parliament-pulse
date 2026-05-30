@@ -45,7 +45,7 @@ export const APH_FEEDS: Feed[] = [
   // Joint committees (managed by House secretariat)
   { id: "j-inquiries", group: "Custom", name: "Joint committee inquiries", url: "https://www.aph.gov.au/house/rss/joint_inquiries", status: "live", last: "just polled", today: 0, fpr: "Low", modules: ["Committees"], parser: "Valid", authority: "Official", confidence: "High" },
   // Parliamentary Library — Bills Digests 2026 (primary 2026 legislative data source)
-  { id: "lib-bills-digests", group: "Library", name: "Bills Digests 2026", url: "https://parlinfo.aph.gov.au/parlInfo/feeds/rss.w3p;adv=yes;orderBy=date-eFirst;page=0;query=Date%3AthisYear%20Dataset%3Abillsdgs;resCount=100", status: "live", last: "just polled", today: 0, fpr: "Low", modules: ["Bills", "Briefings"], parser: "Valid", authority: "Official", confidence: "High" },
+  { id: "lib-bills-digests", group: "Library", name: `Bills Digests ${new Date().getFullYear()}`, url: "https://parlinfo.aph.gov.au/parlInfo/feeds/rss.w3p;adv=yes;orderBy=date-eFirst;page=0;query=Date%3AthisYear%20Dataset%3Abillsdgs;resCount=100", status: "live", last: "just polled", today: 0, fpr: "Low", modules: ["Bills", "Briefings"], parser: "Valid", authority: "Official", confidence: "High" },
 ];
 
 /**

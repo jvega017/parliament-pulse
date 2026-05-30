@@ -8,13 +8,22 @@ import { useStore } from "../store/useStore";
 export function ConfirmDialog(): JSX.Element | null {
   const { confirmRequest, resolveConfirm } = useStore();
   const confirmBtnRef = useRef<HTMLButtonElement>(null);
+  const cancelBtnRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!confirmRequest) return;
-    confirmBtnRef.current?.focus();
+    // Focus Cancel for destructive actions (prevents accidental confirmation).
+    // Focus Confirm for non-destructive (affirmative default).
+    if (confirmRequest.destructive) {
+      cancelBtnRef.current?.focus();
+    } else {
+      confirmBtnRef.current?.focus();
+    }
     const handler = (e: KeyboardEvent): void => {
       if (e.key === "Escape") resolveConfirm(false);
-      if (e.key === "Enter") resolveConfirm(true);
+      // Only resolve via Enter if focus is NOT already on a button (buttons
+      // handle their own Enter via click). Prevents double-resolution.
+      if (e.key === "Enter" && !(e.target instanceof HTMLButtonElement)) resolveConfirm(true);
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
@@ -28,6 +37,7 @@ export function ConfirmDialog(): JSX.Element | null {
       role="dialog"
       aria-modal="true"
       aria-labelledby="confirm-title"
+      aria-describedby="confirm-desc"
       style={{
         position: "fixed",
         inset: 0,
@@ -60,9 +70,10 @@ export function ConfirmDialog(): JSX.Element | null {
         >
           {title ?? "Are you sure?"}
         </h3>
-        <p style={{ color: "var(--ink-2)", fontSize: 13, lineHeight: 1.55 }}>{msg}</p>
+        <p id="confirm-desc" style={{ color: "var(--ink-2)", fontSize: 13, lineHeight: 1.55 }}>{msg}</p>
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
           <button
+            ref={cancelBtnRef}
             type="button"
             className="btn ghost"
             onClick={() => resolveConfirm(false)}
