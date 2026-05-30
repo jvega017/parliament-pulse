@@ -32,6 +32,12 @@ function hydrateState(parsed) {
       merged[key] = (val && typeof val === "object" && !Array.isArray(val)) ? { ...def, ...val } : { ...def };
     }
   }
+  merged.watchlistCreated = merged.watchlistCreated.map(w => ({
+    ...w,
+    trend: Array.isArray(w.trend) ? w.trend : [],
+    matches: Number.isFinite(Number(w.matches)) ? Number(w.matches) : 0,
+    keywords: Number.isFinite(Number(w.keywords)) ? Number(w.keywords) : 0,
+  }));
   return merged;
 }
 
@@ -104,6 +110,12 @@ function StoreProvider({ children }) {
   const [signalId, setSignalId] = React.useState(null);
   const openSignal = s => setSignalId(typeof s === "string" ? s : s?.id);
   const closeSignal = () => setSignalId(null);
+
+  React.useEffect(() => {
+    const prev = document.body.style.overflow;
+    if (modal || signalId) document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, [modal, signalId]);
 
   // Expose for places that don't live inside the provider context
   React.useEffect(() => {
@@ -216,6 +228,43 @@ function StoreProvider({ children }) {
 // ---- Detail Modal: renders per entity type ----
 function DetailModal() {
   const { modal, closeModal, openModal, state, assignOwner, addWatchlist, openSignal } = useStore();
+  const prevFocusRef = React.useRef(null);
+  const closeButtonRef = React.useRef(null);
+  const titleId = React.useId();
+
+  React.useEffect(() => {
+    if (!modal) return;
+    const h = (e) => { if (e.key === "Escape") closeModal(); };
+    document.addEventListener("keydown", h);
+    return () => document.removeEventListener("keydown", h);
+  }, [modal, closeModal]);
+
+  React.useEffect(() => {
+    if (!modal) return;
+    prevFocusRef.current = document.activeElement;
+    requestAnimationFrame(() => closeButtonRef.current?.focus());
+    return () => {
+      prevFocusRef.current?.focus?.();
+      prevFocusRef.current = null;
+    };
+  }, [modal]);
+
+  React.useEffect(() => {
+    if (!modal) return;
+    const trap = (e) => {
+      if (e.key !== "Tab") return;
+      const modalEl = closeButtonRef.current?.closest(".modal");
+      if (!modalEl) return;
+      const focusable = Array.from(modalEl.querySelectorAll("button, [href], input, textarea, select, [tabindex]:not([tabindex='-1'])")).filter(el => !el.disabled);
+      if (!focusable.length) return;
+      const first = focusable[0], last = focusable[focusable.length - 1];
+      if (e.shiftKey) { if (document.activeElement === first) { e.preventDefault(); last.focus(); } }
+      else            { if (document.activeElement === last)  { e.preventDefault(); first.focus(); } }
+    };
+    document.addEventListener("keydown", trap);
+    return () => document.removeEventListener("keydown", trap);
+  }, [modal]);
+
   if (!modal) return null;
   const { type, id } = modal;
 
@@ -233,12 +282,6 @@ function DetailModal() {
     return <div>Unknown</div>;
   };
 
-  React.useEffect(() => {
-    const h = (e) => { if (e.key === "Escape") closeModal(); };
-    document.addEventListener("keydown", h);
-    return () => document.removeEventListener("keydown", h);
-  }, [closeModal]);
-
   return (
     <div className="modal-back" onClick={closeModal}>
       <div
@@ -246,38 +289,42 @@ function DetailModal() {
         onClick={e => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
+        aria-labelledby={titleId}
         style={{
           border: "1px solid var(--line-bright)",
           boxShadow: "0 1px 0 #00000060, 0 40px 90px -32px #000000bf, inset 0 0 0 1px #ffffff08",
         }}
       >
-        {render()}
+        {React.cloneElement(render(), { titleId, closeButtonRef })}
       </div>
     </div>
   );
 }
 
-function ModalHead({ kicker, title, right, onClose }) {
+function ModalHead({ kicker, title, right, onClose, representative = false, titleId, closeButtonRef }) {
   const { closeModal } = useStore();
   return (
     <div className="modal-head">
       <div style={{flex:1}}>
-        <div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em"}}>{kicker}</div>
-        <div className="serif" style={{fontSize:22, marginTop:4, fontWeight:500, lineHeight:1.25}}>{title}</div>
+        <div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", display:"flex", alignItems:"center", gap:8, flexWrap:"wrap"}}>
+          <span>{kicker}</span>
+          {representative && <span className="chip-fixture">Representative data</span>}
+        </div>
+        <h2 id={titleId} className="serif" style={{fontSize:22, margin:"4px 0 0", fontWeight:500, lineHeight:1.25}}>{title}</h2>
       </div>
       {right}
-      <button className="btn ghost sm" onClick={onClose || closeModal} style={{flex:"none"}}><Icon name="close" size={14}/></button>
+      <button ref={closeButtonRef} className="btn ghost sm" aria-label="Close detail" onClick={onClose || closeModal} style={{flex:"none"}}><Icon name="close" size={14}/></button>
     </div>
   );
 }
 
-function CommitteeDetail({ id }) {
+function CommitteeDetail({ id, titleId, closeButtonRef }) {
   const c = ENTITIES.committees[id];
   const { openModal, closeModal, toast } = useStore();
-  if (!c) return <ModalHead kicker="Committee" title="Not found" />;
+  if (!c) return <ModalHead kicker="Committee" title="Not found" titleId={titleId} closeButtonRef={closeButtonRef} />;
   return (
     <>
-      <ModalHead kicker={`Committee · ${c.chamber}`} title={c.name} />
+      <ModalHead kicker={`Committee · ${c.chamber}`} title={c.name} representative={!!c.representative} titleId={titleId} closeButtonRef={closeButtonRef} />
       <div className="modal-body">
         <p style={{color:"var(--ink-2)", marginTop:0}}>{c.bio}</p>
         <dl className="kv" style={{marginTop:14}}>
@@ -289,7 +336,7 @@ function CommitteeDetail({ id }) {
           <dt>Source</dt><dd className="mono" style={{fontSize:11, color:"var(--ink-3)"}}>{c.url}</dd>
         </dl>
 
-        <h4 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:22, marginBottom:8}}>Upcoming & today's hearings</h4>
+        <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:22, marginBottom:8}}>Upcoming & today's hearings</h3>
         {c.hearings.length === 0 && <div className="empty">No scheduled hearings.</div>}
         {c.hearings.map((h, i) => (
           <div key={i} className="clk" onClick={() => openModal("hearing", { ...h, committee: c.name })}
@@ -303,7 +350,7 @@ function CommitteeDetail({ id }) {
           </div>
         ))}
 
-        <h4 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:22, marginBottom:8}}>Open inquiries</h4>
+        <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:22, marginBottom:8}}>Open inquiries</h3>
         <div style={{display:"flex", flexWrap:"wrap", gap:6}}>
           {c.inquiries.map((q, i) => (
             <span key={i} className="tag clk" onClick={() => openModal("inquiry", q)}>{q}</span>
@@ -319,11 +366,11 @@ function CommitteeDetail({ id }) {
   );
 }
 
-function HearingDetail({ data }) {
+function HearingDetail({ data, titleId, closeButtonRef }) {
   const { closeModal, toast } = useStore();
   return (
     <>
-      <ModalHead kicker="Hearing" title={data.topic} />
+      <ModalHead kicker="Hearing" title={data.topic} titleId={titleId} closeButtonRef={closeButtonRef} />
       <div className="modal-body">
         <dl className="kv">
           <dt>Committee</dt><dd>{data.committee}</dd>
@@ -331,13 +378,13 @@ function HearingDetail({ data }) {
           <dt>Room</dt><dd>{data.room}</dd>
           <dt>Broadcast</dt><dd><a href="#" onClick={e=>e.preventDefault()} style={{color:"var(--teal)"}}>aph.gov.au/live/hearing</a></dd>
         </dl>
-        <h4 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:8}}>Witnesses</h4>
+        <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:8}}>Witnesses</h3>
         <ul style={{margin:0, paddingLeft:18, color:"var(--ink-2)"}}>
           <li>Department (First Assistant Secretary)</li>
           <li>OAIC (Privacy Commissioner)</li>
           <li>Industry peak body</li>
         </ul>
-        <h4 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:8}}>Sample questions <span className="chip-fixture" style={{verticalAlign:"middle", marginLeft:6}}>Fixture</span></h4>
+        <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:8}}>Sample questions <span className="chip-fixture" style={{verticalAlign:"middle", marginLeft:6}}>Fixture</span></h3>
         <ol style={{margin:0, paddingLeft:18, color:"var(--ink-2)"}}>
           <li>How does the department assure AI models against bias in high-risk contexts?</li>
           <li>Which programs currently use automated decision-making for benefit eligibility?</li>
@@ -352,13 +399,13 @@ function HearingDetail({ data }) {
   );
 }
 
-function InquiryDetail({ id }) {
+function InquiryDetail({ id, titleId, closeButtonRef }) {
   const { closeModal, toast, state, assignOwner } = useStore();
   const name = typeof id === "string" ? id : id?.name;
   const [owner, setOwner] = React.useState(state.owners[name] || "");
   return (
     <>
-      <ModalHead kicker="Inquiry" title={name} />
+      <ModalHead kicker="Inquiry" title={name} titleId={titleId} closeButtonRef={closeButtonRef} />
       <div className="modal-body">
         <dl className="kv">
           <dt>Status</dt><dd>Accepting submissions</dd>
@@ -366,16 +413,16 @@ function InquiryDetail({ id }) {
           <dt>Reporting</dt><dd>by 30 August 2026</dd>
           <dt>Scope</dt><dd>Commonwealth procurement and contract governance for digital programs over $100m</dd>
         </dl>
-        <h4 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:8}}>Terms of reference</h4>
+        <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:8}}>Terms of reference</h3>
         <ol style={{margin:0, paddingLeft:18, color:"var(--ink-2)"}}>
           <li>Adequacy of current governance frameworks</li>
           <li>Use of limited tender and contract variations</li>
           <li>Transparency and public reporting</li>
           <li>Any related matters</li>
         </ol>
-        <h4 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:8}}>Assign owner</h4>
+        <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:8}}>Assign owner</h3>
         <div style={{display:"flex", gap:8}}>
-          <input value={owner} onChange={e=>setOwner(e.target.value)} placeholder="Owner name" className="search" style={{padding:"7px 10px", flex:1}}/>
+          <input aria-label="Owner name" value={owner} onChange={e=>setOwner(e.target.value)} placeholder="Owner name" className="search" style={{padding:"7px 10px", flex:1}}/>
           <button className="btn primary" onClick={() => { if (owner.trim()) { assignOwner(name, owner.trim()); } }}>Assign</button>
         </div>
         {state.owners[name] && <div style={{marginTop:8, fontSize:12.5, color:"var(--ok)"}}><Icon name="check" size={13} style={{verticalAlign:"-2px", marginRight:4}}/>Owner: <strong>{state.owners[name]}</strong></div>}
@@ -388,14 +435,15 @@ function InquiryDetail({ id }) {
   );
 }
 
-function BillDetail({ id }) {
+function BillDetail({ id, titleId, closeButtonRef }) {
   const b = ENTITIES.bills[id];
   const { closeModal, toast, state, assignOwner, openModal } = useStore();
   const [owner, setOwner] = React.useState(state.owners[id] || (b?.owner === "—" ? "" : b?.owner || ""));
-  if (!b) return <ModalHead kicker="Bill" title="Not found" />;
+  if (!b) return <ModalHead kicker="Bill" title="Not found" titleId={titleId} closeButtonRef={closeButtonRef} />;
+  const min = ENTITIES.ministers[b.minister];
   return (
     <>
-      <ModalHead kicker={`Bill · ${b.ref}`} title={b.title} />
+      <ModalHead kicker={`Bill · ${b.ref}`} title={b.title} representative={!!b.representative} titleId={titleId} closeButtonRef={closeButtonRef} />
       <div className="modal-body">
         <div style={{display:"flex", gap:8, marginBottom:14, flexWrap:"wrap"}}>
           <Att level={b.att}/>
@@ -403,16 +451,16 @@ function BillDetail({ id }) {
           <span className="tag teal">{b.stage}</span>
           {b.digest === "Published" && <span className="tag teal">Digest published</span>}
         </div>
-        <h4 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginBottom:6}}>Purpose</h4>
+        <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginBottom:6}}>Purpose</h3>
         <p style={{margin:0, color:"var(--ink-2)"}}>{b.purpose}</p>
 
         {b.provisions.length > 0 && <>
-          <h4 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:6}}>Key provisions</h4>
+          <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:6}}>Key provisions</h3>
           <ul style={{margin:0, paddingLeft:18, color:"var(--ink-2)"}}>{b.provisions.map((p,i) => <li key={i}>{p}</li>)}</ul>
         </>}
 
         {b.stageHistory.length > 0 && <>
-          <h4 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:6}}>Timeline</h4>
+          <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:6}}>Timeline</h3>
           <div className="timeline">
             {b.stageHistory.map((h,i) => (
               <div key={i} className="tl-item">
@@ -423,17 +471,17 @@ function BillDetail({ id }) {
           </div>
         </>}
 
-        {b.minister && <>
-          <h4 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:6}}>Responsible minister</h4>
-          <span className="tag clk brass" onClick={() => openModal("minister", b.minister)}>{ENTITIES.ministers[b.minister].name}</span>
+        {min && <>
+          <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:6}}>Responsible minister</h3>
+          <span className="tag clk brass" onClick={() => openModal("minister", b.minister)}>{min.name}</span>
         </>}
 
-        <h4 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:6}}>Matching watchlists</h4>
+        <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:6}}>Matching watchlists</h3>
         <div style={{display:"flex", gap:6, flexWrap:"wrap"}}>{b.watchlists.map(w => <span key={w} className="tag brass">{w}</span>)}</div>
 
-        <h4 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:6}}>Assign policy owner</h4>
+        <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:6}}>Assign policy owner</h3>
         <div style={{display:"flex", gap:8}}>
-          <input value={owner} onChange={e=>setOwner(e.target.value)} placeholder="Owner name" className="search" style={{padding:"7px 10px", flex:1}}/>
+          <input aria-label="Owner name" value={owner} onChange={e=>setOwner(e.target.value)} placeholder="Owner name" className="search" style={{padding:"7px 10px", flex:1}}/>
           <button className="btn primary" onClick={() => { if (owner.trim()) assignOwner(id, owner.trim()); }}>Assign</button>
         </div>
         {state.owners[id] && <div style={{marginTop:8, fontSize:12.5, color:"var(--ok)"}}><Icon name="check" size={13} style={{verticalAlign:"-2px", marginRight:4}}/>Owner: <strong>{state.owners[id]}</strong></div>}
@@ -446,13 +494,13 @@ function BillDetail({ id }) {
   );
 }
 
-function MemberDetail({ id }) {
+function MemberDetail({ id, titleId, closeButtonRef }) {
   const m = ENTITIES.members[id];
-  if (!m) return <ModalHead kicker="Member" title="Not found" />;
   const { closeModal, toast } = useStore();
+  if (!m) return <ModalHead kicker="Member" title="Not found" titleId={titleId} closeButtonRef={closeButtonRef} />;
   return (
     <>
-      <ModalHead kicker={`${m.party} · ${m.state}`} title={m.name} />
+      <ModalHead kicker={`${m.party} · ${m.state}`} title={m.name} representative={!!m.representative} titleId={titleId} closeButtonRef={closeButtonRef} />
       <div className="modal-body">
         <p style={{color:"var(--ink-2)", marginTop:0}}>{m.bio}</p>
         <div style={{display:"flex", gap:6, flexWrap:"wrap", marginTop:4}}>
@@ -463,7 +511,7 @@ function MemberDetail({ id }) {
           <div className="panel stat"><div className="stat-label">Hansard mentions</div><div className="stat-value" style={{fontSize:26}}>{m.hansard}</div></div>
           <div className="panel stat"><div className="stat-label">Committees</div><div className="stat-value" style={{fontSize:26}}>{m.committees.length}</div></div>
         </div>
-        <h4 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:8}}>Recent activity</h4>
+        <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:8}}>Recent activity</h3>
         <ul style={{margin:0, paddingLeft:18, color:"var(--ink-2)"}}>
           <li>Lodged QON on digital procurement · 23 Apr</li>
           <li>Spoke on Cyber Security Bill · 22 Apr</li>
@@ -477,16 +525,16 @@ function MemberDetail({ id }) {
   );
 }
 
-function MinisterDetail({ id }) {
+function MinisterDetail({ id, titleId, closeButtonRef }) {
   const m = ENTITIES.ministers[id];
-  if (!m) return <ModalHead kicker="Minister" title="Not found" />;
   const { closeModal } = useStore();
+  if (!m) return <ModalHead kicker="Minister" title="Not found" titleId={titleId} closeButtonRef={closeButtonRef} />;
   return (
     <>
-      <ModalHead kicker={m.role} title={m.name} />
+      <ModalHead kicker={m.role} title={m.name} representative={!!m.representative} titleId={titleId} closeButtonRef={closeButtonRef} />
       <div className="modal-body">
         <p style={{color:"var(--ink-2)", marginTop:0}}>{m.bio}</p>
-        <h4 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:14, marginBottom:6}}>Recent signals</h4>
+        <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:14, marginBottom:6}}>Recent signals</h3>
         <ul style={{margin:0, paddingLeft:18, color:"var(--ink-2)"}}>{m.recent.map((r,i) => <li key={i}>{r}</li>)}</ul>
       </div>
       <div className="modal-foot"><button className="btn ghost" style={{marginLeft:"auto"}} onClick={closeModal}>Close</button></div>
@@ -494,12 +542,12 @@ function MinisterDetail({ id }) {
   );
 }
 
-function DivisionDetail({ id }) {
+function DivisionDetail({ id, titleId, closeButtonRef }) {
   const d = DIVISIONS.find(x => x.bill === id?.bill && x.when === id?.when) || id;
   const { closeModal, openModal } = useStore();
   return (
     <>
-      <ModalHead kicker="Division" title={d.q} />
+      <ModalHead kicker="Division" title={d.q} representative={!!d.representative} titleId={titleId} closeButtonRef={closeButtonRef} />
       <div className="modal-body">
         <dl className="kv">
           <dt>When</dt><dd>{d.when}</dd>
@@ -507,7 +555,7 @@ function DivisionDetail({ id }) {
           <dt>Result</dt><dd style={{color: d.result.startsWith("Agreed") ? "var(--ok)" : "var(--escalate)"}}>{d.result}</dd>
           <dt>Related bill</dt><dd><span className="tag clk brass" onClick={() => openModal("bill", d.bill)}>{d.bill}</span></dd>
         </dl>
-        <h4 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:16, marginBottom:8}}>Vote breakdown</h4>
+        <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:16, marginBottom:8}}>Vote breakdown</h3>
         <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:10}}>
           <div style={{padding:12, border:"1px solid var(--line-2)", borderRadius:8}}>
             <div className="mono" style={{fontSize:10, color:"var(--ok)"}}>AYES</div>
@@ -524,52 +572,47 @@ function DivisionDetail({ id }) {
   );
 }
 
-function FeedDetail({ id }) {
+function FeedDetail({ id, titleId, closeButtonRef }) {
   const f = APH_FEEDS.find(x => x.id === id);
   const { closeModal, toast } = useStore();
-  if (!f) return <ModalHead kicker="Feed" title="Not found" />;
-  const statusColor = f.status === "live" ? "var(--ok)" : f.status === "delayed" ? "var(--caution)" : "var(--info)";
+  if (!f) return <ModalHead kicker="Feed" title="Not found" titleId={titleId} closeButtonRef={closeButtonRef} />;
+  const status = f.lastStatusCode != null ? (f.lastStatusCode >= 200 && f.lastStatusCode < 300 ? "Live" : "Error") : "—";
+  const parser = f.parser || "—";
+  const last = f.last || "—";
   return (
     <>
-      <ModalHead kicker={`Source · ${f.group}`} title={f.name} />
+      <ModalHead kicker={`Source · ${f.group}`} title={f.name} titleId={titleId} closeButtonRef={closeButtonRef} />
       <div className="modal-body">
         <dl className="kv">
           <dt>URL</dt><dd className="mono" style={{fontSize:11, color:"var(--ink-3)", wordBreak:"break-all"}}>{f.url}</dd>
-          <dt>Status</dt><dd><span style={{color: statusColor}}>●</span> {f.status}</dd>
+          <dt>Status</dt><dd>{status}</dd>
           <dt>Authority</dt><dd>{f.authority}</dd>
           <dt>Confidence</dt><dd>{f.confidence}</dd>
-          <dt>Parser</dt><dd>{f.parser}</dd>
-          <dt>Last refresh</dt><dd className="mono">{f.last}</dd>
+          <dt>Parser</dt><dd>{parser}</dd>
+          <dt>Last refresh</dt><dd className="mono">{last}</dd>
           <dt>Items today</dt><dd className="mono">{f.today ?? "—"}</dd>
           <dt>False positive</dt><dd>{f.fpr}</dd>
           <dt>Modules</dt><dd>{f.modules.join(", ")}</dd>
         </dl>
-        <h4 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:16, marginBottom:8}}>Recent items</h4>
-        <div>
-          {[...Array(5)].map((_,i) => (
-            <div key={i} style={{padding:"8px 0", borderBottom: i<4 ? "1px solid var(--line)" : 0}}>
-              <div style={{fontSize:13}}>Item from {f.name} #{i+1}</div>
-              <div className="mono" style={{fontSize:10.5, color:"var(--ink-4)", marginTop:2}}>{["08:15","07:42","07:10","Yesterday 17:30","Yesterday 14:05"][i]}</div>
-            </div>
-          ))}
-        </div>
+        <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:16, marginBottom:8}}>Recent items</h3>
+        <div className="empty">—</div>
       </div>
       <div className="modal-foot">
         <button className="btn primary" onClick={() => toast(`${f.name} re-fetched`, "brass")}><Icon name="refresh" size={13}/> Re-fetch now</button>
-        <button className="btn" onClick={() => toast("Parser test passed ✓", "brass")}>Test parser</button>
+        <button className="btn" title="Demo control: parser test is not wired in this build" onClick={() => toast("Parser test (demo): no live parser test is wired", "brass")}>Test parser (demo)</button>
         <button className="btn ghost" style={{marginLeft:"auto"}} onClick={closeModal}>Close</button>
       </div>
     </>
   );
 }
 
-function WatchlistDetail({ id }) {
+function WatchlistDetail({ id, titleId, closeButtonRef }) {
   const { closeModal, toast, state } = useStore();
   // F2: resolve against the merged list so user-created watchlists open their
   // detail rather than a "Not found" modal.
   const all = [...WATCHLISTS, ...(state.watchlistCreated || [])];
   const w = all.find(x => x.name === id);
-  if (!w) return <ModalHead kicker="Watchlist" title="Not found" />;
+  if (!w) return <ModalHead kicker="Watchlist" title="Not found" titleId={titleId} closeButtonRef={closeButtonRef} />;
   // F2: guard the spark divisor so an all-zero trend cannot divide by zero.
   const trend = Array.isArray(w.trend) ? w.trend : [];
   const max = Math.max(...trend, 1);
@@ -577,7 +620,7 @@ function WatchlistDetail({ id }) {
   const matchingSignals = watchlistMatches(w).slice(0, 3);
   return (
     <>
-      <ModalHead kicker={w.created ? "Watchlist · New" : "Watchlist"} title={w.name} />
+      <ModalHead kicker={w.created ? "Watchlist · New" : "Watchlist"} title={w.name} representative={!!w.representative} titleId={titleId} closeButtonRef={closeButtonRef} />
       <div className="modal-body">
         {w.created && (
           <div className="empty" style={{marginBottom:14}}>Created watchlist. Keyword matching runs against the current signal stream. Trend builds as new signals arrive.</div>
@@ -589,7 +632,7 @@ function WatchlistDetail({ id }) {
             <div className="spark" style={{marginTop:8}}>{trend.map((v,i) => <span key={i} style={{height:(v/max*24+3)+"px"}}/>)}</div>
           </div>
         </div>
-        <h4 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:6}}>Matching signals</h4>
+        <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:6}}>Matching signals</h3>
         {matchingSignals.length === 0 && <div className="empty">No matching signals in the current stream.</div>}
         {matchingSignals.map(s => (
           <div key={s.id} style={{padding:"8px 12px", border:"1px solid var(--line-2)", borderRadius:8, marginBottom:6}}>
@@ -606,21 +649,21 @@ function WatchlistDetail({ id }) {
   );
 }
 
-function RadarDetail({ id }) {
+function RadarDetail({ id, titleId, closeButtonRef }) {
   const r = RADAR.find(x => x.issue === id);
   const { closeModal, toast } = useStore();
-  if (!r) return <ModalHead kicker="Issue" title="Not found" />;
+  if (!r) return <ModalHead kicker="Issue" title="Not found" titleId={titleId} closeButtonRef={closeButtonRef} />;
   return (
     <>
-      <ModalHead kicker="Attention radar issue" title={r.issue} />
+      <ModalHead kicker="Attention radar issue" title={r.issue} representative={!!r.representative} titleId={titleId} closeButtonRef={closeButtonRef} />
       <div className="modal-body">
         <div style={{display:"flex", gap:8, marginBottom:12}}><Att level={r.att}/><span className="tag">{r.sources} contributing sources</span></div>
         <p style={{color:"var(--ink-2)", marginTop:0}}>{r.reason}</p>
-        <h4 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:8}}>Momentum (7 days)</h4>
+        <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:8}}>Momentum (7 days)</h3>
         <div className="spark" style={{height:40}}>
           {[3,4,5,4,6,7,Math.round(r.momentum*10)].map((v,i)=><span key={i} style={{height:(v*3+4)+"px"}}/>)}
         </div>
-        <h4 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:8}}>Suggested actions</h4>
+        <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:8}}>Suggested actions</h3>
         <ul style={{margin:0, paddingLeft:18, color:"var(--ink-2)"}}>
           <li>Draft Executive Brief for DDG Digital</li>
           <li>Monitor for Estimates references</li>

@@ -1,4 +1,28 @@
 // App root — wires StoreProvider and all pages
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+  componentDidCatch(error, info) {
+    console.error("Parliament Pulse render error", error, info);
+  }
+  render() {
+    if (!this.state.error) return this.props.children;
+    return (
+      <div className="panel" role="alert" style={{margin:18, padding:18, borderColor:"var(--ember-flash)"}}>
+        <div className="page-kicker">Render error</div>
+        <h1 className="page-title" style={{fontSize:24, marginTop:6}}>Parliament Pulse could not render this view</h1>
+        <p style={{color:"var(--ink-2)", maxWidth:640}}>Reload the page to reset the current browser state. If the problem repeats, capture the page and action that caused it.</p>
+        <button className="btn primary" onClick={() => location.reload()}><Icon name="refresh" size={13}/> Reload</button>
+      </div>
+    );
+  }
+}
+
 function App() {
   const [page, setPage] = React.useState("overview");
   React.useEffect(() => { window.__setPage = setPage; }, []);
@@ -31,10 +55,10 @@ function App() {
         <div className="main">
           <DesignStateBanner />
           <Topbar setPage={setPage} />
-          <div className="content">{renderPage()}</div>
+          <div className="content"><ErrorBoundary>{renderPage()}</ErrorBoundary></div>
         </div>
-        <Drawer />
-        <DetailModal />
+        <ErrorBoundary><Drawer /></ErrorBoundary>
+        <ErrorBoundary><DetailModal /></ErrorBoundary>
       </div>
     </StoreProvider>
   );

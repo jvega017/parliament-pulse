@@ -3,7 +3,7 @@
 // Bumped from 1.6 to 1.75 to sit confidently against the bolder Fire House shell;
 // override per-icon with a strokeWidth prop where a lighter weight is wanted.
 const Icon = ({ name, size = 16, stroke = "currentColor", strokeWidth = 1.75, ...rest }) => {
-  const props = { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke, strokeWidth, strokeLinecap: "round", strokeLinejoin: "round", ...rest };
+  const props = { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke, strokeWidth, strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true", focusable: "false", ...rest };
   switch (name) {
     case "overview": return <svg {...props}><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>;
     case "signal": return <svg {...props}><path d="M4 12h3l3-8 4 16 3-8h3"/></svg>;

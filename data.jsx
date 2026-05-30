@@ -31,7 +31,7 @@ const SOURCE_REGISTRY = [
     errorDetail: null,
     lastItemCount: null,
     // legacy display fields for existing APH_FEEDS consumers
-    name: "House Media Releases", group: "House", status: "live", last: "08:11", today: 3, modules: ["Media", "Overview"], parser: "Valid",
+    name: "House Media Releases", group: "House", status: null, last: null, today: null, modules: ["Media", "Overview"], parser: null,
   },
   {
     id: "s-reports",
@@ -44,7 +44,7 @@ const SOURCE_REGISTRY = [
     lastStatusCode: null,
     errorDetail: null,
     lastItemCount: null,
-    name: "Senate Committee Reports Tabled", group: "Senate", status: "live", last: "07:42", today: 1, modules: ["Committees", "Briefings"], parser: "Valid",
+    name: "Senate Committee Reports Tabled", group: "Senate", status: null, last: null, today: null, modules: ["Committees", "Briefings"], parser: null,
   },
   {
     id: "s-new-inquiries",
@@ -57,7 +57,7 @@ const SOURCE_REGISTRY = [
     lastStatusCode: null,
     errorDetail: null,
     lastItemCount: null,
-    name: "Senate New Inquiries", group: "Senate", status: "live", last: "08:15", today: 2, modules: ["Committees", "Emerging Issues"], parser: "Valid",
+    name: "Senate New Inquiries", group: "Senate", status: null, last: null, today: null, modules: ["Committees", "Emerging Issues"], parser: null,
   },
   {
     id: "s-upcoming",
@@ -70,7 +70,7 @@ const SOURCE_REGISTRY = [
     lastStatusCode: null,
     errorDetail: null,
     lastItemCount: null,
-    name: "Senate Upcoming Hearings", group: "Senate", status: "live", last: "07:58", today: 6, modules: ["What's On", "Committees"], parser: "Valid",
+    name: "Senate Upcoming Hearings", group: "Senate", status: null, last: null, today: null, modules: ["What's On", "Committees"], parser: null,
   },
   {
     id: "h-div",
@@ -83,7 +83,7 @@ const SOURCE_REGISTRY = [
     lastStatusCode: null,
     errorDetail: null,
     lastItemCount: null,
-    name: "House Divisions", group: "House", status: "live", last: "08:12", today: 0, modules: ["Divisions"], parser: "Valid",
+    name: "House Divisions", group: "House", status: null, last: null, today: null, modules: ["Divisions"], parser: null,
   },
   {
     id: "h-program",
@@ -96,7 +96,7 @@ const SOURCE_REGISTRY = [
     lastStatusCode: null,
     errorDetail: null,
     lastItemCount: null,
-    name: "House Daily Program", group: "House", status: "live", last: "08:10", today: 1, modules: ["Parliament", "Live"], parser: "Valid",
+    name: "House Daily Program", group: "House", status: null, last: null, today: null, modules: ["Parliament", "Live"], parser: null,
   },
 ];
 
@@ -104,6 +104,12 @@ const SOURCE_REGISTRY = [
 // reads APH_FEEDS (shell.jsx search, store.jsx feed modal, pages.jsx source table)
 // keeps working. The registry is the source of truth; do not maintain two lists.
 const APH_FEEDS = SOURCE_REGISTRY;
+
+function sourceCounts() {
+  const total = SOURCE_REGISTRY.length;
+  const live = SOURCE_REGISTRY.filter(f => f.lastStatusCode >= 200 && f.lastStatusCode < 300).length;
+  return { total, live, configured: total };
+}
 
 const SIGNALS = [
   {
@@ -403,6 +409,6 @@ const DATASET_FLAGS = {
 QON_PATTERN.representative = true;
 
 Object.assign(window, {
-  SOURCE_REGISTRY, DATASET_FLAGS, APH_FEEDS,
+  SOURCE_REGISTRY, sourceCounts, DATASET_FLAGS, APH_FEEDS,
   SIGNALS, COMMITTEE_ITEMS, BILLS, DIVISIONS, WATCHLISTS, RADAR, QON_PATTERN, BRIEFING_QUEUE
 });

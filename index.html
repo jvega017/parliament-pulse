@@ -274,7 +274,7 @@
     font-variant-numeric: tabular-nums;
   }
   .nav-item.active .count { color: var(--brass); background: #f08a3c1f; }
-  .nav-item .count.nav-live { color: #fff; background: var(--ember-flash); font-weight: 600; }
+  .nav-item .count.nav-live { color: #fff; background: #c4382f; font-weight: 600; }
 
   .side-foot {
     border-top: 1px solid var(--line);
@@ -501,8 +501,8 @@
     display: inline-flex; align-items: center; gap: 6px;
   }
   .att::before { content:""; width:6px; height:6px; border-radius:50%; }
-  .att.high { color: var(--ember-flash); background: #e0534b1a; border: 1px solid #e0534b40; }
-  .att.high::before { background: var(--ember-flash); }
+  .att.high { color: #ef6a5e; background: #e0534b1a; border: 1px solid #e0534b40; }
+  .att.high::before { background: #ef6a5e; }
   .att.med { color: var(--caution); background: #d4a0171a; border: 1px solid #d4a01740; }
   .att.med::before { background: var(--caution); }
   .att.low { color: var(--info); background: #9aa6b01a; border: 1px solid #9aa6b040; }
@@ -568,7 +568,7 @@
   .drawer-foot { padding: 12px 20px; border-top: 1px solid var(--line); display: flex; gap: 10px; background: var(--bg); }
 
   .drawer-section { margin-bottom: 26px; }
-  .drawer-section h4 {
+  .drawer-section h3 {
     font-family: var(--mono); font-size: 10px; font-weight: 600; color: var(--ink-3);
     text-transform: uppercase; letter-spacing: .18em; margin: 0 0 10px;
     padding-bottom: 6px; border-bottom: 1px solid var(--line);
@@ -639,8 +639,8 @@
   }
 
   /* ---------- Brief preview — warm paper, gold accent ---------- */
-  :root { --brief-bg: #f4efe4; --brief-ink: #1a1208; --brief-accent: #8a6a28; }
-  :root[data-theme="light"] { --brief-bg: #f4efe4; --brief-ink: #1a1208; --brief-accent: #8a6a28; }
+  :root { --brief-bg: #f4efe4; --brief-ink: #1a1208; --brief-accent: #6f5418; --brief-link: #5a4310; }
+  :root[data-theme="light"] { --brief-bg: #f4efe4; --brief-ink: #1a1208; --brief-accent: #6f5418; --brief-link: #5a4310; }
   .brief {
     background: var(--brief-bg); color: var(--brief-ink);
     border-radius: 10px; padding: 18px 20px;
@@ -651,6 +651,12 @@
   .brief h3 { margin: 0 0 4px; font-family: var(--serif); font-size: 20px; font-weight: 600; }
   .brief .meta { font-family: var(--mono); font-size: 10.5px; color: var(--brief-accent); }
   .brief ul { margin: 4px 0 0; padding-left: 18px; }
+
+  .linklike {
+    appearance: none; background: none; border: 0; padding: 0;
+    color: inherit; font: inherit; text-decoration: underline; cursor: pointer;
+  }
+  .linklike:hover { color: var(--teal); }
 
   /* source health dot */
   .hdot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; vertical-align: middle; }
@@ -871,8 +877,8 @@
 <div id="root"></div>
 
 <!-- Pinned React + Babel -->
-<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
-<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" integrity="sha384-DGyLxAyjq0f9SPpVevD6IgztCFlnMF6oW/XQGmfe+IsZ8TqEiDrcHkMLKI6fiB/Z" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" integrity="sha384-gTGxhz21lVGYNMcdJOyq01Edg0jhn/c22nsx0kyqP0TxaV5WVdsSH1fSDUf5YJj1" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
 
 <script type="text/babel" src="data.jsx"></script>

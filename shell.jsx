@@ -26,7 +26,7 @@ const NAV = [
   { id: "patterns", label: "QON patterns", group: "Parliament", count: 1 },
   { id: "briefings", label: "Briefings", group: "Workflow", count: 4 },
   { id: "watchlists", label: "Watchlists", group: "Workflow", count: 12 },
-  { id: "sources", label: "Sources", group: "Admin", count: 15 },
+  { id: "sources", label: "Sources", group: "Admin", count: sourceCounts().total },
 ];
 
 const ICONS = {
@@ -109,7 +109,7 @@ function Sidebar({ page, setPage }) {
               >
                 <Icon name={ICONS[n.id]} size={15} className="ico" />
                 <span>{n.label}</span>
-                {n.live && <span className="count nav-live" style={{color:"#fff", background:"var(--ember-flash)"}}>LIVE</span>}
+                {n.live && <span className="count nav-live">LIVE</span>}
                 {!n.live && n.count !== null && <span className="count">{liveCount[n.id] ?? n.count}</span>}
               </div>
             ))}
@@ -320,7 +320,7 @@ function Topbar({ setPage }) {
         <span className="chip clk live-chip" onClick={() => setPage("live")} style={{borderColor:"var(--ember-flash)", color:"var(--ink)", background:"transparent"}}>
           <span className="dot pulse-dot" style={{background:"var(--ember-flash)"}}/> Parliament live
         </span>
-        <span className="chip sources-chip" title="Sources reporting healthy"><span className="dot" /> {(window.__sourceHealth && window.__sourceHealth.healthy != null) ? `${window.__sourceHealth.healthy}/${window.__sourceHealth.total} sources` : "13/15 sources"}</span>
+        <span className="chip sources-chip" title="Official feeds configured"><span className="dot" /> {sourceCounts().total} sources</span>
         <button className="btn ghost sm shortcut-btn" title="Go to Live parliament and refresh feeds there" onClick={() => {
           setPage("live");
           // Honest refresh: navigate to Live, then poll once the page has mounted its hook.
@@ -332,7 +332,7 @@ function Topbar({ setPage }) {
         <button className="btn sm" onClick={() => toast("No new alerts")}><Icon name="bell" size={13} /> Alerts</button>
         <button className="btn primary sm" onClick={() => setPage("briefings")}><Icon name="plus" size={13} /> New brief</button>
         <ShortcutHelp />
-        <button className="btn ghost sm" title={isDark ? "Switch to light mode" : "Switch to dark mode"} onClick={() => {
+        <button className="btn ghost sm" title={isDark ? "Switch to light mode" : "Switch to dark mode"} aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"} onClick={() => {
           const next = isDark ? "light" : "dark";
           document.documentElement.dataset.theme = next;
           localStorage.setItem("pp-theme", next);
@@ -367,7 +367,7 @@ function SignalCard({ s }) {
   const archived = state.archived[s.id];
   if (archived) return null;
   return (
-    <div className="signal" data-att={s.attention} onClick={() => openSignal(s.id)} role="button" tabIndex={0} aria-label={`Signal: ${s.title}`} onKeyDown={e => (e.key === "Enter" || e.key === " ") && openSignal(s.id)}>
+    <div className="signal" data-att={s.attention} onClick={() => openSignal(s.id)} role="button" tabIndex={0} aria-label={`Signal: ${s.title}`} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openSignal(s.id); } }}>
       <div className="sig-head">
         <span className="sig-id mono">{s.id}</span>
         <span className="sig-source mono">· {s.source}</span>
@@ -548,7 +548,7 @@ function Drawer() {
                 <div className="mono" style={{fontSize:10, color:"var(--ink-4)", letterSpacing:".16em", textTransform:"uppercase"}}>
                   {s.id} · {s.date}
                 </div>
-                <div className="h-drawer" style={{marginTop:4, maxWidth:460}}>{s.title}</div>
+                <h2 className="h-drawer" style={{margin:"4px 0 0", maxWidth:460}}>{s.title}</h2>
               </div>
               <div style={{marginLeft:"auto", display:"flex", alignItems:"center", gap:12, flexShrink:0}}>
                 {sigPos !== -1 && (
@@ -562,16 +562,16 @@ function Drawer() {
             </div>
             <div className="drawer-body" ref={drawerBodyRef}>
               <div className="drawer-section">
-                <h4>Recommended action</h4>
+                <h3>Recommended action</h3>
                 <div style={{padding:"12px 14px", border:"1px solid var(--brass-soft)", borderRadius:8, background:"var(--panel-hi)"}}>
                   <div style={{fontWeight:600, color:"var(--brass)"}}>{s.action}</div>
                   <div style={{color:"var(--ink-2)", fontSize:13, marginTop:4}}>{s.actionReason}</div>
                 </div>
               </div>
-              <div className="drawer-section"><h4>Summary</h4><p>{s.summary}</p></div>
-              <div className="drawer-section"><h4>Why it matters</h4><p>{s.attentionReason}</p></div>
+              <div className="drawer-section"><h3>Summary</h3><p>{s.summary}</p></div>
+              <div className="drawer-section"><h3>Why it matters</h3><p>{s.attentionReason}</p></div>
               <div className="drawer-section">
-                <h4>Signal metadata</h4>
+                <h3>Signal metadata</h3>
                 <dl className="kv">
                   <dt>Source</dt><dd>{s.source}</dd>
                   <dt>Source group</dt><dd>{s.sourceGroup}</dd>
@@ -583,7 +583,7 @@ function Drawer() {
               </div>
               {s.score && (
                 <div className="drawer-section">
-                  <h4>Attention score breakdown</h4>
+                  <h3>Attention score breakdown</h3>
                   {Object.entries(s.score).map(([k,v]) => {
                     const lab = {authority:"Source authority", portfolio:"Portfolio relevance", novelty:"Novelty", momentum:"Momentum", time:"Time sensitivity", scrutiny:"Scrutiny relevance", ops:"Operational impact"};
                     return (
@@ -597,7 +597,7 @@ function Drawer() {
                 </div>
               )}
               <div className="drawer-section">
-                <h4>Evidence · open the actual source</h4>
+                <h3>Evidence · open the actual source</h3>
                 {s.evidence?.map((e,i) => (
                   <a key={i} href={e.url} target="_blank" rel="noopener noreferrer" style={{
                     display:"flex", alignItems:"center", gap:10, padding:"10px 12px",
@@ -614,7 +614,7 @@ function Drawer() {
 
               {s.provenance && s.provenance.length > 0 && (
                 <div className="drawer-section">
-                  <h4>Provenance · how this signal was produced</h4>
+                  <h3>Provenance · how this signal was produced <span className="chip-fixture" style={{verticalAlign:"middle", marginLeft:6}}>Representative</span></h3>
                   <div style={{border:"1px solid var(--line-2)", borderRadius:8, overflow:"hidden"}}>
                     {s.provenance.map((p,i) => (
                       <div key={i} style={{display:"grid", gridTemplateColumns:"78px 90px 1fr", gap:10, padding:"8px 12px", fontSize:12, borderBottom: i<s.provenance.length-1 ? "1px solid var(--line)" : 0, background: i%2 ? "var(--panel-hi)" : "transparent"}}>
@@ -629,7 +629,7 @@ function Drawer() {
 
               {s.updates && s.updates.length > 0 && (
                 <div className="drawer-section">
-                  <h4>Updates to this signal · who / what / when</h4>
+                  <h3>Updates to this signal · who / what / when</h3>
                   {s.updates.map((u,i) => (
                     <div key={i} style={{display:"grid", gridTemplateColumns:"60px 140px 1fr", gap:10, padding:"8px 0", borderBottom: i<s.updates.length-1 ? "1px solid var(--line)" : 0, fontSize:12.5}}>
                       <div className="mono" style={{color:"var(--ink-4)", fontSize:11}}>{u.ts}</div>
@@ -642,7 +642,7 @@ function Drawer() {
 
               {s.members && s.members.length > 0 && (
                 <div className="drawer-section">
-                  <h4>People referenced</h4>
+                  <h3>People referenced</h3>
                   <div style={{display:"flex", flexWrap:"wrap", gap:6}}>
                     {s.members.map(mid => {
                       const m = window.ENTITIES?.members?.[mid];
@@ -653,13 +653,13 @@ function Drawer() {
                 </div>
               )}
               <div className="drawer-section">
-                <h4>Analyst note</h4>
+                <h3>Analyst note</h3>
                 <textarea value={note} onChange={e=>setNote(e.target.value)} onBlur={()=>saveNote(s.id, note)}
                   placeholder="Private notes (auto-saved)" rows={3}
                   style={{width:"100%", background:"var(--panel)", border:"1px solid var(--line-2)", borderRadius:8, color:"var(--ink)", padding:"8px 10px", fontFamily:"var(--sans)", fontSize:13, resize:"vertical"}}/>
               </div>
               <div className="drawer-section">
-                <h4>Analyst feedback · is this right?</h4>
+                <h3>Analyst feedback · is this right?</h3>
                 <div className="feedback-row">
                   {labels.map(l => (
                     <button key={l} className={"fb" + (fb === l ? " on" : "")} onClick={() => { setFb(l); saveFeedback(s.id, l, ""); }}>
