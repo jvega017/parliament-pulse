@@ -425,6 +425,24 @@ function safeHttpUrl(u) {
   return /^https?:\/\//i.test(u || "") ? u : "";
 }
 
+// Bounded-concurrency map: at most `limit` calls of fn run at once. Keeps the live
+// poller from spawning an unbounded fetch burst (Chromium ERR_INSUFFICIENT_RESOURCES)
+// as the feed list grows. Mirrors Promise.allSettled's result shape.
+async function mapPool(items, limit, fn) {
+  const results = new Array(items.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const idx = next++;
+      try { results[idx] = { status: "fulfilled", value: await fn(items[idx], idx) }; }
+      catch (e) { results[idx] = { status: "rejected", reason: e }; }
+    }
+  };
+  const lanes = Math.max(1, Math.min(limit, items.length));
+  await Promise.all(Array.from({ length: lanes }, worker));
+  return results;
+}
+
 function PageLive() {
   const [which, setWhich] = useState("house");
   const { toast, openModal, consumeLiveRefresh } = useStore();
@@ -478,6 +496,9 @@ function PageLive() {
       return () => { cancelled = true; };
     }
 
+    // PERF-1: track in-flight fetches so unmount can abort them, and give each an 8s
+    // timeout so a hung proxy cannot leave the panel stuck on "Polling".
+    const controllers = new Set();
     const fetchOne = async (f) => {
       // Auto-detect: use Cloudflare Worker in production, local proxy in dev.
       // The Worker serves /rss?u=<encoded feed url> (route fix; deploy blocker).
@@ -485,17 +506,28 @@ function PageLive() {
         ? "http://localhost:3001/proxy?url="
         : "https://aph-proxy.jvega019.workers.dev/rss?u=";
       const proxy = proxyBase + encodeURIComponent(f.url);
-      const res = await fetch(proxy, { cache: "no-store" });
-      if (!res.ok) throw new Error("HTTP " + res.status);
-      const text = await res.text();
-      return parseRSSXml(text, f);
+      const ctrl = new AbortController();
+      controllers.add(ctrl);
+      const timer = setTimeout(() => ctrl.abort(), 8000);
+      try {
+        const res = await fetch(proxy, { signal: ctrl.signal });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return parseRSSXml(await res.text(), f);
+      } finally {
+        clearTimeout(timer);
+        controllers.delete(ctrl);
+      }
     };
 
+    let inFlight = false;
     const poll = async () => {
+      if (inFlight) return;            // skip overlapping polls so results cannot land out of order
+      inFlight = true;
       setLoading(true);
       const feeds = liveFeedList();
-      const results = await Promise.allSettled(feeds.map(fetchOne));
-      if (cancelled) return;
+      // PERF-1: cap concurrency at 3 rather than firing every feed at once.
+      const results = await mapPool(feeds, 3, fetchOne);
+      if (cancelled) { inFlight = false; return; }
       const all = [];
       const status = {};
       results.forEach((r, i) => {
@@ -525,13 +557,14 @@ function PageLive() {
       setFeedStatus(status);
       setLastPoll(new Date());
       setLoading(false);
+      inFlight = false;
     };
 
     window.__refreshLiveFeeds = poll;
     if (consumeLiveRefresh()) toast("Refreshing live feeds...", "brass");
     poll();
     const id = setInterval(poll, 120000); // 2 min
-    return () => { cancelled = true; clearInterval(id); window.__refreshLiveFeeds = null; };
+    return () => { cancelled = true; clearInterval(id); controllers.forEach(c => c.abort()); window.__refreshLiveFeeds = null; };
   }, []);
 
   const fmtTime = (d) => {
