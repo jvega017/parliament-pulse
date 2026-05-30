@@ -59,6 +59,10 @@ crons = ["*/30 * * * *", "0 0 */14 * *", "0 19 * * *"]
 #                      For local testing use: onboarding@resend.dev
 #                      override with: wrangler secret put DIGEST_FROM_EMAIL
 #
+# TVFY_KEY           — not implemented yet. When wired, add only with:
+#                      wrangler secret put TVFY_KEY
+#                      Never place TVFY_KEY in [vars] or frontend code.
+#
 # Rate limits (no secret needed — built into Worker code):
 #   /archive  120 req/min per IP
 #   /bills     60 req/min per IP

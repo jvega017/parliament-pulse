@@ -141,7 +141,7 @@ function renderDigestHtml(items: SignalRow[]): string {
   const rows = items
     .map(
       (i) =>
-        `<li style="margin-bottom:14px"><a href="${i.link}" style="color:#e89668;text-decoration:none;font-weight:500">${escapeHtml(i.title)}</a><br /><span style="color:#888;font-size:12px">${escapeHtml(i.feed_label)} · ${escapeHtml(i.kind)}</span></li>`,
+        `<li style="margin-bottom:14px"><a href="${escapeHtml(safeUrl(i.link))}" style="color:#e89668;text-decoration:none;font-weight:500">${escapeHtml(i.title)}</a><br /><span style="color:#888;font-size:12px">${escapeHtml(i.feed_label)} · ${escapeHtml(i.kind)}</span></li>`,
     )
     .join("");
   return `<!doctype html><html><body style="font-family:-apple-system,system-ui,sans-serif;background:#0a121b;color:#d8dfe9;padding:24px">
@@ -154,10 +154,20 @@ function renderDigestHtml(items: SignalRow[]): string {
   </body></html>`;
 }
 
+function safeUrl(u: string): string {
+  try {
+    const p = new URL(u);
+    return (p.protocol === "https:" || p.protocol === "http:") ? u : "#";
+  } catch {
+    return "#";
+  }
+}
+
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }

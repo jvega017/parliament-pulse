@@ -52,14 +52,15 @@ function corsHeaders(origin: string, allowed: string): HeadersInit {
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
-  const accepted = list.includes(origin) ? origin : list[0] ?? "*";
-  return {
-    "access-control-allow-origin": accepted,
+  const accepted = list.includes(origin) ? origin : null;
+  const headers: HeadersInit = {
     "access-control-allow-methods": "GET,POST,OPTIONS",
     "access-control-allow-headers": "content-type",
     "access-control-max-age": "86400",
     vary: "Origin",
   };
+  if (accepted) headers["access-control-allow-origin"] = accepted;
+  return headers;
 }
 
 const SECURITY_HEADERS: HeadersInit = {
@@ -67,6 +68,7 @@ const SECURITY_HEADERS: HeadersInit = {
   "x-frame-options": "DENY",
   "referrer-policy": "strict-origin-when-cross-origin",
   "permissions-policy": "camera=(), microphone=(), geolocation=()",
+  "strict-transport-security": "max-age=31536000; includeSubDomains",
 };
 
 function jsonResponse(body: unknown, status: number, extra: HeadersInit): Response {
@@ -362,9 +364,35 @@ export default {
           "accept-language": "en-AU,en;q=0.9",
           "user-agent": USER_AGENT,
         },
-        redirect: "follow",
+        redirect: "manual",
         cf: { cacheTtl: TTL_SECONDS, cacheEverything: true },
       });
+
+      let redirectCount = 0;
+      while (upstream.status >= 300 && upstream.status < 400) {
+        const location = upstream.headers.get("Location");
+        if (!location) {
+          return jsonResponse({ error: "upstream redirect missing location" }, 502, cors);
+        }
+        const redirected = new URL(location, upstream.url || parsed.toString());
+        if (redirected.protocol !== "https:" || !ALLOWED_HOSTS.has(redirected.hostname)) {
+          return jsonResponse({ error: "upstream redirect not allowed", host: redirected.hostname }, 502, cors);
+        }
+        redirectCount += 1;
+        if (redirectCount > 5) {
+          return jsonResponse({ error: "upstream redirect limit exceeded" }, 502, cors);
+        }
+        upstream = await fetch(redirected.toString(), {
+          headers: {
+            accept:
+              "text/html,application/xhtml+xml,application/xml;q=0.9,application/rss+xml,*/*;q=0.8",
+            "accept-language": "en-AU,en;q=0.9",
+            "user-agent": USER_AGENT,
+          },
+          redirect: "manual",
+          cf: { cacheTtl: TTL_SECONDS, cacheEverything: true },
+        });
+      }
     } catch (err) {
       return jsonResponse(
         { error: "upstream fetch failed", reason: err instanceof Error ? err.message : "unknown" },
