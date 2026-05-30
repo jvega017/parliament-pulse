@@ -130,7 +130,7 @@ function Sidebar({ page, setPage }) {
           <div style={{fontSize:12.5, fontWeight:500}}>Juan Vega</div>
           <div style={{fontFamily:"var(--mono)", fontSize:10, color:"var(--ink-4)"}}>Principal Policy Officer · Futures & Foresight</div>
           <div style={{fontFamily:"var(--mono)", fontSize:10, color:"var(--ink-4)", marginTop:3, opacity:.75}}>
-            {streak === 1 ? "Active today" : `Active ${Math.min(streak, 5)} day${streak > 1 ? "s" : ""} this week`}
+            {streak <= 1 ? "Active today" : `Active ${streak} days recently`}
           </div>
         </div>
       </div>

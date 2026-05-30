@@ -133,7 +133,7 @@ function PageOverview() {
         <div className="panel stat hero-stat" style={{borderLeft:"3px solid var(--brass)"}}>
           <div className="stat-label">New signals today</div>
           <div className="stat-value" style={{fontSize:48, fontWeight:600, fontVariantNumeric:"tabular-nums", letterSpacing:"-0.02em", lineHeight:1}}>{priority.length + rest.length}</div>
-          <div className="stat-meta"><span style={{color:"var(--ok)"}}>▲ {priority.length}</span> vs yesterday · {priority.length} priority</div>
+          <div className="stat-meta"><span style={{color:"var(--ink-3)"}}>{priority.length} classified priority</span></div>
         </div>
         <div className="panel stat">
           <div className="stat-label">Priority signals</div>
