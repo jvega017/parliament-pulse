@@ -1,0 +1,11 @@
+*.md
+*.ps1
+build.py
+proxy-server.js
+parliament-pulse.html
+archive/
+.wrangler/
+.playwright-mcp/
+*.jpeg
+*.png
+.gitattributes
