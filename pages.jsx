@@ -1241,7 +1241,7 @@ function PagePatterns() {
         </div>
 
         <div style={{display:"flex", gap:10, marginTop:16, flexWrap:"wrap"}}>
-          <button className="btn primary" title="Demo control: design-state module, no backend" onClick={() => toast("Draft Estimates monitor note (demo): not wired", "brass")}><Icon name="brief" size={13}/> Draft Estimates monitor note (demo)</button>
+          <button className="btn" title="Demo control: design-state module, no backend" onClick={() => toast("Draft Estimates monitor note (demo): not wired", "brass")}><Icon name="brief" size={13}/> Draft Estimates monitor note (demo)</button>
           <button className="btn" title="Demo control: design-state module, no backend" onClick={() => toast("Track cluster (demo): not wired", "brass")}><Icon name="watch" size={13}/> Track cluster (demo)</button>
           <button className="btn" title="Demo control: design-state module, no backend" onClick={() => toast("Confirm as coordinated (demo): not wired", "brass")}><Icon name="check" size={13}/> Confirm as coordinated (demo)</button>
           <button className="btn ghost" title="Demo control: design-state module, no backend" onClick={() => toast("Mark as coincidence (demo): not wired")}>Mark as coincidence (demo)</button>
