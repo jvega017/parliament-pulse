@@ -2,29 +2,25 @@
 
 const { useState, useMemo } = React;
 
+function csvEscape(v) {
+  const text = v == null ? "" : String(v);
+  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
 function exportSignalsCSV() {
   const headers = ["id","date","source","attention","title","action","confidence"];
   const rows = SIGNALS.map(s => [
     s.id, s.date, s.source, s.attention,
-    `"${(s.title || "").replace(/"/g,'""')}"`,
-    `"${(s.action || "").replace(/"/g,'""')}"`,
+    s.title,
+    s.action,
     s.confidence,
   ]);
-  const csv = [headers, ...rows].map(r => r.join(",")).join("\n");
-  const blob = new Blob([csv], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `parliament-pulse-signals-${new Date().toISOString().slice(0,10)}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
+  exportRowsCSV(headers, rows, `parliament-pulse-signals-${new Date().toISOString().slice(0,10)}.csv`);
 }
 
 // Reused by the Bills register export (F4): generic array-to-CSV download with no blob leak.
 function exportRowsCSV(headers, rows, filename) {
-  const csv = [headers, ...rows].map(r => r.join(",")).join("\n");
+  const csv = [headers, ...rows].map(r => r.map(csvEscape).join(",")).join("\n");
   const blob = new Blob([csv], { type: "text/csv" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -67,8 +63,8 @@ function OnboardingGuide() {
 }
 
 function PageOverview() {
-  const { openModal, state, toast } = useStore();
-  const goto = (p) => window.__setPage && window.__setPage(p);
+  const { openModal, state, toast, navigate } = useStore();
+  const goto = navigate;
   // Local overview controls (F4): real state, not toast-only stubs.
   const [groupByTopic, setGroupByTopic] = useState(false);
   const [sortByAttention, setSortByAttention] = useState(false);
@@ -89,21 +85,29 @@ function PageOverview() {
 
   const generateDailyBrief = () => {
     const today = new Date().toLocaleDateString("en-AU", { day:"numeric", month:"long", year:"numeric" });
+    const prioritySections = priority.length === 0 ? ["None."] : priority.map(s => {
+      const brief = buildBriefSections(s);
+      return [
+        `### ${brief.meta.id} - ${brief.title}`,
+        `Source: ${brief.meta.source} | Confidence: ${brief.meta.confidence}/5`,
+        brief.summary,
+        `**Action:** ${brief.recommendedAction.label}. ${brief.recommendedAction.reason}`,
+        ``,
+      ].join("\n");
+    });
+    const restSections = rest.length === 0 ? ["None."] : rest.map(s => {
+      const brief = buildBriefSections(s);
+      return `- [${brief.meta.id}] ${brief.title} - ${brief.recommendedAction.label}`;
+    });
     const lines = [
       `# Parliamentary Daily Signal Brief — ${today}`,
       `Generated: ${new Date().toISOString()}`,
       `Total signals: ${priority.length + rest.length} · Priority: ${priority.length}`,
       ``,
       `## Priority signals`,
-      ...(priority.length === 0 ? ["None."] : priority.map(s => [
-        `### ${s.id} — ${s.title}`,
-        `Source: ${s.source} | Confidence: ${s.confidence}/5`,
-        s.summary,
-        `**Action:** ${s.action}. ${s.actionReason}`,
-        ``,
-      ].join("\n"))),
+      ...prioritySections,
       `## All other signals`,
-      ...(rest.length === 0 ? ["None."] : rest.map(s => `- [${s.id}] ${s.title} — ${s.action}`)),
+      ...restSections,
     ].join("\n");
     navigator.clipboard.writeText(lines)
       .then(() => toast("Daily brief copied to clipboard", "brass"))
@@ -296,10 +300,12 @@ const APH_LIVE = {
 };
 
 function LiveBroadcast({ which, toast }) {
-  const cfg = APH_LIVE[which] || APH_LIVE.house;
+  const [embedTarget, setEmbedTarget] = React.useState({ which, nonce: 0 });
+  const cfg = APH_LIVE[embedTarget.which] || APH_LIVE.house;
   // mode: "embed" = YouTube live_stream iframe ; "offline" = explicit fallback
   const [mode, setMode] = React.useState("embed");
   const [nonce, setNonce] = React.useState(0); // bump to force reload
+  const embedReady = embedTarget.which === which && embedTarget.nonce === nonce;
   // F9: a cross-origin iframe cannot expose true playback state, so we treat the
   // stream as unconfirmed until the iframe fires onLoad. If no load arrives within
   // the timeout we auto-switch to the offline panel. The LIVE badge is never shown
@@ -311,26 +317,29 @@ function LiveBroadcast({ which, toast }) {
   React.useEffect(() => {
     setMode("embed");
     setLoaded(false);
+    const id = setTimeout(() => setEmbedTarget({ which, nonce }), 300);
+    return () => clearTimeout(id);
   }, [which, nonce]);
 
   // Auto-switch to offline if the embed has not loaded within the timeout window.
   React.useEffect(() => {
-    if (mode !== "embed") return;
+    if (mode !== "embed" || !embedReady) return;
     const id = setTimeout(() => {
       if (!loaded) setMode("offline");
     }, 6000);
     return () => clearTimeout(id);
-  }, [mode, loaded, which, nonce]);
+  }, [mode, loaded, embedReady]);
 
   return (
     <div className="live-wrap" style={{background:"#000", aspectRatio:"16/9", position:"relative", overflow:"hidden", borderRadius:10, border:"1px solid var(--line-2)"}}>
-      {mode === "embed" && (
+      {mode === "embed" && embedReady && (
         <iframe
-          key={which + "-" + nonce}
+          key={embedTarget.which + "-" + embedTarget.nonce}
           src={cfg.url}
           title={`AUSParliamentLive — ${cfg.label}`}
           allow="autoplay; encrypted-media"
           allowFullScreen
+          loading="lazy"
           referrerPolicy="strict-origin-when-cross-origin"
           onLoad={() => setLoaded(true)}
           style={{position:"absolute", inset:0, width:"100%", height:"100%", border:0}}
@@ -1012,9 +1021,9 @@ function PageBills() {
             const headers = ["ref","title","stage","portfolio","digest","owner","attention"];
             const rows = BILLS.map(b => [
               b.ref,
-              `"${(b.title || "").replace(/"/g,'""')}"`,
-              `"${(b.stage || "").replace(/"/g,'""')}"`,
-              `"${(b.portfolio || "").replace(/"/g,'""')}"`,
+              b.title,
+              b.stage,
+              b.portfolio,
               b.digest,
               (state.owners[b.ref] || b.owner),
               b.att,
@@ -1277,7 +1286,7 @@ function PagePatterns() {
 // ---------- BRIEFINGS ----------
 function PageBriefings() {
   const [selId, setSelId] = useState(null);
-  const { toast, state, setSignalSearchQuery } = useStore();
+  const { toast, state, setSignalSearchQuery, navigate } = useStore();
 
   // Merge drawer-generated briefs into the queue
   const generated = Object.entries(state.briefsGenerated || {}).map(([sid, v]) => {
@@ -1309,7 +1318,7 @@ function PageBriefings() {
           <h1 className="page-title">Briefings</h1>
           <div className="page-sub">Every brief follows a required structure: What happened · Source · Why it matters · Recommended action · Evidence · Uncertainty · Human review.</div>
         </div>
-        <button className="btn primary" title="Open signals to generate a brief" onClick={() => { setSignalSearchQuery(""); window.__setPage?.("signals"); }}><Icon name="plus" size={13}/> New brief</button>
+        <button className="btn primary" title="Open signals to generate a brief" onClick={() => { setSignalSearchQuery(""); navigate("signals"); }}><Icon name="plus" size={13}/> New brief</button>
       </div>
 
       <div className="grid" style={{gridTemplateColumns:"280px 1fr", gap:16}}>
@@ -1344,26 +1353,29 @@ function PageBriefings() {
               const b = selected;
               if (!b) return <div className="empty">No briefs in the queue.</div>;
               const sig = b._sid ? SIGNALS.find(s => s.id === b._sid) : null;
-              if (sig) return (
+              if (sig) {
+                const brief = buildBriefSections(sig);
+                return (
                 <div className="brief">
-                  <div className="meta">PARLIAMENT PULSE · {b.type.toUpperCase()} · {sig.date} · {sig.time}</div>
-                  <h3>{sig.title}</h3>
+                  <div className="meta">PARLIAMENT PULSE · {b.type.toUpperCase()} · {brief.meta.date} · {brief.meta.time}</div>
+                  <h3>{brief.title}</h3>
                   <h5>What happened</h5>
-                  <div>{sig.summary}</div>
+                  <div>{brief.summary}</div>
                   <h5>Source</h5>
-                  <div>{sig.source} · {sig.sourceAuthority} · {sig.date}</div>
+                  <div>{brief.meta.source} · {brief.meta.sourceAuthority} · {brief.meta.date}</div>
                   <h5>Why it matters</h5>
-                  <div>{sig.attentionReason}</div>
+                  <div>{brief.whyItMatters}</div>
                   <h5>Recommended action</h5>
-                  <div><strong>{sig.action}.</strong> {sig.actionReason}</div>
-                  {sig.evidence?.length > 0 && <>
+                  <div><strong>{brief.recommendedAction.label}.</strong> {brief.recommendedAction.reason}</div>
+                  {brief.evidence.length > 0 && <>
                     <h5>Evidence</h5>
-                    <ul>{sig.evidence.map((e,i) => <li key={i}><a href={e.url} target="_blank" rel="noopener noreferrer" style={{color:"var(--brief-link)", textDecoration:"underline"}}>{e.label}</a></li>)}</ul>
+                    <ul>{brief.evidence.map((e,i) => <li key={i}><a href={e.url} target="_blank" rel="noopener noreferrer" style={{color:"var(--brief-link)", textDecoration:"underline"}}>{e.label}</a></li>)}</ul>
                   </>}
                   <h5>Provenance</h5>
-                  <div>Signal ID: {sig.id} · Confidence: {sig.confidence}/5 · Human review: {sig.humanReview}</div>
+                  <div>{brief.provenance}</div>
                 </div>
-              );
+                );
+              }
               return (
                 <div className="brief">
                   <div className="meta">PARLIAMENT PULSE · {b.type.toUpperCase()} · 24 APR 2026 · 08:20</div>

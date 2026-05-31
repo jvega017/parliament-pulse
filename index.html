@@ -10,6 +10,14 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Serif:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
+  @font-face {
+    font-family: "IBM Plex Sans Fallback";
+    src: local("Arial");
+    size-adjust: 96%;
+    ascent-override: 101%;
+    descent-override: 28%;
+    line-gap-override: 0%;
+  }
   :root {
     /* Parliament Pulse — Fire House warm near-black, ember sovereign */
     /* One ink, two-step elevation, one sovereign ember accent. Teal is verification-only. */
@@ -52,7 +60,7 @@
 
     --shadow: 0 1px 0 #00000060, 0 20px 50px -28px #00000090;
 
-    --sans: "IBM Plex Sans", system-ui, sans-serif;
+    --sans: "IBM Plex Sans", "IBM Plex Sans Fallback", system-ui, sans-serif;
     --serif: "IBM Plex Serif", Georgia, serif;
     --mono: "IBM Plex Mono", ui-monospace, monospace;
 
@@ -327,6 +335,8 @@
     background: #ffffff04;
   }
   .top-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+  .nav-toggle { display: none; flex: none; }
+  .mobile-nav-back { display: none; }
   .chip {
     font-family: var(--mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase;
     padding: 4px 9px; border-radius: 999px;
@@ -735,13 +745,23 @@
   }
   @media (max-width: 780px) {
     .app { grid-template-columns: 1fr; }
-    /* Sidebar becomes a compact horizontal nav strip instead of a tall scroll wall (UX-3 interim, CSS-only). */
-    .side { position: static; height: auto; }
-    .side .nav { display: flex; flex-direction: row; overflow-x: auto; padding: 6px 8px; gap: 4px; -webkit-overflow-scrolling: touch; }
-    .side .nav > div { display: contents; }   /* flatten group wrappers so items sit in the row */
-    .side .nav-group { display: none; }
-    .side .nav-item { white-space: nowrap; flex: 0 0 auto; }
-    .side-foot { display: none; }
+    .nav-toggle { display: inline-flex; }
+    .mobile-nav-back { display: block; }
+    .side {
+      position: fixed;
+      inset: 0 auto 0 0;
+      width: min(82vw, 320px);
+      height: 100vh;
+      z-index: 50;
+      transform: translateX(-104%);
+      transition: transform var(--dur-page) var(--ease-entrance);
+      box-shadow: 20px 0 60px #00000080;
+    }
+    .side.mobile-open { transform: translateX(0); }
+    .side .nav { display: block; overflow-y: auto; padding: 10px 8px; }
+    .side .nav-group { display: block; }
+    .side .nav-item { white-space: normal; }
+    .side-foot { display: flex; }
     .g-2, .g-3 { grid-template-columns: 1fr; }
     /* Collapse every multi-column grid to one column. !important overrides the inline grid templates (UX-4). */
     .command-strip, .live-strip { grid-template-columns: 1fr !important; }

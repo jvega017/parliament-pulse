@@ -2,6 +2,23 @@
 
 const IS_MAC = /Mac|iPad/i.test(navigator.platform);
 
+function fmtClock() {
+  return new Date().toLocaleTimeString("en-AU", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
+}
+
+function TopClock() {
+  const [clock, setClock] = React.useState(fmtClock);
+  React.useEffect(() => {
+    const id = setInterval(() => setClock(fmtClock()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  return (
+    <span className="mono top-clock" aria-label="Local time" title="Local time" style={{fontSize:12, color:"var(--ink-3)", letterSpacing:".06em", fontVariantNumeric:"tabular-nums"}}>
+      {clock}
+    </span>
+  );
+}
+
 function DesignStateBanner() {
   const key = "pp-design-banner-dismissed";
   const [visible, setVisible] = React.useState(() => !sessionStorage.getItem(key));
@@ -35,7 +52,7 @@ const ICONS = {
   watchlists: "watch", sources: "sources", live: "signal", signals: "signal",
 };
 
-function Sidebar({ page, setPage }) {
+function Sidebar({ page, onNavigate, mobileOpen }) {
   const { state } = useStore();
   const navCount = React.useMemo(() => {
     const active = SIGNALS.filter(s => !state.archived[s.id]);
@@ -55,7 +72,7 @@ function Sidebar({ page, setPage }) {
   }, [state.archived, state.briefsGenerated, state.watchlistCreated, state.feeds]);
   const groups = [...new Set(NAV.map(n => n.group))];
   // Streak: consecutive days the tool has been opened — reflection of practice, not gamification.
-  // Compute the display value without side effects so the lazy initialiser is pure (StrictMode-safe).
+  // Compute the display value without side effects so the lazy initialiser is pure if dev StrictMode is added.
   const [streak, setStreak] = React.useState(() => {
     const today = new Date().toISOString().slice(0, 10);
     const last = localStorage.getItem("pp-last-open-date");
@@ -65,8 +82,7 @@ function Sidebar({ page, setPage }) {
     const yStr = yest.toISOString().slice(0, 10);
     return (last === yStr) ? count + 1 : 1;
   });
-  // F5: the localStorage WRITE runs once on mount inside an effect, so React StrictMode's
-  // double-invocation of the render body cannot double-count or corrupt the streak.
+  // F5: the localStorage WRITE runs after mount, so render itself cannot double-count or corrupt the streak.
   React.useEffect(() => {
     const today = new Date().toISOString().slice(0, 10);
     if (localStorage.getItem("pp-last-open-date") === today) return;
@@ -79,7 +95,7 @@ function Sidebar({ page, setPage }) {
     setStreak(newCount);
   }, []);
   return (
-    <aside className="side">
+    <aside className={"side" + (mobileOpen ? " mobile-open" : "")}>
       <div className="brand">
         <div className="brand-mark">
           <svg width="26" height="26" viewBox="0 0 22 22" fill="none">
@@ -102,7 +118,7 @@ function Sidebar({ page, setPage }) {
           <div className="brand-sub">Prometheus Policy Lab</div>
         </div>
       </div>
-      <nav className="nav" aria-label="Main navigation">
+      <nav id="main-navigation" className="nav" aria-label="Main navigation">
         {groups.map(g => (
           <div key={g}>
             <div className="nav-group">{g}</div>
@@ -110,10 +126,10 @@ function Sidebar({ page, setPage }) {
               <div
                 key={n.id}
                 className={"nav-item" + (page === n.id ? " active" : "")}
-                onClick={() => setPage(n.id)}
+                onClick={() => onNavigate(n.id)}
                 role="button" tabIndex={0}
                 aria-current={page === n.id ? "page" : undefined}
-                onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setPage(n.id); } }}
+                onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onNavigate(n.id); } }}
               >
                 <Icon name={ICONS[n.id]} size={15} className="ico" />
                 <span>{n.label}</span>
@@ -170,8 +186,8 @@ function ShortcutHelp() {
   );
 }
 
-function Topbar({ setPage }) {
-  const { openModal, openSignal, toast, modal, signalId, setSignalSearchQuery, requestLiveRefresh, consumeLiveRefresh } = useStore();
+function Topbar({ mobileNavOpen, setMobileNavOpen }) {
+  const { openModal, openSignal, toast, modal, signalId, setSignalSearchQuery, requestLiveRefresh, consumeLiveRefresh, navigate } = useStore();
   const [q, setQ] = React.useState("");
   const [open, setOpen] = React.useState(false);
   const [cursor, setCursor] = React.useState(-1);
@@ -179,14 +195,6 @@ function Topbar({ setPage }) {
   const [focused, setFocused] = React.useState(false);
   const ref = React.useRef(null);
   const searchRef = React.useRef(null);
-
-  // Plex Mono live clock — Brisbane local time, refreshed every second
-  const fmtClock = () => new Date().toLocaleTimeString("en-AU", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
-  const [clock, setClock] = React.useState(fmtClock);
-  React.useEffect(() => {
-    const id = setInterval(() => setClock(fmtClock()), 1000);
-    return () => clearInterval(id);
-  }, []);
 
   React.useEffect(() => {
     const h = (e) => {
@@ -229,13 +237,13 @@ function Topbar({ setPage }) {
     if (!results) return [];
     return [
       ...results.sig.slice(0,4).map(s => ({ kind:"signal", key:s.id, label:s.title, sub:s.id, act:() => { openSignal(s.id); } })),
-      ...(results.sig.length > 4 ? [{ kind:"signalsAll", key:"signals-all", label:`See all ${results.sig.length} signals`, sub:q, act:() => { setSignalSearchQuery(q); setPage("signals"); } }] : []),
+      ...(results.sig.length > 4 ? [{ kind:"signalsAll", key:"signals-all", label:`See all ${results.sig.length} signals`, sub:q, act:() => { setSignalSearchQuery(q); navigate("signals"); } }] : []),
       ...results.bills.map(b => ({ kind:"bill", key:b.ref, label:b.title, sub:b.ref, act:() => { openModal("bill", b.ref); } })),
       ...results.comm.map(c => ({ kind:"committee", key:c.id, label:c.name, sub:c.chamber, act:() => { openModal("committee", c.id); } })),
       ...results.mem.map(m => ({ kind:"member", key:m.id, label:m.name, sub:m.party, act:() => { openModal("member", m.id); } })),
       ...results.feeds.slice(0,4).map(f => ({ kind:"feed", key:f.id, label:f.name, sub:f.group, act:() => { openModal("feed", f.id); } })),
     ];
-  }, [results]);
+  }, [results, q, openSignal, openModal, setSignalSearchQuery, navigate]);
 
   React.useEffect(() => setCursor(-1), [q]);
 
@@ -259,6 +267,15 @@ function Topbar({ setPage }) {
 
   return (
     <div className="topbar">
+      <button
+        className="btn ghost sm nav-toggle"
+        aria-label={mobileNavOpen ? "Close navigation" : "Open navigation"}
+        aria-expanded={mobileNavOpen}
+        aria-controls="main-navigation"
+        onClick={() => setMobileNavOpen(open => !open)}
+      >
+        <Icon name="menu" size={15} />
+      </button>
       <div ref={searchRef} className={"search" + (focused ? " focused" : "")} onClick={() => setOpen(true)}
         style={focused ? {borderColor:"var(--brass)", boxShadow:"0 0 0 3px var(--brass-soft)"} : undefined}>
         <Icon name="search" size={14} stroke={focused ? "var(--brass)" : "var(--ink-3)"} />
@@ -349,19 +366,19 @@ function Topbar({ setPage }) {
         )}
       </div>
       <div className="top-right">
-        <span className="mono top-clock" aria-label="Local time" title="Local time" style={{fontSize:12, color:"var(--ink-3)", letterSpacing:".06em", fontVariantNumeric:"tabular-nums"}}>{clock}</span>
-        <span className="chip clk live-chip" onClick={() => setPage("live")} style={{borderColor:"var(--ember-flash)", color:"var(--ink)", background:"transparent"}}>
+        <TopClock />
+        <span className="chip clk live-chip" onClick={() => navigate("live")} style={{borderColor:"var(--ember-flash)", color:"var(--ink)", background:"transparent"}}>
           <span className="dot pulse-dot" style={{background:"var(--ember-flash)"}}/> Parliament live
         </span>
         <span className="chip sources-chip" title="Official feeds configured"><span className="dot" /> {sourceCounts().total} sources</span>
         <button className="btn ghost sm shortcut-btn" title="Go to Live parliament and refresh feeds there" onClick={() => {
           requestLiveRefresh();
-          setPage("live");
+          navigate("live");
           if (window.__refreshLiveFeeds) { consumeLiveRefresh(); window.__refreshLiveFeeds(); toast("Refreshing live feeds..."); }
           else toast("Opening Live page to refresh feeds", "brass");
         }}><Icon name="refresh" size={13} /> Refresh live</button>
         <button className="btn sm" title="Placeholder: alerts backend not wired" onClick={() => toast("Alerts (demo): no alerts backend is wired", "brass")}><Icon name="bell" size={13} /> Alerts</button>
-        <button className="btn primary sm" onClick={() => setPage("briefings")}><Icon name="plus" size={13} /> New brief</button>
+        <button className="btn primary sm" onClick={() => navigate("briefings")}><Icon name="plus" size={13} /> New brief</button>
         <ShortcutHelp />
         <button className="btn ghost sm" title={isDark ? "Switch to light mode" : "Switch to dark mode"} aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"} onClick={() => {
           const next = isDark ? "light" : "dark";
@@ -393,10 +410,40 @@ function Conf({ n = 3 }) {
   );
 }
 
+function buildBriefSections(s) {
+  const evidence = (s.evidence || []).map(e => ({ label: e.label, url: e.url }));
+  return {
+    title: s.title,
+    meta: {
+      id: s.id,
+      date: s.date,
+      time: s.time,
+      source: s.source,
+      sourceAuthority: s.sourceAuthority,
+      attention: s.attention,
+      confidence: s.confidence,
+      humanReview: s.humanReview,
+    },
+    summary: s.summary,
+    whyItMatters: s.attentionReason,
+    recommendedAction: {
+      label: s.action,
+      reason: s.actionReason,
+    },
+    evidence,
+    provenance: `Signal ID: ${s.id} | Confidence: ${s.confidence}/5 | Human review: ${s.humanReview}`,
+  };
+}
+
 function SignalCard({ s }) {
   const { openSignal, state, isWatched } = useStore();
-  const archived = state.archived[s.id];
+  const archived = !!state.archived[s.id];
+  const feedback = state.feedback[s.id];
   const watched = isWatched(s.id);
+  return <SignalCardView s={s} archived={archived} feedback={feedback} watched={watched} openSignal={openSignal} />;
+}
+
+const SignalCardView = React.memo(function SignalCardView({ s, archived, feedback, watched, openSignal }) {
   if (archived) return null;
   return (
     <div className="signal" data-att={s.attention} onClick={() => openSignal(s.id)} role="button" tabIndex={0} aria-label={`Signal: ${s.title}`} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openSignal(s.id); } }}>
@@ -418,9 +465,9 @@ function SignalCard({ s }) {
         <span className="sig-action-value">{s.action}</span>
         <Conf n={s.confidence} />
       </div>
-      {state.feedback[s.id] && (
+      {feedback && (
         <div style={{marginTop:8, fontSize:11.5, color:"var(--brass)"}}>
-          <Icon name="check" size={12} style={{verticalAlign:"-2px", marginRight:4}}/> Feedback: {state.feedback[s.id].label}
+          <Icon name="check" size={12} style={{verticalAlign:"-2px", marginRight:4}}/> Feedback: {feedback.label}
         </div>
       )}
       {watched && (
@@ -430,37 +477,38 @@ function SignalCard({ s }) {
       )}
     </div>
   );
-}
+});
 
 function generateBriefMarkdown(s) {
-  const evidence = (s.evidence || []).map(e => `- [${e.label}](${e.url})`).join("\n");
+  const brief = buildBriefSections(s);
+  const evidence = brief.evidence.map(e => `- [${e.label}](${e.url})`).join("\n");
   return [
     `> DRAFT — generated from fixture demonstration data. Not for distribution.`,
     ``,
-    `# Executive Brief — ${s.title}`,
-    `Date: ${s.date} | Source: ${s.source} | Priority: ${(s.attention || "").toUpperCase()}`,
+    `# Executive Brief — ${brief.title}`,
+    `Date: ${brief.meta.date} | Source: ${brief.meta.source} | Priority: ${(brief.meta.attention || "").toUpperCase()}`,
     ``,
     `## Summary`,
-    s.summary,
+    brief.summary,
     ``,
     `## Why it matters`,
-    s.attentionReason,
+    brief.whyItMatters,
     ``,
     `## Recommended action`,
-    `**${s.action}**`,
-    s.actionReason,
+    `**${brief.recommendedAction.label}**`,
+    brief.recommendedAction.reason,
     ``,
     `## Evidence`,
     evidence || "_No evidence links recorded._",
     ``,
     `## Provenance`,
-    `Signal ID: ${s.id} | Confidence: ${s.confidence}/5 | Human review: ${s.humanReview}`,
+    brief.provenance,
     `Generated: ${new Date().toISOString()}`,
   ].join("\n");
 }
 
 function Drawer() {
-  const { signalId, openSignal, closeSignal, state, modal, saveFeedback, archive, addWatchlist, isWatched, saveNote, generateBrief, toast, visibleSignalOrder } = useStore();
+  const { signalId, openSignal, closeSignal, state, modal, saveFeedback, archive, addWatchlist, isWatched, saveNote, generateBrief, toast, visibleSignalOrder, navigate } = useStore();
   const signal = React.useMemo(() => SIGNALS.find(s => s.id === signalId), [signalId]);
   const [fb, setFb] = React.useState(null);
   const [note, setNote] = React.useState("");
@@ -472,6 +520,7 @@ function Drawer() {
   const noteSavedTimerRef = React.useRef(null);
   React.useEffect(() => { noteRef.current = note; }, [note]);
   React.useEffect(() => { noteSigRef.current = signalId; }, [signalId]);
+  // Invariant: flushNote must run before close/navigation, while the reset effect below only runs on signalId changes so it cannot erase unsaved typing during unrelated store updates.
   const flushNote = React.useCallback(() => {
     const sid = noteSigRef.current;
     if (sid && noteRef.current !== (state.notes[sid] || "")) {
@@ -562,7 +611,7 @@ function Drawer() {
         const s = SIGNALS.find(x => x.id === signalId);
         if (s) {
           navigator.clipboard.writeText(generateBriefMarkdown(s))
-            .then(() => { generateBrief(s.id, "Executive brief"); toast("Brief copied to clipboard", "brass", { label: "Open briefings", fn: () => window.__setPage("briefings") }); })
+            .then(() => { generateBrief(s.id, "Executive brief"); toast("Brief copied to clipboard", "brass", { label: "Open briefings", fn: () => navigate("briefings") }); })
             .catch(() => toast("Clipboard unavailable — brief not copied", "error"));
         }
       }
@@ -581,7 +630,7 @@ function Drawer() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [signalId, modal, visibleSigs, openSignal, closeSignal, archive, addWatchlist, generateBrief, toast, flushNote]);
+  }, [signalId, modal, visibleSigs, openSignal, closeSignal, archive, addWatchlist, generateBrief, toast, flushNote, navigate]);
 
   const on = !!signal;
   const s = signal || {};
@@ -724,7 +773,7 @@ function Drawer() {
             <div className="drawer-foot">
               <button className="btn primary" onClick={() => {
                 navigator.clipboard.writeText(generateBriefMarkdown(s))
-                  .then(() => { generateBrief(s.id, "Executive brief"); toast("Brief copied to clipboard", "brass", { label: "Open briefings", fn: () => window.__setPage("briefings") }); })
+                  .then(() => { generateBrief(s.id, "Executive brief"); toast("Brief copied to clipboard", "brass", { label: "Open briefings", fn: () => navigate("briefings") }); })
                   .catch(() => toast("Clipboard unavailable — brief not copied", "error"));
               }}><Icon name="brief" size={13} /> Generate brief</button>
               <button className="btn" onClick={() => addWatchlist(s.id)} style={watched ? {borderColor:"var(--brass)", color:"var(--brass)"} : undefined}><Icon name="watch" size={13} /> {watched ? "Watching" : "Watchlist"}</button>
@@ -744,4 +793,4 @@ function Drawer() {
   );
 }
 
-Object.assign(window, { Sidebar, Topbar, SignalCard, Drawer, Att, Conf, DesignStateBanner });
+Object.assign(window, { Sidebar, Topbar, TopClock, SignalCard, Drawer, Att, Conf, DesignStateBanner, buildBriefSections });

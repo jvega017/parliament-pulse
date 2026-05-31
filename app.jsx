@@ -25,7 +25,15 @@ class ErrorBoundary extends React.Component {
 
 function App() {
   const [page, setPage] = React.useState("overview");
-  React.useEffect(() => { window.__setPage = setPage; }, []);
+  const [mobileNavOpen, setMobileNavOpen] = React.useState(false);
+  const navigate = React.useCallback((nextPage) => {
+    setPage(nextPage);
+    setMobileNavOpen(false);
+  }, []);
+  React.useEffect(() => {
+    window.__setPage = navigate;
+    return () => { window.__setPage = null; };
+  }, [navigate]);
   React.useEffect(() => {
     const saved = localStorage.getItem("pp-theme");
     if (saved) document.documentElement.dataset.theme = saved;
@@ -49,12 +57,13 @@ function App() {
   };
 
   return (
-    <StoreProvider>
+    <StoreProvider navigate={navigate}>
       <div className="app">
-        <Sidebar page={page} setPage={setPage} />
+        <div className={"drawer-back mobile-nav-back" + (mobileNavOpen ? " on" : "")} onClick={() => setMobileNavOpen(false)} aria-hidden="true" />
+        <Sidebar page={page} onNavigate={navigate} mobileOpen={mobileNavOpen} />
         <div className="main">
           <DesignStateBanner />
-          <Topbar setPage={setPage} />
+          <Topbar mobileNavOpen={mobileNavOpen} setMobileNavOpen={setMobileNavOpen} />
           <div className="content"><ErrorBoundary>{renderPage()}</ErrorBoundary></div>
         </div>
         <ErrorBoundary><Drawer /></ErrorBoundary>

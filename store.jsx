@@ -79,7 +79,7 @@ function watchlistMatches(w) {
   }));
 }
 
-function StoreProvider({ children }) {
+function StoreProvider({ children, navigate = () => {} }) {
   // Owners assigned to signals/bills, feedback given, watchlist additions, toasts
   const [state, setState] = React.useState(() => {
     try {
@@ -97,28 +97,28 @@ function StoreProvider({ children }) {
   }, [state]);
 
   const [toasts, setToasts] = React.useState([]);
-  const toast = (msg, kind = "ok", action = null) => {
+  const toast = React.useCallback((msg, kind = "ok", action = null) => {
     const id = Math.random().toString(36).slice(2);
     setToasts(t => [...t, { id, msg, kind, action }]);
     setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), action ? 5000 : 2800);
-  };
+  }, []);
 
   const [modal, setModal] = React.useState(null); // { type, id }
-  const openModal = (type, id) => setModal({ type, id });
-  const closeModal = () => setModal(null);
+  const openModal = React.useCallback((type, id) => setModal({ type, id }), []);
+  const closeModal = React.useCallback(() => setModal(null), []);
 
   const [signalId, setSignalId] = React.useState(null);
-  const openSignal = s => setSignalId(typeof s === "string" ? s : s?.id);
-  const closeSignal = () => setSignalId(null);
+  const openSignal = React.useCallback(s => setSignalId(typeof s === "string" ? s : s?.id), []);
+  const closeSignal = React.useCallback(() => setSignalId(null), []);
   const [visibleSignalOrder, setVisibleSignalOrder] = React.useState(null);
   const [signalSearchQuery, setSignalSearchQuery] = React.useState("");
   const pendingLiveRefreshRef = React.useRef(false);
-  const requestLiveRefresh = () => { pendingLiveRefreshRef.current = true; };
-  const consumeLiveRefresh = () => {
+  const requestLiveRefresh = React.useCallback(() => { pendingLiveRefreshRef.current = true; }, []);
+  const consumeLiveRefresh = React.useCallback(() => {
     const pending = pendingLiveRefreshRef.current;
     pendingLiveRefreshRef.current = false;
     return pending;
-  };
+  }, []);
 
   React.useEffect(() => {
     const prev = document.body.style.overflow;
@@ -133,15 +133,18 @@ function StoreProvider({ children }) {
     return () => { window.__openModal = null; window.__openSignal = null; };
   }, []);
 
-  const assignOwner = (entityId, owner) => {
+  const assignOwner = React.useCallback((entityId, owner) => {
     setState(s => ({ ...s, owners: { ...s.owners, [entityId]: owner } }));
     toast(`Assigned ${owner} as policy owner`);
-  };
-  const saveFeedback = (signalId, label, reason) => {
+  }, [toast]);
+  const saveFeedback = React.useCallback((signalId, label, reason) => {
     setState(s => ({ ...s, feedback: { ...s.feedback, [signalId]: { label, reason, ts: Date.now() } } }));
     toast(`Feedback logged: ${label}`, "brass");
-  };
-  const archive = (signalId) => {
+  }, [toast]);
+  const unarchive = React.useCallback((signalId) => {
+    setState(s => { const n = { ...s.archived }; delete n[signalId]; return { ...s, archived: n }; });
+  }, []);
+  const archive = React.useCallback((signalId) => {
     let remaining = 0;
     setState(s => {
       const archived = { ...s.archived, [signalId]: true };
@@ -152,11 +155,8 @@ function StoreProvider({ children }) {
     });
     const msg = remaining > 0 ? `${signalId} archived · ${remaining} remaining` : "All signals reviewed";
     toast(msg, "ok", { label: "Undo", fn: () => unarchive(signalId) });
-  };
-  const unarchive = (signalId) => {
-    setState(s => { const n = { ...s.archived }; delete n[signalId]; return { ...s, archived: n }; });
-  };
-  const addWatchlist = (key) => {
+  }, [toast, unarchive]);
+  const addWatchlist = React.useCallback((key) => {
     // Persist the flag and report the real running count so the action is
     // observable, not a bare success toast. The flag survives reload and can
     // be read back via state.watchlistAdds.
@@ -173,17 +173,17 @@ function StoreProvider({ children }) {
       return { ...s, watchlistAdds };
     });
     toast(already ? "Already on watchlist" : `Saved to watchlist, ${total} tracked`, "brass");
-  };
-  const isWatched = (key) => !!state.watchlistAdds[key];
-  const removeWatchlist = (key) => {
+  }, [toast]);
+  const isWatched = React.useCallback((key) => !!state.watchlistAdds[key], [state.watchlistAdds]);
+  const removeWatchlist = React.useCallback((key) => {
     setState(s => {
       const watchlistAdds = { ...s.watchlistAdds };
       delete watchlistAdds[key];
       return { ...s, watchlistAdds };
     });
     toast("Removed from watchlist", "brass");
-  };
-  const createWatchlist = (name) => {
+  }, [toast]);
+  const createWatchlist = React.useCallback((name) => {
     // Seed sensibly: derive keyword terms from the name and compute real match
     // counts against the current signal stream so a new watchlist is not a dead
     // zero row. trend is left flat and the entry is flagged new for the UI.
@@ -199,29 +199,40 @@ function StoreProvider({ children }) {
     };
     setState(s => ({ ...s, watchlistCreated: [...s.watchlistCreated, entry] }));
     toast(`Watchlist "${name}" created`, "brass");
-  };
-  const generateBrief = (signalId, type) => {
+  }, [toast]);
+  const generateBrief = React.useCallback((signalId, type) => {
     setState(s => ({ ...s, briefsGenerated: { ...s.briefsGenerated, [signalId]: { ts: Date.now(), type } } }));
-  };
-  const addFeed = (feed) => {
+  }, []);
+  const addFeed = React.useCallback((feed) => {
     setState(s => ({ ...s, feeds: [...s.feeds, feed] }));
     toast(`Feed added: ${feed.name}`, "brass");
-  };
-  const saveNote = (signalId, text) => {
+  }, [toast]);
+  const saveNote = React.useCallback((signalId, text) => {
     setState(s => ({ ...s, notes: { ...s.notes, [signalId]: text } }));
-  };
+  }, []);
 
-  return (
-    <StoreCtx.Provider value={{
+  const storeValue = React.useMemo(() => ({
       state, setState, toast, toasts,
       modal, openModal, closeModal,
       signalId, openSignal, closeSignal,
       visibleSignalOrder, setVisibleSignalOrder,
       signalSearchQuery, setSignalSearchQuery,
       requestLiveRefresh, consumeLiveRefresh,
+      navigate,
       assignOwner, saveFeedback, archive, unarchive,
       addWatchlist, removeWatchlist, isWatched, createWatchlist, generateBrief, addFeed, saveNote,
-    }}>
+  }), [
+    state, toasts, toast,
+    modal, openModal, closeModal,
+    signalId, openSignal, closeSignal,
+    visibleSignalOrder, signalSearchQuery,
+    requestLiveRefresh, consumeLiveRefresh,
+    navigate, assignOwner, saveFeedback, archive, unarchive,
+    addWatchlist, removeWatchlist, isWatched, createWatchlist, generateBrief, addFeed, saveNote,
+  ]);
+
+  return (
+    <StoreCtx.Provider value={storeValue}>
       {children}
       <div className="toast-wrap" aria-live="polite" aria-atomic="false">
         {toasts.map(t => (
