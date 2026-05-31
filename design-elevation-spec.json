@@ -1,0 +1,653 @@
+{
+  "summary": "Multi-lens design critique of the live Parliament Pulse screens, consolidated into a concrete elevation spec",
+  "agentCount": 6,
+  "logs": [
+    "Collected 5/5 design critiques"
+  ],
+  "result": {
+    "spec": {
+      "overall_grade": "6/10 — disciplined token system and a genuinely strong detail drawer, dragged down to amateur by dead hierarchy CSS, a shipped light-theme dark-card bug, and three competing notice bars above the fold.",
+      "headline": "1) Kill the top-of-page clutter: collapse the three stacked notice/onboarding bars into one 28px ribbon so the page title is the first thing in the viewport, not the fourth. 2) Make the hero stat real: the .cs-primary/.cs-secondary hierarchy exists in CSS but is never used in markup (pages.jsx renders four identical .panel.stat cards), so wire it up and the 48px-vs-28px contrast lands immediately. 3) Fix the light theme and de-noise: patch the dark-card light-theme bug, kill the competing ember pulses, and run one ember-discipline pass so the sovereign accent stops appearing on ~20 surfaces.",
+      "bugs": [
+        "Light-theme dark priority card: index.html line 751 .signal[data-att='high'] hardcodes background linear-gradient(160deg,#1f1614 0%,var(--panel) 100%) and is never overridden in the [data-theme='light'] block (line 167 only patches plain .signal). In light mode the high-attention card renders as a dark brown slab on warm cream paper. Add [data-theme='light'] .signal[data-att='high'] { background: linear-gradient(160deg,#fbe9dc 0%,var(--panel) 100%); } — or token-ise via --signal-high-bg (#1f1614 dark, #fbe9dc light).",
+        "Light-theme live-strip dark band: index.html line 895 .live-strip hardcodes linear-gradient(90deg,#1a1108 0%,var(--panel) 40%...). A [data-theme='light'] .live-strip override exists at line 200 but the base rule at 895 has equal specificity and is declared later, so the dark gradient wins. Move the light override after line 895 or raise its specificity.",
+        "Hero KPI uses ember-flash as a non-risk colour: pages.jsx line 144 inline style color:var(--ember-flash) on the priority count digit. ember-flash is reserved for LIVE/breaking/high (token comment, index.html line 53). A priority count is not a risk; it also collides with the live-strip ember 60px below. Replace with var(--brass) via a className.",
+        "Dead hierarchy CSS: .cs-primary/.cs-secondary (index.html 408-436) and .cs-count-up (438) are never referenced — pages.jsx line 137-163 renders all four cards as .panel.stat. The intended 1.6fr/48px hero vs 1fr/28px secondary contrast is dead in the markup. This is the main reason the strip looks like a wireframe.",
+        "cs-count-up is a misnomer: index.html line 439 @keyframes csCountUp is opacity-only (from opacity:0 to opacity:1). The class name and code comment claim a 600ms count-up flourish; the number just fades in. Either implement a real rAF count-up or rename so it does not falsely advertise.",
+        "Three synchronised ember pulses on one viewport: live-strip stripPulse (index.html 899-901), live-strip dot pulse (pages.jsx 169), and live-badge emberPulse (index.html 878). Plus the topbar live-chip pulse-dot (shell.jsx 408). WCAG 2.2.2 risk and visual restlessness. Keep at most one pulse per viewport.",
+        "Duplicate clock: TopClock in topbar shows HH:MM:SS (shell.jsx 406, ticks every second) and the live-strip shows AEST HH:MM (pages.jsx 171) within ~200px. Same data, two precisions, two colours (ink-3 vs ember-flash). Remove the live-strip clock; keep the topbar clock and drop it to minute precision to stop the secondhand redraw.",
+        "Drawer attention-score bars use verification teal for a non-verification metric: index.html line 652 .bar .fill is var(--teal); the drawer score breakdown (shell.jsx 729) is brand-priority data, not verification. Colour-blind users cannot distinguish a 95 score from an ABS-verified flag. Move score bars to var(--brass); reserve teal strictly for verification (evidence link icon, source-health live dot, .fb.affirmative).",
+        "Magic-number red not in tokens: index.html line 303 .nav-item .count.nav-live uses background:#c4382f, a hardcoded hex with no :root token, a third live-red alongside ember-flash (#e0534b, line 874) and the .att.high coral (#ef6a5e, 542). Collapse to var(--ember-flash) or add a named --live-red token.",
+        "Source-health panel ships empty: pages.jsx 273-279 renders six rows of '—' dashes. The one panel that justifies the teal verification colour is colour-empty and reads as 'unfinished'. Populate with .hdot live/delayed/broken (shapes already defined at index.html 718-723) or hide behind a 'coming soon' kicker."
+      ],
+      "keep": [
+        "The signal detail drawer is the strongest part of the product and must not regress: full focus management (save/restore trigger focus, shell.jsx 593-601), tab trap (604-618), j/k/b/w/a keyboard nav (632-670), note autosave with flush-before-navigate (561-570), and correct aria-modal/role wiring. Re-style it, do not re-architect it.",
+        "Global search is genuinely good: ARIA combobox + listbox with aria-activedescendant, arrow-key cursor, grouped results across signals/bills/committees/members/feeds, click-outside and Escape handling (shell.jsx 226-404). Keep the behaviour intact.",
+        "Token system and contrast discipline: :root has a coherent ink scale, sovereign-ember inventory comment, AA-checked light-theme accents (index.html 122-162), tabular-nums on all numerics, and a prefers-reduced-motion block (968). The bones are professional; the leaks are the problem.",
+        "The brand mark already contains a real SVG Prometheus flame (shell.jsx 138-148), not an empty orb — do not replace the glyph. Only the box-shadow glow around it (index.html 263) is the dated tell.",
+        "Honest-data labelling (fixture/representative chips, neutral .chip-fixture styling) is the right instinct for a public demo. Consolidate it, do not delete the honesty layer — just stop it from competing for attention above the fold.",
+        "CSV export, brief-to-clipboard generation, watchlist/archive state, and the store wiring all function. This is a working product underneath; the work is surface craft, not rebuild."
+      ],
+      "redesign_spec": [
+        {
+          "priority": "P1",
+          "area": "Overview top — notice/onboarding clutter",
+          "file": "pages.jsx (PageOverview ~118-122) + shell.jsx (DesignStateBanner 22-33) + index.html",
+          "change": "Delete the .design-banner div at pages.jsx 118-121 and remove <OnboardingGuide /> at 122 from the default render path. Replace both with ONE 28px ribbon rendered top-right inside .page-head: a single line 'Demo data · live RSS only on Live page' using the existing neutral .chip-fixture token plus a '? How it works' chip that opens the onboarding content in a modal/popover (reuse OnboardingGuide body). Stop rendering DesignStateBanner above the page (it duplicates the representative-data message). Net: the page-kicker + title is the first thing in the viewport.",
+          "rationale": "Three stacked warning-coloured bars before any signal is the single biggest amateur tell; reclaiming ~300px above the fold is the highest-leverage change."
+        },
+        {
+          "priority": "P1",
+          "area": "Hero stat strip — wire the dead hierarchy",
+          "file": "pages.jsx (PageOverview 136-164)",
+          "change": "Replace the four .panel.stat divs with the real classes. Make 'Priority signals' the hero, not 'New signals today': first card <div className='cs-primary'> with .cs-stat-label + .cs-kpi rendering the priority count and an inline 'Triage now' ghost link that scrolls to the Priority panel; the other two ('Committee activity', 'Source health') as <div className='cs-secondary'>. Drop 'New signals today' to a cs-secondary tile or fold into the hero meta. Remove the inline borderLeft on line 137 (the .cs-primary CSS already supplies the 3px ember border) and remove the inline color:var(--ember-flash) on line 144. Change .command-strip grid (index.html 405) from 1.6fr 1fr 1fr 1fr to 2fr 1fr 1fr.",
+          "rationale": "The 48px-vs-28px hero contrast already exists in CSS but is never applied; wiring it is near-zero-risk and instantly removes the wireframe look while pointing the eye at the only number that drives a decision."
+        },
+        {
+          "priority": "P1",
+          "area": "Light theme — fix the shipped bugs",
+          "file": "index.html ([data-theme='light'] block, after line 209; and reorder line 895/200)",
+          "change": "Add: [data-theme='light'] .signal[data-att='high'] { background: linear-gradient(160deg,#fbe9dc 0%,var(--panel) 100%); } and equivalents for med/low if/when tinted. Add [data-theme='light'] .panel, [data-theme='light'] .cs-secondary { background: linear-gradient(180deg,var(--panel) 0%,#efe8d6 100%); } and [data-theme='light'] .cs-primary { background: radial-gradient(420px 140px at 0% 0%,rgba(154,82,25,.08),transparent),linear-gradient(180deg,var(--panel) 0%,#f7f1e3 100%); }. Move the existing [data-theme='light'] .live-strip rule to AFTER line 895 so it wins specificity.",
+          "rationale": "A visible theme bug on the marketing screenshot says 'unfinished' louder than any other flaw; these are additive overrides with zero dark-theme regression risk."
+        },
+        {
+          "priority": "P1",
+          "area": "Motion — stop competing pulses",
+          "file": "index.html (878-901) + pages.jsx (169) + shell.jsx (408)",
+          "change": "Delete the stripPulse animation on .live-strip (index.html 899-901) and keep a static 3px solid var(--ember-flash) left border. Keep exactly ONE pulse on the page: the live-badge dot (878) OR the live-strip dot (pages.jsx 169) — remove the other. Remove the pulse-dot animation from the topbar live-chip (shell.jsx 408). Optionally upgrade the surviving pulse to a breathing box-shadow halo (0%→70% scale 1→1.08 with expanding rgba ring) at 2s instead of the flat opacity blink at 879-880.",
+          "rationale": "Perpetual ambient motion that carries no information is a classic amateur tell and a WCAG 2.2.2 risk; one informational pulse is enough."
+        },
+        {
+          "priority": "P2",
+          "area": "Ember discipline — recover the sovereign accent",
+          "file": "index.html (multiple) + pages.jsx (144) + shell.jsx (418)",
+          "change": "Audit ember down to: brand mark, sidebar active-nav spine, ONE primary button per surface, focus-visible ring, LIVE chip/badge, and the high-attention spine. Move the .conf segments (index.html 557-562) to a single var(--brass) at stepped opacity (.4/.55/.7/.85/1.0) — delete the per-segment gradient and matching ramp in shell.jsx Conf (439). Move .conf and shell.jsx Conf gold use to --gold only on the brief preview. On Overview keep ONLY 'Generate daily brief' as .btn.primary; demote 'Watch live' (pages.jsx 181) and topbar 'New brief' (shell.jsx 418) to ghost/sm. Move table th underglow (#f08a3c1f, index.html 571) to --line.",
+          "rationale": "Ember currently appears on ~20 surfaces; one disciplined pass restores the 'one sovereign accent' the design system promises, with each demotion independently verifiable."
+        },
+        {
+          "priority": "P2",
+          "area": "Panel elevation — three tiers, not one",
+          "file": "index.html (.side 246, .topbar 319, .panel 458-463, .drawer 598, .modal 852)",
+          "change": "Establish three elevation tiers. Chrome (.side, .topbar): flat, no radius, single 1px var(--line) hairline, drop the sidebar gradient (set .side background:var(--side-start) only). Resident data panels (.panel): reduce radius from var(--r-lg) 14px to 6px, remove the var(--shadow) drop shadow and the inset 0 0 0 1px #ffffff08, replace depth with box-shadow:inset 0 1px 0 rgba(255,255,255,.03) (dark) / rgba(255,255,255,.5) (light). Overlays (.drawer,.modal,.toast,.search-results): keep 14px radius + shadow. Keep --shadow application only on overlays.",
+          "rationale": "One elevation pretending to be three produces the flat-cards-on-flat-bg template look; tonal/hairline depth instead of universal drop shadow is the premium-financial-UI technique and is low-risk."
+        },
+        {
+          "priority": "P2",
+          "area": "Signal card — declutter and strengthen the spine",
+          "file": "index.html (489-562, 751) + shell.jsx (SignalCardView 483-517)",
+          "change": "Collapse the .sig-head meta into one 20px line: id · source · time · attention pill, and fold the standalone .chip-fixture 'Fixture' into that row as a low-weight '· demo' (shell.jsx 491). Replace the dashed .sig-action border-top (index.html 525) with 1px solid var(--rule-2). Increase the high-attention spine from 4px to 6px with padding-left:18px (index.html 751). Remove the per-card .conf bar from the card surface (shell.jsx 503) and show confidence only in the drawer (it reads as a wifi/signal-strength glyph and dilutes ember); if a card cue is needed use a neutral mono '4/5' in --ink-3.",
+          "rationale": "Dashed borders and a packed status-ribbon read as a 2014 admin template; a clean meta line plus a strong spine triples readability with no data loss."
+        },
+        {
+          "priority": "P2",
+          "area": "Typography — cut the mono-uppercase noise",
+          "file": "index.html (.panel-kicker 472, .stat-label 480, .chip-fixture 965, .drawer-section h3 612)",
+          "change": "Keep the 10px mono-uppercase .18em treatment ONLY on .nav-group and .stat-label/.cs-stat-label. Convert .panel-kicker and .drawer-section h3 to sentence-case --ink-3 at 11-12px, drop letter-spacing from .18em to .08em. Change .chip-fixture from uppercase pill to sentence-case low-weight inline metadata. Raise .panel-title to 14px weight 500 so the panel hierarchy carries without the kicker shouting.",
+          "rationale": "The Bloomberg-terminal mono-label move only works when it is sparse; here it has become the dominant page texture, inverting the data-to-chrome ratio."
+        },
+        {
+          "priority": "P2",
+          "area": "Right rail — one panel, not three widgets",
+          "file": "pages.jsx (220-285) + index.html",
+          "change": "Wrap 'What changed', 'Briefing queue', 'Source health' into a SINGLE <div className='panel'> with three <div className='panel-section'> children separated by hairlines; remove per-section panel chrome. Add .panel-section { padding:16px; border-bottom:1px solid var(--line); } .panel-section:last-child{border-bottom:0} .panel-section-title { font-family:var(--mono); font-size:10px; letter-spacing:.18em; text-transform:uppercase; color:var(--ink-4); }. Delete the redundant Source-health summary (already shown as a KPI/nav count) or populate its dashes with hdot statuses.",
+          "rationale": "Three equal-weight widgets of identical chrome read as a 2018 sidebar pile; one cohesive intelligence rail reads as a workspace."
+        },
+        {
+          "priority": "P2",
+          "area": "Topbar — three to four elements, drop the blur",
+          "file": "shell.jsx (Topbar 305-427) + index.html (.topbar 319-327)",
+          "change": "Reduce the right cluster to: status pill ('LIVE · N sources' merging the live-chip and sources-chip), Alerts (icon-only), New brief (primary), theme toggle. Remove TopClock from the topbar (it duplicates the strip and footer) or keep one clock site only. Move 'Refresh live' to an icon next to search. Drop backdrop-filter:blur(8px) on the non-translucent header (index.html 325) and reduce padding from 14px 24px to 10px 20px.",
+          "rationale": "Eight elements make the command bar look busy; blur costs paint on every scroll for no visual gain on an opaque header."
+        },
+        {
+          "priority": "P2",
+          "area": "Mobile — above-the-fold triage",
+          "file": "index.html (@media max-width:780px, 810-844)",
+          "change": "Inside the 780px block add: .design-banner{display:none} .onboarding-guide{display:none} (wrap OnboardingGuide in that class), hide the right rail (What changed/Briefing queue/Source health), collapse the command strip to show only the Priority hero, and move the high-attention spine from border-left to border-top:3px so the accent does not stack into one repeating orange rail down the page (also add border-left-width:2px fallbacks). Tighten .command-strip gap to 10px and .panel-body padding to 12px.",
+          "rationale": "At 5,000px+ tall the current mobile view is unusable as a triage tool; the fixes are CSS-only and target ≤2 viewports before the first signal."
+        },
+        {
+          "priority": "P3",
+          "area": "Whitespace and hairline rhythm",
+          "file": "index.html (:root, .grid 441, .command-strip 405, .page-head 390, .panel borders)",
+          "change": "Add tokens --gap-section:32px, --gap-intra:8px, --rule-1:#ffffff14 (light rgba(80,50,20,.18)), --rule-2:#ffffff08 (light rgba(80,50,20,.08)). Use --gap-section between top-level blocks (page-head margin-bottom to 36px, panel margin-bottom to 32px), --gap-intra inside the command-strip. Apply --rule-1 to .panel and .panel-head borders and section boundaries; --rule-2 to table td and sub-rows.",
+          "rationale": "A uniform 14px gap everywhere means the eye cannot tell where one section ends; big-between/tight-within rhythm plus a two-tier hairline is the premium-terminal pattern."
+        },
+        {
+          "priority": "P3",
+          "area": "Brand mark — drop the dated glow",
+          "file": "index.html (.brand-mark 259-264)",
+          "change": "Keep the existing SVG Prometheus flame in shell.jsx (138-148). On .brand-mark remove all three box-shadows (inset ring, -2px glow, 0 0 glow), reduce size from 52px to 40px, and use a flat var(--brand-core) or var(--brass) background with border-radius 4px. Drop the 'Beta' chip from the public masthead (the demo-data ribbon already communicates pre-release).",
+          "rationale": "The glowing-sphere box-shadow is the AI-launch-deck trope; a flat confident mark (Bloomberg's flat orange B) reads as product, and the glyph already exists so this is shadow removal only."
+        },
+        {
+          "priority": "P3",
+          "area": "Drawer — single ember accent + tighter kv",
+          "file": "shell.jsx (Drawer 700-825) + index.html (.kv 618)",
+          "change": "De-emphasise the 'Recommended action' inset card (shell.jsx 703): change to background var(--panel-2) with a spine-only border (border-left:3px solid var(--brass); border-top/right/bottom:0) so the ember 'Generate brief' footer button is the sole filled ember in the drawer. Change .kv grid-template-columns from 140px 1fr to auto 1fr with column-gap 20px. In drawer-foot demote 'Watchlist' to .btn, move 'Archive' to an icon in the drawer-head with confirm, and delete the redundant bottom 'Close' button (the head X already closes).",
+          "rationale": "Two ember elements competing in one viewport breaks the sovereign-accent rule; a Bloomberg-style tight key-value list and a single primary action lift an already-strong drawer to professional."
+        },
+        {
+          "priority": "P3",
+          "area": "Sidebar nav and profile",
+          "file": "shell.jsx (NAV 72-84, side-foot 180-189)",
+          "change": "Collapse the four nav groups (Today/Parliament/Workflow/Admin) to two: 'Today' and 'Workspace' (fold Parliament + Workflow + Admin into Workspace). Right-align counts in --ink-3 not --ink-4 so they read as data. Reduce the side-foot to avatar + first name 'Juan' with a chevron that reveals role/settings on click; delete the 'Active N days this week' streak line (vanity metric, no decision value) for the public product.",
+          "rationale": "A 4:9 group-header-to-item ratio and an activity-streak vanity metric read as a single-user hobby dashboard, not a commercial product."
+        },
+        {
+          "priority": "P3",
+          "area": "Toast exit + count-up + focus ring polish",
+          "file": "index.html (.toast 904-912, .cs-count-up 438, :focus-visible 747) + app.jsx (toast removal)",
+          "change": "Add a toast exit: .toast.leaving { animation: toastOut 180ms cubic-bezier(0.4,0,1,1) forwards } with a translateY(6px) scale(.98) keyframe, and in the toast removal code add the class then setTimeout(remove,180). Replace the opacity-only csCountUp with a real rAF tween (0→target, easeOutQuart, guarded by prefers-reduced-motion) on the hero KPI. Soften :focus-visible with an added box-shadow:0 0 0 4px var(--accent-ring) and a 120ms transition.",
+          "rationale": "Toasts vanishing with no exit register subliminally as a glitch; a real count-up is the expected terminal flourish; these are finish-layer touches that separate polished from competent."
+        }
+      ]
+    },
+    "critiques": [
+      {
+        "lens": "Overall visual craft and production polish, judged against premium intelligence-terminal products (Bloomberg, Palantir, Linear, Vercel).",
+        "verdict": "It reads as a thoughtful dark-dashboard template with good token discipline buried under amateur surface-craft, the masthead is the only thing on screen that says \"product\"; everything below is uniform grey panels, cluttered with three competing notice bars, hero KPIs that look like a wireframe, and a light theme that ships with a visible rendering bug — Bloomberg this is not.",
+        "findings": [
+          {
+            "where": "Overview top region (dr-01, dr-02, dr-04) — design-banner + Representative-data banner + OnboardingGuide stacked above content",
+            "problem": "Three near-identical horizontal notice strips (design-state, representative-data, getting-started) stack on top of the title before any content appears. On desktop they push the page-title down ~190px; on mobile (dr-04) they consume the entire first screen. This is the single biggest amateur tell: a production intelligence product never makes the user scroll through onboarding chrome to reach today's signals.",
+            "fix": "In pages.jsx PageOverview: (1) merge the design-banner and the Representative-data .design-banner into ONE compact strip in shell.jsx, placed inside the topbar as a thin 24px bar with a single ember dot + 'Design data · Live RSS only on Live page' link. Delete the duplicate at pages.jsx line 118-121. (2) Replace the OnboardingGuide block with a single right-aligned chip in .page-head: '? How it works' that opens a modal. Remove the 3-column grid entirely from line 49-60. Net result: title is the first thing in the viewport, not the fourth.",
+            "impact": "high"
+          },
+          {
+            "where": "Overview hero KPI strip (dr-01, dr-02) — '6 / 3 / 7 / 6' cards across command-strip",
+            "problem": "The four hero stat cards are functionally identical rectangles. The 'cs-primary' / 'cs-secondary' split designed in the CSS (line 408-436, with the radial ember wash, 1.6fr column, larger 48px KPI vs 28px stat) is NEVER applied — pages.jsx line 137 uses className='panel stat hero-stat' on the first card instead of 'cs-primary', so all four cards render with identical .panel background, identical font sizes, identical borders. The intended hierarchy is dead in the markup. This is THE reason the dashboard looks generic.",
+            "fix": "In pages.jsx PageOverview (line 137-164): change the first card to <div className='cs-primary'><div className='cs-stat-label'>New signals today</div><div className='cs-kpi'>{n}<span className='unit'>signals</span></div>...</div> and the other three to <div className='cs-secondary'><div className='cs-stat-label'>...</div><div className='cs-stat'>...</div>...</div>. Delete the inline borderLeft on line 137 (the CSS rule already provides the 3px ember border via .cs-primary). The grid-template-columns: 1.6fr 1fr 1fr 1fr will then visibly favour the lead KPI 48px against 28px supporting stats.",
+            "impact": "high"
+          },
+          {
+            "where": "Light-theme overview hero (dr-02) — first card renders dark on warm-paper background",
+            "problem": "Confirmed bug. .panel has hardcoded `background: linear-gradient(180deg, var(--panel) 0%, var(--bg-2) 100%)` in base CSS (line 459). The [data-theme='light'] overrides only patch .signal, .drawer, .pattern, .wl, .toast etc. — never .panel. In light mode --panel resolves to #fdfaf2 and --bg-2 to #ebe4d4 which is fine in isolation, but because the JSX also adds inline `borderLeft:'3px solid var(--brass)'` and the cs-primary radial ember wash is defined separately, the visual reads as a brown smudge cell next to three cream cells. Worse, the chip border, KPI ink colour, and meta ink were tuned for dark and never re-tuned per-card for light.",
+            "fix": "Add to index.html under the [data-theme='light'] overrides block (around line 163): `[data-theme='light'] .panel { background: linear-gradient(180deg, var(--panel) 0%, #f7f1e3 100%); }` and `[data-theme='light'] .cs-primary { background: radial-gradient(420px 140px at 0% 0%, rgba(154,82,25,.08), transparent), linear-gradient(180deg, var(--panel) 0%, var(--panel-2) 100%); }` and `[data-theme='light'] .cs-secondary { background: linear-gradient(180deg, var(--panel) 0%, #efe8d6 100%); }`. Fix the inline ember-flash colour on the priority stat (pages.jsx line 144) by replacing with a className that swaps via [data-theme='light']: e.g. .stat-value.stat-alert and a CSS rule that uses var(--ember-flash) (which the light tokens already redefine to #c0392f).",
+            "impact": "high"
+          },
+          {
+            "where": "Panel treatment everywhere (dr-01, dr-03) — all panels share the same border + same radius + same inset-1px highlight",
+            "problem": "Every container — sidebar panels, stat cards, signal cards, the Watch live strip, the briefing queue panel, the what-changed panel, the source-health panel — uses the same 14px radius, same `1px solid var(--line)`, same `inset 0 0 0 1px #ffffff08` highlight. The result is the flat-cards-on-flat-bg aesthetic that screams template. Bloomberg/Palantir produce depth by using one elevation for chrome (sidebar/topbar are flat, zero radius), a second for primary content panels (subtle 1px hairline, no radius or 4px), and a third only for transient overlays (drawer, modal). You currently have one elevation pretending to be three.",
+            "fix": "In index.html: split into three tiers. Tier 1 (chrome — .side, .topbar): no border-radius, no inset highlight, single 1px hairline using `--line`. Tier 2 (data panels — .panel): `border-radius: 6px` (down from 14px), drop the `inset 0 0 0 1px #ffffff08`, replace shadow with `0 0 0 1px var(--line)` only — no drop shadow on resident panels. Tier 3 (overlays — .drawer, .modal): keep current 14px radius + shadow + inset highlight. Add tier classes if needed (.panel.tier-1, .tier-2, .tier-3). Update --r-lg from 14px to 6px for resident panels.",
+            "impact": "high"
+          },
+          {
+            "where": "Sidebar treatment (dr-01, dr-02) — vertical gradient + warm-paper fade in light",
+            "problem": "The sidebar uses `linear-gradient(180deg, var(--side-start) 0%, var(--side-end) 100%)`. In dark mode this is barely visible. In light mode it is a visible vertical wash from #efe7d6 to #e6dcc8 that does not appear anywhere else on the page — the sidebar is the only graded surface in light mode. Premium products use FLAT sidebars (Linear, Vercel, Palantir Foundry); the gradient reads as a 2014 SaaS dashboard.",
+            "fix": "In index.html line 246: change to `background: var(--side-start);`. Delete --side-end usage. In dark mode set --side-start to #0a0c14 (one tone darker than --bg); in light mode #ece4d2. Add a 1px right border via `border-right: 1px solid var(--line);` — already present, keep it. Visual outcome: sidebar reads as a slab of ink, content area floats lighter against it.",
+            "impact": "medium"
+          },
+          {
+            "where": "Brand mark (dr-01, dr-02) — radial-gradient ember orb in the top-left corner",
+            "problem": "The brand-mark is a 52x52 radial-gradient with `inset 0 0 0 1px var(--accent-ring), 0 -2px 22px -4px var(--accent-glow), 0 0 24px -8px var(--accent-ring)` (line 263). This is the 'glowing dashboard sphere' trope of every AI startup launch deck in 2023-2024. It is the second-most-amateur tell after the stacked notice bars.",
+            "fix": "Replace with a flat geometric mark. In index.html line 259-264, change .brand-mark to: `width: 36px; height: 36px; border-radius: 2px; background: var(--brass); display: flex; align-items: center; justify-content: center; color: var(--brand-core); font-family: var(--mono); font-weight: 700; font-size: 14px; letter-spacing: -0.02em;` and put 'PP' as the literal content via the JSX in shell.jsx. Or render an SVG flame/wave glyph at 18px, monochrome ember. Drop ALL three box-shadows. The Bloomberg terminal logo is a flat orange B — emulate that confidence.",
+            "impact": "medium"
+          },
+          {
+            "where": "Signal cards (dr-01) — all priority cards look identical, attention spine barely visible",
+            "problem": "The .signal[data-att='high'] rule sets `border-left: 4px solid var(--ember-flash)` and a subtle gradient (line 751). In the rendered screenshot the three priority cards have a 4px ember stripe that is correct, but the cards themselves are visually indistinguishable: same radius, same internal layout, same tag pill density. The 'attention spine' is doing all the work alone. Worse, the .att.high pill, the source pill, the time, the tags, and the small confidence-bar fixture-pill all crowd the same 12-14px ribbon, looking like a packed status-bar instead of a curated card.",
+            "fix": "Increase the attention spine to a full 6px and bleed it from card edge to internal content (no inner padding-left on the spine side): `.signal[data-att='high'] { border-left: 6px solid var(--ember-flash); padding-left: 18px; }`. Move the attention pill (.att) inside the card title block, replacing the FIXTURE pill which is duplicating noise. Render the source ID (CS-0412) as a 9px monospace label TOP-LEFT corner with .04em letter-spacing and 50% opacity — Bloomberg ticker style, not a row pill. Increase the .sig-title size from 18px to 21px and tighten line-height to 1.2. Drop the dashed `border-top: 1px dashed` on .sig-action (line 525) — dashed borders are an instant amateur tell; use solid `1px solid var(--line)` instead.",
+            "impact": "high"
+          },
+          {
+            "where": "'Watch live' strip (dr-01, dr-02) — pulsing left border + duplicate fixture pills",
+            "problem": "The .live-strip rule pulses border-left between two ember reds via `stripPulse 1.6s ease-in-out infinite` (line 899). The pulse is decorative, not informational — nothing about the strip's content changes while it pulses. It is the third amateur tell (after stacked banners + glowing brand orb): perpetual ambient animation distracts from real signal. Compounding it: the strip has two 'Fixture' pills (House and Senate), the AEST clock duplicates the topbar clock, and three buttons compete (Hansard ghost, YouTube ghost, Watch live primary).",
+            "fix": "(1) Remove `animation: stripPulse 1.6s ease-in-out infinite` from .live-strip (line 899-901). Replace with a static 3px solid var(--ember-flash) left border. (2) Move the small ember dot + AEST clock OUT of the strip (it duplicates the topbar clock). (3) Collapse Hansard + YouTube into a single 'Open ↗' kebab menu on the right. (4) Keep ONE primary button 'Watch live' and one chip 'House: Question time · Senate: Legal & Constitutional'. Drop both Fixture pills from this strip (already declared in the top banner — once is enough).",
+            "impact": "medium"
+          },
+          {
+            "where": "Topbar (dr-01, dr-02) — backdrop-filter blur + ember-underglow + 8 visible elements",
+            "problem": "The topbar combines `backdrop-filter: blur(8px)`, `box-shadow: inset 0 -1px 0 var(--topbar-underglow)` (ember scanline), sticky positioning, and renders eight distinct UI elements (logo, search, kbd-K, clock, PARLIAMENT LIVE chip, 6 SOURCES chip, Refresh live, Alerts, New brief). Result is a 14px-padded toolbar that looks busy. Vercel/Linear topbars typically run THREE elements: search, primary action, profile.",
+            "fix": "In shell.jsx topbar markup: drop the live-clock from the topbar (it is also in the strip and footer). Collapse PARLIAMENT LIVE chip + 6 SOURCES chip into a single status pill 'LIVE · 6 sources' that opens a popover. Move 'Refresh live' into the live-strip (or a manual refresh icon next to search). Keep only: brand · search · status-pill · Alerts (icon-only) · New brief (primary). Reduce topbar padding from 14px 24px to 10px 20px. Drop the backdrop-filter blur — it serves no purpose on a non-translucent header and costs paint on every scroll.",
+            "impact": "medium"
+          },
+          {
+            "where": "Whitespace rhythm (dr-01) — 14px gaps everywhere",
+            "problem": "The .grid uses `gap: 14px`, .command-strip uses gap 14px, .panel-body uses 14px 16px, .signal+ .signal uses margin-top 10px, the live-strip uses gap 14px. Almost every gap on the page is 12-16px. Premium intelligence terminals use BIG gaps between SECTIONS (32-48px) and TIGHT gaps within sections (8px). You have a uniform 14px medium-gap everywhere, so the eye cannot tell where one panel ends and another begins.",
+            "fix": "Introduce a section-gap token in index.html :root: `--gap-section: 32px; --gap-intra: 8px;`. Set body section blocks to `margin-bottom: var(--gap-section)`. Tighten .command-strip gap from 14px to var(--gap-intra). Increase margin-bottom on .page-head from 22px to 36px. Increase .panel margin-bottom (currently inline 16px on line 186) to var(--gap-section). Visual outcome: priority section is clearly separate from secondary panels, not a soup of equally-spaced rectangles.",
+            "impact": "medium"
+          },
+          {
+            "where": "Hairline quality (all screens) — single 1px translucent line used at every boundary",
+            "problem": "--line is `#ffffff0c` (4.7% white). It is barely visible in dark, barely visible in light. Every panel border, every table row separator, every panel-head bottom, every drawer-head bottom uses this same washed-out hairline. Premium products differentiate: a heavier 1px var(--line-2) at section boundaries, a 1px dotted or 0px gap at table rows, and a coloured 1px for active state. You use one whisper-line for every job.",
+            "fix": "Define a two-tier hairline in index.html :root: `--rule-1: #ffffff14;` (visible, for section/panel boundaries) and `--rule-2: #ffffff08;` (whisper, for sub-rows inside a panel). Light: --rule-1: rgba(80,50,20,.18); --rule-2: rgba(80,50,20,.08). Apply --rule-1 to .panel border, .panel-head border-bottom, .drawer-head, table.ds th box-shadow. Apply --rule-2 to table.ds td border-bottom, .list-row border-bottom, .tl-item.",
+            "impact": "medium"
+          },
+          {
+            "where": "Drawer (dr-03) — 'Recommended action' card inside drawer + Generate brief button at footer",
+            "problem": "The Recommended action card uses an inset light-orange panel (#f08a3c14 fill, #f08a3c55 border). Inside the dark drawer it reads as a coloured product alert. Then the drawer-foot has the orange 'Generate brief' primary button — same ember accent, same warm orange, six lines apart. Two ember-emphasised elements compete inside one viewport.",
+            "fix": "De-emphasise the Recommended action card: change background to var(--panel-2) and border to `border-left: 3px solid var(--brass); border-top: 0; border-right: 0; border-bottom: 0;` (spine only, no fill). Keep the ember 'Generate brief' button as the SOLE ember accent in the drawer. Tighten the kv grid (line 618): change `grid-template-columns: 140px 1fr` to `auto 1fr` with a column-gap of 20px so labels right-align tighter against values — Bloomberg-style key-value list.",
+            "impact": "medium"
+          },
+          {
+            "where": "Mobile overview (dr-04) — entire first screen is notice bars + onboarding",
+            "problem": "On a 360-wide viewport the user sees: logo · banner 1 (Representative data, 4 lines wrapped) · banner 2 (Getting started, 3 numbered sections stacked) before any signal. The .page-title 'Today's signals' appears below 600px of chrome. This is unusable as a daily-use intelligence app on mobile.",
+            "fix": "In index.html @media (max-width: 780px): add `.design-banner { display: none; }` and `.onboarding-guide { display: none; }` (after wrapping OnboardingGuide in a parent with className='onboarding-guide'). Mobile users see a single one-line strip in the topbar: 'Demo data ·'. The onboarding can be reached via a help icon. Above-the-fold on mobile is then: brand, search-collapsed, title, hero KPI, priority signal #1.",
+            "impact": "high"
+          },
+          {
+            "where": "Typography pairing (all screens) — IBM Plex Sans + Serif + Mono triple-load",
+            "problem": "The page loads IBM Plex in three families (Sans 300/400/500/600/700, Serif 400-700, Mono 400-600) — that is 15 weight-style combinations from one Google Fonts call (line 11). The visual result is fine because IBM Plex is well-designed, but it reads as 'I picked IBM Plex because it's the default for serious dashboards' rather than as a distinctive choice. Linear uses Inter Display + Inter, Vercel uses Geist, Bloomberg uses a custom B-Sans. Plex is the safe-corporate option that nobody is fired for.",
+            "fix": "Keep Plex Mono (genuinely good for tabular data). Replace Plex Sans body with a more distinctive humanist or geometric: `Söhne` (paid), `Geist` (free, Vercel's), or `Söhne Mono`/`SF Pro Text` for system-style. For headlines/serif pull-quotes replace Plex Serif with `GT Sectra` or `Tiempos Text` (premium feel). If staying free-only: pair Geist (sans) + JetBrains Mono (mono) + Source Serif 4 (serif). Update --sans, --serif, --mono in :root accordingly. Drop the unused weight 300 from the Sans request.",
+            "impact": "low"
+          },
+          {
+            "where": "Colour commitment (dr-01, dr-02, dr-03) — ember is over-distributed",
+            "problem": "The design-system spec explicitly limits ember to 5 surfaces (brand, primary button, focus, live, high). In practice ember now appears on: brand mark glow, sidebar active-nav border, ember dot in topbar, PARLIAMENT LIVE chip, command-strip cs-primary border, hero KPI border (inline), live-strip pulsing border, high-attention card border, .att.high pill, the search focus ring, the Recommended action card, the Generate brief button, the panel.tier-1 active state, conf bar 1st-3rd segments, table th underline (#f08a3c1f), .filter-chip.active, .sr-item.active, brief preview h5 (gold variant), pattern card border, pattern ribbon, brass tag. That is roughly 20 surfaces. The 'sovereign ember' is no longer sovereign.",
+            "fix": "Audit pass in index.html: keep ember on brand-mark, sidebar active nav, Generate brief (primary action), focus-visible ring, LIVE chip, high-attention spine. Move everything else to --gold (#d9b779 / #766019) for warm-secondary accents (conf bar end-segments, brief h5, pattern ribbon), or to --ink-3 for chrome (table th underline, sr-item active). The live-strip border-left stays ember-flash. The pulsing animation goes (already covered above). This single discipline pass will recover the 'one sovereign accent' that the design system promised.",
+            "impact": "medium"
+          },
+          {
+            "where": "Briefing queue + Source health panels (dr-01 right column)",
+            "problem": "The right column is a stack of three small panels (What changed, Briefing queue, Source health) of roughly equal height and visual weight. None is more important than the others; each has the same panel-head, same kicker, same body padding. They look like a sidebar widget pile from a 2018 WordPress dashboard.",
+            "fix": "Unify the right column into ONE panel with three sections separated by `--rule-1` hairlines, no per-section panel chrome. In pages.jsx: wrap the three side panels in a single <div className='panel'> with <div className='panel-section'> children, and add to index.html: `.panel-section { padding: 16px; border-bottom: 1px solid var(--rule-1); } .panel-section:last-child { border-bottom: 0; } .panel-section-title { font-family: var(--mono); font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: var(--ink-4); margin-bottom: 12px; }`. The right rail then reads as one cohesive intelligence sidebar, not three loose widgets.",
+            "impact": "medium"
+          },
+          {
+            "where": "Dashed border in .sig-action (line 525) and conf bar (line 553-562)",
+            "problem": "`border-top: 1px dashed var(--line-2)` is used to separate the recommended action from the card body. Dashed borders are a 2007 CSS technique. Compounding it: the .conf widget uses 5 individual coloured spans with subtly different ember shades (#f08a3c, #ed9444, #e89e51, #e0aa62, #d9b779) — visually the gradient is invisible at 6px width, looks like 5 identical ember bars.",
+            "fix": "(1) Replace `border-top: 1px dashed var(--line-2)` on .sig-action with `border-top: 1px solid var(--rule-2)` and increase padding-top from 12px to 14px. (2) Simplify .conf to two states: filled .on (var(--brass)) and empty (var(--line-2)). Drop the per-segment gradient (line 558-562) — at 10px tall, 6px wide, with 2px gap, no human eye will read a 5-stop gradient. Or scale the bar up to width 10px × height 14px so the ramp is actually visible.",
+            "impact": "low"
+          },
+          {
+            "where": "Shadows everywhere — `--shadow: 0 1px 0 #00000060, 0 20px 50px -28px #00000090` applied to .panel, .cs-primary, .modal",
+            "problem": "Every elevated surface uses the same compound shadow. On dark backgrounds the y:20 blur:50 spread:-28 reads as a soft brown smudge under each panel. In light mode the same shadow becomes a brown halo. Bloomberg/Palantir use NO drop shadows on resident panels — depth comes from hairline + tonal value, not from shadow.",
+            "fix": "Delete --shadow application from .panel (line 462) and .cs-primary (line 415). Keep --shadow only on overlays: .drawer (already different), .modal, .toast, .search-results, popovers. Replace the panel depth cue with a one-pixel highlight: `box-shadow: inset 0 1px 0 rgba(255,255,255,.03);` in dark, `inset 0 1px 0 rgba(255,255,255,.5);` in light. This is the technique used by every premium financial UI.",
+            "impact": "low"
+          }
+        ]
+      },
+      {
+        "lens": "Information architecture, visual hierarchy, density and cognitive load — does the eye land on intelligence, or on chrome?",
+        "verdict": "It looks amateur because the most expensive screen real estate is spent on three stacked meta-banners, a never-ending Getting Started panel and four equally-weighted KPI tiles before a single signal is visible, so the page reads as a settings dashboard rather than a parliamentary intelligence product.",
+        "findings": [
+          {
+            "where": "dr-01 / dr-02 Overview — top of page, three stacked notice strips (Design state + Representative data + Getting Started)",
+            "problem": "Three full-width amber/cream chrome bars consume the first ~360px of the viewport before any signal. Two say essentially the same thing ('design state' and 'representative data'). The Getting Started panel is a three-column tutorial that re-renders every visit until dismissed. The eye never lands on intelligence; it lands on disclaimers. This is the strongest amateur tell on the page.",
+            "fix": "In pages.jsx PageOverview (~line 118-122): collapse the two honesty banners into a single 28px ribbon that reads 'Demo data · Live RSS page polls real feeds' anchored top-right of .page-head as a chip (use existing .chip-fixture token, not .design-banner). Delete the standalone .design-banner div. Move OnboardingGuide out of the default render path: render only when state.signalsViewed === 0, and replace the 3-column block with a single dismissible 40px strip 'New here? Press ? for shortcuts · j/k navigate · b generate brief'. Reclaim ~300px above the fold.",
+            "impact": "high"
+          },
+          {
+            "where": "dr-02 light theme — first KPI tile 'New signals today' renders dark navy on warm paper",
+            "problem": "Theme bug: .hero-stat / .command-strip .cs-primary uses --panel-2 (#161826 in dark) but the inline style on PageOverview line 137 hardcodes borderLeft only — the panel itself inherits the dark gradient because [data-theme='light'] never overrides .stat or .panel backgrounds inside .command-strip. Result: one black tile on cream. Looks broken, kills trust instantly.",
+            "fix": "In index.html add: `[data-theme='light'] .command-strip .panel, [data-theme='light'] .command-strip .stat { background: linear-gradient(180deg, var(--panel) 0%, var(--bg-2) 100%); }` directly under the existing `[data-theme='light'] .signal` override at line 167. Also remove the inline style at pages.jsx line 137 and replace with className 'hero-stat' so the border-left lives in CSS, not JSX. Verify against light-theme contrast in tools/lint-draft.ps1.",
+            "impact": "high"
+          },
+          {
+            "where": "dr-01 Overview — command-strip KPI row",
+            "problem": "Four tiles of equal width (1.6fr 1fr 1fr 1fr per .command-strip rule) all use the same panel gradient, same 48px numeral, same uppercase mono label. Nothing in the visual weight tells the analyst which number to act on. The '3' priority count is the only number that triggers a workflow, but it visually equals 'Source health 6 feeds' which is plumbing telemetry. Eye reads left-to-right with no ranking; the hero stat is just 'today's count' which has no decision value.",
+            "fix": "In pages.jsx PageOverview command-strip (lines 137-163): swap the hero. Make 'Priority signals' the hero — 1.8fr column, t-kpi 56px, ember-flash colour when > 0 already exists; add a primary 'Triage now' CTA inside the hero tile that scrolls to .panel 'Priority signals'. Demote 'New signals today' to a 1fr secondary tile. Demote 'Source health' to a 28px badge in the topbar (next to the existing '6 SOURCES' chip — the data is already there). Reduce the strip from 4 tiles to 3. Adjust .command-strip grid to `2fr 1fr 1fr`.",
+            "impact": "high"
+          },
+          {
+            "where": "dr-01 / dr-04 Overview — signal cards in Priority + All signals panels",
+            "problem": "Each card is ~150px tall with id+source+pill row, 18px serif title, 13px summary, three meta tags, an italic 'reason' line, a confidence bar, a 'Recommended' label and an action value. Six lines of metadata wrap every one line of substantive title. Density is wrong: the analyst reads the same scaffolding eight times per screen. The 4-bar 'confidence' ember glyph in the lower-right gets mistaken for signal strength.",
+            "fix": "In SignalCard (component file, search for `.signal` usage): collapse meta row into one 20px line: `CS-0412 · Senate New Inquiries · 08:15 · [HIGH]`. Drop the standalone FIXTURE pill into the existing 24-char meta row as a 9px appended `· demo`. Move the 'Recommended action' line into the card header right side: `→ Assign Policy Owner` as a single-line affordance, italic 'reason' on hover/expand only (progressive disclosure). Move the confidence dots inside the drawer, not the card. Target card height ≤96px. This trebles signals-per-viewport from ~3 to ~9, which is the single biggest density win.",
+            "impact": "high"
+          },
+          {
+            "where": "dr-01 / dr-02 — page-head 'Today's signals' h1 in serif 30px with kicker and sub",
+            "problem": "The masthead 'Today's signals' restates what the nav already says (Overview is selected), eats another ~120px including kicker and sub, and the sub-line repeats counts already shown in the KPI strip below ('6 representative signal items. 3 classified as priority. 6 official feeds configured'). Three places say '6 · 3 · 6'. Information redundancy at the worst-priced pixels on the screen.",
+            "fix": "In pages.jsx PageOverview (lines 123-133): reduce .page-title to var(--t-headline) 23px, drop the page-sub entirely, keep only the date kicker. Move the Export CSV / Generate daily brief buttons up into the topbar's .top-right cluster (they are page-scoped actions, not page-head ornament). Saves ~90px and removes the count repetition.",
+            "impact": "medium"
+          },
+          {
+            "where": "dr-01 sidebar — 9 nav items in 3 groups (Today / Parliament / Workflow / Admin)",
+            "problem": "Four group headers (TODAY, PARLIAMENT, WORKFLOW, ADMIN) over nine items is a 4:9 chrome-to-content ratio in the nav. Group labels in mono 10px add three more text bands competing for attention. Counts to the right are right-aligned but use the same ink-4 colour as the group headers, so the eye reads two columns of dim text. This violates Choices Principle (more than 4 visible categories at top level for primary nav).",
+            "fix": "In index.html .nav-group rule (line 273): collapse to 2 groups — `Today` (Overview, Live, All signals, Attention radar) and `Workspace` (Committees, Bills, Daily program, QON, Briefings, Watchlists, Sources). Move 'Admin · Sources' under Workspace. Reduce nav-group font-size to 9px and add 18px top padding to the second group only. Right-align counts in --ink-3 not --ink-4 so they read as data, not chrome. Drop 'Parliament' as a label entirely — the whole product is parliament.",
+            "impact": "medium"
+          },
+          {
+            "where": "dr-01 topbar — clock 05:07:48, 'PARLIAMENT LIVE', '6 SOURCES', 'Refresh live', 'Alerts', 'New brief' plus a theme toggle",
+            "problem": "Seven elements crammed into the right cluster after the search bar. 'PARLIAMENT LIVE' in ember pulse competes with the 'Watch live' primary button 200px below in the live-strip. Two live affordances; redundant. The clock ticks every second and animates pulse — combined motion budget is too high for a status bar.",
+            "fix": "In shell.jsx topbar: remove 'PARLIAMENT LIVE' chip (the live-strip below already carries the live signal). Keep clock but freeze to minute precision (HH:MM not HH:MM:SS — eliminates the secondhand redraw and visual jitter). Collapse 'Alerts' + 'Refresh live' into a single icon button group. Keep one and only one primary CTA visible at a time on the page: that is 'Generate daily brief' on Overview, 'Watch live' only when the live-strip is active. Use --topbar-underglow as the only ember presence in the topbar.",
+            "impact": "medium"
+          },
+          {
+            "where": "dr-01 right column — 'What changed' + 'Briefing queue' + 'Source health' stacked panels",
+            "problem": "Three panels of similar height and identical chrome treatment in the right rail. 'Source health' duplicates the 'Source health' KPI tile at the top. 'What changed' is a timeline of items that mostly link back into signals already in the left column. The right column reads as filler to make the layout symmetric, not as a second view on the data.",
+            "fix": "In pages.jsx PageOverview right column (lines 220-285): delete the 'Source health' panel (already represented in KPI strip and Sources nav). Merge 'What changed' into the top of the left column as a one-line horizontal scrolling 'Since 17:00 yesterday' ticker above Priority signals. Keep only 'Briefing queue' in the right rail; widen left column from 2.4fr to 3fr. The right rail becomes single-purpose: 'queued work'. Two columns of similar weight reads as a dashboard; one dominant column with a sidebar reads as a workspace.",
+            "impact": "medium"
+          },
+          {
+            "where": "dr-03 signal detail drawer — dark register",
+            "problem": "Drawer scrolls past a yellow-orange 'Assign Policy Owner' recommended action block, then Summary, then Why it matters, then a 6-row Signal Metadata table, then a 5-bar Attention Score Breakdown with teal bars at 95/90/90/40/60. The recommended action — the only line that drives behaviour — is wedged between the title and a summary, then visually outweighed by a horizontal teal bar chart at the bottom that has no clear semantic meaning ('Source authority 95' versus what baseline). The bars compete with the recommended action.",
+            "fix": "In the drawer component: pin a sticky 56px action band to the top of .drawer-body with `Assign Policy Owner · 24 APR · Submission window 19 May` and a primary 'Generate brief' button. Move Attention Score Breakdown below the fold, change bars from teal to ink-3 (verification colour misused for ranking), and add a single sentence above the bars: 'Score 87/100 driven by source authority + portfolio relevance.' Use --teal only on the Confidence row, never on Attention Score (DESIGN-2 says teal is verification-only and this is misuse).",
+            "impact": "medium"
+          },
+          {
+            "where": "dr-04 mobile overview — all desktop sections stacked vertically",
+            "problem": "On mobile the three banners + Getting Started 3-up grid (collapses to 3 stacked cards) + 4 KPI tiles (stacked) + live strip (5 rows because g-live-strip collapses to 1fr) + page head + Priority panel + All signals panel + What changed + Briefing queue + Source health adds up to roughly 4,900px before the user touches a signal. The mobile experience is unusable as a triage tool. The screenshot is 5,093px tall.",
+            "fix": "Add a mobile-specific PageOverview branch using a window.matchMedia('(max-width: 780px)') check or CSS-only collapse: under 780px, hide .design-banner, .command-strip secondary tiles (keep only Priority), .live-strip cluster (replace with a single 'Live now: House Question time' link), the entire right rail (What changed / Briefing queue / Source health), and the 'All signals' panel below the fold behind a 'Show 3 more' button. Mobile shows: status chip, Priority KPI hero, Priority signals list, FAB for brief. Target ≤2 viewports tall before signals.",
+            "impact": "high"
+          },
+          {
+            "where": "dr-01 / dr-02 across all panels — 10px uppercase mono kickers everywhere",
+            "problem": "PRIORITY SIGNALS, NEW SIGNALS TODAY, COMMITTEE ACTIVITY, SOURCE HEALTH, WHAT CHANGED, BRIEFING QUEUE, SINCE 17:00 YESTERDAY, 4 PENDING, 6 OFFICIAL FEEDS CONFIGURED, HUMAN REVIEW REQUIRED, RECOMMENDED, SUMMARY, WHY IT MATTERS, SIGNAL METADATA — every panel head and many inline labels use the same 10px mono uppercase with .18em letter-spacing. The 'Bloomberg terminal' move only works when 80% of the page is data and 20% is chrome label; here it inverts. Visual texture becomes noisy beige speckling.",
+            "fix": "In index.html: keep the mono-label treatment for .stat-label and .nav-group only. Convert .panel-kicker and .drawer-section h3 to .t-body-sm in --ink-3 sentence case (e.g. 'Since 17:00 yesterday', 'Human review required'). Reduce .panel-title weight to 500 from 600 and increase to 14px so it carries the panel hierarchy without the kicker shouting. Saves ~30% of mono-uppercase surface area and restores reading rhythm.",
+            "impact": "medium"
+          },
+          {
+            "where": "dr-01 signal card lower-right — 4-bar ember glyph (confidence)",
+            "problem": "The 4-segment ember bars at lower-right of every signal card look like a signal-strength indicator (Wi-Fi/cellular convention), which they are not — they represent analyst confidence. The visual metaphor mis-maps. They also use the brand ember, which the design system reserves for primary actions and live status (DESIGN-2 inventory), diluting the ember signal across cards.",
+            "fix": "In SignalCard: remove the .conf bar from the card surface entirely. Move confidence to the drawer (already shown there as 4/5 with bars at line 1090ish). On the card, if a confidence cue is needed, use a 10px mono '·4/5' appended to the meta row in --ink-3, no colour. Reclaims the lower-right slot for the action affordance (`→ Assign Policy Owner ↗`) which is the actual primary action.",
+            "impact": "medium"
+          },
+          {
+            "where": "dr-01 'Live now' strip — ember left-spine pulse animation",
+            "problem": "The strip has an animated border-left colour pulse (stripPulse 1.6s infinite) and the ember dot also pulses (pulse 1.6s infinite). Two synchronised pulses + the topbar PARLIAMENT LIVE chip pulse + the LIVE drawer badge pulse = four ember pulses competing on the same screen. The eye cannot fix attention. WCAG 2.2 SC 2.2.2 (Pause/Stop/Hide) is also at risk because no user control exists to stop these.",
+            "fix": "In index.html .live-strip rule (line 894): remove the stripPulse animation; keep the border-left solid var(--ember-flash). Keep only the small 8px dot pulse inside the strip as the single live cue. Add `@media (prefers-reduced-motion: reduce)` already exists — confirm it disables both .pulse and .live-badge .pulse. Establish a rule: at most one ember pulse visible per viewport, ever.",
+            "impact": "low"
+          },
+          {
+            "where": "dr-03 drawer — bottom action bar 'Generate brief · Watchlist · Archive · Close'",
+            "problem": "Four buttons of roughly equal weight at the bottom: primary 'Generate brief' is correct, but 'Watchlist', 'Archive', and 'Close' all sit at the same scale. 'Close' is duplicated (top-right X already exists). 'Archive' is a destructive-adjacent action sitting next to the primary CTA — easy to misclick.",
+            "fix": "In the drawer-foot: keep 'Generate brief' as .btn.primary, demote 'Watchlist' to .btn (default), move 'Archive' to an icon-only button in the drawer-head next to the close X (with confirm dialog), and delete the bottom 'Close' button. Three actions max in a foot bar, primary + secondary + tertiary, never two adjacent primary-weight items.",
+            "impact": "low"
+          },
+          {
+            "where": "dr-01 sidebar — 'Juan Vega / Principal Policy Officer / Futures & Foresight / Active 2 days this week' card at bottom",
+            "problem": "Four lines of personal metadata in the persistent sidebar foot. 'Active 2 days this week' is a usage statistic with no decision value. The role line ('Principal Policy Officer · Futures & Foresight') is org-chart filler. In a tool used 8 hours a day, every persistent pixel must earn its place; this card is portfolio piece, not product.",
+            "fix": "In shell.jsx side-foot: reduce to avatar + first name only ('Juan'), with a dropdown chevron that reveals role, status, settings, sign out. Saves ~36px of permanent sidebar space and removes the 'active 2 days' vanity metric. Matches Linear, Notion, GitHub sidebar pattern.",
+            "impact": "low"
+          }
+        ]
+      },
+      {
+        "lens": "Colour system and brand coherence audit across dark and light (warm-paper) Fire House themes",
+        "verdict": "The palette is intellectually disciplined in the token file but executed with enough leaks, hardcoded hex, and uneven warm-paper translations that it lands as a competent-but-amateur Bloomberg pastiche rather than a confident Fire House product, with the high-signal light-theme card bug as the single most damaging brand-coherence break.",
+        "findings": [
+          {
+            "where": "index.html line 751 (.signal[data-att=\"high\"]); visible in dr-02 first 'New Senate inquiry' card on warm-paper bg",
+            "problem": "Hardcoded dark hex #1f1614 in the high-attention signal gradient is never overridden in [data-theme='light'] (line 167 overrides only the plain .signal selector, not the more-specific [data-att='high']). The card renders as a dark warm-near-black slab sitting on warm-cream paper, which is the canonical amateur tell of a 'dark theme bolted on, light theme half-finished'.",
+            "fix": "Replace the hardcoded gradient with a token-driven one and add a light override. Change line 751 to: .signal[data-att=\"high\"] { border-left: 4px solid var(--ember-flash); background: linear-gradient(160deg, var(--signal-high-bg, #1f1614) 0%, var(--panel) 100%); } then in :root set --signal-high-bg:#1f1614; and in :root[data-theme=\"light\"] set --signal-high-bg:#fbe9dc; (warm ember-tinted paper, ~13:1 ink contrast). Repeat the same token-isation for .signal[data-att='med'] and 'low' backgrounds to prevent the same leak when you decide to tint them.",
+            "impact": "high"
+          },
+          {
+            "where": "index.html line 411 .cs-primary, line 492 .signal, line 661 .pattern — all gradients use --panel-2 to --panel which are nearly identical (#161826 to #11131f and #f3eee2 to #fdfaf2)",
+            "problem": "The 'two-step elevation' is only ~5 luminance steps apart, so panels read flat and muddy in dark, and read as nearly invisible elevation in light. The KPI hero, signal cards and pattern cards all look like the same surface, which collapses hierarchy and makes the layout feel like a wireframe rather than a designed product.",
+            "fix": "Widen the elevation ramp. Dark: set --panel:#13151f, --panel-2:#1a1d2c, and add --panel-3:#22253a for the hero/command-strip and pattern card so the eye actually sees a tier. Light: --panel:#fffdf6 (warmer paper), --panel-2:#f5efe1, --panel-3:#ede5d0 with a 6% inset highlight on the hero only. Apply --panel-3 to .cs-primary and .pattern; keep --panel-2 for everything else.",
+            "impact": "high"
+          },
+          {
+            "where": "dr-01 and dr-04 priority-signals column; .signal red-ember left border (line 751) plus #HIGH att pill plus orange confidence bars on the right (line 558-562)",
+            "problem": "Every high-attention card stacks four warm-orange-to-red marks: ember-flash left spine, ember-flash 'HIGH' dot-pill, ember 'FIXTURE' tag-adjacent neutral, and a 5-segment ember-to-gold confidence bar. Your own token comment says ember-flash is reserved for LIVE/breaking/high and ember is the brand mark; here you have both fighting in the same 200px card so the sovereign-ember discipline collapses into a generic 'orange dashboard'.",
+            "fix": "Demote the confidence bar to neutrals. Edit lines 557-562 so .conf span.on uses var(--ink-2) at varying opacity (.35 .5 .65 .8 1.0) instead of the ember-to-gold ramp; reserve gold only for the brief artefact. Then drop the .att.high background to transparent (keep border + dot) so the spine is the only filled ember element on the card. Result: one ember accent per card, not four.",
+            "impact": "high"
+          },
+          {
+            "where": "dr-02 light theme overall; --bg #f3eee2 vs --panel #fdfaf2",
+            "problem": "Panels are brighter than the background, inverting the dark-theme logic where panels are lighter-on-darker but with the same low contrast. Combined with the very soft rgba(80,50,20,.12) borders, panels float without edge definition and the page reads like a 1990s 'cream interface' rather than warm-paper Fire House.",
+            "fix": "Invert the relationship: set --bg:#f7f1e3 and --panel:#fbf5e6 with a stronger border --line:rgba(80,50,20,.18). Add a single 1px inset highlight on panels: box-shadow:inset 0 1px 0 rgba(255,255,255,.6),var(--shadow); This gives warm-paper depth without darkening the surface, and lifts every panel off the bg by ~2 luminance steps with a visible edge.",
+            "impact": "high"
+          },
+          {
+            "where": "dr-02 light theme topbar/sidebar; --side-start #efe7d6 to --side-end #e6dcc8 vs --bg #f3eee2",
+            "problem": "The sidebar gradient is darker than the content area, but only by a couple of luminance steps and with no border separation in the screenshot, so the sidebar looks like a colour mistake rather than an intentional chrome zone. The light-theme topbar (rgba(243,238,226,.9)) is also nearly identical to the bg, removing the command-bar's sense of being chrome.",
+            "fix": "Push the sidebar warmer and darker: --side-start:#e8dcc2, --side-end:#dfd1b3, and add a clear 1px right border using --line-bright in light. Push the topbar lighter than bg by a step: --topbar-bg:rgba(255,251,241,.92) with the underglow ember scanline kept. This restores the chrome/canvas distinction.",
+            "impact": "medium"
+          },
+          {
+            "where": "dr-01, dr-04 priority KPI '3' colour (pages.jsx line 144 inline style color:var(--ember-flash))",
+            "problem": "Inline style hardcodes ember-flash on the priority KPI digit. This violates your own token discipline (no raw refs to a 'risk' variable from a non-risk context: a priority count isn't an error) and the digit competes visually with the LIVE strip directly below it which uses the same colour. Two ember-flash hits in the same 200px viewport collapses the 'reserved for breaking/live/high' rule.",
+            "fix": "Replace the inline style at pages.jsx line 144 with a className 'stat-value t-stat stat-priority' and add CSS: .stat-priority{color:var(--brass);} (use the brand ember, not the risk-red ember-flash). Only the LIVE strip clock and the data-att='high' dot should render in --ember-flash.",
+            "impact": "medium"
+          },
+          {
+            "where": "dr-01 and dr-03 'HIGH' attention pill (line 542-543 .att.high uses #ef6a5e on #e0534b1a)",
+            "problem": "Three near-identical reds in two square centimetres: #ef6a5e text, #e0534b background tint, and the ember-flash variable on the live strip. The eye cannot tell which red is semantic and which is decorative.",
+            "fix": "Collapse to two reds total. Define --signal-high-ink:var(--ember-flash) for text/border and use a 12% alpha of the same var for fill, removing the second hex. Edit lines 542-543 to: .att.high{color:var(--ember-flash);background:color-mix(in srgb,var(--ember-flash) 12%,transparent);border:1px solid color-mix(in srgb,var(--ember-flash) 36%,transparent);} Same pattern for .att.med and .att.low using --caution and --info.",
+            "impact": "medium"
+          },
+          {
+            "where": "dr-03 drawer Attention-Score-Breakdown bars (teal bars 95/90/90/40/60), dr-04 mobile confidence bars (orange), dr-01 sidebar LIVE pill (red #c4382f, line 303)",
+            "problem": "Three different semantic-colour systems coexist on the same surface: teal=verification on score bars, ember=confidence on cards, red=LIVE on sidebar. The teal-for-score is actually wrong by your own rule — score is brand-priority, not verification — and a colour-blind user reading the drawer cannot distinguish 'this signal scored 95' from 'this signal is verified by ABS' because both are the same teal.",
+            "fix": "Move score bars to ember. Edit line 652 .bar .fill from background:var(--teal) to background:var(--brass); then redefine .bar.bar-verified{background:var(--teal);} and use that explicitly only when the bar represents a verification metric. Add a small icon (var(--check) or var(--shield)) to the right of any teal bar so verification is never colour-only.",
+            "impact": "medium"
+          },
+          {
+            "where": "index.html line 303 .nav-item .count.nav-live (background #c4382f) and line 542 .att.high (color #ef6a5e) and line 874 .live-badge (background var(--ember-flash) #e0534b)",
+            "problem": "Three separate red hex values are used for 'live/urgent' across the sidebar pill, the attention chip, and the live-video badge. None of them map to a single token and the sidebar pill #c4382f is not in :root at all — it's a magic number.",
+            "fix": "Add --live-red:#c4382f to :root and :root[data-theme='light']:#b03028, then replace the hardcoded #c4382f at line 303 with var(--live-red). Better: collapse to two reds total — --ember-flash for content-level urgency (attention pill, live badge, live strip) and --live-red removed; pin the sidebar count.nav-live to background:var(--ember-flash);color:#fff and accept the single hue.",
+            "impact": "medium"
+          },
+          {
+            "where": "dr-04 mobile screen — entire vertical column",
+            "problem": "On mobile the page collapses to one column but the .cs-primary 3px ember left border (line 413) and the high-att card 4px ember-flash border (line 751) are both at the left edge, creating a vertical orange stripe down the whole page. With the live-strip also orange-bordered (line 897), the mobile view reads as a single repetitive orange rail rather than a hierarchy.",
+            "fix": "In the @media (max-width:780px) block add: .cs-primary{border-left-width:2px;} .signal[data-att='high']{border-left-width:3px;} .live-strip{border-left-width:2px;} and stagger the accent by adding a 4px inset gap: padding-left calc(var(--sp-4) + 2px) on .signal in mobile. Even better, on mobile move the high-attention spine to the top edge (border-top:3px solid var(--ember-flash);border-left:1px solid var(--line);) so the stripe doesn't repeat down the page.",
+            "impact": "medium"
+          },
+          {
+            "where": "dr-02 light theme generally; --brass #9a5219 used for the active-nav border, brief btn, brand mark, and any 'priority/3' tinting",
+            "problem": "The light-theme ember #9a5219 is a brown, not an ember. It reads as 'cardboard' rather than the incandescent sovereign accent the dark theme promises. The brand identity (incandescent ember against warm near-black) does not translate — the light theme literally drops the incandescence.",
+            "fix": "Recompute the light-theme accent against warm-paper to retain hue saturation while passing AA. Replace --brass:#9a5219 with --brass:#b8521a (warm ember orange, ~4.6:1 on #f3eee2 — just AA; pair with a dark-ink overlay for the primary button). For the .btn.primary specifically, keep #b8521a→#9a4515 gradient but add a darker border #7a3611 and white-cream text (var(--ink) on dark theme, #fdf8ec in light) so it reads as ember-on-paper not brown-on-cream. Validate 4.5:1 on the new combo with a contrast checker.",
+            "impact": "high"
+          },
+          {
+            "where": "dr-01 'Watch live' button next to YouTube/Hansard (top-right of live strip)",
+            "problem": "The primary ember CTA appears five times across the visible viewport in dr-01: 'New brief' top-right, 'Generate daily brief' page-head, 'Watch live' on the live strip, the brand-mark glow, the active-nav spine, plus the ember-flash live dot and HIGH pills. Your own token comment says ember is the single primary action per surface — this surface has three primary actions competing.",
+            "fix": "Promote only one ember CTA per surface. Demote 'Watch live' to .btn.sm (no primary class), and demote 'Generate daily brief' to a ghost variant with an ember icon left of the label. Keep 'New brief' as the single ember-filled CTA in the topbar (the global primary action). Edit pages.jsx line 131 className from 'btn primary' to 'btn ghost sm' with an Icon name='brief'; edit line 181 from 'btn sm primary' to 'btn sm'.",
+            "impact": "high"
+          },
+          {
+            "where": "index.html line 558-562 .conf span confidence segments (ember-to-gold gradient) and line 706 .brief h5 (color var(--brief-accent) #6f5418)",
+            "problem": "Gold (#d9b779 dark, #766019 light) is supposed to be the secondary brand artefact accent reserved for the brief preview surface, but it also appears in confidence bars and as a 'gradient seasoning' on segments 4 and 5, leaking the brief identity into the operational interface. The brief no longer feels distinct from the chrome.",
+            "fix": "Remove gold from the operational chrome. Set all five .conf span.on segments to the same var(--brass) at varying opacity (.4 .55 .7 .85 1.0) and delete lines 559-562. Reserve --gold strictly for .brief h5, .brief .meta and an optional .badge.gold for the briefings queue items. This makes opening the brief preview a colour event rather than 'more of the same orange'.",
+            "impact": "medium"
+          },
+          {
+            "where": "dr-03 drawer-back scrim (var(--scrim) #000000a0) and the drawer left-edge",
+            "problem": "The drawer scrim is pure black with 63% alpha over the warm Fire House background, which kills the warmth and reads as a generic modal overlay (the exact look every Bootstrap admin template ships with). The drawer also has no warm-edge highlight, so it sits on the page like a cold panel.",
+            "fix": "Change --scrim to a warm dark: var(--scrim):#1a0e06b3 in :root and var(--scrim):rgba(60,38,18,.45) in light. Then add to .drawer: border-left:1px solid color-mix(in srgb,var(--brass) 18%,var(--line-2)); and an inset ember-glow: box-shadow:-20px 0 60px var(--overlay-shadow),inset 1px 0 0 color-mix(in srgb,var(--brass) 6%,transparent); This makes the drawer feel like it was lit from the ember, not bolted on.",
+            "impact": "low"
+          },
+          {
+            "where": "index.html line 654 .spark span (background var(--teal-soft) #2e7068)",
+            "problem": "Sparklines use teal-soft, but sparklines are a generic trend metric (not verification), so they pollute the verification-only teal rule. They also disappear into the warm-paper background in light theme since --teal-soft isn't redefined for light.",
+            "fix": "Change .spark span background to var(--ink-3) at 60% opacity in dark and var(--ink-2) at 50% in light. Add a --spark-fill token: :root{--spark-fill:rgba(245,240,225,.45);} :root[data-theme='light']{--spark-fill:rgba(58,48,38,.45);} and reference it. Reserve teal strictly for: source-health 'live' dot, verification badges, and the .fb.affirmative button.",
+            "impact": "low"
+          },
+          {
+            "where": "dr-01 'AEST 05:07am' tag on live-strip and topbar clock '05:07:48' (line 347)",
+            "problem": "Two clocks show the same time at two slightly different precisions (sec vs no sec) within 200px of each other, both in mono ember/ink. This reads as data redundancy rather than rhythm. Also the live-strip clock uses ember-flash while the topbar uses ink-2 — same data, two semantic colours.",
+            "fix": "Delete the AEST clock from the live-strip (line 170-172) and replace it with a 'LIVE NOW' label in ember-flash. The topbar clock remains the single time-source. Edit pages.jsx so the live-strip leads with a static <span className='mono live-label'>LIVE NOW</span> rather than re-rendering the time.",
+            "impact": "low"
+          },
+          {
+            "where": "Across all four screens — design-state banner, OnboardingGuide, both use --panel-hi and --brass-soft borders",
+            "problem": "Two persistent info banners (Design state + Getting started) stack at the top of the page consuming ~140px before the user sees a single signal. Both have ember-tinted borders, both use Icon name='signal' in --brass, both compete for attention. New users see 'ember, ember, ember, no data'.",
+            "fix": "Merge to a single dismissable bar. Delete the design-banner JSX block (pages.jsx line 118-121) and prepend its content as line 1 of OnboardingGuide (or vice versa). Style the merged bar with border-left:3px solid var(--ink-3) (neutral) instead of brass-soft, so the ember accent is preserved for the actual primary action 'Generate daily brief' which sits 60px below.",
+            "impact": "medium"
+          },
+          {
+            "where": "Light theme buttons; .btn (line 367-372) background var(--panel) is fdfaf2, .btn.primary background gradient #f5934a→#e07d33 hardcoded",
+            "problem": "The .btn.primary gradient is hardcoded for dark theme and never redefined in light. On warm paper the orange-on-paper button has the same gradient as dark theme but appears washed out because the surrounding bg is no longer near-black. The visual weight of the CTA drops dramatically in light.",
+            "fix": "Add to :root[data-theme='light']: --primary-grad:linear-gradient(180deg,#c0631e,#9a4f17); and add to :root: --primary-grad:linear-gradient(180deg,#f5934a,#e07d33); then change line 376 to background:var(--primary-grad); Also add box-shadow:0 1px 0 rgba(255,255,255,.25) inset,0 2px 6px rgba(120,60,15,.25); in light theme so the button has paper-shadow weight.",
+            "impact": "medium"
+          },
+          {
+            "where": "dr-01 right column 'Source health' panel — six neutral '— — —' dashes per row",
+            "problem": "Source health is the panel that should most heavily use the teal verification colour (the actual job of teal in your system), but every entry shows neutral dashes. The one panel that justifies teal is colour-empty, while teal leaks into score bars elsewhere.",
+            "fix": "Populate the source-health rows with a live/delayed/broken hdot prefix (lines 718-723 already define the shape system). For demo data render: <span className='hdot live'/>200ms for live feeds, <span className='hdot delayed'/>4m for delayed, <span className='hdot broken'/>14h for broken. This earns the teal back to its true semantic home and removes the empty look.",
+            "impact": "low"
+          }
+        ]
+      },
+      {
+        "lens": "Micro-interaction and finish quality — motion polish, hover/focus states, entrance choreography, the live pulse, count-up behaviour, and theme/render glitches that betray amateur execution.",
+        "verdict": "Competent token system and clear Bloomberg-terminal intent, but the motion layer reads amateur because entrances are opacity-only fades with no choreography, the \"count-up\" KPI does not count up, the live pulse is a two-keyframe blink instead of a breathing ember, and a hard theme-bug renders a dark card on the warm-paper light theme — the bones are there, the finish is missing.",
+        "findings": [
+          {
+            "where": "dr-02 light theme: first command-strip card (\"New signals today\") and live-strip in index.html",
+            "problem": "Theme bug — the hero KPI card and the live-strip render with dark backgrounds on warm paper. Caused by inline `linear-gradient(180deg, var(--panel-2) 0%, var(--panel) 100%)` on `.cs-primary` (line 411) and the hardcoded `linear-gradient(90deg, #1a1108 0%, var(--panel) 40%...)` on `.live-strip` (line 895) which never get overridden in the `[data-theme=\"light\"]` block. Reads as a half-finished demo, not a product.",
+            "fix": "Add to the `[data-theme=\"light\"]` overrides block (around line 200): `[data-theme=\"light\"] .cs-primary { background: radial-gradient(420px 140px at 0% 0%, rgba(154,82,25,.08), transparent), linear-gradient(180deg, #fdfaf2 0%, #f5efe2 100%); }` and `[data-theme=\"light\"] .live-strip { background: linear-gradient(90deg, #fdf0e2 0%, #f3eee2 60%, #f3eee2 100%); }` (the second already exists at line 200 but the dark gradient at 895 wins specificity — add `[data-theme=\"light\"]` prefix at 895 or move the override after).",
+            "impact": "high"
+          },
+          {
+            "where": "index.html line 437–439 `.cs-count-up` and pages.jsx KPI render",
+            "problem": "Class is named `cs-count-up` and is claimed in the comment as a \"600ms count-up flourish\" but the keyframe `csCountUp` is opacity-only (`from { opacity: 0; } to { opacity: 1; }`). The KPI literally fades in. A numeric KPI in a terminal-aesthetic product not counting up is the single loudest amateur tell because Bloomberg, Stripe, Linear, Vercel all do it.",
+            "fix": "Replace the placeholder keyframe with a real count-up. Easiest path without React state: wrap `.stat-value` text in a `<span data-target=\"6\">0</span>`, add a tiny vanilla rAF tween in app.jsx that on mount interpolates 0→target over 800ms with `easeOutQuart` (`t => 1 - Math.pow(1 - t, 4)`), updating `textContent` each frame. Guard with `if (matchMedia('(prefers-reduced-motion: reduce)').matches) { el.textContent = target; return; }`. Apply to all four command-strip stats with staggered starts (0, 80, 160, 240ms).",
+            "impact": "high"
+          },
+          {
+            "where": "index.html line 877–880 `.live-badge .pulse` and line 169 inline `pulse 1.6s ease-in-out infinite` dot",
+            "problem": "The live pulse is a 50% opacity flip between 1.0 and 0.45 — a flat two-step blink, not a breathing ember. On a product whose entire identity is \"ember sovereign accent\" the LIVE marker should be the showpiece micro-interaction. It currently feels like a 2008 jQuery `.fadeToggle()`.",
+            "fix": "Replace `@keyframes emberPulse` and `@keyframes pulse` with a breathing pulse that uses `box-shadow` halo expansion + scale. Concretely: `@keyframes emberPulse { 0% { box-shadow: 0 0 0 0 rgba(224,83,75,.55), 0 0 8px rgba(224,83,75,.45); transform: scale(1); } 70% { box-shadow: 0 0 0 8px rgba(224,83,75,0), 0 0 14px rgba(224,83,75,.2); transform: scale(1.08); } 100% { box-shadow: 0 0 0 0 rgba(224,83,75,0); transform: scale(1); } }` at 2.0s `cubic-bezier(0.4,0,0.6,1)` infinite. Keep the wrap element at `position:relative; overflow:visible`. This gives the radar-ping feel without altering layout.",
+            "impact": "high"
+          },
+          {
+            "where": "index.html line 729–730 `.page { animation: fadeIn ... } @keyframes fadeIn { opacity: 0 → 1 }`",
+            "problem": "All page switches and the modal-back use the same flat opacity fade. There is no choreographed entrance, no stagger on the command-strip tiles, no progressive disclosure on signal cards. On first paint the four KPI tiles, the live strip, and the priority-signals panel all appear simultaneously — that is what \"generic\" feels like.",
+            "fix": "Replace `.page` animation with a parent that orchestrates children. Add: `.page > * { animation: ppRise 400ms var(--ease-entrance) both; } .page > *:nth-child(1){animation-delay:0ms} .page > *:nth-child(2){animation-delay:60ms} .page > *:nth-child(3){animation-delay:120ms} .page > *:nth-child(4){animation-delay:180ms} .page > *:nth-child(5){animation-delay:240ms}` with `@keyframes ppRise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }`. Then on `.command-strip` add a sibling stagger: `.command-strip > .panel:nth-child(n) { animation: ppRise 360ms var(--ease-entrance) both; animation-delay: calc(80ms * (var(--i, 0))); }` and set `--i` inline 0/1/2/3 in pages.jsx. Total choreography ~480ms.",
+            "impact": "high"
+          },
+          {
+            "where": "index.html line 497 and 756–757 `.signal:hover`",
+            "problem": "Two competing hover declarations on `.signal`. Line 497 sets `border-color: var(--line-bright)` with a generic black-shadow lift, line 757 overrides with an ember-tinted shadow plus `translateY(-1px)`. The earlier rule is dead code adding cognitive overhead and CSS bytes, and the actual hover transform is only 1px which on a 14-px-radius card reads as \"nothing happened\". Hover on the priority cards (which have a 4px ember-flash left border) should feel like the card heats up.",
+            "fix": "Delete line 497 entirely. Update line 756–757 to: `.signal { transition: border-color 180ms var(--ease-functional), box-shadow 200ms var(--ease-functional), transform 200ms var(--ease-functional); } .signal:hover { transform: translateY(-2px); box-shadow: 0 10px 28px -10px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.08) inset, 0 -1px 0 rgba(240,138,60,.18) inset; border-color: var(--line-bright); } .signal[data-att=\"high\"]:hover { box-shadow: 0 10px 28px -10px rgba(224,83,75,.35), 0 0 0 1px rgba(224,83,75,.18) inset; }` so the attention-spine colour bleeds into the hover halo.",
+            "impact": "medium"
+          },
+          {
+            "where": "dr-03 dark drawer: `.drawer` line 598–606",
+            "problem": "Drawer slides in at `cubic-bezier(0.22,1,0.36,1)` over 280ms which is correct, but the backing scrim uses `transition: opacity .28s` with default linear timing and no ease token, so the scrim and the panel separate visually — the panel leads, the scrim catches up. Worse, when closing, the same easing runs in reverse which feels wrong for an exit (should be ease-in, faster). Drawer also has no internal stagger: the title, recommended-action card, summary, signal metadata table all materialise as one slab.",
+            "fix": "Update line 595 scrim: `transition: opacity 240ms var(--ease-functional);`. Add directional easing: `.drawer { transition: transform 280ms var(--ease-entrance); } .drawer:not(.on) { transition: transform 200ms cubic-bezier(0.4, 0, 1, 1); }`. Then choreograph drawer contents: `.drawer.on .drawer-section { animation: ppRise 320ms var(--ease-entrance) both; } .drawer.on .drawer-section:nth-of-type(1) { animation-delay: 120ms; } .drawer.on .drawer-section:nth-of-type(2) { animation-delay: 180ms; } .drawer.on .drawer-section:nth-of-type(3) { animation-delay: 240ms; } .drawer.on .drawer-section:nth-of-type(4) { animation-delay: 300ms; }`. The recommended-action box should additionally pulse its border once on entry to draw the eye: `.drawer.on .drawer-section:first-of-type > div:first-child { animation: actionAttract 800ms var(--ease-entrance) 380ms 1 both; } @keyframes actionAttract { 0%, 100% { box-shadow: 0 0 0 0 var(--accent-ring); } 40% { box-shadow: 0 0 0 6px transparent; border-color: var(--brass-2); } }`.",
+            "impact": "medium"
+          },
+          {
+            "where": "dr-01 dark: confidence bar `.conf` line 553–562, and dr-03 attention-score bars at right of drawer (`Source authority 95`, `Portfolio relevance 90`, etc.)",
+            "problem": "Both meters draw to their final width instantly on render. No fill animation. The 5-segment confidence bar and the per-axis attention bars are exactly the elements that should animate from 0 to value with a brief overshoot — that is the moment the user perceives the system as analytical rather than decorative.",
+            "fix": "For `.conf span.on` add an entrance: `.conf span { transform-origin: left center; transition: background 180ms; } .conf span.on { animation: confFill 380ms var(--ease-entrance) both; } @keyframes confFill { from { transform: scaleX(0); opacity: 0; } to { transform: scaleX(1); opacity: 1; } }` with `animation-delay: calc(60ms * var(--i, 0))` and set `--i` on each span 0..4. For the drawer attention-score bars, use the same `scaleX(0)→scaleX(1)` pattern keyed off the percentage value, durations 600ms `var(--ease-entrance)`, stagger 80ms top-to-bottom. Numeric labels (`95`, `90`, etc.) should count up in parallel using the same rAF tween from the KPI fix.",
+            "impact": "medium"
+          },
+          {
+            "where": "index.html line 905–912 `.toast` and line 909 animation",
+            "problem": "Toast uses `cubic-bezier(0.25,0.46,0.45,0.94)` (ease-out-quad) for entrance only — there is no exit animation. When dismissed the toast vanishes. This is the most common amateur tell in feedback systems because users register the disappearance subliminally as a glitch.",
+            "fix": "Refactor toast lifecycle in shell.jsx or wherever toasts are removed. Add: `.toast.leaving { animation: toastOut 180ms cubic-bezier(0.4, 0, 1, 1) forwards; } @keyframes toastOut { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(6px) scale(.98); } }`. In the removal code, add the class first, then `setTimeout(remove, 180)`. Also add `animation-fill-mode: both` to line 909 so the initial keyframe holds.",
+            "impact": "medium"
+          },
+          {
+            "where": "dr-04 mobile: command-strip, live-strip, signal cards",
+            "problem": "On the mobile collapse (line 829–844) every multi-column grid drops to single column with no entrance reflow. The four command-strip tiles stack into a 4-card tower and all four animate as one block via `.page` fade. On a phone the perceived weight of the page is dominated by the KPI stack, and the lack of per-tile entry makes the scroll feel \"dumped on the screen\". Also the live-strip on mobile (line 831) collapses to 1fr but contents (clock, House, Senate, Hansard, YouTube, Watch live) reflow with no spacing rhythm visible in dr-04.",
+            "fix": "Add mobile-specific stagger override: `@media (max-width: 780px) { .command-strip > .panel { animation: ppRise 320ms var(--ease-entrance) both; } .command-strip > .panel:nth-child(1){animation-delay:0ms} .command-strip > .panel:nth-child(2){animation-delay:70ms} .command-strip > .panel:nth-child(3){animation-delay:140ms} .command-strip > .panel:nth-child(4){animation-delay:210ms} .live-strip > * { animation: ppRise 300ms var(--ease-entrance) both; } .live-strip > *:nth-child(n) { animation-delay: calc(60ms * var(--i,0)); } }`. Also tighten mobile `.command-strip` gap from 14px to 10px and `.panel-body` padding from 14px to 12px so the tower compresses ~40px and the user sees the priority panel above the fold.",
+            "impact": "medium"
+          },
+          {
+            "where": "index.html line 367–382 buttons, line 932–938 `:active` block",
+            "problem": "`.btn:active { transform: translateY(1px); filter: brightness(0.93); }` is a serviceable press state but there is no hover lift, no shadow change, no scale, and the primary button (the most important CTA — \"Generate daily brief\" and \"Watch live\") only changes box-shadow on hover. The primary ember button is the single brand object on the page and it gets no character on hover beyond a glow. Compare Linear or Stripe where primary buttons subtly scale and shift gradient angle.",
+            "fix": "Replace lines 374–379 with: `.btn { transition: background 140ms var(--ease-functional), border-color 140ms var(--ease-functional), box-shadow 180ms var(--ease-functional), transform 120ms var(--ease-functional), filter 120ms var(--ease-functional); } .btn:hover { transform: translateY(-1px); } .btn.primary { background: linear-gradient(180deg, #f5934a, #e07d33); transition: background 180ms var(--ease-functional), box-shadow 180ms var(--ease-functional), transform 120ms var(--ease-functional); } .btn.primary:hover { background: linear-gradient(180deg, #f89e58, #e5853a); box-shadow: 0 0 0 1px rgba(240,138,60,.6), 0 4px 14px -2px rgba(255,157,79,.5), 0 0 18px -4px var(--brass-2); transform: translateY(-1px); }`. The translateY(-1) on hover plus translateY(+1) on active gives the 2px tactile arc that reads as quality.",
+            "impact": "medium"
+          },
+          {
+            "where": "index.html line 199 sidebar light-theme `.nav-item.active` and lines 287–295 active indicator",
+            "problem": "The ember left-border on the active nav item appears statically. There is no transition when navigating between sidebar items — the indicator jumps. Linear, Vercel, Notion all animate the indicator between items with a shared-element move. Here, switching from Overview to All signals snaps.",
+            "fix": "Lift the indicator to a single element animated between items. Add `<span class=\"nav-pointer\" />` as a sibling of the nav list in shell.jsx, position absolute relative to `.nav`, with `top` and `height` tweened via `transition: transform 280ms var(--ease-entrance), height 240ms var(--ease-entrance);`. On click of any `.nav-item`, set the pointer's `top` and `height` to match the clicked item's `getBoundingClientRect()`. Remove the `::before` pseudo-element pattern at line 291–295 so only the shared pointer renders. Fallback: if state is reorganisation-heavy, keep the per-item `::before` but transition it from `width: 0` to `width: 3px` via `transition: width 240ms var(--ease-entrance);` so it grows in on activation.",
+            "impact": "medium"
+          },
+          {
+            "where": "index.html line 728–730 `.page` fade vs line 850 `.modal-back` fade — duplicate fadeIn",
+            "problem": "Two different elements share `@keyframes fadeIn` but apply it with different durations and easings (`var(--dur-page)` vs `.18s ease-out-quad`). This is fine but reveals that the motion language is being declared inconsistently — the modal does not use the design-system `--ease-entrance` token. The token vocabulary is correct, the application is sloppy.",
+            "fix": "Replace line 850 `animation: fadeIn .18s cubic-bezier(0.25,0.46,0.45,0.94);` with `animation: fadeIn 200ms var(--ease-functional);`. Audit every animation declaration in index.html — every duration must be `var(--dur-micro|--dur|--dur-page)`, every easing must be one of the three motion tokens. Add a comment block at the top of the motion-tokens section enforcing this. The lint rule should flag any inline `cubic-bezier(` outside `:root`.",
+            "impact": "low"
+          },
+          {
+            "where": "index.html line 733–743 `.skeleton` and any loading state",
+            "problem": "Skeleton uses a 2.4s linear shimmer — correct duration choice. But the shimmer band is white-tinted (`#ffffff22`) on dark, and there is no light-theme override, so on warm paper it would shimmer with a hot-white band that breaks the cream palette. Mobile loading would betray the brand.",
+            "fix": "Add to the light theme block (around line 200): `[data-theme=\"light\"] .skeleton { background: linear-gradient(90deg, var(--panel) 0%, rgba(80,50,20,.06) 40%, rgba(80,50,20,.10) 50%, rgba(80,50,20,.06) 60%, var(--panel) 100%); background-size: 200% 100%; }`. Also slow to 2.8s on light for the warm-paper register feel.",
+            "impact": "low"
+          },
+          {
+            "where": "index.html line 745–748 focus-visible",
+            "problem": "Focus ring is a hard 2px solid ember outline with 2px offset — correct accessibility but visually clunky on a refined product. No transition on appearance, no soft glow.",
+            "fix": "Update line 747: `:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; border-radius: 4px; box-shadow: 0 0 0 4px var(--accent-ring); transition: box-shadow 120ms var(--ease-functional), outline-color 120ms var(--ease-functional); }`. The added box-shadow halo softens the ring into the ember accent-ring token and matches the search-bar focus halo pattern at line 339.",
+            "impact": "low"
+          },
+          {
+            "where": "index.html line 894–901 `.live-strip` `stripPulse` animation",
+            "problem": "The live-strip left-border pulses between `var(--ember-flash)` and a 45%-alpha version — a blinking strip is restless and pulls attention away from the actual signal cards. Two competing pulses on the same page (live-badge dot + live-strip border) compete for the user's focal point. This is the classic \"too many things move\" amateur tell.",
+            "fix": "Remove the `stripPulse` animation on `.live-strip` entirely (delete lines 899–901). Keep the static `border-left: 3px solid var(--ember-flash)`. The ember spine should be a declared identity, not a flashing alert. Reserve the breathing pulse for the LIVE badge dot only — one pulse on the page at a time.",
+            "impact": "medium"
+          }
+        ]
+      },
+      {
+        "lens": "First-time senior policy executive opening a public parliamentary-intelligence product in dark, light, drawer and mobile views.",
+        "verdict": "It reads as a polished personal hobby dashboard, not a credible commercial product, because the screen drowns the reader in two oversized warning banners and four equal-weight ember KPIs before any actual signal is visible, and the light theme ships with a visible theme bug that no professional team would let out the door.",
+        "findings": [
+          {
+            "where": "dr-02-overview-light.jpeg, first KPI tile 'New signals today'",
+            "problem": "The hero KPI card renders with the dark-theme panel gradient on warm-paper light mode, producing a black rectangle on cream paper. This is the single most damaging tell: a visible theme bug on the marketing screenshot says 'unfinished'.",
+            "fix": "In index.html the .cs-primary rule (line 408-418) hardcodes radial gradient #f08a3c14 over var(--panel-2). Add a [data-theme='light'] .cs-primary override: background: radial-gradient(420px 140px at 0% 0%, rgba(154,82,25,0.06), transparent), linear-gradient(180deg, var(--panel) 0%, var(--panel-2) 100%); border-color: var(--line-2). Same fix for any .panel.stat.hero-stat used by PageOverview at pages.jsx line 137 (currently uses inline borderLeft and inherits panel gradient which works, but verify against [data-theme='light'] .panel rule — there is no light override for .panel, only for .signal at index.html line 167).",
+            "impact": "high"
+          },
+          {
+            "where": "dr-01 and dr-02 top of overview, both banners",
+            "problem": "Two stacked yellow-orange disclaimer banners ('Design state' + 'Representative data') plus a third 'Getting started' panel consume the entire above-the-fold band. A senior reader sees three warning-coloured bars before any content. It screams beta/demo/personal-project, not product.",
+            "fix": "Collapse the two data-warning banners into ONE compact line directly under the topbar, height 28px, mono 11px, ink-3 colour, no border, single icon. Move 'Getting started' out of the main column entirely into a dismissable side-rail or a '?' help popover triggered from the topbar. In pages.jsx PageOverview (lines 117-122) delete the .design-banner block and remove <OnboardingGuide />; add one new <div className='meta-strip'> with the disclaimer text. Add to index.html: .meta-strip { display:flex; gap:12px; padding:6px 16px; font-family:var(--mono); font-size:11px; color:var(--ink-4); border-bottom:1px solid var(--line); }.",
+            "impact": "high"
+          },
+          {
+            "where": "dr-01, dr-02, dr-04 — the four-tile KPI strip",
+            "problem": "All four KPI numbers (6, 3, 7, 6) read at near-identical visual weight despite the design system declaring 't-kpi 48px' for the hero and 't-stat 28px' for the rest. The intended hero-vs-secondary contrast is not landing because the hero number '6' is the same digit count as the rest and the cards are roughly the same width (1.6fr vs 1fr is too close). Result: a row of indistinct dashboard tiles, the visual cliche of every amateur SaaS demo.",
+            "fix": "Change .command-strip grid in index.html line 405 from '1.6fr 1fr 1fr 1fr' to '2.4fr 1fr 1fr 1fr'. In pages.jsx line 137 add an additional element to the hero card: a sparkline or a 7-day delta bar (use an SVG, fill var(--brass) at 0.6 opacity) sitting below the KPI value. Drop --t-stat from 28px to 22px in :root (line 101) so the secondary numbers visibly recede. Add font-weight:700 to .cs-primary .cs-kpi but keep font-weight:500 on .cs-secondary .cs-stat. The three secondary tiles should also lose their card chrome (border, gradient, shadow) and become flat label/number stacks separated only by a 1px var(--line) vertical divider, like a Bloomberg masthead.",
+            "impact": "high"
+          },
+          {
+            "where": "dr-01, dr-02, dr-03 — every 'Fixture' chip on every signal card and KPI label",
+            "problem": "The ALL-CAPS letter-spacing .18em mono labels appear on the brand subtitle, every panel kicker, every stat label, every section header, every fixture chip, every group of nav. The screen has dozens of identical-looking mono-uppercase tags. The signal that was meant to be a chrome detail has become the dominant texture, making the page look like a 2014 admin template rather than a 2026 product.",
+            "fix": "Audit and cut. In index.html: remove text-transform:uppercase from .panel-kicker (line 472), .stat-label (line 480), and .chip-fixture (line 965) — keep it ONLY on .nav-group (line 274) and .page-kicker (line 397). Drop letter-spacing across the board from .18em to .08em. Change .chip-fixture from uppercase 'FIXTURE' to sentence-case italic serif 'fixture' in var(--ink-4) with no border, no background — let it sit inline as low-weight metadata, not as a pill. This single change will roughly halve the visual noise.",
+            "impact": "high"
+          },
+          {
+            "where": "dr-01, dr-03 — every signal card body, recommended-action row and the 5-bar attention glyph in lower-right of each card",
+            "problem": "The recommended-action ('Assign Policy Owner', 'Draft Executive Brief') is rendered with the same weight and treatment as the body summary above it, and the cute orange 5-bar 'attention meter' in the card corner is decorative cruft that adds nothing a number could not. A serious product surfaces the recommended decision FIRST and removes ornament.",
+            "fix": "Restructure SignalCard in pages.jsx so the recommended action becomes a coloured strip at the top of the card with the verb ('Assign Policy Owner') as 15px ink-on-brass-soft pill, followed by the title, followed by a single-line summary clamp at 1.5em. Delete the 5-bar attention SVG entirely (it duplicates the HIGH/MEDIUM/LOW tag at the top). Replace with a single small numeric '4/5' in mono ink-4 next to the source. In index.html add: .signal { display:grid; grid-template-areas: 'action action' 'meta meta' 'title title' 'summary summary' 'tags tags'; gap:8px; }, then move the 'RECOMMENDED' row into the .action grid area at the top.",
+            "impact": "high"
+          },
+          {
+            "where": "dr-01 sidebar 'Active 2 days this week' under Juan Vega, and the dr-03 drawer top-right '1 / 6 SIGNAL' badge with orange box",
+            "problem": "Personal name and activity streak in a public-facing parliamentary intelligence product reads as a single-user toy, not a product. The '1/6 SIGNAL' orange-bordered widget in the drawer header is meaningless to a first-time reader and visually competes with the close button.",
+            "fix": "Either remove the user profile chip from the public marketing screens entirely, or replace 'Juan Vega / Principal Policy Officer / Active 2 days this week' with the organisation mark ('Prometheus Policy Lab' / 'Tier: Pro / Sign in'). The orange-bordered 1/6 chip in the drawer needs to be demoted: change to ink-4 mono '1 of 6', no border, sitting beside the close button in the same row, not as a separate badge.",
+            "impact": "medium"
+          },
+          {
+            "where": "dr-04 mobile overview",
+            "problem": "Mobile collapses to a single column but the four KPI tiles stack into a 4-deep block of full-width cards before the user reaches any signal. Combined with the two banners, the user must scroll past five hero-card-height blocks before seeing one signal. Mobile feels like a desktop dashboard squashed, not designed.",
+            "fix": "On viewports under 720px, in index.html @media block near line 831, collapse the KPI strip to a 2x2 grid (grid-template-columns: 1fr 1fr) and halve the padding to 10px 12px. Move the hero KPI to a single full-width row above the 2x2. Also force the 'Getting started' onboarding card to collapse to a single-line link 'How this works ->' under the page title.",
+            "impact": "medium"
+          },
+          {
+            "where": "dr-03 drawer — the green horizontal bars on 'Attention score breakdown'",
+            "problem": "The bars use saturated mint-green that does not appear anywhere else in the product palette. The design system explicitly says (index.html line 60-66) the only sanctioned greens fold into teal-verified family at #45b3a4 and no standalone green exists, but the rendered bars look brighter and more saturated than the declared --teal. Looks like a stock Chart.js default leaked through.",
+            "fix": "Audit the score-bar component in pages.jsx (SignalDrawer); replace whatever inline colour it uses with background: linear-gradient(90deg, var(--brass-soft) 0%, var(--brass) 100%) so the breakdown bars match the ember sovereign accent system. Bars should be 4px tall not 6px, and aligned with the right-edge number column. If teal is preferred for 'verification' semantics, use exactly var(--teal) with no saturation boost.",
+            "impact": "medium"
+          },
+          {
+            "where": "dr-01, dr-02 — page title 'Today's signals' and its sub-line",
+            "problem": "The serif H1 'Today's signals' at 30px sits flat with no kicker prominence, and the sub-line 'representative signal items / classified as priority / official feeds configured' repeats numbers already shown in the KPI strip 100px below. Redundancy and weak masthead.",
+            "fix": "Raise --t-masthead from 30px to 36px in :root (line 96). Replace the sub-line with a one-sentence editorial standfirst in 16px serif italic ink-2 that explains the value of the page ('Sitting day 1 June. Six new items since yesterday, three need a decision before House sitting at 9am'). Move the numeric breakdown to mono micro-labels under the KPIs, not under the title.",
+            "impact": "medium"
+          },
+          {
+            "where": "dr-01 — the orange 'Watch live' button beside Hansard/YouTube ghost buttons in the live-strip row",
+            "problem": "The live-strip has three CTAs of nearly equal prominence (Hansard, YouTube, Watch live) plus a 'Generate daily brief' primary button up top right plus a 'New brief' primary button in the topbar. Four ember-primary buttons compete on one screen. The design CSS comment at line 39-47 explicitly says primary ember is one per surface; the implementation breaks its own rule.",
+            "fix": "Enforce one-primary-per-surface. In pages.jsx PageOverview: the only .btn.primary should be 'Generate daily brief' in page-head. Demote 'Watch live' (line 181) to .btn.ghost with a left ember dot indicator. Demote topbar 'New brief' (in app.jsx) to .btn.sm.ghost with an ember outline. Demote 'Refresh live' similarly. Result: one ember button, every other action is ghost or outline, ember reads as sovereign again.",
+            "impact": "medium"
+          },
+          {
+            "where": "dr-01, dr-02 — entire signal-card grid spacing and the right-rail 'What changed / Briefing queue / Source health'",
+            "problem": "Vertical rhythm is broken. Gaps between banners, KPI strip, live strip, panel header, and signal cards vary between 12px and 22px with no consistent baseline. The right rail panels (What changed, Briefing queue, Source health) stack with three different border styles and the 'Source health' table has empty dash columns that read as 'we have not finished this'.",
+            "fix": "Set --sp-row: 16px and use it uniformly between every top-level block. Remove the empty dash columns from Source health table (the four feeds with '—' columns) — show only Status + Last-poll, and only show one column 'Last poll: 5 min ago' in mono ink-3. If polling data is not available yet, hide the table behind a 'Source health — coming soon' kicker rather than show empty placeholder rows. Right-rail panels should share one panel chrome rule; remove inline overrides.",
+            "impact": "medium"
+          },
+          {
+            "where": "All four screens — the brand-mark glow on the dark Parliament Pulse logo top-left",
+            "problem": "The brand mark is a soft orange radial glow with no actual logomark inside it, just an empty round-rect. On a public product the empty glow reads as a placeholder a designer forgot to fill in. The BETA pill next to 'Parliament Pulse' compounds the placeholder feel.",
+            "fix": "Put an actual mark inside .brand-mark (index.html line 259) — either a stylised P, a flame glyph from the Fire House identity, or the Prometheus Lab triangle. SVG, 24x24, currentColor=var(--brass). Drop the BETA pill from the public screen (the 'Design state' banner already communicates pre-release). Keep the radial glow but tighten it: reduce brand-mark size from 52px to 40px so the brand block is denser.",
+            "impact": "low"
+          }
+        ]
+      }
+    ]
+  }
+}

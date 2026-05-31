@@ -16,21 +16,19 @@
 # /* does not disturb script delivery.
 #
 # CSP notes (browser-only React-over-Babel build):
-#   script-src needs 'unsafe-eval' and 'unsafe-inline' because Babel standalone
-#     compiles JSX in the browser and injects compiled code at runtime. Removing
-#     these breaks the app until JSX is precompiled (see README production path).
-#   The CDN host is unpkg.com (React, ReactDOM, Babel standalone).
-#   style-src and font-src allow Google Fonts (IBM Plex Sans, Mono, Serif).
+#   JSX is now PRECOMPILED to .js by build-jsx.ps1 (esbuild) and React is pinned
+#     to production .min.js, so script-src is locked to 'self' + unpkg only: no
+#     'unsafe-eval' (no in-browser Babel) and no 'unsafe-inline' (no inline scripts).
+#   The CDN host is unpkg.com (React, ReactDOM UMD).
+#   style-src keeps 'unsafe-inline' for the inline <style> block and React inline
+#     style attributes; font-src allows Google Fonts (IBM Plex Sans, Mono, Serif).
 #   connect-src allows the production Worker origin (RSS proxy fetch) and the
 #     local dev proxy at localhost:3001 / 127.0.0.1:3001.
-#   frame-src allows the YouTube live embed.
-#   img-src allows YouTube thumbnail and data URIs.
-# When JSX is precompiled and React is pinned to production .min.js, tighten
-# script-src by dropping 'unsafe-eval' and 'unsafe-inline'.
+#   frame-src allows the YouTube live embed. img-src allows YouTube thumbnail + data URIs.
 /*
   X-Frame-Options: SAMEORIGIN
   X-Content-Type-Options: nosniff
   Strict-Transport-Security: max-age=31536000; includeSubDomains
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://i.ytimg.com https://*.ytimg.com; connect-src 'self' https://aph-proxy.jvega019.workers.dev http://localhost:3001 http://127.0.0.1:3001; frame-src https://www.youtube.com https://www.youtube-nocookie.com; base-uri 'self'; form-action 'self'; object-src 'none'; frame-ancestors 'self'
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://i.ytimg.com https://*.ytimg.com; connect-src 'self' https://aph-proxy.jvega019.workers.dev http://localhost:3001 http://127.0.0.1:3001; frame-src https://www.youtube.com https://www.youtube-nocookie.com; base-uri 'self'; form-action 'self'; object-src 'none'; frame-ancestors 'self'

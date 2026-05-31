@@ -6,6 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="description" content="Parliament Pulse — Australian parliamentary intelligence for policy officers. Live feeds, signal tracking, committee monitoring, and brief generation." />
 <meta name="author" content="Prometheus Policy Lab" />
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2307080e'/%3E%3Cpath d='M16 5c3 4 6.5 6.5 6.5 11.5a6.5 6.5 0 0 1-13 0c0-2.2 1-3.6 2.2-4.6 0 2 1 3 2.1 3.2-.4-3.2-.6-5.8 2.2-10.1z' fill='%23f08a3c'/%3E%3C/svg%3E" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Serif:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -77,6 +78,12 @@
     --accent-ring:  #f08a3c33;
     --accent-glow:  #f08a3c55;
     --topbar-underglow: #f08a3c1a;   /* ember scanline under the command bar (DESIGN-7) */
+    --rule-1:       #ffffff14;   /* visible hairline: panel + section boundaries */
+    --rule-2:       #ffffff08;   /* whisper hairline: sub-rows inside a panel */
+    --gap-section:  28px;        /* big between sections */
+    --gap-intra:    8px;         /* tight within a section */
+    --signal-high-bg: linear-gradient(160deg, #1f1614 0%, var(--panel) 100%);
+    --live-red:     #c4382f;     /* nav live count background (white text, AA) */
     --hover-surface: #ffffff06;
     --active-surface: #ffffff0c;
     --soft-surface: #ffffff03;
@@ -207,6 +214,10 @@
   [data-theme="light"] .sr-item.active {
     background: rgba(80,50,20,.07);
   }
+  /* High-attention signal card: base rule hardcodes a dark gradient; warm-paper override (design bug). */
+  [data-theme="light"] .signal[data-att="high"] {
+    background: linear-gradient(160deg, #fbe9dc 0%, var(--panel) 100%);
+  }
 
   * { box-sizing: border-box; }
   html, body { margin:0; padding:0; }
@@ -243,7 +254,7 @@
 
   /* ---------- Sidebar ---------- */
   .side {
-    background: linear-gradient(180deg, var(--side-start) 0%, var(--side-end) 100%);
+    background: var(--side-start);   /* flat ink slab — premium UIs do not gradient chrome */
     border-right: 1px solid var(--line);
     display: flex;
     flex-direction: column;
@@ -257,10 +268,10 @@
     display: flex; align-items: center; gap: 10px;
   }
   .brand-mark {
-    width: 52px; height: 52px; border-radius: 9px;
-    background: radial-gradient(circle at 35% 25%, var(--brand-glow) 0%, var(--brand-core) 80%);
+    width: 40px; height: 40px; border-radius: 6px;
+    background: var(--brand-core);
+    border: 1px solid var(--line-2);
     display: flex; align-items: center; justify-content: center;
-    box-shadow: inset 0 0 0 1px var(--accent-ring), 0 -2px 22px -4px var(--accent-glow), 0 0 24px -8px var(--accent-ring);
   }
   .brand-name { font-family: var(--serif); font-weight: 600; font-size: 18px; letter-spacing: -0.01em; }
   .brand-sub  { font-family: var(--mono); color: var(--ink-4); font-size: 10px; text-transform: uppercase; letter-spacing: .18em; margin-top: 2px; }
@@ -295,12 +306,12 @@
   }
   .nav-item .ico { width:16px; height:16px; opacity:.85; flex:none; }
   .nav-item .count {
-    margin-left: auto; font-family: var(--mono); font-size: 10px; color: var(--ink-4);
+    margin-left: auto; font-family: var(--mono); font-size: 10px; color: var(--ink-3);
     background: var(--active-surface); padding: 1px 6px; border-radius: 10px;
     font-variant-numeric: tabular-nums;
   }
   .nav-item.active .count { color: var(--brass); background: #f08a3c1f; }
-  .nav-item .count.nav-live { color: #fff; background: #c4382f; font-weight: 600; }
+  .nav-item .count.nav-live { color: #fff; background: var(--live-red); font-weight: 600; }
 
   .side-foot {
     border-top: 1px solid var(--line);
@@ -318,11 +329,10 @@
   .main { min-width: 0; display: flex; flex-direction: column; }
   .topbar {
     display: flex; align-items: center; gap: 14px;
-    padding: 14px 24px;
+    padding: 10px 20px;
     border-bottom: 1px solid var(--line);
     box-shadow: inset 0 -1px 0 var(--topbar-underglow);
     background: var(--topbar-bg);
-    backdrop-filter: blur(8px);
     position: sticky; top: 0; z-index: 20;
   }
   .search {
@@ -402,17 +412,18 @@
 
   /* ---------- Command-strip hero ---------- */
   .command-strip {
-    display: grid; grid-template-columns: 1.6fr 1fr 1fr 1fr; gap: 14px; align-items: stretch;
-    margin-bottom: 18px;
+    display: grid; grid-template-columns: 2fr 1fr 1fr; gap: var(--gap-intra); align-items: stretch;
+    margin-bottom: var(--gap-section);
   }
+  .cs-primary .unit, .cs-secondary .unit { font-family: var(--mono); font-size: 13px; color: var(--ink-3); margin-left: 8px; font-weight: 400; }
   .cs-primary {
     background:
       radial-gradient(420px 140px at 0% 0%, #f08a3c14, transparent),
       linear-gradient(180deg, var(--panel-2) 0%, var(--panel) 100%);
     border: 1px solid var(--line-2);
     border-left: 3px solid var(--brass);
-    border-radius: var(--r-lg);
-    box-shadow: var(--shadow), inset 0 0 0 1px #ffffff08;
+    border-radius: var(--r);
+    box-shadow: inset 0 1px 0 #ffffff08;
     padding: 18px 20px;
     display: flex; flex-direction: column; justify-content: center;
   }
@@ -423,7 +434,7 @@
   .cs-primary .cs-kpi .unit { font-family: var(--mono); font-size: 13px; color: var(--ink-3); margin-left: 8px; font-weight: 400; }
   .cs-secondary {
     background: linear-gradient(180deg, var(--panel) 0%, var(--bg-2) 100%);
-    border: 1px solid var(--line); border-radius: var(--r-lg);
+    border: 1px solid var(--rule-1); border-radius: var(--r);
     padding: 16px; display: flex; flex-direction: column; justify-content: center;
   }
   .cs-secondary .cs-stat {
@@ -457,21 +468,26 @@
   /* ---------- Panel — two-step elevation ---------- */
   .panel {
     background: linear-gradient(180deg, var(--panel) 0%, var(--bg-2) 100%);
-    border: 1px solid var(--line);
-    border-radius: var(--r-lg);
-    box-shadow: var(--shadow), inset 0 0 0 1px #ffffff08;
+    border: 1px solid var(--rule-1);
+    border-radius: var(--r);
+    box-shadow: inset 0 1px 0 #ffffff08;   /* tonal lift, not a drop shadow (resident-panel tier) */
   }
   .panel-head {
     display: flex; align-items: center; gap: 12px;
     padding: 14px 16px;
-    border-bottom: 1px solid var(--line);
+    border-bottom: 1px solid var(--rule-1);
   }
-  .panel-title { font-weight: 600; font-size: var(--t-body-sm); margin: 0; color: var(--ink); letter-spacing: .005em; }
+  .panel-title { font-weight: 600; font-size: 14px; margin: 0; color: var(--ink); letter-spacing: .005em; }
   .h-drawer { font-family: var(--serif); font-size: 22px; font-weight: 600; line-height: 1.25; letter-spacing: -0.01em; }
   .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
-  .panel-kicker { font-family: var(--mono); font-size: 10px; font-weight: 600; color: var(--ink-4); text-transform: uppercase; letter-spacing: .18em; }
+  .panel-kicker { font-family: var(--mono); font-size: 11px; font-weight: 500; color: var(--ink-3); letter-spacing: .02em; }
   .panel-body { padding: 14px 16px; }
   .panel-foot { padding: 10px 16px; border-top: 1px solid var(--line); display:flex; align-items:center; gap:10px; }
+  /* one cohesive rail: sections inside a single panel, hairline-separated */
+  .panel-section { padding: 16px; border-bottom: 1px solid var(--rule-1); }
+  .panel-section:last-child { border-bottom: 0; }
+  .panel-section-head { display:flex; align-items:baseline; gap:10px; margin-bottom: 12px; }
+  .panel-section-title { font-family: var(--mono); font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: var(--ink-4); margin: 0; font-weight: 600; }
 
   /* ---------- Stat block ---------- */
   .stat {
@@ -522,7 +538,7 @@
   .tag.info  { color: var(--info); border-color: #9aa6b033; background: #9aa6b00f; }
 
   .sig-action {
-    margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--line-2);
+    margin-top: 12px; padding-top: 14px; border-top: 1px solid var(--rule-2);
     display: grid; grid-template-columns: auto 1fr auto; gap: 10px 14px; align-items: center;
   }
   .sig-action-label {
@@ -553,13 +569,14 @@
   .conf {
     display: inline-flex; align-items: center; gap: 2px;
   }
-  .conf span { width: 6px; height: 10px; background: var(--line-2); border-radius: 1px; }
+  .conf span { width: 6px; height: 11px; background: var(--line-2); border-radius: 1px; }
+  /* single sovereign accent at stepped opacity reads quantitatively without a 5-hue ramp */
   .conf span.on { background: var(--brass); }
-  .conf span.on:nth-child(1) { background: var(--brass); }
-  .conf span.on:nth-child(2) { background: #ed9444; }
-  .conf span.on:nth-child(3) { background: #e89e51; }
-  .conf span.on:nth-child(4) { background: #e0aa62; }
-  .conf span.on:nth-child(5) { background: var(--gold); }
+  .conf span.on:nth-child(1) { opacity: .45; }
+  .conf span.on:nth-child(2) { opacity: .6; }
+  .conf span.on:nth-child(3) { opacity: .75; }
+  .conf span.on:nth-child(4) { opacity: .9; }
+  .conf span.on:nth-child(5) { opacity: 1; }
 
   /* ---------- Table ---------- */
   table.ds { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
@@ -568,7 +585,7 @@
     font-family: var(--mono); font-size: 10px; color: var(--ink-4);
     text-transform: uppercase; letter-spacing: .18em; font-weight: 600;
     background: var(--soft-surface); position: sticky; top: 0;
-    box-shadow: inset 0 -1px 0 #f08a3c1f;
+    box-shadow: inset 0 -1px 0 var(--rule-1);
   }
   table.ds tbody tr { cursor: pointer; }
   table.ds tbody tr:hover { background: var(--soft-surface); }
@@ -610,12 +627,12 @@
 
   .drawer-section { margin-bottom: 26px; }
   .drawer-section h3 {
-    font-family: var(--mono); font-size: 10px; font-weight: 600; color: var(--ink-3);
-    text-transform: uppercase; letter-spacing: .18em; margin: 0 0 10px;
-    padding-bottom: 6px; border-bottom: 1px solid var(--line);
+    font-family: var(--mono); font-size: 11px; font-weight: 500; color: var(--ink-3);
+    letter-spacing: .04em; margin: 0 0 10px;
+    padding-bottom: 6px; border-bottom: 1px solid var(--rule-2);
   }
   .drawer-section p { margin: 0; color: var(--ink-2); font-size: var(--t-body-sm); line-height: 1.55; }
-  .kv { display: grid; grid-template-columns: 140px 1fr; gap: 6px 14px; font-size: var(--t-body-sm); }
+  .kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 20px; font-size: var(--t-body-sm); }
   .kv dt { font-family: var(--mono); font-size: 10.5px; color: var(--ink-4); text-transform: uppercase; letter-spacing: .1em; padding-top: 2px; }
   .kv dd { margin: 0; color: var(--ink); }
 
@@ -649,7 +666,7 @@
   .radar-row { display: grid; grid-template-columns: 1fr 80px 100px 1fr; gap: 14px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
   .radar-row:last-child { border-bottom: 0; }
   .bar { height: 4px; background: var(--line-2); border-radius: 2px; overflow: hidden; }
-  .bar .fill { height: 100%; background: var(--teal); }  /* solid teal — coverage metric; brass blend caused semantic confusion */
+  .bar .fill { height: 100%; background: var(--brass); }  /* priority/score metric — ember, not teal (teal is verification-only) */
   .spark { display: flex; gap: 2px; align-items: end; height: 22px; }
   .spark span { width: 5px; background: var(--teal-soft); border-radius: 1px; }
 
@@ -834,6 +851,9 @@
     .g-source-row, .g-live-main, .g-link-grid, .g-feed-form, .g-live-event,
     .g-qon-evidence, .g-briefings { grid-template-columns: 1fr !important; }
     .radar-row { grid-template-columns: 1fr !important; gap: 4px !important; }
+    /* Mobile triage focus: lead with the priority hero + signals; defer secondary KPIs and the context rail. */
+    .command-strip .cs-secondary { display: none; }
+    .g-overview > div:last-child { display: none; }
     /* Overlays go full width on phones (UX-3/UX-5). */
     .drawer { width: 100% !important; max-width: 100% !important; }
     .modal { max-width: 100% !important; }
@@ -890,15 +910,13 @@
   .clk { cursor: pointer; transition: background .12s, border-color .12s; }
   .clk:hover { background: #ffffff08; border-color: var(--line-bright); }
 
-  /* Live now strip — ember-lit, pulsing left spine */
+  /* Live now strip — ember-lit, static spine (no perpetual pulse; one pulse per viewport lives in the topbar) */
   .live-strip {
     background: linear-gradient(90deg, #1a1108 0%, var(--panel) 40%, var(--panel) 100%);
     border: 1px solid var(--line-2);
     border-left: 3px solid var(--ember-flash);
     border-radius: 10px;
-    animation: stripPulse 1.6s ease-in-out infinite;
   }
-  @keyframes stripPulse { 0%,100% { border-left-color: var(--ember-flash); } 50% { border-left-color: #e0534b73; } }
 
   /* Toast */
   .toast-wrap { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 70; display:flex; flex-direction:column; gap:8px; align-items:center; }
@@ -987,14 +1005,14 @@
 <!-- Pinned React + Babel -->
 <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" integrity="sha384-DGyLxAyjq0f9SPpVevD6IgztCFlnMF6oW/XQGmfe+IsZ8TqEiDrcHkMLKI6fiB/Z" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" integrity="sha384-gTGxhz21lVGYNMcdJOyq01Edg0jhn/c22nsx0kyqP0TxaV5WVdsSH1fSDUf5YJj1" crossorigin="anonymous"></script>
-<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<!-- JSX is precompiled to .js by build-jsx.ps1 (esbuild); no in-browser Babel, so the CSP can forbid eval. -->
 
-<script type="text/babel" src="data.jsx"></script>
-<script type="text/babel" src="entities.jsx"></script>
-<script type="text/babel" src="icons.jsx"></script>
-<script type="text/babel" src="store.jsx"></script>
-<script type="text/babel" src="shell.jsx"></script>
-<script type="text/babel" src="pages.jsx"></script>
-<script type="text/babel" src="app.jsx"></script>
+<script src="data.js"></script>
+<script src="entities.js"></script>
+<script src="icons.js"></script>
+<script src="store.js"></script>
+<script src="shell.js"></script>
+<script src="pages.js"></script>
+<script src="app.js"></script>
 </body>
 </html>

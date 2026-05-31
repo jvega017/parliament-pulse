@@ -1,6 +1,9 @@
 *.md
 *.ps1
+*.jsx
+*.json
 build.py
+build-jsx.ps1
 proxy-server.js
 parliament-pulse.html
 archive/

@@ -74,13 +74,13 @@ const NAV = [
   { id: "live", label: "Live parliament", group: "Today", count: null, live: true },
   { id: "signals", label: "All signals", group: "Today", count: 6 },
   { id: "radar", label: "Attention radar", group: "Today", count: 6 },
-  { id: "committees", label: "Committees", group: "Parliament", count: 7 },
-  { id: "bills", label: "Bills intelligence", group: "Parliament", count: 5 },
-  { id: "parliament", label: "Daily program", group: "Parliament", count: 3 },
-  { id: "patterns", label: "QON patterns", group: "Parliament", count: 1 },
-  { id: "briefings", label: "Briefings", group: "Workflow", count: 4 },
-  { id: "watchlists", label: "Watchlists", group: "Workflow", count: 12 },
-  { id: "sources", label: "Sources", group: "Admin", count: sourceCounts().total },
+  { id: "committees", label: "Committees", group: "Workspace", count: 7 },
+  { id: "bills", label: "Bills intelligence", group: "Workspace", count: 5 },
+  { id: "parliament", label: "Daily program", group: "Workspace", count: 3 },
+  { id: "patterns", label: "QON patterns", group: "Workspace", count: 1 },
+  { id: "briefings", label: "Briefings", group: "Workspace", count: 4 },
+  { id: "watchlists", label: "Watchlists", group: "Workspace", count: 12 },
+  { id: "sources", label: "Sources", group: "Workspace", count: sourceCounts().total },
 ];
 
 const ICONS = {
@@ -182,9 +182,6 @@ function Sidebar({ page, onNavigate, mobileOpen }) {
         <div style={{lineHeight:1.2}}>
           <div style={{fontSize:12.5, fontWeight:500}}>Juan Vega</div>
           <div style={{fontFamily:"var(--mono)", fontSize:10, color:"var(--ink-4)"}}>Principal Policy Officer · Futures & Foresight</div>
-          <div style={{fontFamily:"var(--mono)", fontSize:10, color:"var(--ink-4)", marginTop:3, opacity:.75}}>
-            {streak <= 1 ? "Active today" : `Active ${Math.min(streak, 7)} days this week`}
-          </div>
         </div>
       </div>
     </aside>
@@ -404,17 +401,16 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
       </div>
       <div className="top-right">
         <TopClock />
-        <span className="chip clk live-chip" onClick={() => navigate("live")} style={{borderColor:"var(--ember-flash)", color:"var(--ink)", background:"transparent"}}>
-          <span className="dot pulse-dot" style={{background:"var(--ember-flash)"}}/> Parliament live
+        <span className="chip clk live-chip" onClick={() => navigate("live")} title="Parliament is sitting · official feeds configured" style={{borderColor:"var(--ember-flash)", color:"var(--ink)", background:"transparent"}}>
+          <span className="dot pulse-dot" style={{background:"var(--ember-flash)"}}/> Live · {sourceCounts().total} sources
         </span>
-        <span className="chip sources-chip" title="Official feeds configured"><span className="dot" /> {sourceCounts().total} sources</span>
-        <button className="btn ghost sm shortcut-btn" title="Go to Live parliament and refresh feeds there" onClick={() => {
+        <button className="btn ghost sm shortcut-btn" title="Go to Live parliament and refresh feeds there" aria-label="Refresh live feeds" onClick={() => {
           requestLiveRefresh();
           navigate("live");
           if (window.__refreshLiveFeeds) { consumeLiveRefresh(); window.__refreshLiveFeeds(); toast("Refreshing live feeds..."); }
           else toast("Opening Live page to refresh feeds", "brass");
-        }}><Icon name="refresh" size={13} /> Refresh live</button>
-        <button className="btn sm" title="Placeholder: alerts backend not wired" onClick={() => toast("Alerts (demo): no alerts backend is wired", "brass")}><Icon name="bell" size={13} /> Alerts</button>
+        }}><Icon name="refresh" size={14} /></button>
+        <button className="btn ghost sm" title="Alerts (demo): no alerts backend wired" aria-label="Alerts" onClick={() => toast("Alerts (demo): no alerts backend is wired", "brass")}><Icon name="bell" size={14} /></button>
         <button className="btn primary sm" onClick={() => navigate("briefings")}><Icon name="plus" size={13} /> New brief</button>
         <ShortcutHelp />
         <button className="btn ghost sm" title={isDark ? "Switch to light mode" : "Switch to dark mode"} aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"} onClick={() => {
@@ -488,7 +484,6 @@ const SignalCardView = React.memo(function SignalCardView({ s, archived, feedbac
         <span className="sig-id mono">{s.id}</span>
         <span className="sig-source mono">· {s.source}</span>
         <Att level={s.attention} />
-        <span className="chip-fixture">Fixture</span>
         {watched && <span className="tag brass">Watching</span>}
         <span className="sig-time mono">{s.time}</span>
       </div>
@@ -500,7 +495,7 @@ const SignalCardView = React.memo(function SignalCardView({ s, archived, feedbac
       <div className="sig-action">
         <span className="sig-action-label">Recommended</span>
         <span className="sig-action-value">{s.action}</span>
-        <Conf n={s.confidence} />
+        <span className="mono" title="Analyst confidence" style={{fontSize:10.5, color:"var(--ink-4)", letterSpacing:".04em", whiteSpace:"nowrap"}}>{s.confidence}/5</span>
       </div>
       {feedback && (
         <div style={{marginTop:8, fontSize:11.5, color:"var(--brass)"}}>
@@ -700,8 +695,8 @@ function Drawer() {
             <div className="drawer-body" ref={drawerBodyRef}>
               <div className="drawer-section">
                 <h3>Recommended action</h3>
-                <div style={{padding:"12px 14px", border:"1px solid var(--brass-soft)", borderRadius:8, background:"var(--panel-hi)"}}>
-                  <div style={{fontWeight:600, color:"var(--brass)"}}>{s.action}</div>
+                <div style={{padding:"10px 14px", borderLeft:"3px solid var(--brass)", borderRadius:"0 6px 6px 0", background:"var(--panel-2)"}}>
+                  <div style={{fontWeight:600, color:"var(--ink)"}}>{s.action}</div>
                   <div style={{color:"var(--ink-2)", fontSize:13, marginTop:4}}>{s.actionReason}</div>
                 </div>
               </div>

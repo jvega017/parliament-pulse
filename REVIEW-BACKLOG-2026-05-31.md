@@ -202,3 +202,27 @@ Remaining tail — invisible code hygiene only, no user-facing/honesty/a11y impa
 
 Bottom line: shippable. Every P1 across all batches is closed; build is AA-accessible,
 responsive, honest, and Fire-House-coherent in both themes. Production live and verified.
+
+---
+
+## PASS W — mechanical tail (2026-05-31, commit 17756c4, deploy 27e65ada)
+
+Codex (workspace-write) did the spec-bound mechanical sweeps; Claude browser-verified
+every changed path (nav, modal-open, signal-drawer functional; grids collapse at 375px;
+production 0 console errors).
+
+- DESIGN-4 DONE — inline gridTemplateColumns in pages.jsx moved to named CSS classes
+  with mobile collapse rules. Verified single-track at 375px, full columns at desktop.
+- MAINT-2 DONE — window.__setPage/__openModal/__openSignal removed; call sites use
+  useStore(). window.__refreshLiveFeeds retained. Navigation/modals/drawer verified post-removal.
+- DESIGN-6 CLOSED (scoped) — SkeletonRow/SkeletonCard extracted; PageLive uses the row.
+  NOT wired onto Overview/Signals/Sources: they render synchronously from fixture data,
+  so a skeleton there would be a dishonest fake-loading state.
+- DESIGN-3 WON'T-FIX (rationale) — the type scale has no exact token for the inline sizes
+  in use (10.5/11/11.5/12/12.5/13.5/14/16/18/22). Mapping shifts sizes 1-2px across dense
+  tables for zero user-visible benefit + layout-shift risk. Codex and Claude independently
+  judged forcing it a net negative. Needs a deliberate type-scale decision, not a sweep.
+
+REMAINING BACKLOG = only the Vite-migration deferrals (SEC-5, PERF-3, MAINT-1, PERF-8),
+which require a JSX build pipeline that does not yet exist. Everything actionable without
+a new build pipeline is now done, verified, and deployed.

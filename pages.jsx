@@ -68,6 +68,7 @@ function PageOverview() {
   // Local overview controls (F4): real state, not toast-only stubs.
   const [groupByTopic, setGroupByTopic] = useState(false);
   const [sortByAttention, setSortByAttention] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
   const priority = SIGNALS.filter(s => s.attention === "high" && !state.archived[s.id]);
   let rest = SIGNALS.filter(s => s.attention !== "high" && !state.archived[s.id]);
   if (sortByAttention) {
@@ -115,75 +116,62 @@ function PageOverview() {
   };
   return (
     <div className="page">
-      <div className="design-banner" role="status" style={{marginBottom:12, borderRadius:8}}>
-        <Icon name="signal" size={13} stroke="var(--brass)" />
-        <span><strong>Representative data.</strong> Signal counts, deltas, committee tiles and source-health tiles are representative. Only the Live RSS page polls real feeds.</span>
-      </div>
-      <OnboardingGuide />
       <div className="page-head">
         <div>
           <div className="page-kicker">{new Date().toLocaleDateString("en-AU", {weekday:"short", day:"numeric", month:"short", year:"numeric"})} · Sitting day</div>
           <h1 className="page-title">Today's signals</h1>
-          <div className="page-sub">{priority.length + rest.length} representative signal items. {priority.length} classified as priority. {sourceCounts().total} official feeds configured.</div>
         </div>
-        <div style={{display:"flex", gap:10}}>
+        <div style={{display:"flex", gap:8, alignItems:"center", flexWrap:"wrap", justifyContent:"flex-end"}}>
+          <span className="chip-fixture" title="Signal counts and tiles are representative; only the Live RSS page polls real feeds">Demo data · live RSS on Live page</span>
+          <button className="btn ghost sm" aria-expanded={showHelp} onClick={() => setShowHelp(v => !v)}><Icon name="signal" size={12}/> How it works</button>
           <button className="btn ghost sm" onClick={exportSignalsCSV}><Icon name="ext" size={12}/> Export CSV</button>
           <button className="btn primary" onClick={generateDailyBrief}><Icon name="brief" size={13}/> Generate daily brief</button>
         </div>
       </div>
 
-      {/* COMMAND STRIP HERO — one dominant KPI flanked by three secondary stats */}
+      {showHelp && <OnboardingGuide />}
+
+      {/* COMMAND STRIP HERO — Priority is the hero KPI; the only number that drives a decision */}
       <div className="command-strip">
-        <div className="panel stat hero-stat" style={{borderLeft:"3px solid var(--brass)"}}>
-          <div className="stat-label">New signals today</div>
-          <div className="stat-value t-kpi">{priority.length + rest.length}</div>
-          <div className="stat-meta"><span style={{color:"var(--ink-3)"}}>{priority.length} classified priority</span></div>
-        </div>
-        <div className="panel stat">
-          <div className="stat-label">Priority signals</div>
-          <div className="stat-value t-stat" style={{color: priority.length > 0 ? "var(--ember-flash)" : "var(--ok)"}}>
-            {priority.length}
-          </div>
-          <div className="stat-meta">
-            <span>{priority.length > 0 ? "Requires review" : "All actioned"}</span>
-            <span style={{marginLeft:"auto", fontFamily:"var(--mono)", fontSize:10}}>
-              {SIGNALS.filter(s => state.archived[s.id]).length}/{SIGNALS.length} done
-            </span>
+        <div className="cs-primary">
+          <div className="cs-stat-label">Priority signals</div>
+          <div className="cs-kpi cs-count-up">{priority.length}<span className="unit">{priority.length > 0 ? "to triage" : "clear"}</span></div>
+          <div className="stat-meta" style={{marginTop:8, display:"flex", alignItems:"center", gap:10}}>
+            <span style={{color:"var(--ink-3)"}}>{priority.length + rest.length} signals today · {SIGNALS.filter(s => state.archived[s.id]).length}/{SIGNALS.length} actioned</span>
+            {priority.length > 0 && <button className="btn ghost sm" style={{marginLeft:"auto"}} onClick={() => document.getElementById("priority-panel")?.scrollIntoView({behavior:"smooth", block:"start"})}>Triage now →</button>}
           </div>
         </div>
-        <div className="panel stat">
-          <div className="stat-label">Committee activity</div>
-          <div className="stat-value t-stat">7<span className="unit">items</span></div>
+        <div className="cs-secondary">
+          <div className="cs-stat-label">Committee activity</div>
+          <div className="cs-stat">7<span className="unit">items</span></div>
           <div className="stat-meta">2 hearings · 1 inquiry · 1 report</div>
         </div>
-        <div className="panel stat">
-          <div className="stat-label">Source health</div>
-          <div className="stat-value t-stat">{sourceCounts().total}<span className="unit">feeds</span></div>
+        <div className="cs-secondary">
+          <div className="cs-stat-label">Source health</div>
+          <div className="cs-stat">{sourceCounts().total}<span className="unit">feeds</span></div>
           <div className="stat-meta">Official feeds configured</div>
         </div>
       </div>
 
-      {/* LIVE NOW STRIP — situational context; below stats in HUD hierarchy */}
+      {/* LIVE NOW STRIP — situational context; clock lives in the topbar, not duplicated here */}
       <div className="live-strip g-live-strip" style={{display:"grid", gap:14, alignItems:"center", padding:"12px 16px", marginBottom:16}}>
         <div style={{display:"flex", alignItems:"center", gap:8}}>
-          <span style={{width:8, height:8, borderRadius:"50%", background:"var(--ember-flash)", boxShadow:"0 0 12px var(--ember-flash)", animation:"pulse 1.6s ease-in-out infinite"}}/>
-          <span className="mono" style={{fontSize:10.5, letterSpacing:".18em", color:"var(--ember-flash)", fontWeight:600}}>
-            AEST {new Date().toLocaleTimeString("en-AU", {hour:"2-digit", minute:"2-digit", timeZone:"Australia/Brisbane"})}
-          </span>
+          <span style={{width:7, height:7, borderRadius:"50%", background:"var(--ember-flash)"}}/>
+          <span className="mono" style={{fontSize:10.5, letterSpacing:".16em", color:"var(--ember-flash)", fontWeight:600}}>LIVE NOW</span>
         </div>
         <div style={{display:"flex", gap:18, fontSize:12.5, color:"var(--ink-2)", alignItems:"center"}}>
-          <div><strong style={{color:"var(--ink)"}}>House:</strong> Question time <span className="chip-fixture" style={{verticalAlign:"middle", marginLeft:4}}>Fixture</span></div>
+          <div><strong style={{color:"var(--ink)"}}>House:</strong> Question time</div>
           <div style={{width:1, height:16, background:"var(--line-2)"}}/>
-          <div><strong style={{color:"var(--ink)"}}>Senate:</strong> <button className="linklike" onClick={()=>openModal("committee","legcon")}>Legal & Constitutional</button> hearing <span className="chip-fixture" style={{verticalAlign:"middle", marginLeft:4}}>Fixture</span></div>
+          <div><strong style={{color:"var(--ink)"}}>Senate:</strong> <button className="linklike" onClick={()=>openModal("committee","legcon")}>Legal & Constitutional</button> hearing</div>
         </div>
         <a href="https://www.aph.gov.au/Parliamentary_Business/Hansard" target="_blank" rel="noopener noreferrer" className="btn sm ghost" style={{textDecoration:"none"}}><Icon name="ext" size={12}/> Hansard</a>
         <a href="https://www.youtube.com/@AUSParliamentLive/streams" target="_blank" rel="noopener noreferrer" className="btn sm ghost" style={{textDecoration:"none"}}><Icon name="ext" size={12}/> YouTube</a>
-        <button className="btn sm primary" onClick={()=> goto && goto("live")}><Icon name="signal" size={12}/> Watch live</button>
+        <button className="btn sm" onClick={()=> goto && goto("live")}><Icon name="signal" size={12}/> Watch live</button>
       </div>
 
       <div className="grid g-overview">
         <div>
-          <div className="panel" style={{marginBottom:16}}>
+          <div className="panel" id="priority-panel" style={{marginBottom:"var(--gap-section)"}}>
             <div className="panel-head">
               <h2 className="panel-title">Priority signals</h2>
               <span className="panel-kicker">{priority.length} items · human review required</span>
@@ -218,15 +206,13 @@ function PageOverview() {
         </div>
 
         <div>
-          <div className="panel" style={{marginBottom:16}}>
-            <div className="panel-head">
-              <h2 className="panel-title">What changed</h2>
-              <span className="panel-kicker">Since 17:00 yesterday</span>
-              <span className="chip-fixture" style={{marginLeft:"auto"}}>Fixture</span>
-            </div>
-            <div className="panel-body">
-              {/* Return hook — surfaces analyst's prior session activity */}
-              <div style={{marginBottom:10, paddingBottom:10, borderBottom:"1px solid var(--line)", fontSize:12, color:"var(--ink-3)"}}>
+          <div className="panel">
+            <div className="panel-section">
+              <div className="panel-section-head">
+                <h2 className="panel-section-title">What changed</h2>
+                <span className="panel-kicker" style={{marginLeft:"auto"}}>Since 17:00 yesterday</span>
+              </div>
+              <div style={{marginBottom:12, paddingBottom:12, borderBottom:"1px solid var(--rule-2)", fontSize:12, color:"var(--ink-3)"}}>
                 {Object.keys(state.archived).length > 0
                   ? `You actioned ${Object.keys(state.archived).length} signal${Object.keys(state.archived).length !== 1 ? "s" : ""} this session.`
                   : "No signals actioned yet this session."}{" "}
@@ -241,16 +227,13 @@ function PageOverview() {
                 <div className="tl-item teal"><div className="tl-time">Yesterday 17:20</div><div className="tl-body">Report tabled: Regional 5G rollout, interim</div></div>
               </div>
             </div>
-          </div>
-
-          <div className="panel" style={{marginBottom:16}}>
-            <div className="panel-head">
-              <h2 className="panel-title">Briefing queue</h2>
-              <span className="panel-kicker">4 pending</span>
-            </div>
-            <div className="panel-body" style={{paddingTop:6}}>
+            <div className="panel-section">
+              <div className="panel-section-head">
+                <h2 className="panel-section-title">Briefing queue</h2>
+                <span className="panel-kicker" style={{marginLeft:"auto"}}>4 pending</span>
+              </div>
               {BRIEFING_QUEUE.map((b,i) => (
-                <div key={b.type + b.for} className="data-row g-brief-row" style={{display:"grid", gap:10}}>
+                <div key={b.type + b.for} className="data-row g-brief-row" style={{display:"grid", gap:10, padding:"10px 0", borderBottom: i < BRIEFING_QUEUE.length-1 ? "1px solid var(--rule-2)" : 0}}>
                   <div>
                     <div style={{fontSize:13, fontWeight:500}}>{b.type}</div>
                     <div style={{fontSize:11.5, color:"var(--ink-3)"}}>For {b.for} · <span className="mono">{b.at}</span></div>
@@ -261,25 +244,6 @@ function PageOverview() {
                   </div>
                 </div>
               ))}
-            </div>
-          </div>
-
-          <div className="panel">
-            <div className="panel-head">
-              <h2 className="panel-title">Source health</h2>
-              <span className="panel-kicker">{sourceCounts().total} official feeds configured</span>
-            </div>
-            <div className="panel-body">
-              {APH_FEEDS.slice(0, 6).map(f => (
-                <div key={f.id} onClick={() => openModal("feed", f.id)} className="clk g-source-row" style={{display:"grid", padding:"6px 8px", gap:10, fontSize:12.5, alignItems:"center", borderRadius:6}}>
-                  <div>{f.name}</div>
-                  <div className="mono" style={{color:"var(--ink-4)", fontSize:11}}>—</div>
-                  <div className="mono" style={{color:"var(--ink-3)", fontSize:11, textAlign:"right", width:28}}>{f.today ?? "—"}</div>
-                </div>
-              ))}
-              <div style={{marginTop:8, fontSize:12, color:"var(--ink-3)"}}>
-                Live feed status appears on the Live RSS page after a poll.
-              </div>
             </div>
           </div>
         </div>
