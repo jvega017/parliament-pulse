@@ -45,6 +45,30 @@ function EmptyState({ icon = "signal", kicker = "Empty", children, action, varia
   );
 }
 
+function SkeletonRow() {
+  return (
+    <div className="g-live-event" style={{display:"grid", gap:10, padding:"12px 8px", borderBottom:"1px solid var(--line)", alignItems:"start"}}>
+      <span className="skeleton" style={{height:12, width:36}}/>
+      <span className="skeleton" style={{height:14, width:14, borderRadius:"50%"}}/>
+      <div>
+        <span className="skeleton" style={{height:13, width:"80%", marginBottom:7}}/>
+        <span className="skeleton" style={{height:10, width:"45%"}}/>
+      </div>
+    </div>
+  );
+}
+
+function SkeletonCard() {
+  return (
+    <div className="signal" aria-hidden="true">
+      <span className="skeleton" style={{height:10, width:86, marginBottom:12}}/>
+      <span className="skeleton" style={{height:18, width:"72%", marginBottom:10}}/>
+      <span className="skeleton" style={{height:13, width:"92%", marginBottom:7}}/>
+      <span className="skeleton" style={{height:13, width:"56%"}}/>
+    </div>
+  );
+}
+
 const NAV = [
   { id: "overview", label: "Overview", group: "Today", count: 12 },
   { id: "live", label: "Live parliament", group: "Today", count: null, live: true },
@@ -521,7 +545,7 @@ function generateBriefMarkdown(s) {
 }
 
 function Drawer() {
-  const { signalId, openSignal, closeSignal, state, modal, saveFeedback, archive, addWatchlist, isWatched, saveNote, generateBrief, toast, visibleSignalOrder, navigate } = useStore();
+  const { signalId, openSignal, closeSignal, state, modal, openModal, saveFeedback, archive, addWatchlist, isWatched, saveNote, generateBrief, toast, visibleSignalOrder, navigate } = useStore();
   const signal = React.useMemo(() => SIGNALS.find(s => s.id === signalId), [signalId]);
   const [fb, setFb] = React.useState(null);
   const [note, setNote] = React.useState("");
@@ -760,7 +784,7 @@ function Drawer() {
                     {s.members.map(mid => {
                       const m = window.ENTITIES?.members?.[mid];
                       if (!m) return null;
-                      return <span key={mid} className="tag brass clk" onClick={() => window.__openModal?.("member", mid)}>{m.name}</span>;
+                      return <span key={mid} className="tag brass clk" onClick={() => openModal("member", mid)}>{m.name}</span>;
                     })}
                   </div>
                 </div>
@@ -806,4 +830,4 @@ function Drawer() {
   );
 }
 
-Object.assign(window, { Sidebar, Topbar, TopClock, SignalCard, Drawer, Att, Conf, DesignStateBanner, EmptyState, buildBriefSections });
+Object.assign(window, { Sidebar, Topbar, TopClock, SignalCard, Drawer, Att, Conf, DesignStateBanner, EmptyState, SkeletonRow, SkeletonCard, buildBriefSections });

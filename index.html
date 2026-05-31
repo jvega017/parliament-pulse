@@ -443,6 +443,16 @@
   .g-3 { grid-template-columns: repeat(3, 1fr); }
   .g-4 { grid-template-columns: repeat(4, 1fr); }
   .g-overview { grid-template-columns: 2.4fr 1fr; }
+  .g-onboarding { grid-template-columns: repeat(3,1fr); }
+  .g-live-strip { grid-template-columns: auto 1fr auto auto auto; }
+  .g-brief-row, .g-tracked-row, .g-threshold-row { grid-template-columns: 1fr auto; }
+  .g-source-row { grid-template-columns: 1fr auto auto; }
+  .g-live-main { grid-template-columns: 1.7fr 1fr; }
+  .g-link-grid, .g-feed-form { grid-template-columns: 1fr 1fr; }
+  .g-live-event { grid-template-columns: 56px 16px 1fr; }
+  .g-qon-evidence { grid-template-columns: 130px 200px 1fr 90px; }
+  .g-briefings { grid-template-columns: 280px 1fr; }
+  .radar-row.g-radar-table { grid-template-columns: 1fr 100px 80px 120px 140px; }
 
   /* ---------- Panel — two-step elevation ---------- */
   .panel {
@@ -817,9 +827,12 @@
     .side .nav-item { white-space: normal; }
     .side-foot { display: flex; }
     .g-2, .g-3 { grid-template-columns: 1fr; }
-    /* Collapse every multi-column grid to one column. !important overrides the inline grid templates (UX-4). */
-    .command-strip, .live-strip { grid-template-columns: 1fr !important; }
+    /* Collapse every multi-column grid to one column. */
+    .command-strip, .live-strip { grid-template-columns: 1fr; }
     .content .grid { grid-template-columns: 1fr !important; }
+    .g-onboarding, .g-live-strip, .g-brief-row, .g-tracked-row, .g-threshold-row,
+    .g-source-row, .g-live-main, .g-link-grid, .g-feed-form, .g-live-event,
+    .g-qon-evidence, .g-briefings { grid-template-columns: 1fr !important; }
     .radar-row { grid-template-columns: 1fr !important; gap: 4px !important; }
     /* Overlays go full width on phones (UX-3/UX-5). */
     .drawer { width: 100% !important; max-width: 100% !important; }

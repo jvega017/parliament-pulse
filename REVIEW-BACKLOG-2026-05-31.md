@@ -150,3 +150,55 @@ PERF-9, MAINT-2, MAINT-3, FUNC-STRICT, FUNC-NOTEHOOK, FUNC-INDEXKEY, UX-12, UX-1
 DESIGN-9, DESIGN-2, DESIGN-1, DESIGN-8, PERF-7, DESIGN-5, DESIGN-6, DESIGN-13, DESIGN-12,
 DESIGN-10, A11Y-10, DESIGN-3, DESIGN-11, DESIGN-4, DESIGN-7, PERF-6, MAINT-6, SEC-7, SEC-8,
 PERF-8, MAINT-1, PERF-3, SEC-5
+
+---
+
+## VERIFICATION + PASS V — 2026-05-31 (commit b0e52ec, deployed 218fdfdd)
+
+Independent 10-agent verification workflow (9 batch auditors + build-integrity, Opus
+synthesis) audited the committed Codex passes against the actual code, NOT the commit
+claims. Verdict: HOLD on the prior state. build-integrity PASS (all 8 checks). Counts:
+53 DONE / 16 PARTIAL / 4 NOT_DONE. Two P1 responsive items gated ship.
+
+Fixed in pass V and browser-verified (dark / light / mobile 375px, prod 0 console errors):
+- UX-3 (P1) DONE — mobile-nav state persists via localStorage `pp-nav-open`.
+- UX-4 (P1) DONE — `.radar-row` class applied; radar table now collapses to one column
+  on mobile (confirmed gridTemplateColumns single-track at 375px). `.grid` and
+  `.live-strip` already collapsed via existing media queries.
+- FUNC-STRICT DONE — React.StrictMode enabled (no-op under prod React build; removes the
+  stale safety claim). No double-render observed in prod (2 banners, not 4).
+- DESIGN-9 DONE — positive/affirmative `--ok` folded into the teal verification family in
+  both themes; true five-colour palette documented. No green sixth hue.
+- A11Y-9 DONE — light-theme `.att.high` was ~2.8:1 coral on warm paper (fail); added
+  `#b02a20` override, verified computed colour rgb(176,42,32) ≈ 6.2:1 AA.
+- DESIGN-2 DONE — sanctioned ember inventory documented next to `--brass`.
+- DESIGN-7 (frontend) DONE — topbar underglow on `--topbar-underglow` (both themes).
+  Video-overlay scrims left dark intentionally (correct over video in both themes).
+- DESIGN-12 DONE — streak line reframed as factual weekly stat, not a reward.
+- PERF-7 DONE — `.design-banner` min-height reserves space (no CLS on dismiss).
+- UX-13 DONE — duplicate feedback toast removed; inline chip is the single confirm.
+
+Auditor false negatives (verified already DONE, no change needed):
+- DESIGN-13 — `.fb.affirmative` rule exists (index.html:597).
+- DESIGN-8 — banner sits below the topbar, which the item explicitly accepts.
+- DESIGN-5 — PageLive error block already uses the shared `.empty-state.error` class.
+
+Deliberate deviation (documented, not a miss):
+- DESIGN-1 — per-page honesty banners RETAINED. This is a public Prometheus Policy Lab
+  site; data-honesty (BATCH C, reputationally critical) outranks design-cohesion (P2).
+  The cost of a redundant honesty banner is minor; the cost of under-flagging fixture
+  data on a public site is reputational. Honesty also preserved via inline chips +
+  per-modal Representative-data chips + global dismissible DesignStateBanner.
+
+Remaining tail — invisible code hygiene only, no user-facing/honesty/a11y impact
+(suitable for a Codex mechanical pass, off the expensive lane):
+- DESIGN-3 (34 inline fontSize → utility classes), DESIGN-4 (17 inline grids → classes),
+  DESIGN-6 (extract SkeletonRow/Card to Overview/Signals/Sources), MAINT-2 (remove
+  window.__setPage/__openModal globals), UX-9 (single Escape dispatcher; current
+  guard-chain is functionally fine).
+- PERF-6 — fallback @font-face (the substantive CLS fix) is in place; the woff2 preload
+  links are skipped as fragile (version-hashed gstatic URLs 404 on font bumps).
+- DEFERRED per "polish in place": SEC-5, PERF-3, MAINT-1, PERF-8 (all Vite-migration).
+
+Bottom line: shippable. Every P1 across all batches is closed; build is AA-accessible,
+responsive, honest, and Fire-House-coherent in both themes. Production live and verified.

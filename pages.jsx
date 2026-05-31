@@ -41,12 +41,12 @@ function OnboardingGuide() {
     <div style={{background:"var(--panel-hi)", border:"1px solid var(--brass-soft)", borderRadius:10, padding:"16px", marginBottom:18}}>
       <div style={{display:"flex", alignItems:"center", gap:10, marginBottom:10}}>
         <Icon name="signal" size={14} stroke="var(--brass)" />
-        <span className="mono" style={{fontSize:10, color:"var(--brass)", textTransform:"uppercase", letterSpacing:".18em"}}>Getting started</span>
+        <span className="mono t-label" style={{color:"var(--brass)", textTransform:"uppercase", letterSpacing:".18em"}}>Getting started</span>
         <button onClick={() => { localStorage.setItem(key, "1"); setVisible(false); }}
           style={{marginLeft:"auto", background:"none", border:"none", color:"var(--ink-4)", cursor:"pointer", fontSize:16, lineHeight:1, padding:"0 4px"}}
           aria-label="Dismiss guide">×</button>
       </div>
-      <div style={{display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:14}}>
+      <div className="g-onboarding" style={{display:"grid", gap:14}}>
         {[
           ["1. Signals", "Parliamentary intelligence items classified by attention level. Open any signal to read the full analysis and evidence trail."],
           ["2. Take action", "Open a signal, read the recommended action, then archive, generate a brief, or add to a watchlist. Use j/k to navigate, Esc to close."],
@@ -164,7 +164,7 @@ function PageOverview() {
       </div>
 
       {/* LIVE NOW STRIP — situational context; below stats in HUD hierarchy */}
-      <div className="live-strip" style={{display:"grid", gridTemplateColumns:"auto 1fr auto auto auto", gap:14, alignItems:"center", padding:"12px 16px", marginBottom:16}}>
+      <div className="live-strip g-live-strip" style={{display:"grid", gap:14, alignItems:"center", padding:"12px 16px", marginBottom:16}}>
         <div style={{display:"flex", alignItems:"center", gap:8}}>
           <span style={{width:8, height:8, borderRadius:"50%", background:"var(--ember-flash)", boxShadow:"0 0 12px var(--ember-flash)", animation:"pulse 1.6s ease-in-out infinite"}}/>
           <span className="mono" style={{fontSize:10.5, letterSpacing:".18em", color:"var(--ember-flash)", fontWeight:600}}>
@@ -181,7 +181,7 @@ function PageOverview() {
         <button className="btn sm primary" onClick={()=> goto && goto("live")}><Icon name="signal" size={12}/> Watch live</button>
       </div>
 
-      <div className="grid g-overview" style={{gridTemplateColumns:"2.4fr 1fr"}}>
+      <div className="grid g-overview">
         <div>
           <div className="panel" style={{marginBottom:16}}>
             <div className="panel-head">
@@ -207,7 +207,7 @@ function PageOverview() {
               {groupByTopic
                 ? Object.entries(restGroups).map(([topic, sigs]) => (
                     <div key={topic} style={{marginBottom:10}}>
-                      <div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".18em", margin:"6px 0 8px"}}>{topic} · {sigs.length}</div>
+                      <div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".18em", margin:"6px 0 8px"}}>{topic} · {sigs.length}</div>
                       {sigs.map(s => <SignalCard key={s.id} s={s} />)}
                     </div>
                   ))
@@ -250,7 +250,7 @@ function PageOverview() {
             </div>
             <div className="panel-body" style={{paddingTop:6}}>
               {BRIEFING_QUEUE.map((b,i) => (
-                <div key={b.type + b.for} className="data-row" style={{display:"grid", gridTemplateColumns:"1fr auto", gap:10}}>
+                <div key={b.type + b.for} className="data-row g-brief-row" style={{display:"grid", gap:10}}>
                   <div>
                     <div style={{fontSize:13, fontWeight:500}}>{b.type}</div>
                     <div style={{fontSize:11.5, color:"var(--ink-3)"}}>For {b.for} · <span className="mono">{b.at}</span></div>
@@ -271,7 +271,7 @@ function PageOverview() {
             </div>
             <div className="panel-body">
               {APH_FEEDS.slice(0, 6).map(f => (
-                <div key={f.id} onClick={() => openModal("feed", f.id)} className="clk" style={{display:"grid", gridTemplateColumns:"1fr auto auto", padding:"6px 8px", gap:10, fontSize:12.5, alignItems:"center", borderRadius:6}}>
+                <div key={f.id} onClick={() => openModal("feed", f.id)} className="clk g-source-row" style={{display:"grid", padding:"6px 8px", gap:10, fontSize:12.5, alignItems:"center", borderRadius:6}}>
                   <div>{f.name}</div>
                   <div className="mono" style={{color:"var(--ink-4)", fontSize:11}}>—</div>
                   <div className="mono" style={{color:"var(--ink-3)", fontSize:11, textAlign:"right", width:28}}>{f.today ?? "—"}</div>
@@ -608,7 +608,7 @@ function PageLive() {
         </div>
       </div>
 
-      <div className="grid" style={{gridTemplateColumns:"1.7fr 1fr", gap:16}}>
+      <div className="grid g-live-main" style={{gap:16}}>
         <div>
           <LiveBroadcast which={which} toast={toast} />
           <div style={{display:"flex", gap:8, marginTop:12, alignItems:"center", flexWrap:"wrap"}}>
@@ -642,7 +642,7 @@ function PageLive() {
               <span className="panel-kicker">Source pages</span>
             </div>
             <div className="panel-body">
-              <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:8}}>
+              <div className="g-link-grid" style={{display:"grid", gap:8}}>
                 {[
                   { name: "Hansard", url: "https://www.aph.gov.au/Parliamentary_Business/Hansard", desc: "Official Hansard source page" },
                   { name: "ParlInfo Search", url: "https://parlinfo.aph.gov.au/parlInfo/search/search.w3p", desc: "Official search page" },
@@ -675,14 +675,7 @@ function PageLive() {
             {loading && events.length === 0 && (
               <div style={{padding:"8px 0"}} aria-label="Loading live RSS feed" aria-busy="true">
                 {[...Array(6)].map((_, i) => (
-                  <div key={i} style={{display:"grid", gridTemplateColumns:"56px 16px 1fr", gap:10, padding:"12px 8px", borderBottom:"1px solid var(--line)", alignItems:"start"}}>
-                    <span className="skeleton" style={{height:12, width:36}}/>
-                    <span className="skeleton" style={{height:14, width:14, borderRadius:"50%"}}/>
-                    <div>
-                      <span className="skeleton" style={{height:13, width:"80%", marginBottom:7}}/>
-                      <span className="skeleton" style={{height:10, width:"45%"}}/>
-                    </div>
-                  </div>
+                  <SkeletonRow key={i} />
                 ))}
               </div>
             )}
@@ -715,7 +708,7 @@ function PageLive() {
                 )}
                 {feedErrors.length > 0 && (
                   <div style={{margin:"0 0 8px"}}>
-                    <div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".18em", marginBottom:4}}>Feed errors</div>
+                    <div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".18em", marginBottom:4}}>Feed errors</div>
                     {feedErrors.slice(0, 8).map((e, i) => (
                       <div key={i} style={{fontSize:11, color:"var(--ink-3)", display:"flex", gap:8, padding:"2px 0"}}>
                         <Icon name="close" size={12} stroke="var(--ember-flash)" />
@@ -730,7 +723,7 @@ function PageLive() {
               </div>
             )}
             {events.map((e, i) => (
-              <a key={e.link || e.title + i} href={safeHttpUrl(e.link) || safeHttpUrl(e.sourceUrl) || "#"} target="_blank" rel="noopener noreferrer" className="clk data-row" style={{display:"grid", gridTemplateColumns:"56px 16px 1fr", gap:10, borderRadius:6, alignItems:"start", textDecoration:"none", color:"inherit"}}>
+              <a key={e.link || e.title + i} href={safeHttpUrl(e.link) || safeHttpUrl(e.sourceUrl) || "#"} target="_blank" rel="noopener noreferrer" className="clk data-row g-live-event" style={{display:"grid", gap:10, borderRadius:6, alignItems:"start", textDecoration:"none", color:"inherit"}}>
                 <div className="mono" style={{fontSize:10.5, color:"var(--ink-4)", paddingTop:2}}>{fmtTime(e.date)}</div>
                 <div style={{paddingTop:3}}>
                   {e.kind === "division" && <Icon name="flag" size={13} stroke="var(--escalate)"/>}
@@ -744,7 +737,7 @@ function PageLive() {
                 <div>
                   <div style={{fontSize:13, color:"var(--ink)", lineHeight:1.4}}>{e.title}</div>
                   <div style={{display:"flex", gap:8, marginTop:6, alignItems:"center", flexWrap:"wrap"}}>
-                    <span className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".12em"}}>{e.kind}</span>
+                    <span className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".12em"}}>{e.kind}</span>
                     <span style={{fontSize:10.5, color:"var(--teal)", fontFamily:"var(--mono)", display:"inline-flex", alignItems:"center", gap:3}}>
                       <Icon name="ext" size={10}/> {e.sourceLabel}
                     </span>
@@ -855,29 +848,29 @@ function PageSources() {
               <span className="panel-kicker">6-step workflow</span>
             </div>
             <div className="panel-body">
-              <label htmlFor="new-feed-name" className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em"}}>Display name</label>
+              <label htmlFor="new-feed-name" className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em"}}>Display name</label>
               <input id="new-feed-name" value={newName} onChange={e=>setNewName(e.target.value)} className="search" style={{padding:"8px 10px", marginTop:4, marginBottom:8, width:"100%"}}/>
-              <label htmlFor="new-feed-url" className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em"}}>Paste RSS URL</label>
+              <label htmlFor="new-feed-url" className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em"}}>Paste RSS URL</label>
               <div style={{display:"flex", gap:8, marginTop:4}}>
                 <input id="new-feed-url" value={newUrl} onChange={e=>setNewUrl(e.target.value)} className="search" style={{flex:1, padding:"8px 10px"}}/>
                 <button className="btn primary" onClick={startTest}>{testing && !testState ? "Testing…" : "Validate"}</button>
               </div>
-              <div style={{marginTop:12, display:"grid", gridTemplateColumns:"1fr 1fr", gap:10}}>
+              <div className="g-feed-form" style={{marginTop:12, display:"grid", gap:10}}>
                 <div>
-                  <div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", marginBottom:4}}>Source type</div>
+                  <div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", marginBottom:4}}>Source type</div>
                   <select className="btn" aria-label="Source type" style={{width:"100%", padding:"7px 10px"}}>
                     <option>Parliamentary Library</option><option>Senate</option><option>House</option><option>Department</option><option>Ministerial</option><option>Regulator</option><option>News</option><option>Think tank</option><option>Industry</option>
                   </select>
                 </div>
                 <div>
-                  <div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", marginBottom:4}}>Refresh cadence</div>
+                  <div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", marginBottom:4}}>Refresh cadence</div>
                   <select className="btn" aria-label="Refresh cadence" style={{width:"100%", padding:"7px 10px"}}>
                     <option>Hourly</option><option>Every 15 min</option><option>Daily</option>
                   </select>
                 </div>
               </div>
               <div style={{marginTop:12}}>
-                <div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", marginBottom:6}}>Route to modules</div>
+                <div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", marginBottom:6}}>Route to modules</div>
                 <div style={{display:"flex", flexWrap:"wrap", gap:6}}>
                   {["Today's Signal","Committees","Bills","Parliament","Briefings","Emerging Issues","Watchlists","Search"].map(m => (
                     <label key={m} style={{display:"inline-flex", alignItems:"center", gap:6, padding:"4px 10px", border:"1px solid var(--line-2)", borderRadius:999, fontSize:12, cursor:"pointer"}}>
@@ -1092,9 +1085,9 @@ function PageBills() {
         <div className="panel-body">
           <div className="grid g-2">
             <div>
-              <h5 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", margin:"0 0 4px"}}>Purpose</h5>
+              <h5 className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", margin:"0 0 4px"}}>Purpose</h5>
               <p style={{margin:0, color:"var(--ink-2)"}}>Amends the Digital ID Act to expand the scope of the accreditation scheme and introduce new consumer assurance provisions, including revised obligations on accredited entities handling biometric attributes.</p>
-              <h5 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", margin:"14px 0 4px"}}>Key provisions</h5>
+              <h5 className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", margin:"14px 0 4px"}}>Key provisions</h5>
               <ul style={{margin:0, paddingLeft:18, color:"var(--ink-2)"}}>
                 <li>Part 2: accreditation scope expanded to cover state-level identity exchanges</li>
                 <li>Part 4: new reporting obligations on biometric attribute use</li>
@@ -1102,9 +1095,9 @@ function PageBills() {
               </ul>
             </div>
             <div>
-              <h5 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", margin:"0 0 4px"}}>Portfolio relevance</h5>
+              <h5 className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", margin:"0 0 4px"}}>Portfolio relevance</h5>
               <p style={{margin:0, color:"var(--ink-2)"}}>High. Matches Digital identity and Data sharing & privacy watchlists.</p>
-              <h5 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", margin:"14px 0 4px"}}>Recommended action</h5>
+              <h5 className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", margin:"14px 0 4px"}}>Recommended action</h5>
               <div style={{padding:"10px 12px", border:"1px solid var(--brass-soft)", borderRadius:8, background:"var(--panel-hi)"}}>
                 <div style={{color:"var(--brass)", fontWeight:600}}>Draft Executive Brief</div>
                 <div style={{fontSize:12, color:"var(--ink-2)", marginTop:4}}>Scope of accreditation warrants DDG-level awareness before 2nd reading.</div>
@@ -1193,7 +1186,7 @@ function PageParliament() {
           <div className="panel-head"><h2 className="panel-title">Parliamentary lines</h2><span className="panel-kicker">For Cyber Security Bill 2nd reading</span><span className="chip-fixture" style={{marginLeft:"auto"}}>Fixture</span></div>
           <div className="panel-body">
             <div style={{padding:12, border:"1px dashed var(--line-2)", borderRadius:8, fontSize:13, color:"var(--ink-3)", lineHeight:1.6, fontStyle:"italic"}}>
-              <div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", marginBottom:8, fontStyle:"normal"}}>No lines drafted yet</div>
+              <div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", marginBottom:8, fontStyle:"normal"}}>No lines drafted yet</div>
               Lines will appear here once generated by an analyst. Use "Generate brief" from a signal to start the drafting workflow. <span className="chip-fixture">Fixture data only in this build</span>
             </div>
             <div style={{marginTop:12, display:"flex", gap:8}}>
@@ -1233,19 +1226,19 @@ function PagePatterns() {
         </div>
 
         <div className="grid g-4" style={{marginTop:16, marginBottom:18}}>
-          <div><div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em"}}>Members</div><div style={{fontSize:18, marginTop:4}}>3</div></div>
-          <div><div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em"}}>Questions</div><div style={{fontSize:18, marginTop:4}}>4</div></div>
-          <div><div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em"}}>Window</div><div style={{fontSize:18, marginTop:4}}>48h</div></div>
-          <div><div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em"}}>Target</div><div style={{fontSize:13, marginTop:4, lineHeight:1.25}}>Minister for Digital Services / Dept.</div></div>
+          <div><div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em"}}>Members</div><div style={{fontSize:18, marginTop:4}}>3</div></div>
+          <div><div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em"}}>Questions</div><div style={{fontSize:18, marginTop:4}}>4</div></div>
+          <div><div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em"}}>Window</div><div style={{fontSize:18, marginTop:4}}>48h</div></div>
+          <div><div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em"}}>Target</div><div style={{fontSize:13, marginTop:4, lineHeight:1.25}}>Minister for Digital Services / Dept.</div></div>
         </div>
 
         <div style={{borderTop:"1px dashed var(--line-2)", paddingTop:14}}>
-          <div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", marginBottom:8}}>Evidence · click member for profile</div>
+          <div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", marginBottom:8}}>Evidence · click member for profile</div>
           {QON_PATTERN.items.map((q,i) => {
             const mid = q.memberId;
             const canOpen = !!(mid && ENTITIES.members[mid]);
             return (
-              <div key={q.when + q.who} style={{display:"grid", gridTemplateColumns:"130px 200px 1fr 90px", gap:12, padding:"8px 0", borderBottom: i<QON_PATTERN.items.length-1 ? "1px solid var(--line)" : 0, alignItems:"start", fontSize:12.5}}>
+              <div key={q.when + q.who} className="g-qon-evidence" style={{display:"grid", gap:12, padding:"8px 0", borderBottom: i<QON_PATTERN.items.length-1 ? "1px solid var(--line)" : 0, alignItems:"start", fontSize:12.5}}>
                 <div className="mono" style={{color:"var(--ink-3)"}}>{q.when}</div>
                 <div><span className={"tag brass" + (canOpen ? " clk" : "")} onClick={canOpen ? () => openModal("member", mid) : undefined} style={canOpen ? undefined : {opacity:.65, cursor:"not-allowed"}}>{q.who}</span></div>
                 <div style={{color:"var(--ink-2)"}}>{q.q}</div>
@@ -1327,7 +1320,7 @@ function PageBriefings() {
         <button className="btn primary" title="Open signals to generate a brief" onClick={() => { setSignalSearchQuery(""); navigate("signals"); }}><Icon name="plus" size={13}/> New brief</button>
       </div>
 
-      <div className="grid" style={{gridTemplateColumns:"280px 1fr", gap:16}}>
+      <div className="grid g-briefings" style={{gap:16}}>
         <div className="panel">
           <div className="panel-head"><h2 className="panel-title">Queue</h2><span className="panel-kicker">{briefs.length} pending</span></div>
           <div>
@@ -1337,7 +1330,7 @@ function PageBriefings() {
               <div key={id} className="list-row" onClick={() => setSelId(id)} style={{cursor:"pointer", background: selectedId===id ? "var(--panel-hi)" : "transparent", borderLeft: selectedId===id ? "2px solid var(--brass)" : "2px solid transparent"}}>
                 <div style={{fontSize:13, fontWeight:500}}>{b.type}</div>
                 <div style={{fontSize:11.5, color:"var(--ink-3)"}}>For {b.for}</div>
-                <div className="mono" style={{fontSize:10, marginTop:4, color: b.status === "Drafted" || b.status.startsWith("Copied") ? "var(--ok)" : b.status === "In progress" ? "var(--caution)" : "var(--info)", textTransform:"uppercase", letterSpacing:".12em"}}>{b.status}</div>
+                <div className="mono t-label" style={{marginTop:4, color: b.status === "Drafted" || b.status.startsWith("Copied") ? "var(--ok)" : b.status === "In progress" ? "var(--caution)" : "var(--info)", textTransform:"uppercase", letterSpacing:".12em"}}>{b.status}</div>
               </div>
               );
             })}
@@ -1467,7 +1460,7 @@ function PageWatchlists() {
           {trackedItems.length === 0 ? (
             <div className="empty">No tracked items yet. Use Watchlist, Track, or Watch controls to add one.</div>
           ) : trackedItems.map(item => (
-            <div key={item.key} style={{display:"grid", gridTemplateColumns:"1fr auto", gap:12, padding:"10px 0", borderBottom:"1px solid var(--line)", alignItems:"center"}}>
+            <div key={item.key} className="g-tracked-row" style={{display:"grid", gap:12, padding:"10px 0", borderBottom:"1px solid var(--line)", alignItems:"center"}}>
               <div>
                 <div style={{fontSize:13, fontWeight:500}}>{item.title}</div>
                 <div className="mono" style={{fontSize:10.5, color:"var(--ink-4)", marginTop:2}}>{item.meta}</div>
@@ -1488,11 +1481,11 @@ function PageWatchlists() {
           <div className="empty" style={{marginBottom:14}}>Keyword chips follow the selected watchlist. Thresholds, linked committees, and audit entries are illustrative in this build.</div>
           <div className="grid g-2">
             <div>
-              <div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", marginBottom:6}}>Keywords</div>
+              <div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", marginBottom:6}}>Keywords</div>
               <div style={{display:"flex", flexWrap:"wrap", gap:6}}>
                 {selectedKeywords.map(k => <span key={k} className="tag brass">{k}</span>)}
               </div>
-              <div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", margin:"14px 0 6px"}}>Linked committees</div>
+              <div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", margin:"14px 0 6px"}}>Linked committees</div>
               <div style={{display:"flex", flexWrap:"wrap", gap:6}}>
                 <span className="tag teal clk" onClick={() => openModal("committee","jcpaa")}>Joint Committee on Public Accounts & Audit</span>
                 <span className="tag teal clk" onClick={() => openModal("committee","finpa")}>Finance & Public Administration (Sen)</span>
@@ -1500,15 +1493,15 @@ function PageWatchlists() {
               </div>
             </div>
             <div>
-              <div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", marginBottom:6}}>Attention thresholds</div>
-              <div style={{display:"grid", gridTemplateColumns:"1fr auto", gap:8, fontSize:13}}>
+              <div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", marginBottom:6}}>Attention thresholds</div>
+              <div className="g-threshold-row" style={{display:"grid", gap:8, fontSize:13}}>
                 <div>Source authority weight</div><div className="mono">0.95</div>
                 <div>Portfolio relevance weight</div><div className="mono">0.90</div>
                 <div>Minimum attention score</div><div className="mono">0.55</div>
                 <div>Auto-escalate above</div><div className="mono">0.80</div>
                 <div>Suppress duplicates within</div><div className="mono">24h</div>
               </div>
-              <div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", margin:"14px 0 6px"}}>Audit — recent corrections</div>
+              <div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", margin:"14px 0 6px"}}>Audit — recent corrections</div>
               <div style={{fontSize:12.5, color:"var(--ink-2)"}}>
                 08:43 · House media releases → downgraded procedural items (weight −0.12)<br/>
                 Yesterday 14:10 · Duplicate suppression added for cross-posted inquiry notices
@@ -1544,15 +1537,15 @@ function PageRadar() {
           <span className="panel-kicker">Last 7 days</span>
         </div>
         <div className="panel-body">
-          <div className="radar-row" style={{display:"grid", gridTemplateColumns:"1fr 100px 80px 120px 140px", padding:"4px 0 10px", borderBottom:"1px solid var(--line)", alignItems:"center", gap:14}}>
-            <div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em"}}>Issue</div>
-            <div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em"}}>Attention</div>
-            <div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", textAlign:"right"}}>Sources</div>
-            <div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em"}}>Momentum</div>
-            <div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em"}}>Confidence</div>
+          <div className="radar-row g-radar-table" style={{display:"grid", padding:"4px 0 10px", borderBottom:"1px solid var(--line)", alignItems:"center", gap:14}}>
+            <div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em"}}>Issue</div>
+            <div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em"}}>Attention</div>
+            <div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", textAlign:"right"}}>Sources</div>
+            <div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em"}}>Momentum</div>
+            <div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em"}}>Confidence</div>
           </div>
           {RADAR.map((r,i) => (
-            <div key={r.issue} className="clk radar-row" onClick={() => openModal("radar", r.issue)} style={{display:"grid", gridTemplateColumns:"1fr 100px 80px 120px 140px", padding:"14px 8px", borderBottom: i<RADAR.length-1 ? "1px solid var(--line)" : 0, gap:14, alignItems:"center", borderRadius:6}}>
+            <div key={r.issue} className="clk radar-row g-radar-table" onClick={() => openModal("radar", r.issue)} style={{display:"grid", padding:"14px 8px", borderBottom: i<RADAR.length-1 ? "1px solid var(--line)" : 0, gap:14, alignItems:"center", borderRadius:6}}>
               <div>
                 <div style={{fontSize:14, fontWeight:500}}>{r.issue}</div>
                 <div style={{fontSize:12, color:"var(--ink-3)", marginTop:2}}>{r.reason}</div>

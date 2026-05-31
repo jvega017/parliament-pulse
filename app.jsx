@@ -36,10 +36,6 @@ function App() {
     try { localStorage.setItem("pp-nav-open", String(mobileNavOpen)); } catch { /* storage unavailable */ }
   }, [mobileNavOpen]);
   React.useEffect(() => {
-    window.__setPage = navigate;
-    return () => { window.__setPage = null; };
-  }, [navigate]);
-  React.useEffect(() => {
     const saved = localStorage.getItem("pp-theme");
     if (saved) document.documentElement.dataset.theme = saved;
   }, []);

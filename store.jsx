@@ -126,13 +126,6 @@ function StoreProvider({ children, navigate = () => {} }) {
     return () => { document.body.style.overflow = prev; };
   }, [modal, signalId]);
 
-  // Expose for places that don't live inside the provider context
-  React.useEffect(() => {
-    window.__openModal = (type, id) => setModal({ type, id });
-    window.__openSignal = (id) => setSignalId(id);
-    return () => { window.__openModal = null; window.__openSignal = null; };
-  }, []);
-
   const assignOwner = React.useCallback((entityId, owner) => {
     setState(s => ({ ...s, owners: { ...s.owners, [entityId]: owner } }));
     toast(`Assigned ${owner} as policy owner`);
