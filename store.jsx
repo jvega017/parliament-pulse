@@ -138,9 +138,9 @@ function StoreProvider({ children, navigate = () => {} }) {
     toast(`Assigned ${owner} as policy owner`);
   }, [toast]);
   const saveFeedback = React.useCallback((signalId, label, reason) => {
+    // The feedback chip's inline .on state is the single confirmation (UX-13); no toast.
     setState(s => ({ ...s, feedback: { ...s.feedback, [signalId]: { label, reason, ts: Date.now() } } }));
-    toast(`Feedback logged: ${label}`, "brass");
-  }, [toast]);
+  }, []);
   const unarchive = React.useCallback((signalId) => {
     setState(s => { const n = { ...s.archived }; delete n[signalId]; return { ...s, archived: n }; });
   }, []);

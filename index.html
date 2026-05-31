@@ -36,7 +36,15 @@
     --ink-3:        #a0a4b4;
     --ink-4:        #8a8e9e;
 
-    /* PRIMARY ACCENT — incandescent ember, sovereign. Brand, priority, live. */
+    /* PRIMARY ACCENT — incandescent ember, sovereign. Brand, priority, live.
+       Sanctioned ember inventory (DESIGN-2) — ember (--brass) appears ONLY as:
+         1. brand mark + sidebar active-nav left-border
+         2. the single primary action per surface (.btn.primary)
+         3. active selection / focus ring (--accent-ring, --accent-glow)
+         4. live + high-priority signal accents (escalates to --ember-flash)
+         5. topbar underglow scanline (--topbar-underglow)
+       Everything else (fixture pills, match counts, .tag.brass non-primary) is
+       neutral ink/line. ember-flash is reserved strictly for LIVE/breaking/high. */
     --brass:        #f08a3c;   /* ~8.0:1 on #07080e, ~7.4:1 on panel — AA */
     --brass-2:      #ff9d4f;   /* hover/glow */
     --brass-soft:   #7a4420;
@@ -48,11 +56,14 @@
     --teal:         #45b3a4;   /* connected, healthy, verified */
     --teal-soft:    #2e7068;
 
-    /* Functional status (Fire House semantic five) */
+    /* Functional status — the true five: ink-scale + ember + gold + teal + one risk.
+       Positive/affirmative (agreed, ready, success) folds into the teal verification
+       family so no standalone green sixth hue survives (DESIGN-9). Caution-gold and
+       steel-ash are the only sanctioned counterpoints; ember-flash is the sole risk red. */
     --info:         #9aa6b0;   /* steel-ash — the single sanctioned cool counterpoint */
     --caution:      #d4a017;   /* warm */
     --escalate:     #f87171;   /* risk */
-    --ok:           #4ade80;   /* active */
+    --ok:           #45b3a4;   /* positive/affirmative = teal-verified family (no green) */
 
     --side-start:   #0c0d16;
     --side-end:     var(--bg);
@@ -65,6 +76,7 @@
     --brand-glow:   #3a2410;
     --accent-ring:  #f08a3c33;
     --accent-glow:  #f08a3c55;
+    --topbar-underglow: #f08a3c1a;   /* ember scanline under the command bar (DESIGN-7) */
     --hover-surface: #ffffff06;
     --active-surface: #ffffff0c;
     --soft-surface: #ffffff03;
@@ -128,7 +140,7 @@
     --gold:     #766019;  /* secondary numerics, ~5.3:1 on bg */
     --ember-flash: #c0392f;  /* LIVE/high — ~4.7:1 on bg */
     --teal:     #1f7068;  /* verification only — ~5.1:1 */
-    --ok:       #1a6b3c;  /* ~5.7:1 */
+    --ok:       #1f7068;  /* positive/affirmative = teal-verified family (DESIGN-9), ~5.1:1 */
     --escalate: #b03028;  /* ~5.5:1 */
     --caution:  #7a570d;  /* ~5.7:1 */
     --info:     #5a5e68;  /* steel-ash — ~5.6:1 */
@@ -143,6 +155,7 @@
     --brand-glow: #f8ead4;
     --accent-ring: rgba(154,82,25,.22);
     --accent-glow: rgba(154,82,25,.24);
+    --topbar-underglow: rgba(154,82,25,.14);   /* ember scanline, warm-paper register (DESIGN-7) */
     --hover-surface: rgba(80,50,20,.05);
     --active-surface: rgba(80,50,20,.07);
     --soft-surface: rgba(80,50,20,.03);
@@ -307,7 +320,7 @@
     display: flex; align-items: center; gap: 14px;
     padding: 14px 24px;
     border-bottom: 1px solid var(--line);
-    box-shadow: inset 0 -1px 0 #f08a3c1a;
+    box-shadow: inset 0 -1px 0 var(--topbar-underglow);
     background: var(--topbar-bg);
     backdrop-filter: blur(8px);
     position: sticky; top: 0; z-index: 20;
@@ -522,6 +535,9 @@
   .att.med::before { background: var(--caution); }
   .att.low { color: var(--info); background: #9aa6b01a; border: 1px solid #9aa6b040; }
   .att.low::before { background: var(--info); }
+  /* Light theme: the dark coral #ef6a5e fails AA on warm paper (~2.8:1); darken to ~6:1 (A11Y-9). */
+  [data-theme="light"] .att.high { color: #b02a20; background: rgba(192,57,47,.10); border-color: rgba(192,57,47,.30); }
+  [data-theme="light"] .att.high::before { background: #b02a20; }
 
   /* confidence bar — 5-segment ember-to-gold gradient */
   .conf {
@@ -922,6 +938,7 @@
   /* Design-state banner */
   .design-banner {
     display:flex; align-items:center; gap:10px; padding:8px 20px;
+    min-height:37px; box-sizing:border-box;   /* reserve space so render/dismiss does not shift layout (PERF-7) */
     background: color-mix(in srgb, var(--brass) 8%, transparent);
     border-bottom:1px solid color-mix(in srgb, var(--brass) 22%, transparent);
     font-size:var(--t-body-sm); color:var(--ink-2);

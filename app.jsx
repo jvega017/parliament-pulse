@@ -25,11 +25,16 @@ class ErrorBoundary extends React.Component {
 
 function App() {
   const [page, setPage] = React.useState("overview");
-  const [mobileNavOpen, setMobileNavOpen] = React.useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = React.useState(() => {
+    try { return localStorage.getItem("pp-nav-open") === "true"; } catch { return false; }
+  });
   const navigate = React.useCallback((nextPage) => {
     setPage(nextPage);
     setMobileNavOpen(false);
   }, []);
+  React.useEffect(() => {
+    try { localStorage.setItem("pp-nav-open", String(mobileNavOpen)); } catch { /* storage unavailable */ }
+  }, [mobileNavOpen]);
   React.useEffect(() => {
     window.__setPage = navigate;
     return () => { window.__setPage = null; };
@@ -73,4 +78,6 @@ function App() {
   );
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+ReactDOM.createRoot(document.getElementById("root")).render(
+  <React.StrictMode><App /></React.StrictMode>
+);

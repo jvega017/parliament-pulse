@@ -1544,7 +1544,7 @@ function PageRadar() {
           <span className="panel-kicker">Last 7 days</span>
         </div>
         <div className="panel-body">
-          <div style={{display:"grid", gridTemplateColumns:"1fr 100px 80px 120px 140px", padding:"4px 0 10px", borderBottom:"1px solid var(--line)", alignItems:"center", gap:14}}>
+          <div className="radar-row" style={{display:"grid", gridTemplateColumns:"1fr 100px 80px 120px 140px", padding:"4px 0 10px", borderBottom:"1px solid var(--line)", alignItems:"center", gap:14}}>
             <div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em"}}>Issue</div>
             <div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em"}}>Attention</div>
             <div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", textAlign:"right"}}>Sources</div>
@@ -1552,7 +1552,7 @@ function PageRadar() {
             <div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em"}}>Confidence</div>
           </div>
           {RADAR.map((r,i) => (
-            <div key={r.issue} className="clk" onClick={() => openModal("radar", r.issue)} style={{display:"grid", gridTemplateColumns:"1fr 100px 80px 120px 140px", padding:"14px 8px", borderBottom: i<RADAR.length-1 ? "1px solid var(--line)" : 0, gap:14, alignItems:"center", borderRadius:6}}>
+            <div key={r.issue} className="clk radar-row" onClick={() => openModal("radar", r.issue)} style={{display:"grid", gridTemplateColumns:"1fr 100px 80px 120px 140px", padding:"14px 8px", borderBottom: i<RADAR.length-1 ? "1px solid var(--line)" : 0, gap:14, alignItems:"center", borderRadius:6}}>
               <div>
                 <div style={{fontSize:14, fontWeight:500}}>{r.issue}</div>
                 <div style={{fontSize:12, color:"var(--ink-3)", marginTop:2}}>{r.reason}</div>
