@@ -32,6 +32,19 @@ function DesignStateBanner() {
   );
 }
 
+function EmptyState({ icon = "signal", kicker = "Empty", children, action, variant = "default" }) {
+  return (
+    <div className={"empty-state" + (variant === "error" ? " error" : "")}>
+      <Icon name={icon} size={15} stroke={variant === "error" ? "var(--caution)" : "var(--ink-4)"} />
+      <div>
+        <div className="empty-kicker">{kicker}</div>
+        <div className="empty-body">{children}</div>
+      </div>
+      {action && <div className="empty-action">{action}</div>}
+    </div>
+  );
+}
+
 const NAV = [
   { id: "overview", label: "Overview", group: "Today", count: 12 },
   { id: "live", label: "Live parliament", group: "Today", count: null, live: true },
@@ -762,7 +775,7 @@ function Drawer() {
                 <h3>Analyst feedback · is this right?</h3>
                 <div className="feedback-row">
                   {labels.map(l => (
-                    <button key={l} className={"fb" + (fb === l ? " on" : "")} onClick={() => { setFb(l); saveFeedback(s.id, l, ""); }}>
+                    <button key={l} className={"fb" + (l === "Correct priority" ? " affirmative" : "") + (fb === l ? " on" : "")} onClick={() => { setFb(l); saveFeedback(s.id, l, ""); }}>
                       {l === "Correct priority" && <Icon name="check" size={12} style={{marginRight:6, verticalAlign:"-2px"}}/>}
                       {l}
                     </button>
@@ -777,7 +790,7 @@ function Drawer() {
                   .catch(() => toast("Clipboard unavailable — brief not copied", "error"));
               }}><Icon name="brief" size={13} /> Generate brief</button>
               <button className="btn" onClick={() => addWatchlist(s.id)} style={watched ? {borderColor:"var(--brass)", color:"var(--brass)"} : undefined}><Icon name="watch" size={13} /> {watched ? "Watching" : "Watchlist"}</button>
-              <button className="btn" onClick={() => {
+              <button className="btn ghost" onClick={() => {
                 flushNote();
                 const cur = visibleSigs.findIndex(x => x.id === signalId);
                 const nextSig = visibleSigs[cur + 1] || visibleSigs[cur - 1];
@@ -793,4 +806,4 @@ function Drawer() {
   );
 }
 
-Object.assign(window, { Sidebar, Topbar, TopClock, SignalCard, Drawer, Att, Conf, DesignStateBanner, buildBriefSections });
+Object.assign(window, { Sidebar, Topbar, TopClock, SignalCard, Drawer, Att, Conf, DesignStateBanner, EmptyState, buildBriefSections });

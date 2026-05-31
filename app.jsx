@@ -62,8 +62,8 @@ function App() {
         <div className={"drawer-back mobile-nav-back" + (mobileNavOpen ? " on" : "")} onClick={() => setMobileNavOpen(false)} aria-hidden="true" />
         <Sidebar page={page} onNavigate={navigate} mobileOpen={mobileNavOpen} />
         <div className="main">
-          <DesignStateBanner />
           <Topbar mobileNavOpen={mobileNavOpen} setMobileNavOpen={setMobileNavOpen} />
+          <DesignStateBanner />
           <div className="content"><ErrorBoundary>{renderPage()}</ErrorBoundary></div>
         </div>
         <ErrorBoundary><Drawer /></ErrorBoundary>

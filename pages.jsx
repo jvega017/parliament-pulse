@@ -133,15 +133,15 @@ function PageOverview() {
       </div>
 
       {/* COMMAND STRIP HERO — one dominant KPI flanked by three secondary stats */}
-      <div className="command-strip" style={{display:"grid", gridTemplateColumns:"1.6fr 1fr 1fr 1fr", gap:14, marginBottom:16, alignItems:"stretch"}}>
+      <div className="command-strip">
         <div className="panel stat hero-stat" style={{borderLeft:"3px solid var(--brass)"}}>
           <div className="stat-label">New signals today</div>
-          <div className="stat-value" style={{fontSize:48, fontWeight:600, fontVariantNumeric:"tabular-nums", letterSpacing:"-0.02em", lineHeight:1}}>{priority.length + rest.length}</div>
+          <div className="stat-value t-kpi">{priority.length + rest.length}</div>
           <div className="stat-meta"><span style={{color:"var(--ink-3)"}}>{priority.length} classified priority</span></div>
         </div>
         <div className="panel stat">
           <div className="stat-label">Priority signals</div>
-          <div className="stat-value" style={{fontSize:28, fontWeight:600, fontVariantNumeric:"tabular-nums", color: priority.length > 0 ? "var(--ember-flash)" : "var(--ok)"}}>
+          <div className="stat-value t-stat" style={{color: priority.length > 0 ? "var(--ember-flash)" : "var(--ok)"}}>
             {priority.length}
           </div>
           <div className="stat-meta">
@@ -153,12 +153,12 @@ function PageOverview() {
         </div>
         <div className="panel stat">
           <div className="stat-label">Committee activity</div>
-          <div className="stat-value" style={{fontSize:28, fontWeight:600, fontVariantNumeric:"tabular-nums"}}>7<span className="unit">items</span></div>
+          <div className="stat-value t-stat">7<span className="unit">items</span></div>
           <div className="stat-meta">2 hearings · 1 inquiry · 1 report</div>
         </div>
         <div className="panel stat">
           <div className="stat-label">Source health</div>
-          <div className="stat-value" style={{fontSize:28, fontWeight:600, fontVariantNumeric:"tabular-nums"}}>{sourceCounts().total}<span className="unit">feeds</span></div>
+          <div className="stat-value t-stat">{sourceCounts().total}<span className="unit">feeds</span></div>
           <div className="stat-meta">Official feeds configured</div>
         </div>
       </div>
@@ -194,7 +194,7 @@ function PageOverview() {
             </div>
             <div className="panel-body">
               {priority.map(s => <SignalCard key={s.id} s={s} />)}
-              {priority.length === 0 && <div className="empty">All priority signals actioned.</div>}
+              {priority.length === 0 && <EmptyState icon="check" kicker="Priority clear">All priority signals actioned.</EmptyState>}
             </div>
           </div>
 
@@ -212,7 +212,7 @@ function PageOverview() {
                     </div>
                   ))
                 : rest.map(s => <SignalCard key={s.id} s={s} />)}
-              {rest.length === 0 && <div className="empty">All lower-priority signals reviewed. Check Attention radar for emerging issues.</div>}
+              {rest.length === 0 && <EmptyState icon="check" kicker="Review clear">All lower-priority signals reviewed. Check Attention radar for emerging issues.</EmptyState>}
             </div>
           </div>
         </div>
@@ -250,7 +250,7 @@ function PageOverview() {
             </div>
             <div className="panel-body" style={{paddingTop:6}}>
               {BRIEFING_QUEUE.map((b,i) => (
-                <div key={b.type + b.for} style={{display:"grid", gridTemplateColumns:"1fr auto", padding:"10px 0", borderBottom: i<BRIEFING_QUEUE.length-1 ? "1px solid var(--line)" : 0, gap:10}}>
+                <div key={b.type + b.for} className="data-row" style={{display:"grid", gridTemplateColumns:"1fr auto", gap:10}}>
                   <div>
                     <div style={{fontSize:13, fontWeight:500}}>{b.type}</div>
                     <div style={{fontSize:11.5, color:"var(--ink-3)"}}>For {b.for} · <span className="mono">{b.at}</span></div>
@@ -383,9 +383,9 @@ function LiveBroadcast({ which, toast }) {
             AUSParliamentLive only broadcasts <strong>{cfg.label}</strong> while the chamber is in session. Try the official APH pages below, or retry the embed.
           </div>
           <div style={{display:"flex", gap:8, flexWrap:"wrap", justifyContent:"center"}}>
-            <a href="https://www.youtube.com/@AUSParliamentLive/streams" target="_blank" rel="noopener noreferrer" className="btn primary" style={{textDecoration:"none"}}>YouTube · AUSParliamentLive ↗</a>
-            <a href="https://www.aph.gov.au/News_and_Events/Watch_Read_Listen" target="_blank" rel="noopener noreferrer" className="btn" style={{textDecoration:"none"}}>APH Watch / Read / Listen ↗</a>
-            <a href="https://parlview.aph.gov.au/" target="_blank" rel="noopener noreferrer" className="btn" style={{textDecoration:"none"}}>ParlView archive ↗</a>
+            <a href="https://www.youtube.com/@AUSParliamentLive/streams" target="_blank" rel="noopener noreferrer" className="btn primary" style={{textDecoration:"none"}}>YouTube · AUSParliamentLive <Icon name="ext" size={12}/></a>
+            <a href="https://www.aph.gov.au/News_and_Events/Watch_Read_Listen" target="_blank" rel="noopener noreferrer" className="btn" style={{textDecoration:"none"}}>APH Watch / Read / Listen <Icon name="ext" size={12}/></a>
+            <a href="https://parlview.aph.gov.au/" target="_blank" rel="noopener noreferrer" className="btn" style={{textDecoration:"none"}}>ParlView archive <Icon name="ext" size={12}/></a>
             <button className="btn" onClick={() => { setNonce(n => n + 1); setMode("embed"); }}>Retry embed</button>
           </div>
         </div>
@@ -613,9 +613,9 @@ function PageLive() {
           <LiveBroadcast which={which} toast={toast} />
           <div style={{display:"flex", gap:8, marginTop:12, alignItems:"center", flexWrap:"wrap"}}>
             <span className="src-badge">AUSParliamentLive · YouTube embed</span>
-            <a href="https://www.youtube.com/@AUSParliamentLive/streams" target="_blank" rel="noopener noreferrer" className="src-badge" style={{textDecoration:"none", color:"var(--teal)"}}><Icon name="ext" size={11}/> AUSParliamentLive ↗</a>
-            <a href="https://parlview.aph.gov.au/" target="_blank" rel="noopener noreferrer" className="src-badge" style={{textDecoration:"none", color:"var(--teal)"}}><Icon name="ext" size={11}/> ParlView archive ↗</a>
-            <a href="https://www.aph.gov.au/Parliamentary_Business/Hansard" target="_blank" rel="noopener noreferrer" className="src-badge" style={{textDecoration:"none", color:"var(--teal)"}}><Icon name="ext" size={11}/> Hansard ↗</a>
+            <a href="https://www.youtube.com/@AUSParliamentLive/streams" target="_blank" rel="noopener noreferrer" className="src-badge" style={{textDecoration:"none", color:"var(--teal)"}}><Icon name="ext" size={11}/> AUSParliamentLive</a>
+            <a href="https://parlview.aph.gov.au/" target="_blank" rel="noopener noreferrer" className="src-badge" style={{textDecoration:"none", color:"var(--teal)"}}><Icon name="ext" size={11}/> ParlView archive</a>
+            <a href="https://www.aph.gov.au/Parliamentary_Business/Hansard" target="_blank" rel="noopener noreferrer" className="src-badge" style={{textDecoration:"none", color:"var(--teal)"}}><Icon name="ext" size={11}/> Hansard</a>
             <button className="btn sm ghost" style={{marginLeft:"auto"}} title="Demo control: no transcript backend in this build" onClick={() => toast("Request transcript (demo): no transcript backend")}>Request transcript (demo)</button>
             <button className="btn sm" title="Demo control: no clip backend in this build" onClick={() => toast("Clip to brief (demo): clip backend not wired", "brass")}><Icon name="brief" size={12}/> Clip to brief (demo)</button>
           </div>
@@ -687,7 +687,9 @@ function PageLive() {
               </div>
             )}
             {!loading && events.length === 0 && (
-              <div style={{padding:"14px 8px", fontSize:12.5, color:"var(--ink-3)"}}>
+              <div className="empty-state error" style={{fontSize:"var(--t-body-sm)", color:"var(--ink-3)"}}>
+                <Icon name="flag" size={15} stroke="var(--caution)" />
+                <div>
                 <div style={{color:"var(--caution)", fontWeight:500, marginBottom:6}}>No items returned</div>
                 {isFileGuard ? (
                   <>
@@ -716,7 +718,7 @@ function PageLive() {
                     <div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".18em", marginBottom:4}}>Feed errors</div>
                     {feedErrors.slice(0, 8).map((e, i) => (
                       <div key={i} style={{fontSize:11, color:"var(--ink-3)", display:"flex", gap:8, padding:"2px 0"}}>
-                        <span style={{color:"var(--ember-flash)"}}>✗</span>
+                        <Icon name="close" size={12} stroke="var(--ember-flash)" />
                         <span style={{flex:1, minWidth:0}}>{e.label}</span>
                         <span className="mono" style={{color:"var(--ink-4)"}}>{e.error}</span>
                       </div>
@@ -724,10 +726,11 @@ function PageLive() {
                   </div>
                 )}
                 <p style={{margin:0}}>Links below still open the raw feeds in a new tab.</p>
+                </div>
               </div>
             )}
             {events.map((e, i) => (
-              <a key={e.link || e.title + i} href={safeHttpUrl(e.link) || safeHttpUrl(e.sourceUrl) || "#"} target="_blank" rel="noopener noreferrer" className="clk" style={{display:"grid", gridTemplateColumns:"56px 16px 1fr", gap:10, padding:"10px 8px", borderBottom: i<events.length-1 ? "1px solid var(--line)" : 0, borderRadius:6, alignItems:"start", textDecoration:"none", color:"inherit"}}>
+              <a key={e.link || e.title + i} href={safeHttpUrl(e.link) || safeHttpUrl(e.sourceUrl) || "#"} target="_blank" rel="noopener noreferrer" className="clk data-row" style={{display:"grid", gridTemplateColumns:"56px 16px 1fr", gap:10, borderRadius:6, alignItems:"start", textDecoration:"none", color:"inherit"}}>
                 <div className="mono" style={{fontSize:10.5, color:"var(--ink-4)", paddingTop:2}}>{fmtTime(e.date)}</div>
                 <div style={{paddingTop:3}}>
                   {e.kind === "division" && <Icon name="flag" size={13} stroke="var(--escalate)"/>}
@@ -887,9 +890,12 @@ function PageSources() {
 
               {testState && (
                 <div className="feed-test" style={{marginTop:14}}>
-                  <div style={{marginBottom:6, letterSpacing:".1em"}} className="warn">⚠ Parser: needs validation</div>
+                  <div style={{marginBottom:6, letterSpacing:".1em", display:"flex", alignItems:"center", gap:7}} className="warn"><Icon name="flag" size={12} /> Parser: needs validation</div>
                   {testState.lines.map((l, i) => (
-                    <div key={i} className={l.t}>{l.t === "ok" ? "✓ " : l.t === "warn" ? "⚠ " : "✗ "}{l.s}</div>
+                    <div key={i} className={"feed-test-line " + l.t}>
+                      <Icon name={l.t === "ok" ? "check" : l.t === "warn" ? "flag" : "close"} size={12} />
+                      <span>{l.s}</span>
+                    </div>
                   ))}
                   <button className="btn primary sm" style={{marginTop:10}} onClick={saveFeed}>Save feed</button>
                 </div>
@@ -972,7 +978,7 @@ function PageCommittees() {
         </div>
         <div style={{display:"flex", gap:10}}>
           <button className="btn" disabled title="Filtering is not available in this build" style={{opacity:.5, cursor:"not-allowed"}}><Icon name="filter" size={13}/> Filter (demo)</button>
-          <button className="btn primary" disabled title="Prep pack generation is not wired in this build" style={{opacity:.6, cursor:"not-allowed"}}><Icon name="brief" size={13}/> Prep pack (demo)</button>
+          <button className="btn ghost" disabled title="Prep pack generation is not wired in this build" style={{opacity:.6, cursor:"not-allowed"}}><Icon name="brief" size={13}/> Prep pack (demo)</button>
         </div>
       </div>
 
@@ -1067,7 +1073,7 @@ function PageBills() {
           <div className="panel-head"><h2 className="panel-title">Related divisions</h2><span className="panel-kicker">House · last 7 days</span></div>
           <div className="panel-body">
             {DIVISIONS.map((d,i) => (
-              <div key={d.when + d.bill} className="clk" onClick={() => openModal("division", d)} style={{padding:"10px 8px", borderBottom: i<DIVISIONS.length-1 ? "1px solid var(--line)" : 0, borderRadius:6}}>
+              <div key={d.when + d.bill} className="clk list-row" onClick={() => openModal("division", d)} style={{borderRadius:6}}>
                 <div className="mono" style={{fontSize:10.5, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".12em"}}>{d.when} · {d.chamber} · {d.bill}</div>
                 <div style={{fontSize:13, marginTop:2}}>{d.q}</div>
                 <div style={{fontSize:12, color: d.result.startsWith("Agreed") ? "var(--ok)" : "var(--escalate)", marginTop:2}}>{d.result}</div>
@@ -1157,7 +1163,7 @@ function PageParliament() {
           <div className="panel-head"><h2 className="panel-title">Recent divisions</h2><span className="panel-kicker">House</span></div>
           <div className="panel-body">
             {DIVISIONS.map((d, i) => (
-              <div key={d.when + d.bill} className="clk" onClick={() => openModal("division", d)} style={{padding:"10px 8px", borderBottom: i<DIVISIONS.length-1 ? "1px solid var(--line)" : 0, borderRadius:6}}>
+              <div key={d.when + d.bill} className="clk list-row" onClick={() => openModal("division", d)} style={{borderRadius:6}}>
                 <div className="mono" style={{fontSize:10.5, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".12em"}}>{d.when} · {d.bill}</div>
                 <div style={{fontSize:13, marginTop:2}}>{d.q}</div>
                 <div style={{fontSize:12, color: d.result.startsWith("Agreed") ? "var(--ok)" : "var(--escalate)", marginTop:2}}>{d.result}</div>
@@ -1328,7 +1334,7 @@ function PageBriefings() {
             {briefs.map((b, i) => {
               const id = briefId(b);
               return (
-              <div key={id} onClick={() => setSelId(id)} style={{padding:"12px 14px", borderBottom:"1px solid var(--line)", cursor:"pointer", background: selectedId===id ? "var(--panel-hi)" : "transparent", borderLeft: selectedId===id ? "2px solid var(--brass)" : "2px solid transparent"}}>
+              <div key={id} className="list-row" onClick={() => setSelId(id)} style={{cursor:"pointer", background: selectedId===id ? "var(--panel-hi)" : "transparent", borderLeft: selectedId===id ? "2px solid var(--brass)" : "2px solid transparent"}}>
                 <div style={{fontSize:13, fontWeight:500}}>{b.type}</div>
                 <div style={{fontSize:11.5, color:"var(--ink-3)"}}>For {b.for}</div>
                 <div className="mono" style={{fontSize:10, marginTop:4, color: b.status === "Drafted" || b.status.startsWith("Copied") ? "var(--ok)" : b.status === "In progress" ? "var(--caution)" : "var(--info)", textTransform:"uppercase", letterSpacing:".12em"}}>{b.status}</div>
@@ -1345,7 +1351,7 @@ function PageBriefings() {
             <div style={{marginLeft:"auto", display:"flex", gap:6}}>
               <button className="btn ghost sm" disabled={!selected} onClick={() => window.print()}><Icon name="download" size={12}/> Print</button>
               <button className="btn sm" disabled={!selected} title="Demo control: no send backend in this build" onClick={() => toast("Send (demo): no delivery backend in this build")}>Send (demo)</button>
-              <button className="btn primary sm" disabled={!selected} title="Demo control: no approval workflow in this build" onClick={() => toast("Approve (demo): no approval workflow in this build", "brass")}>Approve (demo)</button>
+              <button className="btn ghost sm" disabled={!selected} title="Demo control: no approval workflow in this build" onClick={() => toast("Approve (demo): no approval workflow in this build", "brass")}>Approve (demo)</button>
             </div>
           </div>
           <div className="panel-body">
@@ -1617,7 +1623,7 @@ function PageSignals() {
       </div>
 
       {signalSearchQuery && (
-        <div className="empty" style={{marginBottom:14, display:"flex", alignItems:"center", justifyContent:"space-between", gap:12}}>
+        <div className="empty-state" style={{marginBottom:14, display:"flex", alignItems:"center", justifyContent:"space-between", gap:12}}>
           <span>Filtered by search: "{signalSearchQuery}"</span>
           <button className="btn sm ghost" onClick={() => setSignalSearchQuery("")}>Clear search</button>
         </div>
@@ -1634,9 +1640,9 @@ function PageSignals() {
       </div>
 
       {visible.length === 0 ? (
-        <div className="empty" style={{padding:"40px 0", textAlign:"center"}}>
-          {filter === "all" ? "No active signals — all archived." : `No ${filter} attention signals.`}
-        </div>
+        <EmptyState icon="signal" kicker="No signals">
+          {filter === "all" ? "No active signals - all archived." : `No ${filter} attention signals.`}
+        </EmptyState>
       ) : (
         <div>
           {visible.map(s => <SignalCard key={s.id} s={s} />)}

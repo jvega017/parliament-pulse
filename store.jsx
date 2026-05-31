@@ -685,7 +685,7 @@ function WatchlistDetail({ id, titleId, closeButtonRef }) {
         ))}
       </div>
       <div className="modal-foot">
-        <button className="btn primary" onClick={() => { toast("Watchlist digest sent (demo)", "brass"); closeModal(); }}>Send digest</button>
+        <button className="btn ghost" onClick={() => { toast("Watchlist digest sent (demo)", "brass"); closeModal(); }}>Send digest</button>
         <button className="btn" onClick={() => toast("Configuration saved")}>Edit</button>
       </div>
     </>
