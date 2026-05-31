@@ -1,9 +1,27 @@
 # Parliament Pulse — app tracker
 <!-- Updated by: manual or session review | Format: DATE | agent/manual -->
-Last updated: 2026-05-30 | Updated by: deploy session (Sprint 6)
+Last updated: 2026-05-31 | Updated by: deploy session (Sprint 7)
 
 ## Status
-GREEN — DEPLOYED LIVE 2026-05-30. Fire House re-skin, four correctness fixes (F14, F2, F1, F10), dead-button honesty audit, and the production Worker proxy shipped. Build graded 72 to 89/100. Real APH RSS data verified rendering in production (16+ items, 5 of 6 feeds returning).
+GREEN — DEPLOYED LIVE 2026-05-31 (Sprint 7). Production-readiness pass driven by an 8-dimension
+multi-agent review (87 findings: 18 P1, all fixed). ALL P1s done + most P2/P3. Reviewed/built with
+Codex (Worker security + 2 frontend passes) and Claude (design, mobile, PERF-1, deploy). Verified
+live on production apex: production React, Sources=6 (no fabrication), real APH data 22 items / 5-of-6
+feeds. Frontend commit 3eba693+, Worker version 4678538d.
+Shipped this sprint: data-honesty (killed all 13/15 fabrications, derive counts from the 6-feed
+registry, Representative chips in modals/provenance, relabel fake "connectors" to source links);
+modal a11y parity (focus trap + accessible name) + contrast/forms/headings; RSS link scheme guard +
+fail-closed CORS + HSTS + manual-redirect revalidation + digest href escaping; error boundary +
+watchlist crash guard; React production.min + regenerated SRI; bounded-concurrency poller
+(mapPool 3 + abort + inFlight); interaction (Track/Watch persist, search reach, filter-aware drawer,
+stable keys); mobile (grids collapse, horizontal nav strip, full-width overlays); ember restraint +
+neutral fixture chips + opacity-only animations.
+REMAINING POLISH (queued for Codex on reset, non-user-blocking): polished mobile hamburger,
+render-memoisation (PERF-4/5), nav refactor off window.__ (MAINT-2), CSV/brief dedup (MAINT-3),
+font-CLS preload (PERF-6), iframe debounce (PERF-9), and the L-effort design-system refactors
+(type-scale + spacing utilities DESIGN-3/4, light-theme tokenisation DESIGN-7), EmptyState (DESIGN-5),
+glyph-to-SVG (DESIGN-10). Plus a cross-family (Codex/Gemini) final review. Full backlog:
+REVIEW-BACKLOG-2026-05-31.md.
 
 Live URLs:
 - Frontend (Cloudflare Pages): https://parliament-pulse.pages.dev
