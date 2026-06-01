@@ -11,11 +11,20 @@ function TopClock() {
   return /* @__PURE__ */ React.createElement("span", { className: "mono top-clock", "aria-label": "Local time", title: "Local time", style: { fontSize: 12, color: "var(--ink-3)", letterSpacing: ".06em", fontVariantNumeric: "tabular-nums" } }, clock);
 }
 function DesignStateBanner() {
-  const key = "pp-design-banner-dismissed";
-  const [visible, setVisible] = React.useState(() => !sessionStorage.getItem(key));
+  const key = "pp-demo-ack";
+  const [visible, setVisible] = React.useState(() => {
+    try {
+      return localStorage.getItem(key) !== "1";
+    } catch (e) {
+      return true;
+    }
+  });
   if (!visible) return null;
-  return /* @__PURE__ */ React.createElement("div", { className: "design-banner", role: "status" }, /* @__PURE__ */ React.createElement(Icon, { name: "signal", size: 14, stroke: "var(--brass)" }), /* @__PURE__ */ React.createElement("span", null, /* @__PURE__ */ React.createElement("strong", null, "Design state."), " All signals and intelligence outputs are fixture data included for demonstration. No live analysis has occurred. "), /* @__PURE__ */ React.createElement("button", { "aria-label": "Dismiss notice", onClick: () => {
-    sessionStorage.setItem(key, "1");
+  return /* @__PURE__ */ React.createElement("div", { className: "design-banner", role: "status" }, /* @__PURE__ */ React.createElement(Icon, { name: "signal", size: 14, stroke: "var(--gold)" }), /* @__PURE__ */ React.createElement("span", null, /* @__PURE__ */ React.createElement("strong", null, "Demo mode."), " Signals shown are illustrative fixtures, not live parliamentary analysis. The production deployment runs the same components against live RSS and APH feeds. "), /* @__PURE__ */ React.createElement("button", { "aria-label": "Dismiss notice", onClick: () => {
+    try {
+      localStorage.setItem(key, "1");
+    } catch (e) {
+    }
     setVisible(false);
   } }, "\xD7"));
 }
@@ -29,9 +38,9 @@ function SkeletonCard() {
   return /* @__PURE__ */ React.createElement("div", { className: "signal", "aria-hidden": "true" }, /* @__PURE__ */ React.createElement("span", { className: "skeleton", style: { height: 10, width: 86, marginBottom: 12 } }), /* @__PURE__ */ React.createElement("span", { className: "skeleton", style: { height: 18, width: "72%", marginBottom: 10 } }), /* @__PURE__ */ React.createElement("span", { className: "skeleton", style: { height: 13, width: "92%", marginBottom: 7 } }), /* @__PURE__ */ React.createElement("span", { className: "skeleton", style: { height: 13, width: "56%" } }));
 }
 const NAV = [
-  { id: "overview", label: "Overview", group: "Today", count: 12 },
+  { id: "overview", label: "Overview", group: "Today", count: null },
   { id: "live", label: "Live parliament", group: "Today", count: null, live: true },
-  { id: "signals", label: "All signals", group: "Today", count: 6 },
+  { id: "signals", label: "Signal inbox", group: "Today", count: 6 },
   { id: "radar", label: "Attention radar", group: "Today", count: 6 },
   { id: "committees", label: "Committees", group: "Workspace", count: 7 },
   { id: "bills", label: "Bills intelligence", group: "Workspace", count: 5 },
@@ -39,7 +48,7 @@ const NAV = [
   { id: "patterns", label: "QON patterns", group: "Workspace", count: 1 },
   { id: "briefings", label: "Briefings", group: "Workspace", count: 4 },
   { id: "watchlists", label: "Watchlists", group: "Workspace", count: 12 },
-  { id: "sources", label: "Sources", group: "Workspace", count: sourceCounts().total }
+  { id: "sources", label: "Sources", group: "Workspace", count: null }
 ];
 const ICONS = {
   overview: "overview",
@@ -59,7 +68,8 @@ function Sidebar({ page, onNavigate, mobileOpen }) {
   const navCount = React.useMemo(() => {
     const active = SIGNALS.filter((s) => !state.archived[s.id]);
     return {
-      overview: active.length,
+      overview: null,
+      /* a dashboard has no unambiguous count; omit (the hero KPI carries the priority number) */
       live: null,
       radar: active.filter((s) => s.attention !== "low").length,
       signals: active.length,
@@ -69,7 +79,8 @@ function Sidebar({ page, onNavigate, mobileOpen }) {
       patterns: QON_PATTERN.items.length,
       briefings: BRIEFING_QUEUE.length + Object.keys(state.briefsGenerated || {}).length,
       watchlists: WATCHLISTS.length + (state.watchlistCreated || []).length,
-      sources: sourceCounts().total + (state.feeds || []).length
+      sources: null
+      /* "6" was ambiguous (feeds? errors?); the Sources page states it plainly */
     };
   }, [state.archived, state.briefsGenerated, state.watchlistCreated, state.feeds]);
   const groups = [...new Set(NAV.map((n) => n.group))];
@@ -115,7 +126,7 @@ function Sidebar({ page, onNavigate, mobileOpen }) {
     /* @__PURE__ */ React.createElement("span", null, n.label),
     n.live && /* @__PURE__ */ React.createElement("span", { className: "count nav-live" }, "LIVE"),
     !n.live && navCount[n.id] !== null && /* @__PURE__ */ React.createElement("span", { className: "count" }, navCount[n.id])
-  ))))), /* @__PURE__ */ React.createElement("div", { className: "side-foot" }, /* @__PURE__ */ React.createElement("div", { className: "avatar" }, "JV"), /* @__PURE__ */ React.createElement("div", { style: { lineHeight: 1.2 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12.5, fontWeight: 500 } }, "Juan Vega"), /* @__PURE__ */ React.createElement("div", { style: { fontFamily: "var(--mono)", fontSize: 10, color: "var(--ink-4)" } }, "Principal Policy Officer \xB7 Futures & Foresight"))));
+  ))))), /* @__PURE__ */ React.createElement("div", { className: "side-foot" }, /* @__PURE__ */ React.createElement("div", { className: "avatar" }, "JV"), /* @__PURE__ */ React.createElement("div", { style: { lineHeight: 1.2 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12.5, fontWeight: 500 } }, "Juan Vega"), /* @__PURE__ */ React.createElement("div", { style: { fontFamily: "var(--mono)", fontSize: 10, color: "var(--ink-4)" } }, "Prometheus Policy Lab \xB7 v0.1 demo"))));
 }
 function ShortcutHelp() {
   const [open, setOpen] = React.useState(false);
@@ -392,7 +403,7 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
       /* @__PURE__ */ React.createElement("span", { className: "k" }, f.group),
       /* @__PURE__ */ React.createElement("span", null, f.name)
     ))), q && !results.sig.length && !results.bills.length && !results.comm.length && !results.mem.length && !results.feeds.length && /* @__PURE__ */ React.createElement("div", { className: "sr-item", role: "option", "aria-selected": "false", style: { color: "var(--ink-4)", cursor: "default" } }, 'No matches for "', q, '"'))
-  ), /* @__PURE__ */ React.createElement("div", { className: "top-right" }, /* @__PURE__ */ React.createElement(TopClock, null), /* @__PURE__ */ React.createElement("span", { className: "chip clk live-chip", onClick: () => navigate("live"), title: "Parliament is sitting \xB7 official feeds configured", style: { borderColor: "var(--ember-flash)", color: "var(--ink)", background: "transparent" } }, /* @__PURE__ */ React.createElement("span", { className: "dot pulse-dot", style: { background: "var(--ember-flash)" } }), " Live \xB7 ", sourceCounts().total, " sources"), /* @__PURE__ */ React.createElement("button", { className: "btn ghost sm shortcut-btn", title: "Go to Live parliament and refresh feeds there", "aria-label": "Refresh live feeds", onClick: () => {
+  ), /* @__PURE__ */ React.createElement("div", { className: "top-right" }, /* @__PURE__ */ React.createElement(TopClock, null), /* @__PURE__ */ React.createElement("span", { className: "chip clk", onClick: () => navigate("live"), title: "Demo build \xB7 official feeds configured; live RSS polls on the Live page", style: { borderColor: "color-mix(in srgb, var(--gold) 55%, transparent)", color: "var(--gold)", background: "transparent" } }, /* @__PURE__ */ React.createElement("span", { className: "dot", style: { background: "var(--gold)", boxShadow: "none" } }), " Demo \xB7 ", sourceCounts().total, " feeds"), /* @__PURE__ */ React.createElement("button", { className: "btn ghost sm shortcut-btn", title: "Go to Live parliament and refresh feeds there", "aria-label": "Refresh live feeds", onClick: () => {
     requestLiveRefresh();
     navigate("live");
     if (window.__refreshLiveFeeds) {

@@ -175,33 +175,17 @@ function PageOverview() {
             <div className="panel-head">
               <h2 className="panel-title">Priority signals</h2>
               <span className="panel-kicker">{priority.length} items · human review required</span>
-              <div style={{marginLeft:"auto", display:"flex", gap:6}}>
-                <button className={"btn ghost sm" + (groupByTopic ? " active" : "")} aria-pressed={groupByTopic} onClick={() => setGroupByTopic(v => !v)}>Group by topic</button>
-                <button className={"btn ghost sm" + (sortByAttention ? " active" : "")} aria-pressed={sortByAttention} onClick={() => setSortByAttention(v => !v)}>Sort: attention</button>
-              </div>
             </div>
             <div className="panel-body">
               {priority.map(s => <SignalCard key={s.id} s={s} />)}
               {priority.length === 0 && <EmptyState icon="check" kicker="Priority clear">All priority signals actioned.</EmptyState>}
             </div>
-          </div>
-
-          <div className="panel">
-            <div className="panel-head">
-              <h2 className="panel-title">All signals · last 24h</h2>
-              <span className="panel-kicker">{rest.length} items{groupByTopic ? " · grouped" : sortByAttention ? " · sorted by attention" : ""}</span>
-            </div>
-            <div className="panel-body">
-              {groupByTopic
-                ? Object.entries(restGroups).map(([topic, sigs]) => (
-                    <div key={topic} style={{marginBottom:10}}>
-                      <div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".18em", margin:"6px 0 8px"}}>{topic} · {sigs.length}</div>
-                      {sigs.map(s => <SignalCard key={s.id} s={s} />)}
-                    </div>
-                  ))
-                : rest.map(s => <SignalCard key={s.id} s={s} />)}
-              {rest.length === 0 && <EmptyState icon="check" kicker="Review clear">All lower-priority signals reviewed. Check Attention radar for emerging issues.</EmptyState>}
-            </div>
+            {rest.length > 0 && (
+              <div className="panel-foot">
+                <span style={{color:"var(--ink-3)", fontSize:13}}>{rest.length} more signal{rest.length !== 1 ? "s" : ""} in the last 24h</span>
+                <button className="btn ghost sm" style={{marginLeft:"auto"}} onClick={() => goto && goto("signals")}>Open Signal inbox →</button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -266,8 +250,12 @@ const APH_LIVE = {
 function LiveBroadcast({ which, toast }) {
   const [embedTarget, setEmbedTarget] = React.useState({ which, nonce: 0 });
   const cfg = APH_LIVE[embedTarget.which] || APH_LIVE.house;
-  // mode: "embed" = YouTube live_stream iframe ; "offline" = explicit fallback
-  const [mode, setMode] = React.useState("embed");
+  // mode: "embed" = YouTube live_stream iframe ; "offline" = branded entry card.
+  // Default OFFLINE: YouTube renders its own grey "video unavailable" page (which fires
+  // onLoad, so it cannot be auto-detected) when a chamber is not sitting. Leading with
+  // the branded card means a first-time viewer never lands on YouTube's error tile;
+  // they load the stream explicitly.
+  const [mode, setMode] = React.useState("offline");
   const [nonce, setNonce] = React.useState(0); // bump to force reload
   const embedReady = embedTarget.which === which && embedTarget.nonce === nonce;
   // F9: a cross-origin iframe cannot expose true playback state, so we treat the
@@ -277,9 +265,10 @@ function LiveBroadcast({ which, toast }) {
   // claim, because confirmed playback is not detectable from here.
   const [loaded, setLoaded] = React.useState(false);
 
-  // When chamber changes or we retry, reset embed and confirmation state
+  // When chamber changes, return to the branded card (do not auto-embed); the embed
+  // loads only when the viewer explicitly requests it (or on retry, which bumps nonce).
   React.useEffect(() => {
-    setMode("embed");
+    setMode("offline");
     setLoaded(false);
     const id = setTimeout(() => setEmbedTarget({ which, nonce }), 300);
     return () => clearTimeout(id);
@@ -342,15 +331,18 @@ function LiveBroadcast({ which, toast }) {
       {/* Fallback for no-stream / blocked / user-toggled */}
       {mode === "offline" && (
         <div style={{position:"absolute", inset:0, background:"linear-gradient(180deg, var(--panel-2), var(--bg))", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24, textAlign:"center"}}>
-          <div style={{fontFamily:"var(--serif)", fontSize:22, color:"var(--brass)", marginBottom:10}}>Stream unavailable</div>
+          <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:10}}>
+            <span style={{width:8, height:8, borderRadius:"50%", background:"var(--ink-4)"}}/>
+            <div style={{fontFamily:"var(--serif)", fontSize:22, color:"var(--ink)"}}>Live broadcast · {cfg.label}</div>
+          </div>
           <div style={{color:"var(--ink-2)", fontSize:13, maxWidth:460, lineHeight:1.5, marginBottom:18}}>
-            AUSParliamentLive only broadcasts <strong>{cfg.label}</strong> while the chamber is in session. Try the official APH pages below, or retry the embed.
+            AUSParliamentLive streams <strong>{cfg.label}</strong> while the chamber is sitting. Load the live stream here, or open the official sources.
           </div>
           <div style={{display:"flex", gap:8, flexWrap:"wrap", justifyContent:"center"}}>
-            <a href="https://www.youtube.com/@AUSParliamentLive/streams" target="_blank" rel="noopener noreferrer" className="btn primary" style={{textDecoration:"none"}}>YouTube · AUSParliamentLive <Icon name="ext" size={12}/></a>
+            <button className="btn primary" onClick={() => { setNonce(n => n + 1); setMode("embed"); }}><Icon name="signal" size={13}/> Load live stream</button>
+            <a href="https://www.youtube.com/@AUSParliamentLive/streams" target="_blank" rel="noopener noreferrer" className="btn" style={{textDecoration:"none"}}>YouTube <Icon name="ext" size={12}/></a>
             <a href="https://www.aph.gov.au/News_and_Events/Watch_Read_Listen" target="_blank" rel="noopener noreferrer" className="btn" style={{textDecoration:"none"}}>APH Watch / Read / Listen <Icon name="ext" size={12}/></a>
             <a href="https://parlview.aph.gov.au/" target="_blank" rel="noopener noreferrer" className="btn" style={{textDecoration:"none"}}>ParlView archive <Icon name="ext" size={12}/></a>
-            <button className="btn" onClick={() => { setNonce(n => n + 1); setMode("embed"); }}>Retry embed</button>
           </div>
         </div>
       )}
@@ -555,6 +547,10 @@ function PageLive() {
     .map(([url, s]) => ({ url, label: s.label || url, error: s.error }));
   const isLocalHost = location.hostname === "localhost" || location.hostname === "127.0.0.1";
   const isFileGuard = !!(feedStatus.__fileGuard);
+  // Developer detail (proxy instructions, raw feed errors, worker URL) is shown only
+  // on localhost or with ?debug=1. Public production sees a calm reconnecting message.
+  const debugView = (() => { try { return new URLSearchParams(location.search).has("debug"); } catch { return false; } })();
+  const showDevDetail = isLocalHost || isFileGuard || debugView;
 
   return (
     <div className="page">
@@ -644,6 +640,7 @@ function PageLive() {
               </div>
             )}
             {!loading && events.length === 0 && (
+              showDevDetail ? (
               <div className="empty-state error" style={{fontSize:"var(--t-body-sm)", color:"var(--ink-3)"}}>
                 <Icon name="flag" size={15} stroke="var(--caution)" />
                 <div>
@@ -664,7 +661,7 @@ function PageLive() {
                   </>
                 ) : (
                   <>
-                    <p style={{margin:"0 0 8px"}}>The production feed proxy did not return data. Confirm the Cloudflare Worker is deployed and that this origin is on its CORS allowlist.</p>
+                    <p style={{margin:"0 0 8px"}}>Worker returned no items. Confirm the Cloudflare Worker is deployed and this origin is on its CORS allowlist.</p>
                     <p style={{margin:"0 0 8px", fontFamily:"var(--mono)", fontSize:11, background:"var(--panel-2)", padding:"6px 8px", borderRadius:4, wordBreak:"break-all"}}>
                       Worker: <strong>https://aph-proxy.jvega019.workers.dev/rss?u=</strong>
                     </p>
@@ -685,6 +682,15 @@ function PageLive() {
                 <p style={{margin:0}}>Links below still open the raw feeds in a new tab.</p>
                 </div>
               </div>
+              ) : (
+              <div className="empty-state" style={{fontSize:"var(--t-body-sm)", color:"var(--ink-3)"}}>
+                <Icon name="signal" size={15} stroke="var(--ink-4)" />
+                <div>
+                  <div style={{color:"var(--ink-2)", fontWeight:500, marginBottom:6}}>Live feed reconnecting</div>
+                  <p style={{margin:0}}>No new items in the latest poll. The official source links open the raw feeds directly.</p>
+                </div>
+              </div>
+              )
             )}
             {events.map((e, i) => (
               <a key={e.link || e.title + i} href={safeHttpUrl(e.link) || safeHttpUrl(e.sourceUrl) || "#"} target="_blank" rel="noopener noreferrer" className="clk data-row g-live-event" style={{display:"grid", gap:10, borderRadius:6, alignItems:"start", textDecoration:"none", color:"inherit"}}>
@@ -998,8 +1004,9 @@ function PageBills() {
             <tbody>
               {BILLS.map(b => {
                 const owner = state.owners[b.ref] || b.owner;
+                const featured = b.ref === "BILL-2026-048";
                 return (
-                  <tr key={b.ref} onClick={() => openModal("bill", b.ref)}>
+                  <tr key={b.ref} onClick={() => openModal("bill", b.ref)} aria-current={featured ? "true" : undefined} style={featured ? {background:"var(--panel-hi)", boxShadow:"inset 2px 0 0 var(--brass)"} : undefined}>
                     <td className="mono" style={{fontSize:11, color:"var(--ink-3)"}}>{b.ref}</td>
                     <td style={{fontWeight:500}}>{b.title}</td>
                     <td style={{color:"var(--ink-2)"}}>{b.stage}</td>
@@ -1030,9 +1037,9 @@ function PageBills() {
 
       <div className="panel" style={{marginTop:16}}>
         <div className="panel-head">
-          <h2 className="panel-title">Bills Digest · preview</h2>
-          <span className="panel-kicker">Digital ID Amendment (Assurance) Bill 2026</span>
-          <div style={{marginLeft:"auto"}}><button className="btn sm" onClick={() => openModal("bill", "BILL-2026-048")}>Open full</button></div>
+          <h2 className="panel-title">Bills Digest</h2>
+          <span className="panel-kicker">Featured · Digital ID Amendment (Assurance) Bill 2026 (highest attention)</span>
+          <div style={{marginLeft:"auto"}}><button className="btn ghost sm" onClick={() => openModal("bill", "BILL-2026-048")}>Open full detail →</button></div>
         </div>
         <div className="panel-body">
           <div className="grid g-2">
@@ -1050,8 +1057,8 @@ function PageBills() {
               <h5 className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", margin:"0 0 4px"}}>Portfolio relevance</h5>
               <p style={{margin:0, color:"var(--ink-2)"}}>High. Matches Digital identity and Data sharing & privacy watchlists.</p>
               <h5 className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", margin:"14px 0 4px"}}>Recommended action</h5>
-              <div style={{padding:"10px 12px", border:"1px solid var(--brass-soft)", borderRadius:8, background:"var(--panel-hi)"}}>
-                <div style={{color:"var(--brass)", fontWeight:600}}>Draft Executive Brief</div>
+              <div style={{padding:"10px 14px", borderLeft:"3px solid var(--brass)", borderRadius:"0 6px 6px 0", background:"var(--panel-2)"}}>
+                <div style={{color:"var(--ink)", fontWeight:600}}>Draft Executive Brief</div>
                 <div style={{fontSize:12, color:"var(--ink-2)", marginTop:4}}>Scope of accreditation warrants DDG-level awareness before 2nd reading.</div>
               </div>
             </div>
@@ -1536,9 +1543,9 @@ function PageSignals() {
     <div className="page">
       <div className="page-head">
         <div>
-          <div className="page-kicker">Today</div>
-          <h1 className="page-title">All signals</h1>
-          <div className="page-sub">{counts.all} active signals · {counts.high} high · {counts.med} medium · {counts.low} low</div>
+          <div className="page-kicker">Today · triage workspace</div>
+          <h1 className="page-title">Signal inbox</h1>
+          <div className="page-sub">{counts.all} active signals · {counts.high} high · {counts.med} medium · {counts.low} low. Open any signal to action, archive, or generate a brief.</div>
         </div>
         <div style={{display:"flex", gap:8, alignItems:"center"}}>
           <label htmlFor="sig-sort" className="sr-only">Sort signals</label>

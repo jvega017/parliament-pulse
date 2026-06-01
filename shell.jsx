@@ -20,14 +20,14 @@ function TopClock() {
 }
 
 function DesignStateBanner() {
-  const key = "pp-design-banner-dismissed";
-  const [visible, setVisible] = React.useState(() => !sessionStorage.getItem(key));
+  const key = "pp-demo-ack";
+  const [visible, setVisible] = React.useState(() => { try { return localStorage.getItem(key) !== "1"; } catch { return true; } });
   if (!visible) return null;
   return (
     <div className="design-banner" role="status">
-      <Icon name="signal" size={14} stroke="var(--brass)" />
-      <span><strong>Design state.</strong> All signals and intelligence outputs are fixture data included for demonstration. No live analysis has occurred. </span>
-      <button aria-label="Dismiss notice" onClick={() => { sessionStorage.setItem(key, "1"); setVisible(false); }}>×</button>
+      <Icon name="signal" size={14} stroke="var(--gold)" />
+      <span><strong>Demo mode.</strong> Signals shown are illustrative fixtures, not live parliamentary analysis. The production deployment runs the same components against live RSS and APH feeds. </span>
+      <button aria-label="Dismiss notice" onClick={() => { try { localStorage.setItem(key, "1"); } catch {} setVisible(false); }}>×</button>
     </div>
   );
 }
@@ -70,9 +70,9 @@ function SkeletonCard() {
 }
 
 const NAV = [
-  { id: "overview", label: "Overview", group: "Today", count: 12 },
+  { id: "overview", label: "Overview", group: "Today", count: null },
   { id: "live", label: "Live parliament", group: "Today", count: null, live: true },
-  { id: "signals", label: "All signals", group: "Today", count: 6 },
+  { id: "signals", label: "Signal inbox", group: "Today", count: 6 },
   { id: "radar", label: "Attention radar", group: "Today", count: 6 },
   { id: "committees", label: "Committees", group: "Workspace", count: 7 },
   { id: "bills", label: "Bills intelligence", group: "Workspace", count: 5 },
@@ -80,7 +80,7 @@ const NAV = [
   { id: "patterns", label: "QON patterns", group: "Workspace", count: 1 },
   { id: "briefings", label: "Briefings", group: "Workspace", count: 4 },
   { id: "watchlists", label: "Watchlists", group: "Workspace", count: 12 },
-  { id: "sources", label: "Sources", group: "Workspace", count: sourceCounts().total },
+  { id: "sources", label: "Sources", group: "Workspace", count: null },
 ];
 
 const ICONS = {
@@ -94,7 +94,7 @@ function Sidebar({ page, onNavigate, mobileOpen }) {
   const navCount = React.useMemo(() => {
     const active = SIGNALS.filter(s => !state.archived[s.id]);
     return {
-      overview: active.length,
+      overview: null,  /* a dashboard has no unambiguous count; omit (the hero KPI carries the priority number) */
       live: null,
       radar:    active.filter(s => s.attention !== "low").length,
       signals:  active.length,
@@ -104,7 +104,7 @@ function Sidebar({ page, onNavigate, mobileOpen }) {
       patterns: QON_PATTERN.items.length,
       briefings: BRIEFING_QUEUE.length + Object.keys(state.briefsGenerated || {}).length,
       watchlists: WATCHLISTS.length + (state.watchlistCreated || []).length,
-      sources: sourceCounts().total + (state.feeds || []).length,
+      sources: null,  /* "6" was ambiguous (feeds? errors?); the Sources page states it plainly */
     };
   }, [state.archived, state.briefsGenerated, state.watchlistCreated, state.feeds]);
   const groups = [...new Set(NAV.map(n => n.group))];
@@ -181,7 +181,7 @@ function Sidebar({ page, onNavigate, mobileOpen }) {
         <div className="avatar">JV</div>
         <div style={{lineHeight:1.2}}>
           <div style={{fontSize:12.5, fontWeight:500}}>Juan Vega</div>
-          <div style={{fontFamily:"var(--mono)", fontSize:10, color:"var(--ink-4)"}}>Principal Policy Officer · Futures & Foresight</div>
+          <div style={{fontFamily:"var(--mono)", fontSize:10, color:"var(--ink-4)"}}>Prometheus Policy Lab · v0.1 demo</div>
         </div>
       </div>
     </aside>
@@ -401,8 +401,8 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
       </div>
       <div className="top-right">
         <TopClock />
-        <span className="chip clk live-chip" onClick={() => navigate("live")} title="Parliament is sitting · official feeds configured" style={{borderColor:"var(--ember-flash)", color:"var(--ink)", background:"transparent"}}>
-          <span className="dot pulse-dot" style={{background:"var(--ember-flash)"}}/> Live · {sourceCounts().total} sources
+        <span className="chip clk" onClick={() => navigate("live")} title="Demo build · official feeds configured; live RSS polls on the Live page" style={{borderColor:"color-mix(in srgb, var(--gold) 55%, transparent)", color:"var(--gold)", background:"transparent"}}>
+          <span className="dot" style={{background:"var(--gold)", boxShadow:"none"}}/> Demo · {sourceCounts().total} feeds
         </span>
         <button className="btn ghost sm shortcut-btn" title="Go to Live parliament and refresh feeds there" aria-label="Refresh live feeds" onClick={() => {
           requestLiveRefresh();
