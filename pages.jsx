@@ -628,8 +628,8 @@ function PageLive() {
 
         <div className="panel">
           <div className="panel-head">
-            <h2 className="panel-title">Signal events · live RSS</h2>
-            <span className="panel-kicker">{loading && events.length === 0 ? "Polling…" : `${events.length} items · ${liveCount}/${totalFeeds} feeds`}</span>
+            <h2 className="panel-title">Recent items · APH RSS</h2>
+            <span className="panel-kicker">{loading && events.length === 0 ? "Polling…" : `${events.length} tabled items · ${liveCount}/${totalFeeds} feeds${lastPoll ? " · as at " + fmtTime(lastPoll) + " AEST" : ""}`}</span>
           </div>
           <div className="panel-body" style={{maxHeight:720, overflowY:"auto"}}>
             {loading && events.length === 0 && (
