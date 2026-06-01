@@ -701,7 +701,7 @@ function RadarDetail({ id, titleId, closeButtonRef }) {
         </div>
         <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:8}}>Suggested actions</h3>
         <ul style={{margin:0, paddingLeft:18, color:"var(--ink-2)"}}>
-          <li>Draft Executive Brief for DDG Digital</li>
+          <li>Draft Executive Brief for Director, Digital Policy</li>
           <li>Monitor for Estimates references</li>
           <li>Coordinate with Procurement lead</li>
         </ul>

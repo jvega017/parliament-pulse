@@ -1012,7 +1012,7 @@ function PageBills() {
                     <td style={{color:"var(--ink-2)"}}>{b.stage}</td>
                     <td className="mono" style={{fontSize:11.5, color:"var(--ink-3)"}}>{b.portfolio}</td>
                     <td>{b.digest === "Published" ? <span className="tag teal">Published</span> : <span className="tag">Pending</span>}</td>
-                    <td style={{color: owner !== "—" && owner !== b.owner ? "var(--ok)" : "var(--ink-2)"}}>{owner}</td>
+                    <td style={{color: owner === "—" ? "var(--ink-4)" : (owner !== b.owner ? "var(--ok)" : "var(--ink-2)")}}>{owner}</td>
                     <td><Att level={b.att}/></td>
                   </tr>
                 );
@@ -1059,7 +1059,7 @@ function PageBills() {
               <h5 className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", margin:"14px 0 4px"}}>Recommended action</h5>
               <div style={{padding:"10px 14px", borderLeft:"3px solid var(--brass)", borderRadius:"0 6px 6px 0", background:"var(--panel-2)"}}>
                 <div style={{color:"var(--ink)", fontWeight:600}}>Draft Executive Brief</div>
-                <div style={{fontSize:12, color:"var(--ink-2)", marginTop:4}}>Scope of accreditation warrants DDG-level awareness before 2nd reading.</div>
+                <div style={{fontSize:12, color:"var(--ink-2)", marginTop:4}}>Scope of accreditation warrants director-level awareness before 2nd reading.</div>
               </div>
             </div>
           </div>
@@ -1251,7 +1251,7 @@ function PageBriefings() {
   }).sort((a, b) => b._ts - a._ts).slice(0, 3);
 
   const staticBriefs = [
-    { type: "Daily Signal Brief", for: "DDG Digital", status: "Drafted" },
+    { type: "Daily Signal Brief", for: "Director, Digital Policy", status: "Drafted" },
     { type: "Committee Brief", for: "Procurement lead", status: "Awaiting review" },
     { type: "Bill Digest Note", for: "Identity policy", status: "Drafted" },
     { type: "Estimates Monitor Note", for: "Estimates pack", status: "In progress" },

@@ -188,7 +188,7 @@ const SIGNALS = [
     attention: "high",
     attentionReason: "Bill touches two watchlists (Digital identity, Data sharing & privacy). Digest explicitly notes accreditation scope changes.",
     action: "Draft Executive Brief",
-    actionReason: "Material shift in accreditation scope warrants DDG-level awareness ahead of second reading.",
+    actionReason: "Material shift in accreditation scope warrants director-level awareness ahead of second reading.",
     confidence: 4,
     sourceAuthority: "Official",
     humanReview: "Required",
@@ -369,7 +369,7 @@ const QON_PATTERN = {
 };
 
 const BRIEFING_QUEUE = [
-  { type: "Daily Signal Brief", for: "DDG Digital", status: "Drafted", at: "08:20", ready: true },
+  { type: "Daily Signal Brief", for: "Director, Digital Policy", status: "Drafted", at: "08:20", ready: true },
   { type: "Committee Brief", for: "Procurement lead", status: "Awaiting review", at: "07:50", ready: false },
   { type: "Bill Digest Note", for: "Identity policy", status: "Drafted", at: "07:02", ready: true },
   { type: "Estimates Monitor Note", for: "Estimates pack", status: "In progress", at: "06:44", ready: false },
