@@ -752,10 +752,6 @@ function PageSources() {
 
   return (
     <div className="page">
-      <div className="design-banner" role="status" style={{marginBottom:12, borderRadius:8}}>
-        <Icon name="signal" size={13} stroke="var(--brass)" />
-        <span><strong>Representative data.</strong> Feed URLs are the real APH endpoints, but the health metrics, item counts and the feed validator on this page are representative. The Validate step does not perform a live network check.</span>
-      </div>
       <div className="page-head">
         <div>
           <div className="page-kicker">Admin</div>
@@ -923,10 +919,6 @@ function PageCommittees() {
 
   return (
     <div className="page">
-      <div className="design-banner" role="status" style={{marginBottom:12, borderRadius:8}}>
-        <Icon name="committee" size={13} stroke="var(--brass)" />
-        <span><strong>Design state.</strong> Committee schedules, hearing details, and inquiry data are fixture data from official APH feeds structure. No live polling in this build.</span>
-      </div>
       <div className="page-head">
         <div>
           <div className="page-kicker">Parliament</div>
@@ -969,10 +961,6 @@ function PageBills() {
   const { openModal, state } = useStore();
   return (
     <div className="page">
-      <div className="design-banner" role="status" style={{marginBottom:12, borderRadius:8}}>
-        <Icon name="bill" size={13} stroke="var(--brass)" />
-        <span><strong>Design state.</strong> Bill status, provisions, and digest data are fixture data. Policy owner assignment is stored locally only.</span>
-      </div>
       <div className="page-head">
         <div>
           <div className="page-kicker">Parliament · Bills Intelligence</div>
@@ -1079,10 +1067,6 @@ function PageParliament() {
   const { openModal, toast } = useStore();
   return (
     <div className="page">
-      <div className="design-banner" role="status" style={{marginBottom:12, borderRadius:8}}>
-        <Icon name="signal" size={14} stroke="var(--brass)" />
-        <span>Daily program, division results, and news items are <strong>fixture data</strong>. APH RSS feeds are read-only in this build.</span>
-      </div>
       <div className="page-head">
         <div>
           <div className="page-kicker">Parliament</div>
@@ -1271,10 +1255,6 @@ function PageBriefings() {
   const selectedId = selected ? briefId(selected) : null;
   return (
     <div className="page">
-      <div className="design-banner" role="status" style={{marginBottom:12, borderRadius:8}}>
-        <Icon name="brief" size={13} stroke="var(--brass)" />
-        <span><strong>Design state.</strong> Brief queue and content are fixture data. Generation and send actions are not wired to any backend.</span>
-      </div>
       <div className="page-head">
         <div>
           <div className="page-kicker">Workflow</div>
@@ -1380,10 +1360,6 @@ function PageWatchlists() {
   });
   return (
     <div className="page">
-      <div className="design-banner" role="status" style={{marginBottom:12, borderRadius:8}}>
-        <Icon name="watch" size={13} stroke="var(--brass)" />
-        <span><strong>Design state.</strong> Watchlist data, keywords, and match counts are fixture data. No live keyword matching is running.</span>
-      </div>
       <div className="page-head">
         <div>
           <div className="page-kicker">Workflow</div>
@@ -1483,10 +1459,6 @@ function PageRadar() {
   const { openModal } = useStore();
   return (
     <div className="page">
-      <div className="design-banner" role="status" style={{marginBottom:12, borderRadius:8}}>
-        <Icon name="radar" size={13} stroke="var(--brass)" />
-        <span><strong>Design state.</strong> Radar issues, attention scores, and momentum are fixture data. No live signal processing has occurred.</span>
-      </div>
       <div className="page-head">
         <div>
           <div className="page-kicker">Today</div>
