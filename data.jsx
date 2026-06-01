@@ -130,8 +130,8 @@ const SIGNALS = [
     humanReview: "Required",
     evidence: [
       { label: "Senate inquiry listing", url: "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Finance_and_Public_Administration" },
-      { label: "Finance & PA Committee page", url: "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Finance_and_Public_Administration/Digital_Procurement" },
-      { label: "Senate New Inquiries RSS", url: "https://www.aph.gov.au/Parliamentary_Business/Committees/RSS_Feeds/new_inquiries" },
+      { label: "Finance & PA Committee page", url: "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Finance_and_Public_Administration" },
+      { label: "Senate New Inquiries RSS", url: "https://www.aph.gov.au/Parliamentary_Business/Committees" },
     ],
     score: { authority: 0.95, portfolio: 0.9, novelty: 0.9, momentum: 0.4, time: 0.6, scrutiny: 0.85, ops: 0.7 },
     provenance: [
@@ -164,7 +164,7 @@ const SIGNALS = [
     confidence: 5,
     sourceAuthority: "Official",
     humanReview: "Optional",
-    evidence: [{ label: "Speaker's media release", url: "https://www.aph.gov.au/About_Parliament/House_of_Representatives/News_and_events/Media_releases" }],
+    evidence: [{ label: "Speaker's media release", url: "https://www.aph.gov.au/About_Parliament/House_of_Representatives" }],
     score: { authority: 0.95, portfolio: 0.05, novelty: 0.3, momentum: 0.1, time: 0.1, scrutiny: 0.1, ops: 0.05 },
     provenance: [
       { ts: "08:03:22", by: "parser", event: "Fetched item from House Media Releases RSS (200 OK)" },
@@ -193,7 +193,7 @@ const SIGNALS = [
     sourceAuthority: "Official",
     humanReview: "Required",
     evidence: [
-      { label: "Bills Digest (Parliamentary Library)", url: "https://www.aph.gov.au/Parliamentary_Business/Bills_LEGislation/bd/bd2526a" },
+      { label: "Bills Digest (Parliamentary Library)", url: "https://www.aph.gov.au/Parliamentary_Business/Bills_Legislation/bd/bd2526a" },
       { label: "Bill homepage — Digital ID Amendment", url: "https://www.aph.gov.au/Parliamentary_Business/Bills_Legislation/Bills_Search_Results/Result?bId=r6890" },
       { label: "Bills Digests RSS", url: "https://www.aph.gov.au/About_Parliament/Parliamentary_departments/Parliamentary_Library/pubs/BillsDigests/RSS" },
     ],
@@ -227,7 +227,7 @@ const SIGNALS = [
     sourceAuthority: "Official",
     humanReview: "Required",
     evidence: [
-      { label: "Today's hearing program", url: "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Legal_and_Constitutional_Affairs/AIAssurance/Public_Hearings" },
+      { label: "Today's hearing program", url: "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Legal_and_Constitutional_Affairs" },
       { label: "Committee home page", url: "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Legal_and_Constitutional_Affairs" },
     ],
     score: { authority: 0.95, portfolio: 0.85, novelty: 0.4, momentum: 0.7, time: 0.95, scrutiny: 0.9, ops: 0.6 },
@@ -259,7 +259,7 @@ const SIGNALS = [
     sourceAuthority: "Official",
     humanReview: "Optional",
     evidence: [
-      { label: "House daily program — 24 Apr", url: "https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/HoR_chamber_documents/Daily_program" },
+      { label: "House daily program — 24 Apr", url: "https://www.aph.gov.au/Parliamentary_Business/Chamber_documents" },
       { label: "Cyber Security Bill 2026", url: "https://www.aph.gov.au/Parliamentary_Business/Bills_Legislation/Bills_Search_Results/Result?bId=r6883" },
     ],
     score: { authority: 0.95, portfolio: 0.75, novelty: 0.35, momentum: 0.5, time: 0.85, scrutiny: 0.7, ops: 0.55 },

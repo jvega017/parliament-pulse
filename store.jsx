@@ -408,7 +408,7 @@ function HearingDetail({ data, titleId, closeButtonRef }) {
           <dt>Committee</dt><dd>{data.committee}</dd>
           <dt>When</dt><dd>{data.when}</dd>
           <dt>Room</dt><dd>{data.room}</dd>
-          <dt>Broadcast</dt><dd><a href="#" onClick={e=>e.preventDefault()} style={{color:"var(--teal)"}}>aph.gov.au/live/hearing</a></dd>
+          <dt>Broadcast</dt><dd><a href="https://parlview.aph.gov.au/" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>ParlView <Icon name="ext" size={11} style={{verticalAlign:"-1px"}}/></a></dd>
         </dl>
         <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:8}}>Witnesses</h3>
         <ul style={{margin:0, paddingLeft:18, color:"var(--ink-2)"}}>
