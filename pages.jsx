@@ -1832,13 +1832,83 @@ function PageRadar() {
 }
 
 // ---------- SIGNALS ----------
+// Maps one worker /state signals-block row (see workers/aph-proxy/src/stateContract.ts
+// SignalItem) onto the shape SignalCard/SignalCardView already render. Only fields the
+// Worker actually returned are populated — action, score, provenance-trail and updates
+// are left undefined rather than invented, and Drawer/SignalCardView already guard on
+// their presence, so an undefined field just renders nothing instead of a fabricated one.
+function mapWorkerSignalToCard(row) {
+  const when = row.pub_date ? new Date(row.pub_date) : null;
+  return {
+    id: row.guid,
+    time: when ? `${String(when.getHours()).padStart(2,"0")}:${String(when.getMinutes()).padStart(2,"0")}` : "—",
+    date: when ? when.toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" }) : "—",
+    source: row.feed_label,
+    sourceGroup: row.source_group,
+    title: row.title,
+    summary: row.scoring_explanation || "",
+    tags: [{ l: row.kind, c: "" }],
+    attention: row.attention || "low",
+    attentionReason: row.scoring_explanation || "",
+    action: "",
+    actionReason: "",
+    confidence: row.confidence ?? 0,
+    sourceAuthority: "Official",
+    evidence: row.link ? [{ label: row.feed_label, url: row.link }] : [],
+  };
+}
+
 function PageSignals() {
   const { state, setVisibleSignalOrder, signalSearchQuery, setSignalSearchQuery } = useStore();
   const [filter, setFilter] = useState("all");
   const [sort, setSort] = useState("time");
+  // Live /state consumer, proof-of-wiring for the composed endpoint (D7). Starts as
+  // fixture (the current SIGNALS array) and only switches over once the Worker
+  // confirms the block is live and non-empty — the fixture is never replaced on a
+  // guess. See workers/aph-proxy/src/state.ts for the provenance contract.
+  const [liveSignals, setLiveSignals] = useState({ provenance: "fixture", items: null });
+
+  React.useEffect(() => {
+    let cancelled = false;
+    let inFlight = false;
+    // Guard: file:// origins cannot reach the Worker (same guard as the Live page poller).
+    if (location.protocol === "file:") return () => { cancelled = true; };
+
+    const fetchState = async () => {
+      if (inFlight) return;
+      inFlight = true;
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 8000);
+      try {
+        const res = await fetch(`${WORKER_BASE_URL}/state`, { signal: ctrl.signal });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const payload = await res.json();
+        if (cancelled) return;
+        const block = payload?.blocks?.signals;
+        if (block?.provenance === "live" && Array.isArray(block.items) && block.items.length > 0) {
+          setLiveSignals({ provenance: "live", items: block.items.map(mapWorkerSignalToCard) });
+        } else {
+          // Fixture SIGNALS renders in this branch (items stays null), so the chip must
+          // never say "live" here even if the block itself claimed to be — the fixture
+          // array is what is actually on screen, not the (possibly empty) live rows.
+          const fallback = (block?.provenance && block.provenance !== "live") ? block.provenance : "fixture";
+          setLiveSignals({ provenance: fallback, items: null });
+        }
+      } catch (e) {
+        if (!cancelled) setLiveSignals(s => ({ provenance: s.items ? s.provenance : "fixture", items: s.items }));
+      } finally {
+        clearTimeout(timer);
+        inFlight = false;
+      }
+    };
+    fetchState();
+    return () => { cancelled = true; };
+  }, []);
+
+  const sourceSignals = liveSignals.items || SIGNALS;
 
   const visible = React.useMemo(() => {
-    let sigs = SIGNALS.filter(s => !state.archived[s.id]);
+    let sigs = sourceSignals.filter(s => !state.archived[s.id]);
     const query = (signalSearchQuery || "").trim().toLowerCase();
     if (query) sigs = sigs.filter(s =>
       s.title.toLowerCase().includes(query) ||
@@ -1849,7 +1919,7 @@ function PageSignals() {
     if (filter !== "all") sigs = sigs.filter(s => s.attention === filter);
     if (sort === "score") sigs = [...sigs].sort((a, b) => (b.score?.authority || 0) - (a.score?.authority || 0));
     return sigs;
-  }, [state.archived, filter, sort, signalSearchQuery]);
+  }, [sourceSignals, state.archived, filter, sort, signalSearchQuery]);
 
   React.useEffect(() => {
     setVisibleSignalOrder(visible.map(s => s.id));
@@ -1857,11 +1927,11 @@ function PageSignals() {
   }, [visible, setVisibleSignalOrder]);
 
   const counts = React.useMemo(() => ({
-    all: SIGNALS.filter(s => !state.archived[s.id]).length,
-    high: SIGNALS.filter(s => s.attention === "high" && !state.archived[s.id]).length,
-    med: SIGNALS.filter(s => s.attention === "med" && !state.archived[s.id]).length,
-    low: SIGNALS.filter(s => s.attention === "low" && !state.archived[s.id]).length,
-  }), [state.archived]);
+    all: sourceSignals.filter(s => !state.archived[s.id]).length,
+    high: sourceSignals.filter(s => s.attention === "high" && !state.archived[s.id]).length,
+    med: sourceSignals.filter(s => s.attention === "med" && !state.archived[s.id]).length,
+    low: sourceSignals.filter(s => s.attention === "low" && !state.archived[s.id]).length,
+  }), [sourceSignals, state.archived]);
 
   return (
     <div className="page">
@@ -1872,6 +1942,8 @@ function PageSignals() {
           <div className="page-sub">{counts.all} active signals · {counts.high} high · {counts.med} medium · {counts.low} low. Open any signal to action, archive, or generate a brief.</div>
         </div>
         <div style={{display:"flex", gap:8, alignItems:"center"}}>
+          <ProvenanceChip provenance={liveSignals.provenance}
+            title={liveSignals.provenance === "live" ? "Signals from the Worker's composed /state endpoint (D1 archive)" : "Representative data — the /state signals block is not live"} />
           <label htmlFor="sig-sort" className="sr-only">Sort signals</label>
           <span aria-hidden="true" style={{fontSize:12, color:"var(--ink-4)"}}>Sort:</span>
           <select id="sig-sort" value={sort} onChange={e => setSort(e.target.value)}

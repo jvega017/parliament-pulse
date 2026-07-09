@@ -18,6 +18,11 @@
 // read APH_FEEDS continue to work unchanged; APH_FEEDS is a const alias of the
 // registry below.
 
+// Cloudflare Worker base URL — single canonical constant so any endpoint
+// consumer (the /state poller, the RSS poller, etc.) points at the same
+// place instead of re-hardcoding the Worker hostname per call site.
+const WORKER_BASE_URL = "https://aph-proxy.jvega019.workers.dev";
+
 const SOURCE_REGISTRY = [
   {
     id: "h-media",
@@ -409,6 +414,6 @@ const DATASET_FLAGS = {
 QON_PATTERN.representative = true;
 
 Object.assign(window, {
-  SOURCE_REGISTRY, sourceCounts, DATASET_FLAGS, APH_FEEDS,
+  WORKER_BASE_URL, SOURCE_REGISTRY, sourceCounts, DATASET_FLAGS, APH_FEEDS,
   SIGNALS, COMMITTEE_ITEMS, BILLS, DIVISIONS, WATCHLISTS, RADAR, QON_PATTERN, BRIEFING_QUEUE
 });

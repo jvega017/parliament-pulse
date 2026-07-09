@@ -409,6 +409,12 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
     setIsDark(!isDark);
   } }, /* @__PURE__ */ React.createElement(Icon, { name: isDark ? "sun" : "moon", size: 13 }))));
 }
+function ProvenanceChip({ provenance, title }) {
+  const LABELS = { live: "Live", derived: "Derived", fixture: "Fixture" };
+  const key = LABELS[provenance] ? provenance : "fixture";
+  const cls = "chip-fixture" + (key === "live" ? " chip-live" : key === "derived" ? " chip-derived" : "");
+  return /* @__PURE__ */ React.createElement("span", { className: cls, title }, LABELS[key]);
+}
 function Att({ level }) {
   const map = { high: "High", med: "Medium", low: "Low" };
   return /* @__PURE__ */ React.createElement("span", { className: "att " + level }, map[level]);
@@ -680,4 +686,4 @@ function Drawer() {
     else closeSignal();
   } }, "Archive"), /* @__PURE__ */ React.createElement("button", { className: "btn ghost", style: { marginLeft: "auto" }, onClick: closeWithFlush }, "Close")))));
 }
-Object.assign(window, { Sidebar, Topbar, TopClock, SignalCard, Drawer, Att, Conf, BetaNotice, EmptyState, SkeletonRow, SkeletonCard, buildBriefSections });
+Object.assign(window, { Sidebar, Topbar, TopClock, SignalCard, Drawer, Att, Conf, ProvenanceChip, BetaNotice, EmptyState, SkeletonRow, SkeletonCard, buildBriefSections });

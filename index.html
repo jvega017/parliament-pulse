@@ -1278,6 +1278,12 @@
   /* Representative/Fixture marker — deliberately neutral so the honesty layer informs without competing with the ember accent (DESIGN-2). */
   .chip-fixture { font-family:var(--mono); font-size:9px; font-weight:600; color:var(--ink-3); background:var(--panel-hi); border:1px solid var(--line-2); padding:1px 6px; border-radius:3px; letter-spacing:.18em; text-transform:uppercase; }
 
+  /* Provenance chip modifiers (state-v1 contract: live | derived | fixture).
+     .chip-fixture on its own is the "fixture" treatment; these recolour it
+     without duplicating its shape. */
+  .chip-fixture.chip-live { color:var(--brass); border-color:color-mix(in srgb, var(--brass) 45%, transparent); background:color-mix(in srgb, var(--brass) 8%, transparent); }
+  .chip-fixture.chip-derived { color:var(--ink-4); }
+
   /* prefers-reduced-motion */
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }

@@ -748,12 +748,71 @@ function PageRadar() {
   const { openModal } = useStore();
   return /* @__PURE__ */ React.createElement("div", { className: "page" }, /* @__PURE__ */ React.createElement("div", { className: "page-head" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "page-kicker" }, "Today"), /* @__PURE__ */ React.createElement("h1", { className: "page-title" }, "Attention radar"), /* @__PURE__ */ React.createElement("div", { className: "page-sub" }, "Transparent categories, no fake precision scores. Click any issue for momentum detail and suggested actions."))), /* @__PURE__ */ React.createElement("div", { className: "panel" }, /* @__PURE__ */ React.createElement("div", { className: "panel-head" }, /* @__PURE__ */ React.createElement("h2", { className: "panel-title" }, "Active issues"), /* @__PURE__ */ React.createElement("span", { className: "panel-kicker" }, "Last 7 days")), /* @__PURE__ */ React.createElement("div", { className: "panel-body" }, /* @__PURE__ */ React.createElement("div", { className: "radar-row g-radar-table", style: { display: "grid", padding: "4px 0 10px", borderBottom: "1px solid var(--line)", alignItems: "center", gap: 14 } }, /* @__PURE__ */ React.createElement("div", { className: "mono t-label", style: { color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: ".16em" } }, "Issue"), /* @__PURE__ */ React.createElement("div", { className: "mono t-label", style: { color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: ".16em" } }, "Attention"), /* @__PURE__ */ React.createElement("div", { className: "mono t-label", style: { color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: ".16em", textAlign: "right" } }, "Sources"), /* @__PURE__ */ React.createElement("div", { className: "mono t-label", style: { color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: ".16em" } }, "Momentum"), /* @__PURE__ */ React.createElement("div", { className: "mono t-label", style: { color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: ".16em" } }, "Confidence")), RADAR.map((r, i) => /* @__PURE__ */ React.createElement("div", { key: r.issue, className: "clk radar-row g-radar-table", onClick: () => openModal("radar", r.issue), style: { display: "grid", padding: "14px 8px", borderBottom: i < RADAR.length - 1 ? "1px solid var(--line)" : 0, gap: 14, alignItems: "center", borderRadius: 6 } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, fontWeight: 500 } }, r.issue), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "var(--ink-3)", marginTop: 2 } }, r.reason)), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(Att, { level: r.att })), /* @__PURE__ */ React.createElement("div", { className: "mono", style: { textAlign: "right", color: "var(--ink-2)" } }, r.sources), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "bar" }, /* @__PURE__ */ React.createElement("div", { className: "fill", style: { width: `${r.momentum * 100}%` } }))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } }, /* @__PURE__ */ React.createElement("div", { className: "ring", style: { "--p": Math.round(r.confidence * 100) }, "data-p": Math.round(r.confidence * 100) })))))));
 }
+function mapWorkerSignalToCard(row) {
+  var _a;
+  const when = row.pub_date ? new Date(row.pub_date) : null;
+  return {
+    id: row.guid,
+    time: when ? `${String(when.getHours()).padStart(2, "0")}:${String(when.getMinutes()).padStart(2, "0")}` : "\u2014",
+    date: when ? when.toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" }) : "\u2014",
+    source: row.feed_label,
+    sourceGroup: row.source_group,
+    title: row.title,
+    summary: row.scoring_explanation || "",
+    tags: [{ l: row.kind, c: "" }],
+    attention: row.attention || "low",
+    attentionReason: row.scoring_explanation || "",
+    action: "",
+    actionReason: "",
+    confidence: (_a = row.confidence) != null ? _a : 0,
+    sourceAuthority: "Official",
+    evidence: row.link ? [{ label: row.feed_label, url: row.link }] : []
+  };
+}
 function PageSignals() {
   const { state, setVisibleSignalOrder, signalSearchQuery, setSignalSearchQuery } = useStore();
   const [filter, setFilter] = useState("all");
   const [sort, setSort] = useState("time");
+  const [liveSignals, setLiveSignals] = useState({ provenance: "fixture", items: null });
+  React.useEffect(() => {
+    let cancelled = false;
+    let inFlight = false;
+    if (location.protocol === "file:") return () => {
+      cancelled = true;
+    };
+    const fetchState = async () => {
+      var _a;
+      if (inFlight) return;
+      inFlight = true;
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 8e3);
+      try {
+        const res = await fetch(`${WORKER_BASE_URL}/state`, { signal: ctrl.signal });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const payload = await res.json();
+        if (cancelled) return;
+        const block = (_a = payload == null ? void 0 : payload.blocks) == null ? void 0 : _a.signals;
+        if ((block == null ? void 0 : block.provenance) === "live" && Array.isArray(block.items) && block.items.length > 0) {
+          setLiveSignals({ provenance: "live", items: block.items.map(mapWorkerSignalToCard) });
+        } else {
+          const fallback = (block == null ? void 0 : block.provenance) && block.provenance !== "live" ? block.provenance : "fixture";
+          setLiveSignals({ provenance: fallback, items: null });
+        }
+      } catch (e) {
+        if (!cancelled) setLiveSignals((s) => ({ provenance: s.items ? s.provenance : "fixture", items: s.items }));
+      } finally {
+        clearTimeout(timer);
+        inFlight = false;
+      }
+    };
+    fetchState();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  const sourceSignals = liveSignals.items || SIGNALS;
   const visible = React.useMemo(() => {
-    let sigs = SIGNALS.filter((s) => !state.archived[s.id]);
+    let sigs = sourceSignals.filter((s) => !state.archived[s.id]);
     const query = (signalSearchQuery || "").trim().toLowerCase();
     if (query) sigs = sigs.filter(
       (s) => s.title.toLowerCase().includes(query) || s.summary.toLowerCase().includes(query) || s.id.toLowerCase().includes(query) || (s.tags || []).some((t) => (t.l || "").toLowerCase().includes(query))
@@ -764,18 +823,24 @@ function PageSignals() {
       return (((_a = b.score) == null ? void 0 : _a.authority) || 0) - (((_b = a.score) == null ? void 0 : _b.authority) || 0);
     });
     return sigs;
-  }, [state.archived, filter, sort, signalSearchQuery]);
+  }, [sourceSignals, state.archived, filter, sort, signalSearchQuery]);
   React.useEffect(() => {
     setVisibleSignalOrder(visible.map((s) => s.id));
     return () => setVisibleSignalOrder(null);
   }, [visible, setVisibleSignalOrder]);
   const counts = React.useMemo(() => ({
-    all: SIGNALS.filter((s) => !state.archived[s.id]).length,
-    high: SIGNALS.filter((s) => s.attention === "high" && !state.archived[s.id]).length,
-    med: SIGNALS.filter((s) => s.attention === "med" && !state.archived[s.id]).length,
-    low: SIGNALS.filter((s) => s.attention === "low" && !state.archived[s.id]).length
-  }), [state.archived]);
-  return /* @__PURE__ */ React.createElement("div", { className: "page" }, /* @__PURE__ */ React.createElement("div", { className: "page-head" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "page-kicker" }, "Today \xB7 triage workspace"), /* @__PURE__ */ React.createElement("h1", { className: "page-title" }, "Signal inbox"), /* @__PURE__ */ React.createElement("div", { className: "page-sub" }, counts.all, " active signals \xB7 ", counts.high, " high \xB7 ", counts.med, " medium \xB7 ", counts.low, " low. Open any signal to action, archive, or generate a brief.")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, alignItems: "center" } }, /* @__PURE__ */ React.createElement("label", { htmlFor: "sig-sort", className: "sr-only" }, "Sort signals"), /* @__PURE__ */ React.createElement("span", { "aria-hidden": "true", style: { fontSize: 12, color: "var(--ink-4)" } }, "Sort:"), /* @__PURE__ */ React.createElement(
+    all: sourceSignals.filter((s) => !state.archived[s.id]).length,
+    high: sourceSignals.filter((s) => s.attention === "high" && !state.archived[s.id]).length,
+    med: sourceSignals.filter((s) => s.attention === "med" && !state.archived[s.id]).length,
+    low: sourceSignals.filter((s) => s.attention === "low" && !state.archived[s.id]).length
+  }), [sourceSignals, state.archived]);
+  return /* @__PURE__ */ React.createElement("div", { className: "page" }, /* @__PURE__ */ React.createElement("div", { className: "page-head" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "page-kicker" }, "Today \xB7 triage workspace"), /* @__PURE__ */ React.createElement("h1", { className: "page-title" }, "Signal inbox"), /* @__PURE__ */ React.createElement("div", { className: "page-sub" }, counts.all, " active signals \xB7 ", counts.high, " high \xB7 ", counts.med, " medium \xB7 ", counts.low, " low. Open any signal to action, archive, or generate a brief.")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, alignItems: "center" } }, /* @__PURE__ */ React.createElement(
+    ProvenanceChip,
+    {
+      provenance: liveSignals.provenance,
+      title: liveSignals.provenance === "live" ? "Signals from the Worker's composed /state endpoint (D1 archive)" : "Representative data \u2014 the /state signals block is not live"
+    }
+  ), /* @__PURE__ */ React.createElement("label", { htmlFor: "sig-sort", className: "sr-only" }, "Sort signals"), /* @__PURE__ */ React.createElement("span", { "aria-hidden": "true", style: { fontSize: 12, color: "var(--ink-4)" } }, "Sort:"), /* @__PURE__ */ React.createElement(
     "select",
     {
       id: "sig-sort",

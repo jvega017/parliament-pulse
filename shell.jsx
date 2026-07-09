@@ -432,6 +432,19 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
   );
 }
 
+// Provenance chip: the mechanical honesty label for a /state data block.
+// provenance is one of the state-v1 contract values (live | derived | fixture)
+// — the label and colour come entirely from that value, so a caller can never
+// hand-place a "Live" chip over data the contract itself has not vouched for.
+// Reuses .chip-fixture (the existing Representative-data chip) as its base
+// shape; live/derived only add a colour modifier.
+function ProvenanceChip({ provenance, title }) {
+  const LABELS = { live: "Live", derived: "Derived", fixture: "Fixture" };
+  const key = LABELS[provenance] ? provenance : "fixture";
+  const cls = "chip-fixture" + (key === "live" ? " chip-live" : key === "derived" ? " chip-derived" : "");
+  return <span className={cls} title={title}>{LABELS[key]}</span>;
+}
+
 function Att({ level }) {
   const map = { high: "High", med: "Medium", low: "Low" };
   return <span className={"att " + level}>{map[level]}</span>;
@@ -833,4 +846,4 @@ function Drawer() {
   );
 }
 
-Object.assign(window, { Sidebar, Topbar, TopClock, SignalCard, Drawer, Att, Conf, BetaNotice, EmptyState, SkeletonRow, SkeletonCard, buildBriefSections });
+Object.assign(window, { Sidebar, Topbar, TopClock, SignalCard, Drawer, Att, Conf, ProvenanceChip, BetaNotice, EmptyState, SkeletonRow, SkeletonCard, buildBriefSections });

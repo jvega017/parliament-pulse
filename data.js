@@ -1,3 +1,4 @@
+const WORKER_BASE_URL = "https://aph-proxy.jvega019.workers.dev";
 const SOURCE_REGISTRY = [
   {
     id: "h-media",
@@ -395,6 +396,7 @@ const DATASET_FLAGS = {
 });
 QON_PATTERN.representative = true;
 Object.assign(window, {
+  WORKER_BASE_URL,
   SOURCE_REGISTRY,
   sourceCounts,
   DATASET_FLAGS,
