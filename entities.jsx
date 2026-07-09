@@ -106,13 +106,13 @@ window.ENTITIES = {
 
   ministers: {
     "digital": {
-      id: "digital", name: "Minister X (fixture)", role: "Minister for Digital Services",
+      id: "digital", name: "Minister for Digital Services", role: "Minister for Digital Services",
       portfolio: "Digital Services",
       bio: "Minister responsible for digital government, identity, and service delivery.",
       recent: ["Introduced Digital ID Amendment Bill (18 Apr)", "Speech at AIIA forum (20 Apr)", "Response to ANAO report (22 Apr)"],
     },
     "cyber": {
-      id: "cyber", name: "Minister Y (fixture)", role: "Minister for Cyber Security",
+      id: "cyber", name: "Minister for Cyber Security", role: "Minister for Cyber Security",
       portfolio: "Cyber Security",
       bio: "Minister responsible for cyber security policy and co-ordination.",
       recent: ["2nd reading speech on Cyber Security Bill", "Press conference on critical infrastructure"],

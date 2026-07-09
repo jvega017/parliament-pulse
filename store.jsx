@@ -3,6 +3,49 @@ const StoreCtx = React.createContext(null);
 
 function useStore() { return React.useContext(StoreCtx); }
 
+function safeGetLocalStorage(key, fallback = null) {
+  try {
+    return window.localStorage?.getItem(key) ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function safeSetLocalStorage(key, value) {
+  try {
+    window.localStorage?.setItem(key, value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function copyToClipboard(text) {
+  const value = String(text ?? "");
+  try {
+    if (navigator.clipboard?.writeText) return navigator.clipboard.writeText(value);
+  } catch {
+    // Fall through to the textarea copy path.
+  }
+  return new Promise((resolve, reject) => {
+    try {
+      const textarea = document.createElement("textarea");
+      textarea.value = value;
+      textarea.setAttribute("readonly", "");
+      textarea.style.position = "fixed";
+      textarea.style.left = "-9999px";
+      textarea.style.top = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      const copied = document.execCommand("copy");
+      textarea.remove();
+      copied ? resolve() : reject(new Error("Clipboard copy failed"));
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
 // Canonical default shape. Returning users from older builds may have saved
 // state that is missing newer keys, so every read merges over this object.
 const STORE_DEFAULTS = {
@@ -83,7 +126,7 @@ function StoreProvider({ children, navigate = () => {} }) {
   // Owners assigned to signals/bills, feedback given, watchlist additions, toasts
   const [state, setState] = React.useState(() => {
     try {
-      const raw = localStorage.getItem("cs-state-v1");
+      const raw = safeGetLocalStorage("cs-state-v1");
       if (raw) return hydrateState(JSON.parse(raw));
     } catch(e){
       // Corrupt or incompatible saved state. Fall through to defaults so the
@@ -93,7 +136,7 @@ function StoreProvider({ children, navigate = () => {} }) {
   });
 
   React.useEffect(() => {
-    try { localStorage.setItem("cs-state-v1", JSON.stringify(state)); } catch(e){}
+    safeSetLocalStorage("cs-state-v1", JSON.stringify(state));
   }, [state]);
 
   const [toasts, setToasts] = React.useState([]);
@@ -348,6 +391,12 @@ function ModalHead({ kicker, title, right, onClose, representative = false, titl
   );
 }
 
+function copyModalText(text, toast, ok = "Copied to clipboard") {
+  return copyToClipboard(text)
+    .then(() => toast(ok, "brass"))
+    .catch(() => toast("Clipboard unavailable: content not copied", "error"));
+}
+
 function CommitteeDetail({ id, titleId, closeButtonRef }) {
   const c = ENTITIES.committees[id];
   const { openModal, closeModal, toast, addWatchlist, isWatched } = useStore();
@@ -390,7 +439,10 @@ function CommitteeDetail({ id, titleId, closeButtonRef }) {
         </div>
       </div>
       <div className="modal-foot">
-        <button className="btn primary" onClick={() => { toast("Committee prep pack queued", "brass"); closeModal(); }}><Icon name="brief" size={13}/> Prep pack</button>
+        <button className="btn primary" onClick={() => {
+          copyModalText(`# Committee prep pack\nCommittee: ${c.name}\nChamber: ${c.chamber}\nOpen inquiries: ${c.inquiries.join("; ")}\nGenerated: ${new Date().toISOString()}`, toast, "Committee prep pack copied");
+          closeModal();
+        }}><Icon name="brief" size={13}/> Prep pack</button>
         <button className="btn" onClick={() => addWatchlist(watchKey)} style={watched ? {borderColor:"var(--brass)", color:"var(--brass)"} : undefined}><Icon name="watch" size={13}/> {watched ? "Watching committee" : "Watch committee"}</button>
         <button className="btn ghost" style={{marginLeft:"auto"}} onClick={closeModal}>Close</button>
       </div>
@@ -416,7 +468,7 @@ function HearingDetail({ data, titleId, closeButtonRef }) {
           <li>OAIC (Privacy Commissioner)</li>
           <li>Industry peak body</li>
         </ul>
-        <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:8}}>Sample questions <span className="chip-fixture" style={{verticalAlign:"middle", marginLeft:6}}>Fixture</span></h3>
+        <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:8}}>Sample questions <span className="chip-fixture" style={{verticalAlign:"middle", marginLeft:6}}>Representative data</span></h3>
         <ol style={{margin:0, paddingLeft:18, color:"var(--ink-2)"}}>
           <li>How does the department assure AI models against bias in high-risk contexts?</li>
           <li>Which programs currently use automated decision-making for benefit eligibility?</li>
@@ -424,8 +476,13 @@ function HearingDetail({ data, titleId, closeButtonRef }) {
         </ol>
       </div>
       <div className="modal-foot">
-        <button className="btn primary" onClick={() => { toast("Added to calendar", "brass"); closeModal(); }}>Add to calendar</button>
-        <button className="btn" onClick={() => { toast("Prep note generated", "brass"); }}><Icon name="brief" size={13}/> Generate prep note</button>
+        <button className="btn primary" onClick={() => {
+          copyModalText(`BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Parliament Pulse//Live Beta//EN\nBEGIN:VEVENT\nSUMMARY:${data.topic}\nLOCATION:${data.room}\nDESCRIPTION:${data.committee} hearing. Verify time against APH before importing.\nEND:VEVENT\nEND:VCALENDAR`, toast, "Calendar stub copied");
+          closeModal();
+        }}>Copy calendar stub</button>
+        <button className="btn" onClick={() => {
+          copyModalText(`# Hearing prep note\nTopic: ${data.topic}\nCommittee: ${data.committee}\nWhen: ${data.when}\nRoom: ${data.room}\n\nQuestions:\n- How does the department assure AI models against bias in high-risk contexts?\n- Which programs currently use automated decision-making for benefit eligibility?\n- What is the escalation pathway when assurance fails in production?`, toast, "Prep note copied");
+        }}><Icon name="brief" size={13}/> Generate prep note</button>
       </div>
     </>
   );
@@ -460,7 +517,7 @@ function InquiryDetail({ id, titleId, closeButtonRef }) {
         {state.owners[name] && <div style={{marginTop:8, fontSize:12.5, color:"var(--ok)"}}><Icon name="check" size={13} style={{verticalAlign:"-2px", marginRight:4}}/>Owner: <strong>{state.owners[name]}</strong></div>}
       </div>
       <div className="modal-foot">
-        <button className="btn primary" onClick={() => { toast("Submission draft started", "brass"); }}><Icon name="brief" size={13}/> Start submission</button>
+        <button className="btn primary" onClick={() => copyModalText(`# Submission starter\nInquiry: ${name}\nOwner: ${state.owners[name] || owner || "Unassigned"}\nGenerated: ${new Date().toISOString()}\n\nInitial scope:\n- Governance framework\n- Transparency and reporting\n- Procurement assurance\n- Related matters`, toast, "Submission starter copied")}><Icon name="brief" size={13}/> Start submission</button>
         <button className="btn ghost" style={{marginLeft:"auto"}} onClick={closeModal}>Close</button>
       </div>
     </>
@@ -521,7 +578,10 @@ function BillDetail({ id, titleId, closeButtonRef }) {
         {state.owners[id] && <div style={{marginTop:8, fontSize:12.5, color:"var(--ok)"}}><Icon name="check" size={13} style={{verticalAlign:"-2px", marginRight:4}}/>Owner: <strong>{state.owners[id]}</strong></div>}
       </div>
       <div className="modal-foot">
-        <button className="btn primary" onClick={() => { toast("Bill brief drafted", "brass"); closeModal(); }}><Icon name="brief" size={13}/> Draft bill brief</button>
+        <button className="btn primary" onClick={() => {
+          copyModalText(`# Bill brief\nBill: ${b.title}\nReference: ${b.ref}\nStage: ${b.stage}\nPortfolio: ${b.portfolio}\n\nPurpose:\n${b.purpose}\n\nKey provisions:\n${b.provisions.map(p => `- ${p}`).join("\n") || "- Not recorded"}\n\nGenerated: ${new Date().toISOString()}`, toast, "Bill brief copied");
+          closeModal();
+        }}><Icon name="brief" size={13}/> Draft bill brief</button>
         <button className="btn" onClick={() => addWatchlist(watchKey)} style={watched ? {borderColor:"var(--brass)", color:"var(--brass)"} : undefined}><Icon name="watch" size={13}/> {watched ? "Tracking bill" : "Track bill"}</button>
       </div>
     </>
@@ -634,8 +694,11 @@ function FeedDetail({ id, titleId, closeButtonRef }) {
         <div className="empty">—</div>
       </div>
       <div className="modal-foot">
-        <button className="btn primary" onClick={() => toast(`${f.name} re-fetched`, "brass")}><Icon name="refresh" size={13}/> Re-fetch now</button>
-        <button className="btn" title="Demo control: parser test is not wired in this build" onClick={() => toast("Parser test (demo): no live parser test is wired", "brass")}>Test parser (demo)</button>
+        <button className="btn primary" onClick={() => {
+          if (typeof window.__refreshLiveFeeds === "function") { window.__refreshLiveFeeds(); toast(`${f.name} refresh requested`, "brass"); }
+          else toast("Open Live parliament to start the feed poller", "brass");
+        }}><Icon name="refresh" size={13}/> Re-fetch now</button>
+        <button className="btn" title="Copy parser checklist for this feed" onClick={() => copyModalText(`# Parser checklist\nFeed: ${f.name}\nURL: ${f.url}\nParser: ${parser}\nLast refresh: ${last}\n\nChecks:\n- HTTP status is 2xx\n- XML item count is non-zero when source publishes\n- Title, date, link and description map cleanly\n- Module routing matches: ${f.modules.join(", ")}`, toast, "Parser checklist copied")}>Copy parser checklist</button>
         <button className="btn ghost" style={{marginLeft:"auto"}} onClick={closeModal}>Close</button>
       </div>
     </>
@@ -678,8 +741,11 @@ function WatchlistDetail({ id, titleId, closeButtonRef }) {
         ))}
       </div>
       <div className="modal-foot">
-        <button className="btn ghost" onClick={() => { toast("Watchlist digest sent (demo)", "brass"); closeModal(); }}>Send digest</button>
-        <button className="btn" onClick={() => toast("Configuration saved")}>Edit</button>
+        <button className="btn ghost" onClick={() => {
+          copyModalText(`# Watchlist digest\nWatchlist: ${w.name}\nMatches: ${w.matches}\nKeywords: ${watchlistKeywords(w).join(", ")}\n\nMatching signals:\n${matchingSignals.map(s => `- ${s.id}: ${s.title}`).join("\n") || "- No matching signals in the current stream."}`, toast, "Watchlist digest copied");
+          closeModal();
+        }}>Copy digest</button>
+        <button className="btn" onClick={() => toast("Configuration saved locally")}>Save config</button>
       </div>
     </>
   );
@@ -707,7 +773,10 @@ function RadarDetail({ id, titleId, closeButtonRef }) {
         </ul>
       </div>
       <div className="modal-foot">
-        <button className="btn primary" onClick={() => { toast("Issue brief drafted", "brass"); closeModal(); }}><Icon name="brief" size={13}/> Draft issue brief</button>
+        <button className="btn primary" onClick={() => {
+          copyModalText(`# Issue brief\nIssue: ${r.issue}\nPortfolio: ${r.portfolio}\nMomentum: ${Math.round(r.momentum * 100)}\n\nSuggested actions:\n- Draft Executive Brief for Director, Digital Policy\n- Monitor for Estimates references\n- Coordinate with Procurement lead`, toast, "Issue brief copied");
+          closeModal();
+        }}><Icon name="brief" size={13}/> Draft issue brief</button>
       </div>
     </>
   );

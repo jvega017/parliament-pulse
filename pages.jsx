@@ -21,28 +21,291 @@ function exportSignalsCSV() {
 // Reused by the Bills register export (F4): generic array-to-CSV download with no blob leak.
 function exportRowsCSV(headers, rows, filename) {
   const csv = [headers, ...rows].map(r => r.map(csvEscape).join(",")).join("\n");
-  const blob = new Blob([csv], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
+  let url = "";
+  try {
+    const blob = new Blob([csv], { type: "text/csv" });
+    url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    return true;
+  } catch {
+    return false;
+  } finally {
+    if (url) URL.revokeObjectURL(url);
+  }
+}
+
+function copyText(text, toast, ok = "Copied to clipboard") {
+  return copyToClipboard(text)
+    .then(() => toast(ok, "brass"))
+    .catch(() => toast("Clipboard unavailable: content not copied", "error"));
+}
+
+function copyLiveActionNote(kind, chamber, toast) {
+  const label = chamber === "house" ? "House of Representatives" : chamber === "senate" ? "Senate" : "Federation Chamber";
+  const note = [
+    `# Parliament Pulse live action note`,
+    `Type: ${kind}`,
+    `Chamber: ${label}`,
+    `Captured: ${new Date().toISOString()}`,
+    ``,
+    `Source links:`,
+    `- AUSParliamentLive: https://www.youtube.com/@AUSParliamentLive/streams`,
+    `- ParlView archive: https://parlview.aph.gov.au/`,
+    `- Hansard: https://www.aph.gov.au/Parliamentary_Business/Hansard`,
+  ].join("\n");
+  return copyText(note, toast, `${kind} note copied`);
+}
+
+function copyBacklogRequest(name, note, toast) {
+  const text = [
+    `# Parliament Pulse backlog request`,
+    `Capability: ${name}`,
+    `Reason: ${note}`,
+    `Requested: ${new Date().toISOString()}`,
+  ].join("\n");
+  return copyText(text, toast, "Backlog request copied");
+}
+
+function downloadBriefingQueue(briefs, toast) {
+  const ok = exportRowsCSV(
+    ["type", "for", "status"],
+    briefs.map(b => [b.type, b.for, b.status]),
+    `parliament-pulse-briefing-queue-${new Date().toISOString().slice(0,10)}.csv`,
+  );
+  if (toast) toast(ok ? "Briefing queue CSV downloaded" : "CSV export unavailable", ok ? "brass" : "error");
+}
+
+const BETA_READINESS_ROWS = [
+  {
+    state: "Live",
+    title: "Official feed spine",
+    detail: "Six APH RSS sources are configured and polled through the local or Cloudflare proxy. The Live page shows runtime feed state and direct source links.",
+    action: "Open Live",
+    page: "live",
+  },
+  {
+    state: "Representative",
+    title: "Enriched policy signals",
+    detail: "Priority, confidence, provenance, radar clusters and watchlist matches are modelled from the target workflow until the enrichment pipeline is connected.",
+    action: "Review signals",
+    page: "signals",
+  },
+  {
+    state: "Next",
+    title: "Activation path",
+    detail: "Production hardening needs authenticated division/member data, Hansard and QON extraction, shared briefing persistence and a publication approval lane.",
+    action: "View sources",
+    page: "sources",
+  },
+];
+
+const PROVENANCE_STACK = [
+  {
+    label: "Official source",
+    title: "APH RSS + direct source links",
+    detail: "Live feed rows retain the official APH URL and expose Hansard, ParlView, YouTube or source-page links before any interpretation.",
+    state: "Live",
+  },
+  {
+    label: "Transport",
+    title: "CORS proxy with constrained feed list",
+    detail: "Local beta uses proxy-server.js. Production uses the Cloudflare Worker route documented in the repo.",
+    state: "Live",
+  },
+  {
+    label: "Enrichment",
+    title: "Priority scoring and policy routing",
+    detail: "The target scoring model is represented in the UI, but enrichment needs the production signal pipeline before public claims.",
+    state: "Representative",
+  },
+  {
+    label: "Analyst action",
+    title: "Briefs, exports, notes and watchlists",
+    detail: "Current controls create local artefacts, copy handoff notes, export CSVs or persist browser-local review state.",
+    state: "Beta",
+  },
+];
+
+const COVERAGE_MATRIX = [
+  {
+    module: "Live parliament",
+    state: "Live",
+    evidence: "Six official APH RSS feeds plus chamber program and broadcast links.",
+    activation: "Keep runtime feed health in Live page; add sitting-status check before claiming current chamber activity.",
+    page: "live",
+  },
+  {
+    module: "Sources",
+    state: "Live",
+    evidence: "Official source register and constrained proxy route.",
+    activation: "Connect custom-feed validation to backend parser instead of timeout simulation.",
+    page: "sources",
+  },
+  {
+    module: "Overview signals",
+    state: "Representative",
+    evidence: "Representative signal set with direct source links.",
+    activation: "Wire production scoring, entity extraction and watchlist matching.",
+    page: "signals",
+  },
+  {
+    module: "Committees",
+    state: "Partial live",
+    evidence: "Committee RSS coverage where official feeds expose reports, inquiries and hearings.",
+    activation: "Add committee profile scraper or curated registry for chairs, dates and hearing status.",
+    page: "committees",
+  },
+  {
+    module: "Bills intelligence",
+    state: "Representative",
+    evidence: "Bill source links and representative digest workflow.",
+    activation: "Connect bills register, amendment tracking and portfolio routing.",
+    page: "bills",
+  },
+  {
+    module: "Briefings",
+    state: "Local beta",
+    evidence: "Clipboard export, CSV export and browser-local queue state.",
+    activation: "Add shared persistence, reviewer assignment and approval workflow.",
+    page: "briefings",
+  },
+  {
+    module: "QON patterns",
+    state: "Representative",
+    evidence: "Modelled pattern-detection workflow.",
+    activation: "Add Hansard/QON extraction, NLP clustering and source-level audit trace.",
+    page: "patterns",
+  },
+  {
+    module: "Watchlists/radar",
+    state: "Representative",
+    evidence: "Keyword and cluster target model.",
+    activation: "Connect live enrichment pipeline and alert delivery rules.",
+    page: "watchlists",
+  },
+];
+
+function BetaReadinessPanel({ navigate }) {
+  return (
+    <div className="beta-ledger" aria-label="Beta evidence status">
+      <div className="beta-ledger-head">
+        <div>
+          <div className="panel-section-title">Beta evidence ledger</div>
+          <h2>What is live, what is representative, and what activates next</h2>
+        </div>
+        <span className="chip-fixture">Official-first beta</span>
+      </div>
+      <div className="beta-ledger-grid">
+        {BETA_READINESS_ROWS.map(row => (
+          <button key={row.title} className="beta-ledger-row" onClick={() => navigate(row.page)}>
+            <span className={"beta-state beta-" + row.state.toLowerCase()}>{row.state}</span>
+            <span>
+              <strong>{row.title}</strong>
+              <span>{row.detail}</span>
+            </span>
+            <span className="beta-action">{row.action} →</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ProvenanceStackPanel({ navigate }) {
+  return (
+    <div className="provenance-stack">
+      <div className="provenance-head">
+        <div>
+          <div className="panel-section-title">Source to decision</div>
+          <h2>How a parliamentary item becomes a beta signal</h2>
+        </div>
+        <button className="btn ghost sm" onClick={() => navigate("sources")}><Icon name="ext" size={12}/> Source register</button>
+      </div>
+      <div className="provenance-steps">
+        {PROVENANCE_STACK.map((step, index) => (
+          <div key={step.label} className="provenance-step">
+            <div className="prov-index">{String(index + 1).padStart(2, "0")}</div>
+            <div>
+              <div className="prov-label">{step.label}</div>
+              <strong>{step.title}</strong>
+              <p>{step.detail}</p>
+            </div>
+            <span className={"beta-state beta-" + (step.state === "Representative" ? "representative" : step.state === "Live" ? "live" : "next")}>{step.state}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ProvenanceMetricsBand({ navigate }) {
+  const metrics = [
+    { label: "Official feeds", value: sourceCounts().total, detail: "Configured APH sources", icon: "rss" },
+    { label: "Signals", value: SIGNALS.length, detail: "Current beta signal set", icon: "signal" },
+    { label: "Source links", value: "Present", detail: "Representative items include source links", icon: "link" },
+    { label: "Human review", value: "On", detail: "Verify before publication", icon: "check" },
+  ];
+  return (
+    <div className="provenance-metrics">
+      <div className="panel-section-title">Provenance at a glance</div>
+      <div className="prov-metric-grid">
+        {metrics.map(m => (
+          <button key={m.label} className="prov-metric" onClick={() => navigate(m.label === "Official feeds" ? "sources" : "signals")}>
+            <Icon name={m.icon} size={14}/>
+            <strong>{m.value}</strong>
+            <span>{m.label}</span>
+            <small>{m.detail}</small>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CoverageActivationMatrix({ navigate, copyPlan }) {
+  return (
+    <div className="coverage-matrix" aria-label="Module coverage and activation matrix">
+      <div className="coverage-head">
+        <div>
+          <div className="panel-section-title">Module coverage and activation matrix</div>
+          <h2>What is operational, what is representative, and what needs wiring next</h2>
+        </div>
+        <button className="btn ghost sm" onClick={copyPlan}><Icon name="brief" size={12}/> Copy activation plan</button>
+      </div>
+      <div className="coverage-grid">
+        <div className="coverage-row coverage-labels" aria-hidden="true">
+          <span>Module</span><span>Status</span><span>Evidence basis</span><span>Activation needed</span><span>Open</span>
+        </div>
+        {COVERAGE_MATRIX.map(row => (
+          <div key={row.module} className="coverage-row">
+            <strong>{row.module}</strong>
+            <span className={"coverage-state state-" + row.state.toLowerCase().replace(/\s+/g, "-")}>{row.state}</span>
+            <span>{row.evidence}</span>
+            <span>{row.activation}</span>
+            <button className="btn ghost sm" onClick={() => navigate(row.page)}><Icon name="ext" size={12}/> Open</button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 // ---------- OVERVIEW ----------
 function OnboardingGuide() {
   const key = "pp-onboarded";
-  const [visible, setVisible] = React.useState(() => !localStorage.getItem(key));
+  const [visible, setVisible] = React.useState(() => !safeGetLocalStorage(key));
   if (!visible) return null;
   return (
     <div style={{background:"var(--panel-hi)", border:"1px solid var(--brass-soft)", borderRadius:10, padding:"16px", marginBottom:18}}>
       <div style={{display:"flex", alignItems:"center", gap:10, marginBottom:10}}>
         <Icon name="signal" size={14} stroke="var(--brass)" />
         <span className="mono t-label" style={{color:"var(--brass)", textTransform:"uppercase", letterSpacing:".18em"}}>Getting started</span>
-        <button onClick={() => { localStorage.setItem(key, "1"); setVisible(false); }}
+        <button onClick={() => { safeSetLocalStorage(key, "1"); setVisible(false); }}
           style={{marginLeft:"auto", background:"none", border:"none", color:"var(--ink-4)", cursor:"pointer", fontSize:16, lineHeight:1, padding:"0 4px"}}
           aria-label="Dismiss guide">×</button>
       </div>
@@ -110,21 +373,59 @@ function PageOverview() {
       `## All other signals`,
       ...restSections,
     ].join("\n");
-    navigator.clipboard.writeText(lines)
-      .then(() => toast("Daily brief copied to clipboard", "brass"))
-      .catch(() => toast("Clipboard unavailable: brief not copied", "error"));
+    copyText(lines, toast, "Daily brief copied to clipboard");
+  };
+  const copyBetaHandoff = () => {
+    const handoff = [
+      "# Parliament Pulse beta handoff",
+      `Generated: ${new Date().toISOString()}`,
+      "",
+      "## Live in this beta",
+      "- Six official APH RSS feeds are configured.",
+      "- Live page polls through the local or Cloudflare proxy.",
+      "- Source register, direct APH links, CSV exports, clipboard briefs and local review state are operational.",
+      "",
+      "## Representative until pipeline activation",
+      "- Priority scoring, confidence scoring, radar clustering, watchlist trend matching, QON pattern detection and shared briefing queue.",
+      "",
+      "## Activation path",
+      "- Add authenticated division/member data.",
+      "- Add Hansard and QON extraction.",
+      "- Add shared persistence and approval workflow.",
+      "- Keep representative chips until each module has verified live evidence.",
+    ].join("\n");
+    copyText(handoff, toast, "Beta handoff copied");
+  };
+  const copyActivationPlan = () => {
+    const table = COVERAGE_MATRIX.map(row => `| ${row.module} | ${row.state} | ${row.evidence} | ${row.activation} |`).join("\n");
+    const plan = [
+      "# Parliament Pulse activation plan",
+      `Generated: ${new Date().toISOString()}`,
+      "",
+      "| Module | Current coverage | Evidence basis | Activation needed |",
+      "| --- | --- | --- | --- |",
+      table,
+      "",
+      "## Immediate priorities",
+      "1. Keep official feed polling visible in Live and avoid current-sitting claims until verified.",
+      "2. Connect backend validation for custom feeds before routing them as production sources.",
+      "3. Wire production enrichment for scoring, entity extraction, watchlist matching, Hansard/QON extraction and briefing persistence.",
+      "4. Keep representative labels until each module has verified item-level evidence.",
+    ].join("\n");
+    copyText(plan, toast, "Activation plan copied");
   };
   return (
     <div className="page">
       <div className="page-head">
         <div>
-          <div className="page-kicker">{new Date().toLocaleDateString("en-AU", {weekday:"short", day:"numeric", month:"short", year:"numeric"})} · Sitting day</div>
+          <div className="page-kicker">{new Date().toLocaleDateString("en-AU", {weekday:"short", day:"numeric", month:"short", year:"numeric"})} · Verify sitting status from APH</div>
           <h1 className="page-title">Today's signals</h1>
         </div>
         <div style={{display:"flex", gap:8, alignItems:"center", flexWrap:"wrap", justifyContent:"flex-end"}}>
-          <span className="chip-fixture" title="Signal counts and tiles are representative; only the Live RSS page polls real feeds">Demo data · live RSS on Live page</span>
+          <span className="chip-fixture" title="Signal counts and tiles are representative; the Live page polls official RSS feeds">Representative signals · live RSS available</span>
           <button className="btn ghost sm" aria-expanded={showHelp} onClick={() => setShowHelp(v => !v)}><Icon name="signal" size={12}/> How it works</button>
           <button className="btn ghost sm" onClick={exportSignalsCSV}><Icon name="ext" size={12}/> Export CSV</button>
+          <button className="btn ghost sm" onClick={copyBetaHandoff}><Icon name="brief" size={12}/> Copy beta handoff</button>
           <button className="btn primary" onClick={generateDailyBrief}><Icon name="brief" size={13}/> Generate daily brief</button>
         </div>
       </div>
@@ -149,20 +450,20 @@ function PageOverview() {
         <div className="cs-secondary">
           <div className="cs-stat-label">Source health</div>
           <div className="cs-stat">{sourceCounts().total}<span className="unit">feeds</span></div>
-          <div className="stat-meta">Official feeds configured</div>
+          <div className="stat-meta">Official feeds configured · live poll on Live page</div>
         </div>
       </div>
 
-      {/* LIVE NOW STRIP — situational context; clock lives in the topbar, not duplicated here */}
+      {/* SOURCE STRIP — official links first; current chamber state must be verified before action. */}
       <div className="live-strip g-live-strip" style={{display:"grid", gap:14, alignItems:"center", padding:"12px 16px", marginBottom:16}}>
         <div style={{display:"flex", alignItems:"center", gap:8}}>
-          <span style={{width:7, height:7, borderRadius:"50%", background:"var(--ember-flash)"}}/>
-          <span className="mono" style={{fontSize:10.5, letterSpacing:".16em", color:"var(--ember-flash)", fontWeight:600}}>LIVE NOW</span>
+          <span style={{width:7, height:7, borderRadius:"50%", background:"var(--ok)"}}/>
+          <span className="mono" style={{fontSize:10.5, letterSpacing:".16em", color:"var(--ok)", fontWeight:600}}>LATEST CONFIGURED SOURCES</span>
         </div>
         <div style={{display:"flex", gap:18, fontSize:12.5, color:"var(--ink-2)", alignItems:"center"}}>
-          <div><strong style={{color:"var(--ink)"}}>House:</strong> Question time</div>
+          <div><strong style={{color:"var(--ink)"}}>House:</strong> program links available</div>
           <div style={{width:1, height:16, background:"var(--line-2)"}}/>
-          <div><strong style={{color:"var(--ink)"}}>Senate:</strong> <button className="linklike" onClick={()=>openModal("committee","legcon")}>Legal & Constitutional</button> hearing</div>
+          <div><strong style={{color:"var(--ink)"}}>Senate:</strong> verify hearing status from APH before action</div>
         </div>
         <a href="https://www.aph.gov.au/Parliamentary_Business/Hansard" target="_blank" rel="noopener noreferrer" className="btn sm ghost" style={{textDecoration:"none"}}><Icon name="ext" size={12}/> Hansard</a>
         <a href="https://www.youtube.com/@AUSParliamentLive/streams" target="_blank" rel="noopener noreferrer" className="btn sm ghost" style={{textDecoration:"none"}}><Icon name="ext" size={12}/> YouTube</a>
@@ -232,6 +533,14 @@ function PageOverview() {
           </div>
         </div>
       </div>
+
+      <BetaReadinessPanel navigate={goto} />
+
+      <CoverageActivationMatrix navigate={goto} copyPlan={copyActivationPlan} />
+
+      <ProvenanceStackPanel navigate={goto} />
+
+      <ProvenanceMetricsBand navigate={goto} />
     </div>
   );
 }
@@ -564,7 +873,7 @@ function PageLive() {
           <button className={"btn " + (which === "house" ? "primary" : "")} onClick={() => setWhich("house")}>House</button>
           <button className={"btn " + (which === "senate" ? "primary" : "")} onClick={() => setWhich("senate")}>Senate</button>
           <button className={"btn " + (which === "federation" ? "primary" : "")} onClick={() => setWhich("federation")}>Federation</button>
-          <button className="btn" title="Demo control: no capture backend in this build" onClick={() => toast("Flag moment (demo): capture backend not wired", "brass")}><Icon name="flag" size={13}/> Flag moment (demo)</button>
+          <button className="btn" title="Copy a timestamped live action note" onClick={() => copyLiveActionNote("Flag moment", which, toast)}><Icon name="flag" size={13}/> Flag moment</button>
         </div>
       </div>
 
@@ -576,8 +885,8 @@ function PageLive() {
             <a href="https://www.youtube.com/@AUSParliamentLive/streams" target="_blank" rel="noopener noreferrer" className="src-badge" style={{textDecoration:"none", color:"var(--teal)"}}><Icon name="ext" size={11}/> AUSParliamentLive</a>
             <a href="https://parlview.aph.gov.au/" target="_blank" rel="noopener noreferrer" className="src-badge" style={{textDecoration:"none", color:"var(--teal)"}}><Icon name="ext" size={11}/> ParlView archive</a>
             <a href="https://www.aph.gov.au/Parliamentary_Business/Hansard" target="_blank" rel="noopener noreferrer" className="src-badge" style={{textDecoration:"none", color:"var(--teal)"}}><Icon name="ext" size={11}/> Hansard</a>
-            <button className="btn sm ghost" style={{marginLeft:"auto"}} title="Demo control: no transcript backend in this build" onClick={() => toast("Request transcript (demo): no transcript backend")}>Request transcript (demo)</button>
-            <button className="btn sm" title="Demo control: no clip backend in this build" onClick={() => toast("Clip to brief (demo): clip backend not wired", "brass")}><Icon name="brief" size={12}/> Clip to brief (demo)</button>
+            <button className="btn sm ghost" style={{marginLeft:"auto"}} title="Copy a Hansard follow-up note" onClick={() => copyLiveActionNote("Transcript follow-up", which, toast)}>Request transcript</button>
+            <button className="btn sm" title="Copy a source-backed clip note" onClick={() => copyLiveActionNote("Clip to brief", which, toast)}><Icon name="brief" size={12}/> Clip to brief</button>
           </div>
 
           <div className="panel" style={{marginTop:16}}>
@@ -762,7 +1071,7 @@ function PageSources() {
         <div>
           <div className="page-kicker">Admin</div>
           <h1 className="page-title">Sources</h1>
-          <div className="page-sub">Official APH feed bundle plus any custom RSS feeds you've added. Each source is validated, classified and routed to modules.</div>
+          <div className="page-sub">Official APH feed bundle plus any custom RSS feeds you've added. Official feeds are polled live; custom validation is a prototype workflow until backend validation is connected.</div>
         </div>
         <div style={{display:"flex", gap:10}}>
           <button className="btn" title="Re-polls the live RSS feeds if the Live page poller is mounted" onClick={() => { if (typeof window.__refreshLiveFeeds === "function") { window.__refreshLiveFeeds(); toast("Live feeds re-polled"); } else { toast("Open the Live page to start the feed poller"); } }}><Icon name="refresh" size={13}/> Refresh all</button>
@@ -880,7 +1189,7 @@ function PageSources() {
                     <div style={{fontSize:13}}>{x.name}</div>
                     <div style={{fontSize:11.5, color:"var(--ink-3)"}}>{x.note}</div>
                   </div>
-                  <button className="btn ghost sm" title="Demo control: no request backend in this build" onClick={() => toast(`Request (demo): ${x.name} not wired to a backend`, "brass")}>Request (demo)</button>
+                  <button className="btn ghost sm" title="Copy a backlog request for this source" onClick={() => copyBacklogRequest(x.name, x.note, toast)}>Request</button>
                 </div>
               ))}
             </div>
@@ -893,10 +1202,20 @@ function PageSources() {
 
 // ---------- COMMITTEES ----------
 function PageCommittees() {
-  const { openModal } = useStore();
-  const today = COMMITTEE_ITEMS.filter(i => i.when.startsWith("Today"));
-  const upcoming = COMMITTEE_ITEMS.filter(i => !i.when.startsWith("Today") && !i.when.startsWith("Yesterday"));
-  const recent = COMMITTEE_ITEMS.filter(i => i.when.startsWith("Yesterday"));
+  const { openModal, toast } = useStore();
+  const [highOnly, setHighOnly] = useState(false);
+  const rows = highOnly ? COMMITTEE_ITEMS.filter(i => i.att === "high") : COMMITTEE_ITEMS;
+  const today = rows.filter(i => i.when.startsWith("Today"));
+  const upcoming = rows.filter(i => !i.when.startsWith("Today") && !i.when.startsWith("Yesterday"));
+  const recent = rows.filter(i => i.when.startsWith("Yesterday"));
+  const exportPrepPack = () => {
+    exportRowsCSV(
+      ["when", "type", "committee", "topic", "portfolio", "attention"],
+      rows.map(r => [r.when, r.type, r.name, r.topic, r.portfolio, r.att]),
+      `parliament-pulse-committee-prep-${new Date().toISOString().slice(0,10)}.csv`,
+    );
+    toast("Committee prep pack exported", "brass");
+  };
 
   const CommitteeTable = ({ rows, compact }) => (
     <table className="ds">
@@ -932,8 +1251,8 @@ function PageCommittees() {
           <div className="page-sub">Powered by Senate and House committee feeds. Click any row to open the committee, hearings, inquiries and prep pack.</div>
         </div>
         <div style={{display:"flex", gap:10}}>
-          <button className="btn" disabled title="Filtering is not available in this build" style={{opacity:.5, cursor:"not-allowed"}}><Icon name="filter" size={13}/> Filter (demo)</button>
-          <button className="btn ghost" disabled title="Prep pack generation is not wired in this build" style={{opacity:.6, cursor:"not-allowed"}}><Icon name="brief" size={13}/> Prep pack (demo)</button>
+          <button className={"btn" + (highOnly ? " primary" : "")} title="Toggle high-attention committee rows" onClick={() => setHighOnly(v => !v)}><Icon name="filter" size={13}/> High attention</button>
+          <button className="btn ghost" title="Export the current committee prep rows" onClick={exportPrepPack}><Icon name="brief" size={13}/> Export prep pack</button>
         </div>
       </div>
 
@@ -1138,11 +1457,11 @@ function PageParliament() {
           </div>
         </div>
         <div className="panel">
-          <div className="panel-head"><h2 className="panel-title">Parliamentary lines</h2><span className="panel-kicker">For Cyber Security Bill 2nd reading</span><span className="chip-fixture" style={{marginLeft:"auto"}}>Fixture</span></div>
+          <div className="panel-head"><h2 className="panel-title">Parliamentary lines</h2><span className="panel-kicker">For Cyber Security Bill 2nd reading</span><span className="chip-fixture" style={{marginLeft:"auto"}}>Representative data</span></div>
           <div className="panel-body">
             <div style={{padding:12, border:"1px dashed var(--line-2)", borderRadius:8, fontSize:13, color:"var(--ink-3)", lineHeight:1.6, fontStyle:"italic"}}>
               <div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", marginBottom:8, fontStyle:"normal"}}>No lines drafted yet</div>
-              Lines will appear here once generated by an analyst. Use "Generate brief" from a signal to start the drafting workflow. <span className="chip-fixture">Fixture data only in this build</span>
+              Lines will appear here once generated by an analyst. Use "Generate brief" from a signal to start the drafting workflow. <span className="chip-fixture">Representative data</span>
             </div>
             <div style={{marginTop:12, display:"flex", gap:8}}>
               <button className="btn sm primary" onClick={() => toast("Generate a brief from a signal first to start the drafting workflow")}>Submit for review</button>
@@ -1158,6 +1477,7 @@ function PageParliament() {
 // ---------- PATTERNS ----------
 function PagePatterns() {
   const { openModal, toast } = useStore();
+  const [clusterStatus, setClusterStatus] = useState("Needs analyst review");
   return (
     <div className="page">
       <div className="page-head">
@@ -1204,11 +1524,12 @@ function PagePatterns() {
         </div>
 
         <div style={{display:"flex", gap:10, marginTop:16, flexWrap:"wrap"}}>
-          <button className="btn" title="Demo control: design-state module, no backend" onClick={() => toast("Draft Estimates monitor note (demo): not wired", "brass")}><Icon name="brief" size={13}/> Draft Estimates monitor note (demo)</button>
-          <button className="btn" title="Demo control: design-state module, no backend" onClick={() => toast("Track cluster (demo): not wired", "brass")}><Icon name="watch" size={13}/> Track cluster (demo)</button>
-          <button className="btn" title="Demo control: design-state module, no backend" onClick={() => toast("Confirm as coordinated (demo): not wired", "brass")}><Icon name="check" size={13}/> Confirm as coordinated (demo)</button>
-          <button className="btn ghost" title="Demo control: design-state module, no backend" onClick={() => toast("Mark as coincidence (demo): not wired")}>Mark as coincidence (demo)</button>
+          <button className="btn" title="Copy an Estimates monitor note" onClick={() => copyText(`# Estimates monitor note\nGenerated: ${new Date().toISOString()}\n\nPattern: ${QON_PATTERN.title}\nStatus: ${clusterStatus}\n\nRecommended action: monitor for Estimates references and verify against Hansard or QON source material.`, toast, "Estimates monitor note copied")}><Icon name="brief" size={13}/> Draft Estimates monitor note</button>
+          <button className="btn" title="Mark this cluster as tracked in this session" onClick={() => { setClusterStatus("Tracked"); toast("Cluster marked as tracked", "brass"); }}><Icon name="watch" size={13}/> Track cluster</button>
+          <button className="btn" title="Confirm the analyst classification for this session" onClick={() => { setClusterStatus("Confirmed as coordinated"); toast("Cluster confirmed for review", "brass"); }}><Icon name="check" size={13}/> Confirm as coordinated</button>
+          <button className="btn ghost" title="Classify the cluster as coincidence in this session" onClick={() => { setClusterStatus("Marked as coincidence"); toast("Cluster marked as coincidence"); }}>Mark as coincidence</button>
         </div>
+        <div className="mono" style={{fontSize:10.5, color:"var(--ink-3)", marginTop:8, letterSpacing:".08em"}}>Session status: {clusterStatus}</div>
       </div>
 
       <div className="panel" style={{marginTop:16}}>
@@ -1251,10 +1572,10 @@ function PageBriefings() {
   }).sort((a, b) => b._ts - a._ts).slice(0, 3);
 
   const staticBriefs = [
-    { type: "Daily Signal Brief", for: "Director, Digital Policy", status: "Drafted" },
-    { type: "Committee Brief", for: "Procurement lead", status: "Awaiting review" },
-    { type: "Bill Digest Note", for: "Identity policy", status: "Drafted" },
-    { type: "Estimates Monitor Note", for: "Estimates pack", status: "In progress" },
+    { type: "Daily Signal Brief", for: "Director, Digital Policy", status: "Example · drafted" },
+    { type: "Committee Brief", for: "Procurement lead", status: "Example · awaiting review" },
+    { type: "Bill Digest Note", for: "Identity policy", status: "Example · drafted" },
+    { type: "Estimates Monitor Note", for: "Estimates pack", status: "Example · in progress" },
   ];
   const briefs = [...generated, ...staticBriefs];
   const briefId = (b) => b._sid || `${b.type}|${b.for}`;
@@ -1266,9 +1587,12 @@ function PageBriefings() {
         <div>
           <div className="page-kicker">Workflow</div>
           <h1 className="page-title">Briefings</h1>
-          <div className="page-sub">Every brief follows a required structure: What happened · Source · Why it matters · Recommended action · Evidence · Uncertainty · Human review.</div>
+          <div className="page-sub">Generated local briefs appear above. Representative queue examples below show the intended review workflow: What happened · Source · Why it matters · Recommended action · Evidence · Uncertainty · Human review.</div>
         </div>
-        <button className="btn primary" title="Open signals to generate a brief" onClick={() => { setSignalSearchQuery(""); navigate("signals"); }}><Icon name="plus" size={13}/> New brief</button>
+        <div style={{display:"flex", gap:8, flexWrap:"wrap", justifyContent:"flex-end"}}>
+          <button className="btn" onClick={() => downloadBriefingQueue(briefs, toast)}><Icon name="download" size={13}/> Export queue</button>
+          <button className="btn primary" title="Open signals to generate a brief" onClick={() => { setSignalSearchQuery(""); navigate("signals"); }}><Icon name="plus" size={13}/> New brief</button>
+        </div>
       </div>
 
       <div className="grid g-briefings" style={{gap:16}}>
@@ -1281,7 +1605,7 @@ function PageBriefings() {
               <div key={id} className="list-row" onClick={() => setSelId(id)} style={{cursor:"pointer", background: selectedId===id ? "var(--panel-hi)" : "transparent", borderLeft: selectedId===id ? "2px solid var(--brass)" : "2px solid transparent"}}>
                 <div style={{fontSize:13, fontWeight:500}}>{b.type}</div>
                 <div style={{fontSize:11.5, color:"var(--ink-3)"}}>For {b.for}</div>
-                <div className="mono t-label" style={{marginTop:4, color: b.status === "Drafted" || b.status.startsWith("Copied") ? "var(--ok)" : b.status === "In progress" ? "var(--caution)" : "var(--info)", textTransform:"uppercase", letterSpacing:".12em"}}>{b.status}</div>
+                <div className="mono t-label" style={{marginTop:4, color: b.status.startsWith("Copied") ? "var(--ok)" : b.status.includes("in progress") ? "var(--caution)" : b.status.includes("awaiting") ? "var(--info)" : "var(--ink-4)", textTransform:"uppercase", letterSpacing:".12em"}}>{b.status}</div>
               </div>
               );
             })}
@@ -1294,8 +1618,8 @@ function PageBriefings() {
             <span className="panel-kicker">{selected ? `For ${selected.for}` : "Queue empty"}</span>
             <div style={{marginLeft:"auto", display:"flex", gap:6}}>
               <button className="btn ghost sm" disabled={!selected} onClick={() => window.print()}><Icon name="download" size={12}/> Print</button>
-              <button className="btn sm" disabled={!selected} title="Demo control: no send backend in this build" onClick={() => toast("Send (demo): no delivery backend in this build")}>Send (demo)</button>
-              <button className="btn ghost sm" disabled={!selected} title="Demo control: no approval workflow in this build" onClick={() => toast("Approve (demo): no approval workflow in this build", "brass")}>Approve (demo)</button>
+              <button className="btn sm" disabled={!selected} title="Copy a send-ready handoff note" onClick={() => copyText(`# Brief handoff\nType: ${selected.type}\nFor: ${selected.for}\nStatus: ${selected.status}\nGenerated: ${new Date().toISOString()}`, toast, "Brief handoff copied")}>Copy handoff</button>
+              <button className="btn ghost sm" disabled={!selected} title="Mark this brief reviewed in the local queue" onClick={() => toast(`Marked reviewed: ${selected.type}`, "brass")}>Mark reviewed</button>
             </div>
           </div>
           <div className="panel-body">

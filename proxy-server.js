@@ -16,11 +16,22 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Headers": "*",
 };
 
+// APH's edge WAF returns 403 to requests without a real browser User-Agent (see
+// app-tracker.md; the production aph-proxy Worker already sends one). Node's http
+// client sends no UA by default, so this local proxy would 502 on every APH feed.
+// Send the same browser UA + Accept headers the Worker uses. Keep aligned with the
+// Worker: do not revert to a bot/blank UA.
+const BROWSER_HEADERS = {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+  "Accept": "application/rss+xml, application/atom+xml, application/xml, text/xml, */*;q=0.8",
+  "Accept-Language": "en-AU,en;q=0.9",
+};
+
 function fetchUpstream(targetUrl, res) {
   const parsed = url.parse(targetUrl);
   const mod = parsed.protocol === "https:" ? https : http;
 
-  const req = mod.get(targetUrl, { timeout: TIMEOUT_MS }, (upstream) => {
+  const req = mod.get(targetUrl, { timeout: TIMEOUT_MS, headers: BROWSER_HEADERS }, (upstream) => {
     res.writeHead(upstream.statusCode, {
       ...CORS_HEADERS,
       "Content-Type": upstream.headers["content-type"] || "application/xml",

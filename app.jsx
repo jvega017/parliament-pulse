@@ -26,17 +26,17 @@ class ErrorBoundary extends React.Component {
 function App() {
   const [page, setPage] = React.useState("overview");
   const [mobileNavOpen, setMobileNavOpen] = React.useState(() => {
-    try { return localStorage.getItem("pp-nav-open") === "true"; } catch { return false; }
+    return safeGetLocalStorage("pp-nav-open") === "true";
   });
   const navigate = React.useCallback((nextPage) => {
     setPage(nextPage);
     setMobileNavOpen(false);
   }, []);
   React.useEffect(() => {
-    try { localStorage.setItem("pp-nav-open", String(mobileNavOpen)); } catch { /* storage unavailable */ }
+    safeSetLocalStorage("pp-nav-open", String(mobileNavOpen));
   }, [mobileNavOpen]);
   React.useEffect(() => {
-    const saved = localStorage.getItem("pp-theme");
+    const saved = safeGetLocalStorage("pp-theme");
     if (saved) document.documentElement.dataset.theme = saved;
   }, []);
 
@@ -64,7 +64,7 @@ function App() {
         <Sidebar page={page} onNavigate={navigate} mobileOpen={mobileNavOpen} />
         <div className="main">
           <Topbar mobileNavOpen={mobileNavOpen} setMobileNavOpen={setMobileNavOpen} />
-          <DesignStateBanner />
+          <BetaNotice />
           <div className="content"><ErrorBoundary>{renderPage()}</ErrorBoundary></div>
         </div>
         <ErrorBoundary><Drawer /></ErrorBoundary>

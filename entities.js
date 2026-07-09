@@ -144,7 +144,7 @@ window.ENTITIES = {
   ministers: {
     "digital": {
       id: "digital",
-      name: "Minister X (fixture)",
+      name: "Minister for Digital Services",
       role: "Minister for Digital Services",
       portfolio: "Digital Services",
       bio: "Minister responsible for digital government, identity, and service delivery.",
@@ -152,7 +152,7 @@ window.ENTITIES = {
     },
     "cyber": {
       id: "cyber",
-      name: "Minister Y (fixture)",
+      name: "Minister for Cyber Security",
       role: "Minister for Cyber Security",
       portfolio: "Cyber Security",
       bio: "Minister responsible for cyber security policy and co-ordination.",

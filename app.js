@@ -17,24 +17,17 @@ class ErrorBoundary extends React.Component {
 function App() {
   const [page, setPage] = React.useState("overview");
   const [mobileNavOpen, setMobileNavOpen] = React.useState(() => {
-    try {
-      return localStorage.getItem("pp-nav-open") === "true";
-    } catch (e) {
-      return false;
-    }
+    return safeGetLocalStorage("pp-nav-open") === "true";
   });
   const navigate = React.useCallback((nextPage) => {
     setPage(nextPage);
     setMobileNavOpen(false);
   }, []);
   React.useEffect(() => {
-    try {
-      localStorage.setItem("pp-nav-open", String(mobileNavOpen));
-    } catch (e) {
-    }
+    safeSetLocalStorage("pp-nav-open", String(mobileNavOpen));
   }, [mobileNavOpen]);
   React.useEffect(() => {
-    const saved = localStorage.getItem("pp-theme");
+    const saved = safeGetLocalStorage("pp-theme");
     if (saved) document.documentElement.dataset.theme = saved;
   }, []);
   const renderPage = () => {
@@ -65,7 +58,7 @@ function App() {
         return /* @__PURE__ */ React.createElement(PageOverview, null);
     }
   };
-  return /* @__PURE__ */ React.createElement(StoreProvider, { navigate }, /* @__PURE__ */ React.createElement("div", { className: "app" }, /* @__PURE__ */ React.createElement("div", { className: "drawer-back mobile-nav-back" + (mobileNavOpen ? " on" : ""), onClick: () => setMobileNavOpen(false), "aria-hidden": "true" }), /* @__PURE__ */ React.createElement(Sidebar, { page, onNavigate: navigate, mobileOpen: mobileNavOpen }), /* @__PURE__ */ React.createElement("div", { className: "main" }, /* @__PURE__ */ React.createElement(Topbar, { mobileNavOpen, setMobileNavOpen }), /* @__PURE__ */ React.createElement(DesignStateBanner, null), /* @__PURE__ */ React.createElement("div", { className: "content" }, /* @__PURE__ */ React.createElement(ErrorBoundary, null, renderPage()))), /* @__PURE__ */ React.createElement(ErrorBoundary, null, /* @__PURE__ */ React.createElement(Drawer, null)), /* @__PURE__ */ React.createElement(ErrorBoundary, null, /* @__PURE__ */ React.createElement(DetailModal, null))));
+  return /* @__PURE__ */ React.createElement(StoreProvider, { navigate }, /* @__PURE__ */ React.createElement("div", { className: "app" }, /* @__PURE__ */ React.createElement("div", { className: "drawer-back mobile-nav-back" + (mobileNavOpen ? " on" : ""), onClick: () => setMobileNavOpen(false), "aria-hidden": "true" }), /* @__PURE__ */ React.createElement(Sidebar, { page, onNavigate: navigate, mobileOpen: mobileNavOpen }), /* @__PURE__ */ React.createElement("div", { className: "main" }, /* @__PURE__ */ React.createElement(Topbar, { mobileNavOpen, setMobileNavOpen }), /* @__PURE__ */ React.createElement(BetaNotice, null), /* @__PURE__ */ React.createElement("div", { className: "content" }, /* @__PURE__ */ React.createElement(ErrorBoundary, null, renderPage()))), /* @__PURE__ */ React.createElement(ErrorBoundary, null, /* @__PURE__ */ React.createElement(Drawer, null)), /* @__PURE__ */ React.createElement(ErrorBoundary, null, /* @__PURE__ */ React.createElement(DetailModal, null))));
 }
 ReactDOM.createRoot(document.getElementById("root")).render(
   /* @__PURE__ */ React.createElement(React.StrictMode, null, /* @__PURE__ */ React.createElement(App, null))

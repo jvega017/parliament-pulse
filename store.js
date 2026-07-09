@@ -2,6 +2,48 @@ const StoreCtx = React.createContext(null);
 function useStore() {
   return React.useContext(StoreCtx);
 }
+function safeGetLocalStorage(key, fallback = null) {
+  var _a, _b;
+  try {
+    return (_b = (_a = window.localStorage) == null ? void 0 : _a.getItem(key)) != null ? _b : fallback;
+  } catch (e) {
+    return fallback;
+  }
+}
+function safeSetLocalStorage(key, value) {
+  var _a;
+  try {
+    (_a = window.localStorage) == null ? void 0 : _a.setItem(key, value);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+function copyToClipboard(text) {
+  var _a;
+  const value = String(text != null ? text : "");
+  try {
+    if ((_a = navigator.clipboard) == null ? void 0 : _a.writeText) return navigator.clipboard.writeText(value);
+  } catch (e) {
+  }
+  return new Promise((resolve, reject) => {
+    try {
+      const textarea = document.createElement("textarea");
+      textarea.value = value;
+      textarea.setAttribute("readonly", "");
+      textarea.style.position = "fixed";
+      textarea.style.left = "-9999px";
+      textarea.style.top = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      const copied = document.execCommand("copy");
+      textarea.remove();
+      copied ? resolve() : reject(new Error("Clipboard copy failed"));
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
 const STORE_DEFAULTS = {
   owners: {},
   // { entityId: ownerName }
@@ -72,17 +114,14 @@ function StoreProvider({ children, navigate = () => {
 } }) {
   const [state, setState] = React.useState(() => {
     try {
-      const raw = localStorage.getItem("cs-state-v1");
+      const raw = safeGetLocalStorage("cs-state-v1");
       if (raw) return hydrateState(JSON.parse(raw));
     } catch (e) {
     }
     return { ...STORE_DEFAULTS };
   });
   React.useEffect(() => {
-    try {
-      localStorage.setItem("cs-state-v1", JSON.stringify(state));
-    } catch (e) {
-    }
+    safeSetLocalStorage("cs-state-v1", JSON.stringify(state));
   }, [state]);
   const [toasts, setToasts] = React.useState([]);
   const toast = React.useCallback((msg, kind = "ok", action = null) => {
@@ -357,6 +396,9 @@ function ModalHead({ kicker, title, right, onClose, representative = false, titl
   const { closeModal } = useStore();
   return /* @__PURE__ */ React.createElement("div", { className: "modal-head" }, /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement("div", { className: "mono", style: { fontSize: 10, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: ".16em", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("span", null, kicker), representative && /* @__PURE__ */ React.createElement("span", { className: "chip-fixture" }, "Representative data")), /* @__PURE__ */ React.createElement("h2", { id: titleId, className: "serif", style: { fontSize: 22, margin: "4px 0 0", fontWeight: 500, lineHeight: 1.25 } }, title)), right, /* @__PURE__ */ React.createElement("button", { ref: closeButtonRef, className: "btn ghost sm", "aria-label": "Close detail", onClick: onClose || closeModal, style: { flex: "none" } }, /* @__PURE__ */ React.createElement(Icon, { name: "close", size: 14 })));
 }
+function copyModalText(text, toast, ok = "Copied to clipboard") {
+  return copyToClipboard(text).then(() => toast(ok, "brass")).catch(() => toast("Clipboard unavailable: content not copied", "error"));
+}
 function CommitteeDetail({ id, titleId, closeButtonRef }) {
   const c = ENTITIES.committees[id];
   const { openModal, closeModal, toast, addWatchlist, isWatched } = useStore();
@@ -375,17 +417,38 @@ function CommitteeDetail({ id, titleId, closeButtonRef }) {
     /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, fontWeight: 500 } }, h.topic), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11.5, color: "var(--ink-3)" } }, h.room)),
     /* @__PURE__ */ React.createElement(Icon, { name: "chevron", size: 14, stroke: "var(--ink-3)" })
   )), /* @__PURE__ */ React.createElement("h3", { className: "mono", style: { fontSize: 10, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: ".16em", marginTop: 22, marginBottom: 8 } }, "Open inquiries"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 6 } }, c.inquiries.map((q, i) => /* @__PURE__ */ React.createElement("span", { key: i, className: "tag clk", onClick: () => openModal("inquiry", q) }, q)))), /* @__PURE__ */ React.createElement("div", { className: "modal-foot" }, /* @__PURE__ */ React.createElement("button", { className: "btn primary", onClick: () => {
-    toast("Committee prep pack queued", "brass");
+    copyModalText(`# Committee prep pack
+Committee: ${c.name}
+Chamber: ${c.chamber}
+Open inquiries: ${c.inquiries.join("; ")}
+Generated: ${(/* @__PURE__ */ new Date()).toISOString()}`, toast, "Committee prep pack copied");
     closeModal();
   } }, /* @__PURE__ */ React.createElement(Icon, { name: "brief", size: 13 }), " Prep pack"), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: () => addWatchlist(watchKey), style: watched ? { borderColor: "var(--brass)", color: "var(--brass)" } : void 0 }, /* @__PURE__ */ React.createElement(Icon, { name: "watch", size: 13 }), " ", watched ? "Watching committee" : "Watch committee"), /* @__PURE__ */ React.createElement("button", { className: "btn ghost", style: { marginLeft: "auto" }, onClick: closeModal }, "Close")));
 }
 function HearingDetail({ data, titleId, closeButtonRef }) {
   const { closeModal, toast } = useStore();
-  return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(ModalHead, { kicker: "Hearing", title: data.topic, titleId, closeButtonRef }), /* @__PURE__ */ React.createElement("div", { className: "modal-body" }, /* @__PURE__ */ React.createElement("dl", { className: "kv" }, /* @__PURE__ */ React.createElement("dt", null, "Committee"), /* @__PURE__ */ React.createElement("dd", null, data.committee), /* @__PURE__ */ React.createElement("dt", null, "When"), /* @__PURE__ */ React.createElement("dd", null, data.when), /* @__PURE__ */ React.createElement("dt", null, "Room"), /* @__PURE__ */ React.createElement("dd", null, data.room), /* @__PURE__ */ React.createElement("dt", null, "Broadcast"), /* @__PURE__ */ React.createElement("dd", null, /* @__PURE__ */ React.createElement("a", { href: "https://parlview.aph.gov.au/", target: "_blank", rel: "noopener noreferrer", style: { color: "var(--teal)" } }, "ParlView ", /* @__PURE__ */ React.createElement(Icon, { name: "ext", size: 11, style: { verticalAlign: "-1px" } })))), /* @__PURE__ */ React.createElement("h3", { className: "mono", style: { fontSize: 10, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: ".16em", marginTop: 18, marginBottom: 8 } }, "Witnesses"), /* @__PURE__ */ React.createElement("ul", { style: { margin: 0, paddingLeft: 18, color: "var(--ink-2)" } }, /* @__PURE__ */ React.createElement("li", null, "Department (First Assistant Secretary)"), /* @__PURE__ */ React.createElement("li", null, "OAIC (Privacy Commissioner)"), /* @__PURE__ */ React.createElement("li", null, "Industry peak body")), /* @__PURE__ */ React.createElement("h3", { className: "mono", style: { fontSize: 10, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: ".16em", marginTop: 18, marginBottom: 8 } }, "Sample questions ", /* @__PURE__ */ React.createElement("span", { className: "chip-fixture", style: { verticalAlign: "middle", marginLeft: 6 } }, "Fixture")), /* @__PURE__ */ React.createElement("ol", { style: { margin: 0, paddingLeft: 18, color: "var(--ink-2)" } }, /* @__PURE__ */ React.createElement("li", null, "How does the department assure AI models against bias in high-risk contexts?"), /* @__PURE__ */ React.createElement("li", null, "Which programs currently use automated decision-making for benefit eligibility?"), /* @__PURE__ */ React.createElement("li", null, "What is the escalation pathway when assurance fails in production?"))), /* @__PURE__ */ React.createElement("div", { className: "modal-foot" }, /* @__PURE__ */ React.createElement("button", { className: "btn primary", onClick: () => {
-    toast("Added to calendar", "brass");
+  return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(ModalHead, { kicker: "Hearing", title: data.topic, titleId, closeButtonRef }), /* @__PURE__ */ React.createElement("div", { className: "modal-body" }, /* @__PURE__ */ React.createElement("dl", { className: "kv" }, /* @__PURE__ */ React.createElement("dt", null, "Committee"), /* @__PURE__ */ React.createElement("dd", null, data.committee), /* @__PURE__ */ React.createElement("dt", null, "When"), /* @__PURE__ */ React.createElement("dd", null, data.when), /* @__PURE__ */ React.createElement("dt", null, "Room"), /* @__PURE__ */ React.createElement("dd", null, data.room), /* @__PURE__ */ React.createElement("dt", null, "Broadcast"), /* @__PURE__ */ React.createElement("dd", null, /* @__PURE__ */ React.createElement("a", { href: "https://parlview.aph.gov.au/", target: "_blank", rel: "noopener noreferrer", style: { color: "var(--teal)" } }, "ParlView ", /* @__PURE__ */ React.createElement(Icon, { name: "ext", size: 11, style: { verticalAlign: "-1px" } })))), /* @__PURE__ */ React.createElement("h3", { className: "mono", style: { fontSize: 10, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: ".16em", marginTop: 18, marginBottom: 8 } }, "Witnesses"), /* @__PURE__ */ React.createElement("ul", { style: { margin: 0, paddingLeft: 18, color: "var(--ink-2)" } }, /* @__PURE__ */ React.createElement("li", null, "Department (First Assistant Secretary)"), /* @__PURE__ */ React.createElement("li", null, "OAIC (Privacy Commissioner)"), /* @__PURE__ */ React.createElement("li", null, "Industry peak body")), /* @__PURE__ */ React.createElement("h3", { className: "mono", style: { fontSize: 10, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: ".16em", marginTop: 18, marginBottom: 8 } }, "Sample questions ", /* @__PURE__ */ React.createElement("span", { className: "chip-fixture", style: { verticalAlign: "middle", marginLeft: 6 } }, "Representative data")), /* @__PURE__ */ React.createElement("ol", { style: { margin: 0, paddingLeft: 18, color: "var(--ink-2)" } }, /* @__PURE__ */ React.createElement("li", null, "How does the department assure AI models against bias in high-risk contexts?"), /* @__PURE__ */ React.createElement("li", null, "Which programs currently use automated decision-making for benefit eligibility?"), /* @__PURE__ */ React.createElement("li", null, "What is the escalation pathway when assurance fails in production?"))), /* @__PURE__ */ React.createElement("div", { className: "modal-foot" }, /* @__PURE__ */ React.createElement("button", { className: "btn primary", onClick: () => {
+    copyModalText(`BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Parliament Pulse//Live Beta//EN
+BEGIN:VEVENT
+SUMMARY:${data.topic}
+LOCATION:${data.room}
+DESCRIPTION:${data.committee} hearing. Verify time against APH before importing.
+END:VEVENT
+END:VCALENDAR`, toast, "Calendar stub copied");
     closeModal();
-  } }, "Add to calendar"), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: () => {
-    toast("Prep note generated", "brass");
+  } }, "Copy calendar stub"), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: () => {
+    copyModalText(`# Hearing prep note
+Topic: ${data.topic}
+Committee: ${data.committee}
+When: ${data.when}
+Room: ${data.room}
+
+Questions:
+- How does the department assure AI models against bias in high-risk contexts?
+- Which programs currently use automated decision-making for benefit eligibility?
+- What is the escalation pathway when assurance fails in production?`, toast, "Prep note copied");
   } }, /* @__PURE__ */ React.createElement(Icon, { name: "brief", size: 13 }), " Generate prep note")));
 }
 function InquiryDetail({ id, titleId, closeButtonRef }) {
@@ -396,9 +459,16 @@ function InquiryDetail({ id, titleId, closeButtonRef }) {
     if (owner.trim()) {
       assignOwner(name, owner.trim());
     }
-  } }, "Assign")), state.owners[name] && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 8, fontSize: 12.5, color: "var(--ok)" } }, /* @__PURE__ */ React.createElement(Icon, { name: "check", size: 13, style: { verticalAlign: "-2px", marginRight: 4 } }), "Owner: ", /* @__PURE__ */ React.createElement("strong", null, state.owners[name]))), /* @__PURE__ */ React.createElement("div", { className: "modal-foot" }, /* @__PURE__ */ React.createElement("button", { className: "btn primary", onClick: () => {
-    toast("Submission draft started", "brass");
-  } }, /* @__PURE__ */ React.createElement(Icon, { name: "brief", size: 13 }), " Start submission"), /* @__PURE__ */ React.createElement("button", { className: "btn ghost", style: { marginLeft: "auto" }, onClick: closeModal }, "Close")));
+  } }, "Assign")), state.owners[name] && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 8, fontSize: 12.5, color: "var(--ok)" } }, /* @__PURE__ */ React.createElement(Icon, { name: "check", size: 13, style: { verticalAlign: "-2px", marginRight: 4 } }), "Owner: ", /* @__PURE__ */ React.createElement("strong", null, state.owners[name]))), /* @__PURE__ */ React.createElement("div", { className: "modal-foot" }, /* @__PURE__ */ React.createElement("button", { className: "btn primary", onClick: () => copyModalText(`# Submission starter
+Inquiry: ${name}
+Owner: ${state.owners[name] || owner || "Unassigned"}
+Generated: ${(/* @__PURE__ */ new Date()).toISOString()}
+
+Initial scope:
+- Governance framework
+- Transparency and reporting
+- Procurement assurance
+- Related matters`, toast, "Submission starter copied") }, /* @__PURE__ */ React.createElement(Icon, { name: "brief", size: 13 }), " Start submission"), /* @__PURE__ */ React.createElement("button", { className: "btn ghost", style: { marginLeft: "auto" }, onClick: closeModal }, "Close")));
 }
 function BillDetail({ id, titleId, closeButtonRef }) {
   const b = ENTITIES.bills[id];
@@ -411,7 +481,19 @@ function BillDetail({ id, titleId, closeButtonRef }) {
   return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(ModalHead, { kicker: `Bill \xB7 ${b.ref}`, title: b.title, representative: !!b.representative, titleId, closeButtonRef }), /* @__PURE__ */ React.createElement("div", { className: "modal-body" }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement(Att, { level: b.att }), /* @__PURE__ */ React.createElement("span", { className: "tag" }, b.portfolio), /* @__PURE__ */ React.createElement("span", { className: "tag teal" }, b.stage), b.digest === "Published" && /* @__PURE__ */ React.createElement("span", { className: "tag teal" }, "Digest published")), /* @__PURE__ */ React.createElement("h3", { className: "mono", style: { fontSize: 10, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: ".16em", marginBottom: 6 } }, "Purpose"), /* @__PURE__ */ React.createElement("p", { style: { margin: 0, color: "var(--ink-2)" } }, b.purpose), b.provisions.length > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("h3", { className: "mono", style: { fontSize: 10, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: ".16em", marginTop: 18, marginBottom: 6 } }, "Key provisions"), /* @__PURE__ */ React.createElement("ul", { style: { margin: 0, paddingLeft: 18, color: "var(--ink-2)" } }, b.provisions.map((p, i) => /* @__PURE__ */ React.createElement("li", { key: i }, p)))), b.stageHistory.length > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("h3", { className: "mono", style: { fontSize: 10, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: ".16em", marginTop: 18, marginBottom: 6 } }, "Timeline"), /* @__PURE__ */ React.createElement("div", { className: "timeline" }, b.stageHistory.map((h, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "tl-item" }, /* @__PURE__ */ React.createElement("div", { className: "tl-time" }, h.when), /* @__PURE__ */ React.createElement("div", { className: "tl-body" }, h.event))))), min && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("h3", { className: "mono", style: { fontSize: 10, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: ".16em", marginTop: 18, marginBottom: 6 } }, "Responsible minister"), /* @__PURE__ */ React.createElement("span", { className: "tag clk brass", onClick: () => openModal("minister", b.minister) }, min.name)), /* @__PURE__ */ React.createElement("h3", { className: "mono", style: { fontSize: 10, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: ".16em", marginTop: 18, marginBottom: 6 } }, "Matching watchlists"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap" } }, b.watchlists.map((w) => /* @__PURE__ */ React.createElement("span", { key: w, className: "tag brass" }, w))), /* @__PURE__ */ React.createElement("h3", { className: "mono", style: { fontSize: 10, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: ".16em", marginTop: 18, marginBottom: 6 } }, "Assign policy owner"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8 } }, /* @__PURE__ */ React.createElement("input", { "aria-label": "Owner name", value: owner, onChange: (e) => setOwner(e.target.value), placeholder: "Owner name", className: "search", style: { padding: "7px 10px", flex: 1 } }), /* @__PURE__ */ React.createElement("button", { className: "btn primary", onClick: () => {
     if (owner.trim()) assignOwner(id, owner.trim());
   } }, "Assign")), state.owners[id] && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 8, fontSize: 12.5, color: "var(--ok)" } }, /* @__PURE__ */ React.createElement(Icon, { name: "check", size: 13, style: { verticalAlign: "-2px", marginRight: 4 } }), "Owner: ", /* @__PURE__ */ React.createElement("strong", null, state.owners[id]))), /* @__PURE__ */ React.createElement("div", { className: "modal-foot" }, /* @__PURE__ */ React.createElement("button", { className: "btn primary", onClick: () => {
-    toast("Bill brief drafted", "brass");
+    copyModalText(`# Bill brief
+Bill: ${b.title}
+Reference: ${b.ref}
+Stage: ${b.stage}
+Portfolio: ${b.portfolio}
+
+Purpose:
+${b.purpose}
+
+Key provisions:
+${b.provisions.map((p) => `- ${p}`).join("\n") || "- Not recorded"}
+
+Generated: ${(/* @__PURE__ */ new Date()).toISOString()}`, toast, "Bill brief copied");
     closeModal();
   } }, /* @__PURE__ */ React.createElement(Icon, { name: "brief", size: 13 }), " Draft bill brief"), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: () => addWatchlist(watchKey), style: watched ? { borderColor: "var(--brass)", color: "var(--brass)" } : void 0 }, /* @__PURE__ */ React.createElement(Icon, { name: "watch", size: 13 }), " ", watched ? "Tracking bill" : "Track bill")));
 }
@@ -446,7 +528,22 @@ function FeedDetail({ id, titleId, closeButtonRef }) {
   const status = f.lastStatusCode != null ? f.lastStatusCode >= 200 && f.lastStatusCode < 300 ? "Live" : "Error" : "\u2014";
   const parser = f.parser || "\u2014";
   const last = f.last || "\u2014";
-  return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(ModalHead, { kicker: `Source \xB7 ${f.group}`, title: f.name, titleId, closeButtonRef }), /* @__PURE__ */ React.createElement("div", { className: "modal-body" }, /* @__PURE__ */ React.createElement("dl", { className: "kv" }, /* @__PURE__ */ React.createElement("dt", null, "URL"), /* @__PURE__ */ React.createElement("dd", { className: "mono", style: { fontSize: 11, color: "var(--ink-3)", wordBreak: "break-all" } }, f.url), /* @__PURE__ */ React.createElement("dt", null, "Status"), /* @__PURE__ */ React.createElement("dd", null, status), /* @__PURE__ */ React.createElement("dt", null, "Authority"), /* @__PURE__ */ React.createElement("dd", null, f.authority), /* @__PURE__ */ React.createElement("dt", null, "Confidence"), /* @__PURE__ */ React.createElement("dd", null, f.confidence), /* @__PURE__ */ React.createElement("dt", null, "Parser"), /* @__PURE__ */ React.createElement("dd", null, parser), /* @__PURE__ */ React.createElement("dt", null, "Last refresh"), /* @__PURE__ */ React.createElement("dd", { className: "mono" }, last), /* @__PURE__ */ React.createElement("dt", null, "Items today"), /* @__PURE__ */ React.createElement("dd", { className: "mono" }, (_a = f.today) != null ? _a : "\u2014"), /* @__PURE__ */ React.createElement("dt", null, "False positive"), /* @__PURE__ */ React.createElement("dd", null, f.fpr), /* @__PURE__ */ React.createElement("dt", null, "Modules"), /* @__PURE__ */ React.createElement("dd", null, f.modules.join(", "))), /* @__PURE__ */ React.createElement("h3", { className: "mono", style: { fontSize: 10, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: ".16em", marginTop: 16, marginBottom: 8 } }, "Recent items"), /* @__PURE__ */ React.createElement("div", { className: "empty" }, "\u2014")), /* @__PURE__ */ React.createElement("div", { className: "modal-foot" }, /* @__PURE__ */ React.createElement("button", { className: "btn primary", onClick: () => toast(`${f.name} re-fetched`, "brass") }, /* @__PURE__ */ React.createElement(Icon, { name: "refresh", size: 13 }), " Re-fetch now"), /* @__PURE__ */ React.createElement("button", { className: "btn", title: "Demo control: parser test is not wired in this build", onClick: () => toast("Parser test (demo): no live parser test is wired", "brass") }, "Test parser (demo)"), /* @__PURE__ */ React.createElement("button", { className: "btn ghost", style: { marginLeft: "auto" }, onClick: closeModal }, "Close")));
+  return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(ModalHead, { kicker: `Source \xB7 ${f.group}`, title: f.name, titleId, closeButtonRef }), /* @__PURE__ */ React.createElement("div", { className: "modal-body" }, /* @__PURE__ */ React.createElement("dl", { className: "kv" }, /* @__PURE__ */ React.createElement("dt", null, "URL"), /* @__PURE__ */ React.createElement("dd", { className: "mono", style: { fontSize: 11, color: "var(--ink-3)", wordBreak: "break-all" } }, f.url), /* @__PURE__ */ React.createElement("dt", null, "Status"), /* @__PURE__ */ React.createElement("dd", null, status), /* @__PURE__ */ React.createElement("dt", null, "Authority"), /* @__PURE__ */ React.createElement("dd", null, f.authority), /* @__PURE__ */ React.createElement("dt", null, "Confidence"), /* @__PURE__ */ React.createElement("dd", null, f.confidence), /* @__PURE__ */ React.createElement("dt", null, "Parser"), /* @__PURE__ */ React.createElement("dd", null, parser), /* @__PURE__ */ React.createElement("dt", null, "Last refresh"), /* @__PURE__ */ React.createElement("dd", { className: "mono" }, last), /* @__PURE__ */ React.createElement("dt", null, "Items today"), /* @__PURE__ */ React.createElement("dd", { className: "mono" }, (_a = f.today) != null ? _a : "\u2014"), /* @__PURE__ */ React.createElement("dt", null, "False positive"), /* @__PURE__ */ React.createElement("dd", null, f.fpr), /* @__PURE__ */ React.createElement("dt", null, "Modules"), /* @__PURE__ */ React.createElement("dd", null, f.modules.join(", "))), /* @__PURE__ */ React.createElement("h3", { className: "mono", style: { fontSize: 10, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: ".16em", marginTop: 16, marginBottom: 8 } }, "Recent items"), /* @__PURE__ */ React.createElement("div", { className: "empty" }, "\u2014")), /* @__PURE__ */ React.createElement("div", { className: "modal-foot" }, /* @__PURE__ */ React.createElement("button", { className: "btn primary", onClick: () => {
+    if (typeof window.__refreshLiveFeeds === "function") {
+      window.__refreshLiveFeeds();
+      toast(`${f.name} refresh requested`, "brass");
+    } else toast("Open Live parliament to start the feed poller", "brass");
+  } }, /* @__PURE__ */ React.createElement(Icon, { name: "refresh", size: 13 }), " Re-fetch now"), /* @__PURE__ */ React.createElement("button", { className: "btn", title: "Copy parser checklist for this feed", onClick: () => copyModalText(`# Parser checklist
+Feed: ${f.name}
+URL: ${f.url}
+Parser: ${parser}
+Last refresh: ${last}
+
+Checks:
+- HTTP status is 2xx
+- XML item count is non-zero when source publishes
+- Title, date, link and description map cleanly
+- Module routing matches: ${f.modules.join(", ")}`, toast, "Parser checklist copied") }, "Copy parser checklist"), /* @__PURE__ */ React.createElement("button", { className: "btn ghost", style: { marginLeft: "auto" }, onClick: closeModal }, "Close")));
 }
 function WatchlistDetail({ id, titleId, closeButtonRef }) {
   const { closeModal, toast, state } = useStore();
@@ -457,16 +554,30 @@ function WatchlistDetail({ id, titleId, closeButtonRef }) {
   const max = Math.max(...trend, 1);
   const matchingSignals = watchlistMatches(w).slice(0, 3);
   return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(ModalHead, { kicker: w.created ? "Watchlist \xB7 New" : "Watchlist", title: w.name, representative: !!w.representative, titleId, closeButtonRef }), /* @__PURE__ */ React.createElement("div", { className: "modal-body" }, w.created && /* @__PURE__ */ React.createElement("div", { className: "empty", style: { marginBottom: 14 } }, "Created watchlist. Keyword matching runs against the current signal stream. Trend builds as new signals arrive."), /* @__PURE__ */ React.createElement("div", { className: "grid g-3", style: { gap: 12 } }, /* @__PURE__ */ React.createElement("div", { className: "panel stat" }, /* @__PURE__ */ React.createElement("div", { className: "stat-label" }, "Matches"), /* @__PURE__ */ React.createElement("div", { className: "stat-value", style: { fontSize: 26 } }, w.matches)), /* @__PURE__ */ React.createElement("div", { className: "panel stat" }, /* @__PURE__ */ React.createElement("div", { className: "stat-label" }, "Keywords"), /* @__PURE__ */ React.createElement("div", { className: "stat-value", style: { fontSize: 26 } }, w.keywords)), /* @__PURE__ */ React.createElement("div", { className: "panel stat" }, /* @__PURE__ */ React.createElement("div", { className: "stat-label" }, "7-day trend"), /* @__PURE__ */ React.createElement("div", { className: "spark", style: { marginTop: 8 } }, trend.map((v, i) => /* @__PURE__ */ React.createElement("span", { key: i, style: { height: v / max * 24 + 3 + "px" } }))))), /* @__PURE__ */ React.createElement("h3", { className: "mono", style: { fontSize: 10, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: ".16em", marginTop: 18, marginBottom: 6 } }, "Matching signals"), matchingSignals.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "empty" }, "No matching signals in the current stream."), matchingSignals.map((s) => /* @__PURE__ */ React.createElement("div", { key: s.id, style: { padding: "8px 12px", border: "1px solid var(--line-2)", borderRadius: 8, marginBottom: 6 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12.5, fontWeight: 500 } }, s.title), /* @__PURE__ */ React.createElement("div", { className: "mono", style: { fontSize: 10.5, color: "var(--ink-4)", marginTop: 2 } }, s.id, " \xB7 ", s.source)))), /* @__PURE__ */ React.createElement("div", { className: "modal-foot" }, /* @__PURE__ */ React.createElement("button", { className: "btn ghost", onClick: () => {
-    toast("Watchlist digest sent (demo)", "brass");
+    copyModalText(`# Watchlist digest
+Watchlist: ${w.name}
+Matches: ${w.matches}
+Keywords: ${watchlistKeywords(w).join(", ")}
+
+Matching signals:
+${matchingSignals.map((s) => `- ${s.id}: ${s.title}`).join("\n") || "- No matching signals in the current stream."}`, toast, "Watchlist digest copied");
     closeModal();
-  } }, "Send digest"), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: () => toast("Configuration saved") }, "Edit")));
+  } }, "Copy digest"), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: () => toast("Configuration saved locally") }, "Save config")));
 }
 function RadarDetail({ id, titleId, closeButtonRef }) {
   const r = RADAR.find((x) => x.issue === id);
   const { closeModal, toast } = useStore();
   if (!r) return /* @__PURE__ */ React.createElement(ModalHead, { kicker: "Issue", title: "Not found", titleId, closeButtonRef });
   return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(ModalHead, { kicker: "Attention radar issue", title: r.issue, representative: !!r.representative, titleId, closeButtonRef }), /* @__PURE__ */ React.createElement("div", { className: "modal-body" }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 12 } }, /* @__PURE__ */ React.createElement(Att, { level: r.att }), /* @__PURE__ */ React.createElement("span", { className: "tag" }, r.sources, " contributing sources")), /* @__PURE__ */ React.createElement("p", { style: { color: "var(--ink-2)", marginTop: 0 } }, r.reason), /* @__PURE__ */ React.createElement("h3", { className: "mono", style: { fontSize: 10, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: ".16em", marginTop: 18, marginBottom: 8 } }, "Momentum (7 days)"), /* @__PURE__ */ React.createElement("div", { className: "spark", style: { height: 40 } }, [3, 4, 5, 4, 6, 7, Math.round(r.momentum * 10)].map((v, i) => /* @__PURE__ */ React.createElement("span", { key: i, style: { height: v * 3 + 4 + "px" } }))), /* @__PURE__ */ React.createElement("h3", { className: "mono", style: { fontSize: 10, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: ".16em", marginTop: 18, marginBottom: 8 } }, "Suggested actions"), /* @__PURE__ */ React.createElement("ul", { style: { margin: 0, paddingLeft: 18, color: "var(--ink-2)" } }, /* @__PURE__ */ React.createElement("li", null, "Draft Executive Brief for Director, Digital Policy"), /* @__PURE__ */ React.createElement("li", null, "Monitor for Estimates references"), /* @__PURE__ */ React.createElement("li", null, "Coordinate with Procurement lead"))), /* @__PURE__ */ React.createElement("div", { className: "modal-foot" }, /* @__PURE__ */ React.createElement("button", { className: "btn primary", onClick: () => {
-    toast("Issue brief drafted", "brass");
+    copyModalText(`# Issue brief
+Issue: ${r.issue}
+Portfolio: ${r.portfolio}
+Momentum: ${Math.round(r.momentum * 100)}
+
+Suggested actions:
+- Draft Executive Brief for Director, Digital Policy
+- Monitor for Estimates references
+- Coordinate with Procurement lead`, toast, "Issue brief copied");
     closeModal();
   } }, /* @__PURE__ */ React.createElement(Icon, { name: "brief", size: 13 }), " Draft issue brief")));
 }

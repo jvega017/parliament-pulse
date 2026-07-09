@@ -19,15 +19,15 @@ function TopClock() {
   );
 }
 
-function DesignStateBanner() {
-  const key = "pp-demo-ack";
-  const [visible, setVisible] = React.useState(() => { try { return localStorage.getItem(key) !== "1"; } catch { return true; } });
+function BetaNotice() {
+  const key = "pp-beta-ack";
+  const [visible, setVisible] = React.useState(() => safeGetLocalStorage(key) !== "1");
   if (!visible) return null;
   return (
     <div className="design-banner" role="status">
       <Icon name="signal" size={14} stroke="var(--gold)" />
-      <span><strong>Demo mode.</strong> Signals shown are illustrative fixtures, not live parliamentary analysis. The production deployment runs the same components against live RSS and APH feeds. </span>
-      <button aria-label="Dismiss notice" onClick={() => { try { localStorage.setItem(key, "1"); } catch {} setVisible(false); }}>×</button>
+      <span><strong>Live beta.</strong> Official APH feeds poll on the Live page. Enriched signals, radar and workflow queues are representative until the enrichment pipeline is connected. </span>
+      <button aria-label="Dismiss notice" onClick={() => { safeSetLocalStorage(key, "1"); setVisible(false); }}>×</button>
     </div>
   );
 }
@@ -112,8 +112,8 @@ function Sidebar({ page, onNavigate, mobileOpen }) {
   // Compute the display value without side effects so the lazy initialiser is pure if dev StrictMode is added.
   const [streak, setStreak] = React.useState(() => {
     const today = new Date().toISOString().slice(0, 10);
-    const last = localStorage.getItem("pp-last-open-date");
-    const count = parseInt(localStorage.getItem("pp-streak-count") || "0");
+    const last = safeGetLocalStorage("pp-last-open-date");
+    const count = parseInt(safeGetLocalStorage("pp-streak-count", "0") || "0");
     if (last === today) return count || 1;
     const yest = new Date(); yest.setDate(yest.getDate() - 1);
     const yStr = yest.toISOString().slice(0, 10);
@@ -122,13 +122,13 @@ function Sidebar({ page, onNavigate, mobileOpen }) {
   // F5: the localStorage WRITE runs after mount, so render itself cannot double-count or corrupt the streak.
   React.useEffect(() => {
     const today = new Date().toISOString().slice(0, 10);
-    if (localStorage.getItem("pp-last-open-date") === today) return;
-    const count = parseInt(localStorage.getItem("pp-streak-count") || "0");
+    if (safeGetLocalStorage("pp-last-open-date") === today) return;
+    const count = parseInt(safeGetLocalStorage("pp-streak-count", "0") || "0");
     const yest = new Date(); yest.setDate(yest.getDate() - 1);
     const yStr = yest.toISOString().slice(0, 10);
-    const newCount = (localStorage.getItem("pp-last-open-date") === yStr) ? count + 1 : 1;
-    localStorage.setItem("pp-streak-count", String(newCount));
-    localStorage.setItem("pp-last-open-date", today);
+    const newCount = (safeGetLocalStorage("pp-last-open-date") === yStr) ? count + 1 : 1;
+    safeSetLocalStorage("pp-streak-count", String(newCount));
+    safeSetLocalStorage("pp-last-open-date", today);
     setStreak(newCount);
   }, []);
   return (
@@ -177,11 +177,19 @@ function Sidebar({ page, onNavigate, mobileOpen }) {
           </div>
         ))}
       </nav>
+      <div className="side-status" aria-label="System status">
+        <div className="side-status-head">
+          <span className="dot" style={{background:"var(--ok)", boxShadow:"none"}}/>
+          <span>Feeds configured</span>
+        </div>
+        <div>Official RSS proxy configured; runtime health appears on Live</div>
+        <div className="mono">Status: local beta</div>
+      </div>
       <div className="side-foot">
         <div className="avatar">JV</div>
         <div style={{lineHeight:1.2}}>
           <div style={{fontSize:12.5, fontWeight:500}}>Juan Vega</div>
-          <div style={{fontFamily:"var(--mono)", fontSize:10, color:"var(--ink-4)"}}>Prometheus Policy Lab · v0.1 demo</div>
+          <div style={{fontFamily:"var(--mono)", fontSize:10, color:"var(--ink-4)"}}>Prometheus Policy Lab · live beta</div>
         </div>
       </div>
     </aside>
@@ -225,7 +233,7 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
   const [q, setQ] = React.useState("");
   const [open, setOpen] = React.useState(false);
   const [cursor, setCursor] = React.useState(-1);
-  const [isDark, setIsDark] = React.useState(() => localStorage.getItem("pp-theme") !== "light");
+  const [isDark, setIsDark] = React.useState(() => safeGetLocalStorage("pp-theme") !== "light");
   const [focused, setFocused] = React.useState(false);
   const ref = React.useRef(null);
   const searchRef = React.useRef(null);
@@ -401,8 +409,8 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
       </div>
       <div className="top-right">
         <TopClock />
-        <span className="chip clk" onClick={() => navigate("live")} title="Demo build · official feeds configured; live RSS polls on the Live page" style={{borderColor:"color-mix(in srgb, var(--gold) 55%, transparent)", color:"var(--gold)", background:"transparent"}}>
-          <span className="dot" style={{background:"var(--gold)", boxShadow:"none"}}/> Demo · {sourceCounts().total} feeds
+        <span className="chip clk" onClick={() => navigate("live")} title="Official feeds configured; live RSS polls on the Live page" style={{borderColor:"color-mix(in srgb, var(--gold) 55%, transparent)", color:"var(--gold)", background:"transparent"}}>
+          <span className="dot" style={{background:"var(--gold)", boxShadow:"none"}}/> Live beta · {sourceCounts().total} feeds
         </span>
         <button className="btn ghost sm shortcut-btn" title="Go to Live parliament and refresh feeds there" aria-label="Refresh live feeds" onClick={() => {
           requestLiveRefresh();
@@ -410,13 +418,13 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
           if (window.__refreshLiveFeeds) { consumeLiveRefresh(); window.__refreshLiveFeeds(); toast("Refreshing live feeds..."); }
           else toast("Opening Live page to refresh feeds", "brass");
         }}><Icon name="refresh" size={14} /></button>
-        <button className="btn ghost sm" title="Alerts (demo): no alerts backend wired" aria-label="Alerts" onClick={() => toast("Alerts (demo): no alerts backend is wired", "brass")}><Icon name="bell" size={14} /></button>
+        <button className="btn ghost sm" title="Show current priority count" aria-label="Alerts" onClick={() => toast(`${SIGNALS.filter(s => s.attention === "high").length} priority signals currently need review`, "brass")}><Icon name="bell" size={14} /></button>
         <button className="btn primary sm" onClick={() => navigate("briefings")}><Icon name="plus" size={13} /> New brief</button>
         <ShortcutHelp />
         <button className="btn ghost sm" title={isDark ? "Switch to light mode" : "Switch to dark mode"} aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"} onClick={() => {
           const next = isDark ? "light" : "dark";
           document.documentElement.dataset.theme = next;
-          localStorage.setItem("pp-theme", next);
+          safeSetLocalStorage("pp-theme", next);
           setIsDark(!isDark);
         }}><Icon name={isDark ? "sun" : "moon"} size={13} /></button>
       </div>
@@ -464,7 +472,7 @@ function buildBriefSections(s) {
       reason: s.actionReason,
     },
     evidence,
-    provenance: `Signal ID: ${s.id} | Confidence: ${s.confidence}/5 | Human review: ${s.humanReview}`,
+    provenance: `Signal ID: ${s.id} | Representative confidence score: ${s.confidence}/5 | Review status: ${s.humanReview}. Representative workflow trace; not a production processing log.`,
   };
 }
 
@@ -515,7 +523,7 @@ function generateBriefMarkdown(s) {
   const brief = buildBriefSections(s);
   const evidence = brief.evidence.map(e => `- [${e.label}](${e.url})`).join("\n");
   return [
-    `> DRAFT — generated from fixture demonstration data. Not for distribution.`,
+    `> BETA DRAFT — generated from the current Parliament Pulse signal record. Verify source links before distribution.`,
     ``,
     `# Executive Brief — ${brief.title}`,
     `Date: ${brief.meta.date} | Source: ${brief.meta.source} | Priority: ${(brief.meta.attention || "").toUpperCase()}`,
@@ -642,7 +650,7 @@ function Drawer() {
         e.preventDefault();
         const s = SIGNALS.find(x => x.id === signalId);
         if (s) {
-          navigator.clipboard.writeText(generateBriefMarkdown(s))
+          copyToClipboard(generateBriefMarkdown(s))
             .then(() => { generateBrief(s.id, "Executive brief"); toast("Brief copied to clipboard", "brass", { label: "Open briefings", fn: () => navigate("briefings") }); })
             .catch(() => toast("Clipboard unavailable — brief not copied", "error"));
         }
@@ -709,8 +717,8 @@ function Drawer() {
                   <dt>Source group</dt><dd>{s.sourceGroup}</dd>
                   <dt>Authority</dt><dd>{s.sourceAuthority}</dd>
                   <dt>Attention</dt><dd><Att level={s.attention} /></dd>
-                  <dt>Confidence</dt><dd><Conf n={s.confidence} /> <span style={{color:"var(--ink-3)", marginLeft:8, fontFamily:"var(--mono)", fontSize:11}}>{s.confidence}/5</span></dd>
-                  <dt>Human review</dt><dd>{s.humanReview}</dd>
+                  <dt>Confidence</dt><dd><Conf n={s.confidence} /> <span style={{color:"var(--ink-3)", marginLeft:8, fontFamily:"var(--mono)", fontSize:11}}>Representative confidence score: {s.confidence}/5</span></dd>
+                  <dt>Human review</dt><dd>Review status: {s.humanReview === "Required" ? "Not reviewed · policy officer must verify source links before use" : "Optional for internal triage; required before external distribution"}</dd>
                 </dl>
               </div>
               {s.score && (
@@ -746,7 +754,7 @@ function Drawer() {
 
               {s.provenance && s.provenance.length > 0 && (
                 <div className="drawer-section">
-                  <h3>Provenance · how this signal was produced <span className="chip-fixture" style={{verticalAlign:"middle", marginLeft:6}}>Representative</span></h3>
+                  <h3>Representative provenance · target workflow, not a production audit log <span className="chip-fixture" style={{verticalAlign:"middle", marginLeft:6}}>Representative data</span></h3>
                   <div style={{border:"1px solid var(--line-2)", borderRadius:8, overflow:"hidden"}}>
                     {s.provenance.map((p,i) => (
                       <div key={i} style={{display:"grid", gridTemplateColumns:"78px 90px 1fr", gap:10, padding:"8px 12px", fontSize:12, borderBottom: i<s.provenance.length-1 ? "1px solid var(--line)" : 0, background: i%2 ? "var(--panel-hi)" : "transparent"}}>
@@ -804,7 +812,7 @@ function Drawer() {
             </div>
             <div className="drawer-foot">
               <button className="btn primary" onClick={() => {
-                navigator.clipboard.writeText(generateBriefMarkdown(s))
+                copyToClipboard(generateBriefMarkdown(s))
                   .then(() => { generateBrief(s.id, "Executive brief"); toast("Brief copied to clipboard", "brass", { label: "Open briefings", fn: () => navigate("briefings") }); })
                   .catch(() => toast("Clipboard unavailable — brief not copied", "error"));
               }}><Icon name="brief" size={13} /> Generate brief</button>
@@ -825,4 +833,4 @@ function Drawer() {
   );
 }
 
-Object.assign(window, { Sidebar, Topbar, TopClock, SignalCard, Drawer, Att, Conf, DesignStateBanner, EmptyState, SkeletonRow, SkeletonCard, buildBriefSections });
+Object.assign(window, { Sidebar, Topbar, TopClock, SignalCard, Drawer, Att, Conf, BetaNotice, EmptyState, SkeletonRow, SkeletonCard, buildBriefSections });
