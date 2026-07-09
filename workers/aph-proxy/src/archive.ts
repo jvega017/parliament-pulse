@@ -626,6 +626,36 @@ export async function queryMembers(env: Env, params: URLSearchParams): Promise<{
   return { members: rows.results ?? [], total };
 }
 
+// ---- Top signals (composed /state endpoint) ---------------------------------
+// Ordered by attention (high first) then recency. Distinct from queryArchive:
+// no filters, no pagination — just the current top-of-inbox view for the
+// composed /state response.
+
+export interface TopSignalRow {
+  guid: string;
+  title: string;
+  link: string;
+  pub_date: string | null;
+  feed_label: string;
+  source_group: string;
+  kind: string;
+  attention: string | null;
+  confidence: number | null;
+  scoring_explanation: string | null;
+}
+
+export async function queryTopSignals(env: Env, limit = 30): Promise<TopSignalRow[]> {
+  const res = await env.ARCHIVE.prepare(
+    `SELECT guid, title, link, pub_date, feed_label, source_group, kind,
+            attention, confidence, scoring_explanation
+       FROM signals
+       ORDER BY CASE attention WHEN 'high' THEN 0 WHEN 'med' THEN 1 ELSE 2 END,
+                COALESCE(pub_date, first_seen_at) DESC
+       LIMIT ?`,
+  ).bind(limit).all<TopSignalRow>();
+  return res.results ?? [];
+}
+
 // ---- Watchlist 7-day trend --------------------------------------------------
 // Returns signal counts per day for the last 7 days matching any of the given
 // keyword terms. Days with zero matches are included so the chart has a stable

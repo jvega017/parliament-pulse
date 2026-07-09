@@ -5,6 +5,7 @@
 //   GET /healthz/connectors             last connector-check rollup
 //   GET /archive?from=&to=&kind=&q=&source_group=&limit=&offset=
 //   GET /archive/analytics?terms=ai,cyber&from=&to=
+//   GET /state                          composed signals+connectors+alerts+qons, provenance-as-schema
 //   POST /digest/subscribe              {email, watchlists, attention_min}
 //
 // Cron triggers (configured in wrangler.toml):
@@ -31,6 +32,7 @@ import {
 } from "./archive";
 import { ingestQons } from "./hansard";
 import { sendDailyDigest } from "./digest";
+import { buildState } from "./state";
 
 const TTL_SECONDS = 300; // 5 minutes
 // APH's edge WAF 403s non-browser user-agents, so the proxy presents a current
@@ -110,7 +112,7 @@ export default {
     if (url.pathname === "/healthz") {
       return jsonResponse({
         ok: true,
-        version: "0.12.0",
+        version: "0.13.0",
         scoring_engine: "v1.1-deterministic",
         resend_wired: !!env.RESEND_API_KEY,
         digest_from: env.DIGEST_FROM_EMAIL ?? null,
@@ -314,6 +316,45 @@ export default {
         return jsonResponse(result, 200, cors);
       } catch (err) {
         return jsonResponse({ error: "events unavailable" }, 503, cors);
+      }
+    }
+
+    // Composed state view (signals + connectors + alerts + qons), provenance-as-schema.
+    if (url.pathname === "/state") {
+      if (req.method !== "GET") return jsonResponse({ error: "method not allowed" }, 405, cors);
+      const ip = req.headers.get("cf-connecting-ip") ?? "unknown";
+      if (!(await checkRateLimit(env.CACHE, ip, "state", 60, 60))) {
+        return jsonResponse({ error: "rate limit exceeded — max 60/min" }, 429, cors);
+      }
+      const cacheKey = "state:v1";
+      const cached = await env.CACHE.get(cacheKey);
+      if (cached) {
+        return new Response(cached, {
+          headers: {
+            ...SECURITY_HEADERS,
+            ...cors,
+            "content-type": "application/json; charset=utf-8",
+            "cache-control": `public, max-age=${TTL_SECONDS}`,
+            "x-cache": "HIT",
+          },
+        });
+      }
+      try {
+        const state = await buildState(env);
+        const body = JSON.stringify(state);
+        ctx.waitUntil(env.CACHE.put(cacheKey, body, { expirationTtl: TTL_SECONDS }));
+        return new Response(body, {
+          headers: {
+            ...SECURITY_HEADERS,
+            ...cors,
+            "content-type": "application/json; charset=utf-8",
+            "cache-control": `public, max-age=${TTL_SECONDS}`,
+            "x-cache": "MISS",
+          },
+        });
+      } catch (err) {
+        console.error({ endpoint: "/state", error: err instanceof Error ? err.message : err, ts: new Date().toISOString() });
+        return jsonResponse({ error: "state temporarily unavailable" }, 503, cors);
       }
     }
 
