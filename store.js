@@ -137,6 +137,7 @@ function StoreProvider({ children, navigate = () => {
   const closeSignal = React.useCallback(() => setSignalId(null), []);
   const [visibleSignalOrder, setVisibleSignalOrder] = React.useState(null);
   const [signalSearchQuery, setSignalSearchQuery] = React.useState("");
+  const [liveSignals, setLiveSignals] = React.useState({ provenance: "fixture", items: null });
   const pendingLiveRefreshRef = React.useRef(false);
   const requestLiveRefresh = React.useCallback(() => {
     pendingLiveRefreshRef.current = true;
@@ -240,6 +241,8 @@ function StoreProvider({ children, navigate = () => {
     setVisibleSignalOrder,
     signalSearchQuery,
     setSignalSearchQuery,
+    liveSignals,
+    setLiveSignals,
     requestLiveRefresh,
     consumeLiveRefresh,
     navigate,
@@ -266,6 +269,7 @@ function StoreProvider({ children, navigate = () => {
     closeSignal,
     visibleSignalOrder,
     signalSearchQuery,
+    liveSignals,
     requestLiveRefresh,
     consumeLiveRefresh,
     navigate,

@@ -561,8 +561,12 @@ function generateBriefMarkdown(s) {
 }
 
 function Drawer() {
-  const { signalId, openSignal, closeSignal, state, modal, openModal, saveFeedback, archive, addWatchlist, isWatched, saveNote, generateBrief, toast, visibleSignalOrder, navigate } = useStore();
-  const signal = React.useMemo(() => SIGNALS.find(s => s.id === signalId), [signalId]);
+  const { signalId, openSignal, closeSignal, state, modal, openModal, saveFeedback, archive, addWatchlist, isWatched, saveNote, generateBrief, toast, visibleSignalOrder, navigate, liveSignals } = useStore();
+  // Fixture first, then the live /state block: a clicked row's id is a fixture SIGNALS.id
+  // OR a Worker guid, never both, so this is a straightforward either/or lookup.
+  const fixtureSignal = React.useMemo(() => SIGNALS.find(s => s.id === signalId), [signalId]);
+  const liveSignal = React.useMemo(() => (liveSignals?.items || []).find(s => s.id === signalId), [signalId, liveSignals]);
+  const signal = fixtureSignal || liveSignal;
   const [fb, setFb] = React.useState(null);
   const [note, setNote] = React.useState("");
   const [noteSaved, setNoteSaved] = React.useState(false);
@@ -589,14 +593,17 @@ function Drawer() {
   const prevFocusRef = React.useRef(null);
   const closeButtonRef = React.useRef(null);
 
-  // Visible signals (non-archived) — computed early so keyboard deps can reference it
+  // Visible signals (non-archived) — computed early so keyboard deps can reference it.
+  // Includes live items so j/k, archive-advance and the position indicator keep working
+  // when the inbox is showing the live /state block instead of the fixture.
   const visibleSigs = React.useMemo(() => {
-    const fallback = SIGNALS.filter(x => !state.archived[x.id]);
+    const known = liveSignals?.items ? [...SIGNALS, ...liveSignals.items] : SIGNALS;
+    const fallback = known.filter(x => !state.archived[x.id]);
     if (!Array.isArray(visibleSignalOrder) || visibleSignalOrder.length === 0) return fallback;
-    const byId = new Map(SIGNALS.map(x => [x.id, x]));
+    const byId = new Map(known.map(x => [x.id, x]));
     const ordered = visibleSignalOrder.map(id => byId.get(id)).filter(x => x && !state.archived[x.id]);
     return ordered.length ? ordered : fallback;
-  }, [visibleSignalOrder, state.archived]);
+  }, [visibleSignalOrder, state.archived, liveSignals]);
 
   // Sync index ref and scroll drawer to top when signal changes
   React.useEffect(() => {
@@ -661,7 +668,7 @@ function Drawer() {
       }
       if (e.key === "b" && signalId) {
         e.preventDefault();
-        const s = SIGNALS.find(x => x.id === signalId);
+        const s = SIGNALS.find(x => x.id === signalId) || (liveSignals?.items || []).find(x => x.id === signalId);
         if (s) {
           copyToClipboard(generateBriefMarkdown(s))
             .then(() => { generateBrief(s.id, "Executive brief"); toast("Brief copied to clipboard", "brass", { label: "Open briefings", fn: () => navigate("briefings") }); })
@@ -683,10 +690,14 @@ function Drawer() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [signalId, modal, visibleSigs, openSignal, closeSignal, archive, addWatchlist, generateBrief, toast, flushNote, navigate]);
+  }, [signalId, modal, visibleSigs, openSignal, closeSignal, archive, addWatchlist, generateBrief, toast, flushNote, navigate, liveSignals]);
 
   const on = !!signal;
   const s = signal || {};
+  // Provenance of what THIS drawer is showing, not the block-wide fetch state: a fixture
+  // row must always keep its fixture chip even while the /state block itself is live.
+  const isLive = !fixtureSignal && !!liveSignal;
+  const itemProvenance = isLive ? "live" : "fixture";
   const watched = signalId ? isWatched(signalId) : false;
   const labels = ["Correct priority","Too high","Too low","Wrong topic","Wrong portfolio","Duplicate","Noise","Needs human review"];
   const sigPos = visibleSigs.findIndex(x => x.id === signalId);
@@ -698,8 +709,10 @@ function Drawer() {
           <>
             <div className="drawer-head">
               <div>
-                <div className="mono" style={{fontSize:10, color:"var(--ink-4)", letterSpacing:".16em", textTransform:"uppercase"}}>
-                  {s.id} · {s.date}
+                <div className="mono" style={{fontSize:10, color:"var(--ink-4)", letterSpacing:".16em", textTransform:"uppercase", display:"flex", alignItems:"center", gap:8}}>
+                  <span>{s.id} · {s.date}</span>
+                  <ProvenanceChip provenance={itemProvenance}
+                    title={isLive ? "This item is from the Worker's live /state endpoint (D1 archive)" : "This item is representative fixture data"} />
                 </div>
                 <h2 className="h-drawer" style={{margin:"4px 0 0", maxWidth:460}}>{s.title}</h2>
               </div>
@@ -717,21 +730,21 @@ function Drawer() {
               <div className="drawer-section">
                 <h3>Recommended action</h3>
                 <div style={{padding:"10px 14px", borderLeft:"3px solid var(--brass)", borderRadius:"0 6px 6px 0", background:"var(--panel-2)"}}>
-                  <div style={{fontWeight:600, color:"var(--ink)"}}>{s.action}</div>
-                  <div style={{color:"var(--ink-2)", fontSize:13, marginTop:4}}>{s.actionReason}</div>
+                  <div style={{fontWeight:600, color:"var(--ink)"}}>{s.action || "—"}</div>
+                  <div style={{color:"var(--ink-2)", fontSize:13, marginTop:4}}>{s.actionReason || "—"}</div>
                 </div>
               </div>
-              <div className="drawer-section"><h3>Summary</h3><p>{s.summary}</p></div>
-              <div className="drawer-section"><h3>Why it matters</h3><p>{s.attentionReason}</p></div>
+              <div className="drawer-section"><h3>Summary</h3><p>{s.summary || "—"}</p></div>
+              <div className="drawer-section"><h3>Why it matters</h3><p>{s.attentionReason || "—"}</p></div>
               <div className="drawer-section">
                 <h3>Signal metadata</h3>
                 <dl className="kv">
-                  <dt>Source</dt><dd>{s.source}</dd>
-                  <dt>Source group</dt><dd>{s.sourceGroup}</dd>
-                  <dt>Authority</dt><dd>{s.sourceAuthority}</dd>
+                  <dt>Source</dt><dd>{s.source || "—"}</dd>
+                  <dt>Source group</dt><dd>{s.sourceGroup || "—"}</dd>
+                  <dt>Authority</dt><dd>{s.sourceAuthority || "—"}</dd>
                   <dt>Attention</dt><dd><Att level={s.attention} /></dd>
-                  <dt>Confidence</dt><dd><Conf n={s.confidence} /> <span style={{color:"var(--ink-3)", marginLeft:8, fontFamily:"var(--mono)", fontSize:11}}>Representative confidence score: {s.confidence}/5</span></dd>
-                  <dt>Human review</dt><dd>Review status: {s.humanReview === "Required" ? "Not reviewed · policy officer must verify source links before use" : "Optional for internal triage; required before external distribution"}</dd>
+                  <dt>Confidence</dt><dd><Conf n={s.confidence} /> <span style={{color:"var(--ink-3)", marginLeft:8, fontFamily:"var(--mono)", fontSize:11}}>{isLive ? "Confidence score" : "Representative confidence score"}: {s.confidence ?? "—"}/5</span></dd>
+                  <dt>Human review</dt><dd>{s.humanReview ? `Review status: ${s.humanReview === "Required" ? "Not reviewed · policy officer must verify source links before use" : "Optional for internal triage; required before external distribution"}` : "—"}</dd>
                 </dl>
               </div>
               {s.score && (
@@ -751,7 +764,7 @@ function Drawer() {
               )}
               <div className="drawer-section">
                 <h3>Evidence · open the actual source</h3>
-                {s.evidence?.map((e,i) => (
+                {s.evidence?.length > 0 ? s.evidence.map((e,i) => (
                   <a key={i} href={e.url} target="_blank" rel="noopener noreferrer" style={{
                     display:"flex", alignItems:"center", gap:10, padding:"10px 12px",
                     border:"1px solid var(--line-2)", borderRadius:8, color:"var(--ink)",
@@ -762,7 +775,7 @@ function Drawer() {
                     <span className="mono" style={{color:"var(--ink-4)", fontSize:11, marginLeft:"auto", maxWidth:240, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>{e.url.replace(/^https?:\/\//,"")}</span>
                     <Icon name="ext" size={12} stroke="var(--ink-3)" />
                   </a>
-                ))}
+                )) : <div style={{color:"var(--ink-4)", fontSize:13}}>— No source link recorded for this item.</div>}
               </div>
 
               {s.provenance && s.provenance.length > 0 && (

@@ -1859,14 +1859,15 @@ function mapWorkerSignalToCard(row) {
 }
 
 function PageSignals() {
-  const { state, setVisibleSignalOrder, signalSearchQuery, setSignalSearchQuery } = useStore();
+  // liveSignals/setLiveSignals live in the store (not local state) so the Drawer can
+  // also resolve a clicked row's item when it came from the live block, not the fixture.
+  const { state, setVisibleSignalOrder, signalSearchQuery, setSignalSearchQuery, liveSignals, setLiveSignals } = useStore();
   const [filter, setFilter] = useState("all");
   const [sort, setSort] = useState("time");
   // Live /state consumer, proof-of-wiring for the composed endpoint (D7). Starts as
   // fixture (the current SIGNALS array) and only switches over once the Worker
   // confirms the block is live and non-empty — the fixture is never replaced on a
   // guess. See workers/aph-proxy/src/state.ts for the provenance contract.
-  const [liveSignals, setLiveSignals] = useState({ provenance: "fixture", items: null });
 
   React.useEffect(() => {
     let cancelled = false;

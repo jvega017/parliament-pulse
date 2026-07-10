@@ -155,6 +155,10 @@ function StoreProvider({ children, navigate = () => {} }) {
   const closeSignal = React.useCallback(() => setSignalId(null), []);
   const [visibleSignalOrder, setVisibleSignalOrder] = React.useState(null);
   const [signalSearchQuery, setSignalSearchQuery] = React.useState("");
+  // Live /state items — shared between PageSignals (fetches) and Drawer (renders on open).
+  // Kept out of `state`/localStorage: this is polled data, not a user preference, so it must
+  // reflect the current fetch rather than a stale persisted snapshot.
+  const [liveSignals, setLiveSignals] = React.useState({ provenance: "fixture", items: null });
   const pendingLiveRefreshRef = React.useRef(false);
   const requestLiveRefresh = React.useCallback(() => { pendingLiveRefreshRef.current = true; }, []);
   const consumeLiveRefresh = React.useCallback(() => {
@@ -253,6 +257,7 @@ function StoreProvider({ children, navigate = () => {} }) {
       signalId, openSignal, closeSignal,
       visibleSignalOrder, setVisibleSignalOrder,
       signalSearchQuery, setSignalSearchQuery,
+      liveSignals, setLiveSignals,
       requestLiveRefresh, consumeLiveRefresh,
       navigate,
       assignOwner, saveFeedback, archive, unarchive,
@@ -262,6 +267,7 @@ function StoreProvider({ children, navigate = () => {} }) {
     modal, openModal, closeModal,
     signalId, openSignal, closeSignal,
     visibleSignalOrder, signalSearchQuery,
+    liveSignals,
     requestLiveRefresh, consumeLiveRefresh,
     navigate, assignOwner, saveFeedback, archive, unarchive,
     addWatchlist, removeWatchlist, isWatched, createWatchlist, generateBrief, addFeed, saveNote,

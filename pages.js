@@ -770,10 +770,9 @@ function mapWorkerSignalToCard(row) {
   };
 }
 function PageSignals() {
-  const { state, setVisibleSignalOrder, signalSearchQuery, setSignalSearchQuery } = useStore();
+  const { state, setVisibleSignalOrder, signalSearchQuery, setSignalSearchQuery, liveSignals, setLiveSignals } = useStore();
   const [filter, setFilter] = useState("all");
   const [sort, setSort] = useState("time");
-  const [liveSignals, setLiveSignals] = useState({ provenance: "fixture", items: null });
   React.useEffect(() => {
     let cancelled = false;
     let inFlight = false;
