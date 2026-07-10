@@ -4,10 +4,9 @@
 // and result snippets where present.
 
 import type { Env } from "./archive";
+import { APH_BROWSER_HEADERS } from "./feeds";
 
 const PARLINFO_BASE = "https://parlinfo.aph.gov.au/parlInfo/search/search.w3p";
-const USER_AGENT =
-  "parliament-pulse/0.12 (+https://github.com/jvega019/parliament-pulse)";
 
 // Extract the asking member from result text.
 // ParlInfo QON titles often follow: "Question: <member> to <target> — <topic>"
@@ -58,7 +57,7 @@ export async function ingestQons(env: Env, sinceIso?: string): Promise<{
   let html = "";
   try {
     const res = await fetch(url, {
-      headers: { "user-agent": USER_AGENT },
+      headers: APH_BROWSER_HEADERS,
       cf: { cacheTtl: 3600, cacheEverything: true },
     });
     if (!res.ok) return { added: 0, attempted: 0 };

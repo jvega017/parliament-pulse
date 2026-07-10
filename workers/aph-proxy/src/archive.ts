@@ -30,8 +30,11 @@ export interface ArchiveRow {
   scoring_explanation: string | null;
 }
 
-const USER_AGENT =
-  "parliament-pulse/0.10 (+https://github.com/jvega019/parliament-pulse)";
+// Historically a bot-identifying UA; switched to APH_BROWSER_HEADERS 2026-07-10
+// after confirming the APH edge WAF 403s the parlinfo.aph.gov.au Bills Digests
+// feed under the bot UA (200 under the browser UA), while the six
+// www.aph.gov.au feeds returned 200 under both. See commit message for the
+// evidence table.
 
 // Naive RSS parser tuned for APH RSS 2.0 + Atom. Pure regex (no DOMParser
 // in workers runtime). Returns at most 50 items per feed.
@@ -96,7 +99,7 @@ export async function pollAndArchive(env: Env): Promise<{
         const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
         const res = await fetch(feedMeta.url, {
           signal: controller.signal,
-          headers: { "user-agent": USER_AGENT, accept: "application/rss+xml, application/xml" },
+          headers: APH_BROWSER_HEADERS,
           cf: { cacheTtl: 60, cacheEverything: true },
         }).finally(() => clearTimeout(timer));
         if (res.status === 429) {
