@@ -1,0 +1,53 @@
+{
+  "aph": {
+    "id": "aph",
+    "label": "Australian Parliament House",
+    "allowedHosts": [
+      "www.aph.gov.au",
+      "aph.gov.au",
+      "parlinfo.aph.gov.au",
+      "parlwork.aph.gov.au",
+      "www.youtube.com"
+    ],
+    "parlinfoSearchBase": "https://parlinfo.aph.gov.au/parlInfo/search/search.w3p",
+    "browserHeaders": {
+      "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,application/rss+xml,*/*;q=0.8",
+      "accept-language": "en-AU,en;q=0.9",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    },
+    "feeds": [
+      { "url": "https://www.aph.gov.au/senate/rss/new_inquiries", "label": "New Senate inquiries", "kind": "inquiry" },
+      { "url": "https://www.aph.gov.au/senate/rss/reports", "label": "Senate reports tabled", "kind": "report" },
+      { "url": "https://www.aph.gov.au/senate/rss/upcoming_hearings", "label": "Upcoming Senate hearings", "kind": "hearing" },
+      { "url": "https://www.aph.gov.au/senate/rss/senators_details", "label": "Senators' details updates", "kind": "signal" },
+      { "url": "https://www.aph.gov.au/house/rss/media_releases", "label": "House media releases", "kind": "signal" },
+      { "url": "https://www.aph.gov.au/house/rss/house_inquiries", "label": "House committee inquiries", "kind": "inquiry" },
+      { "url": "https://www.aph.gov.au/house/rss/joint_inquiries", "label": "Joint committee inquiries", "kind": "inquiry" },
+      {
+        "url": "https://parlinfo.aph.gov.au/parlInfo/feeds/rss.w3p;adv=yes;orderBy=date-eFirst;page=0;query=Date%3AthisYear%20Dataset%3Abillsdgs;resCount=100",
+        "label": "Bills Digests {year}",
+        "kind": "digest"
+      }
+    ],
+    "connectors": [
+      "https://www.aph.gov.au/Help/RSS_feeds",
+      "https://www.aph.gov.au/Parliamentary_Business/Hansard",
+      "https://parlinfo.aph.gov.au/",
+      "https://www.aph.gov.au/Parliamentary_Business/Bills_Legislation/Bills_Search_Results",
+      "https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/HoR/House_Daily_Program",
+      "https://parlwork.aph.gov.au/Senate/DynamicRed",
+      "https://www.aph.gov.au/News_and_Events/Watch_Read_Listen/ParlView/",
+      "https://www.aph.gov.au/News_and_Events/Watch_Read_Listen",
+      "https://www.aph.gov.au/Senators_and_Members",
+      "https://www.aph.gov.au/Parliamentary_Business/Committees",
+      "https://www.aph.gov.au/About_Parliament/Parliamentary_departments/Parliamentary_Library/Research/FlagPost",
+      "https://www.aph.gov.au/About_Parliament/Parliamentary_departments/Parliamentary_Library"
+    ],
+    "sourceGroupRules": [
+      { "group": "Library", "matchesAny": ["library", "flagpost", "digest", "bills digest"] },
+      { "group": "Custom", "matchesAny": ["joint"] },
+      { "group": "Senate", "matchesAny": ["senate", "senators"] }
+    ],
+    "defaultSourceGroup": "House"
+  }
+}

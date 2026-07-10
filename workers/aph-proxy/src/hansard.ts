@@ -4,9 +4,9 @@
 // and result snippets where present.
 
 import type { Env } from "./archive";
-import { APH_BROWSER_HEADERS } from "./feeds";
+import { APH_BROWSER_HEADERS, APH_PARLINFO_SEARCH_BASE } from "./feeds";
 
-const PARLINFO_BASE = "https://parlinfo.aph.gov.au/parlInfo/search/search.w3p";
+const PARLINFO_BASE = APH_PARLINFO_SEARCH_BASE;
 
 // Extract the asking member from result text.
 // ParlInfo QON titles often follow: "Question: <member> to <target> — <topic>"

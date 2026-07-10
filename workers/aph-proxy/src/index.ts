@@ -12,7 +12,7 @@
 //   */30 * * * *   poll APH feeds and upsert into D1
 //   0 0 */14 * *   re-verify the 12 connector URLs every 14 days
 
-import { APH_CONNECTORS } from "./feeds";
+import { APH_CONNECTORS, APH_ALLOWED_HOSTS, APH_BROWSER_HEADERS } from "./feeds";
 import {
   checkConnectors,
   pollAndArchive,
@@ -36,19 +36,11 @@ import { sendDailyDigest } from "./digest";
 import { buildState } from "./state";
 
 const TTL_SECONDS = 300; // 5 minutes
-// APH's edge WAF 403s non-browser user-agents, so the proxy presents a current
-// browser UA. The proxy is allowlisted to APH feed hosts only (ALLOWED_HOSTS),
-// so this is not an open relay.
-const USER_AGENT =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
-
-const ALLOWED_HOSTS = new Set<string>([
-  "www.aph.gov.au",
-  "aph.gov.au",
-  "parlinfo.aph.gov.au",
-  "parlwork.aph.gov.au",
-  "www.youtube.com",
-]);
+// APH's edge WAF 403s non-browser user-agents, so the proxy presents the
+// shared browser header profile (jurisdictions.json via ./feeds). The proxy
+// is allowlisted to APH feed hosts only (ALLOWED_HOSTS), so this is not an
+// open relay.
+const ALLOWED_HOSTS = new Set<string>(APH_ALLOWED_HOSTS);
 
 function corsHeaders(origin: string, allowed: string): HeadersInit {
   const list = allowed
@@ -418,12 +410,7 @@ export default {
     let upstream: Response;
     try {
       upstream = await fetch(parsed.toString(), {
-        headers: {
-          accept:
-            "text/html,application/xhtml+xml,application/xml;q=0.9,application/rss+xml,*/*;q=0.8",
-          "accept-language": "en-AU,en;q=0.9",
-          "user-agent": USER_AGENT,
-        },
+        headers: APH_BROWSER_HEADERS,
         redirect: "manual",
         cf: { cacheTtl: TTL_SECONDS, cacheEverything: true },
       });
@@ -443,12 +430,7 @@ export default {
           return jsonResponse({ error: "upstream redirect limit exceeded" }, 502, cors);
         }
         upstream = await fetch(redirected.toString(), {
-          headers: {
-            accept:
-              "text/html,application/xhtml+xml,application/xml;q=0.9,application/rss+xml,*/*;q=0.8",
-            "accept-language": "en-AU,en;q=0.9",
-            "user-agent": USER_AGENT,
-          },
+          headers: APH_BROWSER_HEADERS,
           redirect: "manual",
           cf: { cacheTtl: TTL_SECONDS, cacheEverything: true },
         });
