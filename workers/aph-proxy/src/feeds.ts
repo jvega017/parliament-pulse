@@ -38,6 +38,17 @@ export const APH_CONNECTORS: string[] = [
   "https://www.aph.gov.au/About_Parliament/Parliamentary_departments/Parliamentary_Library",
 ];
 
+// Browser UA + accept headers that satisfy the APH edge WAF, which 403s
+// bot-identifying User-Agent strings (confirmed via the working /rss proxy
+// path in index.ts). Shared by /rss and the connector health-check cron so
+// both stay in sync with a single source instead of drifting independently.
+export const APH_BROWSER_HEADERS: Record<string, string> = {
+  accept: "text/html,application/xhtml+xml,application/xml;q=0.9,application/rss+xml,*/*;q=0.8",
+  "accept-language": "en-AU,en;q=0.9",
+  "user-agent":
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+};
+
 export function sourceGroupFor(label: string): string {
   const lower = label.toLowerCase();
   if (lower.includes("library") || lower.includes("flagpost") || lower.includes("digest") || lower.includes("bills digest")) return "Library";

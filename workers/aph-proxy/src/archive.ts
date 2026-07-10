@@ -1,7 +1,7 @@
 // Archive ingest + query layer for Parliament Pulse.
 // Cron pollers write into D1; the /archive HTTP endpoint reads from it.
 
-import { APH_FEEDS, type FeedMeta, sourceGroupFor } from "./feeds";
+import { APH_FEEDS, type FeedMeta, sourceGroupFor, APH_BROWSER_HEADERS } from "./feeds";
 import { scoreForArchive, matchAlertRules, type AlertRule, type NewItem } from "./workerScoring";
 
 export interface Env {
@@ -251,9 +251,13 @@ export async function checkConnectors(env: Env, urls: string[]): Promise<{
   const results: Array<{ url: string; ok: boolean; status: number; error?: string }> = [];
   for (const url of urls) {
     try {
+      // GET (not HEAD) with the same browser UA/accept headers as the working
+      // /rss proxy path — the APH edge WAF 403s both HEAD requests and the
+      // bot-identifying UA this check previously sent. Response body is never
+      // read below, so this costs nothing extra over a HEAD request.
       const res = await fetch(url, {
         method: "GET",
-        headers: { "user-agent": USER_AGENT },
+        headers: APH_BROWSER_HEADERS,
         redirect: "follow",
         cf: { cacheTtl: 0 },
       });

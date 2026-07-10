@@ -18,7 +18,7 @@ import type {
 } from "./stateContract";
 
 const ORIGIN = "d1:parliament-pulse-archive";
-const WORKER_VERSION = "0.13.0";
+const WORKER_VERSION = "0.14.0";
 
 function degradedNote(err: unknown): string {
   return err instanceof Error ? err.message : "unknown error";

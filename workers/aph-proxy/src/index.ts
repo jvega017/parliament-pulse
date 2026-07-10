@@ -112,7 +112,7 @@ export default {
     if (url.pathname === "/healthz") {
       return jsonResponse({
         ok: true,
-        version: "0.13.0",
+        version: "0.14.0",
         scoring_engine: "v1.1-deterministic",
         resend_wired: !!env.RESEND_API_KEY,
         digest_from: env.DIGEST_FROM_EMAIL ?? null,
