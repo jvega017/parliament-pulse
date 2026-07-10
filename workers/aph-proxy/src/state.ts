@@ -15,10 +15,12 @@ import type {
   ConnectorsBlock,
   AlertsBlock,
   QonsBlock,
+  ThreadsBlock,
+  ThreadItem,
 } from "./stateContract";
 
 const ORIGIN = "d1:parliament-pulse-archive";
-const WORKER_VERSION = "0.14.0";
+const WORKER_VERSION = "0.15.0";
 
 function degradedNote(err: unknown): string {
   return err instanceof Error ? err.message : "unknown error";
@@ -78,16 +80,53 @@ async function buildQonsBlock(env: Env, now: string): Promise<QonsBlock> {
   }
 }
 
+// Top N threads by item_count (most repeat coverage first), then recency.
+// Each row's member signal ids come from a small per-thread follow-up query
+// (thread counts are low, so this is cheap); provenance is 'derived' because
+// the block is composed from two tables, not a single direct row read.
+async function buildThreadsBlock(env: Env, now: string): Promise<ThreadsBlock> {
+  try {
+    const res = await env.ARCHIVE.prepare(
+      `SELECT thread_id, title, item_count, first_seen_at, last_seen_at
+         FROM threads
+        ORDER BY item_count DESC, last_seen_at DESC
+        LIMIT 15`,
+    ).all<{ thread_id: string; title: string; item_count: number; first_seen_at: string; last_seen_at: string }>();
+    const rows = res.results ?? [];
+    if (rows.length === 0) {
+      return { provenance: "fixture", fetched_at: now, origin: ORIGIN, items: [], note: "threads table returned no rows" };
+    }
+    const items: ThreadItem[] = [];
+    for (const row of rows) {
+      const memberRes = await env.ARCHIVE.prepare(
+        `SELECT signal_guid FROM signal_threads WHERE thread_id = ?`,
+      ).bind(row.thread_id).all<{ signal_guid: string }>();
+      items.push({
+        thread_id: row.thread_id,
+        title: row.title,
+        item_count: row.item_count,
+        first_seen_at: row.first_seen_at,
+        last_seen_at: row.last_seen_at,
+        signal_guids: (memberRes.results ?? []).map((m) => m.signal_guid),
+      });
+    }
+    return { provenance: "derived", fetched_at: now, origin: ORIGIN, items };
+  } catch (err) {
+    return { provenance: "fixture", fetched_at: now, origin: ORIGIN, items: [], note: degradedNote(err) };
+  }
+}
+
 export async function buildState(env: Env): Promise<StateResponse> {
   const now = new Date().toISOString();
-  const [signals, connectors, alerts, qons] = await Promise.all([
+  const [signals, connectors, alerts, qons, threads] = await Promise.all([
     buildSignalsBlock(env, now),
     buildConnectorsBlock(env, now),
     buildAlertsBlock(env, now),
     buildQonsBlock(env, now),
+    buildThreadsBlock(env, now),
   ]);
   return {
     meta: { generated_at: now, worker_version: WORKER_VERSION, schema: "state-v1" },
-    blocks: { signals, connectors, alerts, qons },
+    blocks: { signals, connectors, alerts, qons, threads },
   };
 }

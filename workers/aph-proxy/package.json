@@ -1,6 +1,6 @@
 {
   "name": "aph-proxy",
-  "version": "0.14.0",
+  "version": "0.15.0",
   "private": true,
   "description": "Cloudflare Worker: CORS-enabled, cached proxy for Australian Parliament House RSS feeds.",
   "scripts": {
@@ -8,7 +8,8 @@
     "build": "tsc --noEmit",
     "deploy": "wrangler deploy",
     "lint": "echo 'no lint configured' && exit 0",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types tests/threads.test.mjs"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "4.20260424.1",

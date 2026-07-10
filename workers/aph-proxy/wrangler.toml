@@ -63,6 +63,14 @@ crons = ["*/30 * * * *", "0 0 */14 * *", "0 19 * * *"]
 #                      wrangler secret put TVFY_KEY
 #                      Never place TVFY_KEY in [vars] or frontend code.
 #
+# ADMIN_TOKEN        — gates POST /admin/backfill-threads (one-run-per-call
+#                      thread-layer backfill over already-archived signals).
+#                      Endpoint fails closed (401) until this is set.
+#                      wrangler secret put ADMIN_TOKEN
+#                      Trigger: curl -X POST "https://<worker>/admin/backfill-threads?limit=500" \
+#                        -H "x-admin-token: <token>"
+#                      Repeat until the response's `processed` is 0.
+#
 # Rate limits (no secret needed — built into Worker code):
 #   /archive  120 req/min per IP
 #   /bills     60 req/min per IP

@@ -28,6 +28,7 @@ import {
   queryQons,
   queryMembers,
   ingestMembers,
+  backfillThreads,
   type Env,
 } from "./archive";
 import { ingestQons } from "./hansard";
@@ -112,7 +113,7 @@ export default {
     if (url.pathname === "/healthz") {
       return jsonResponse({
         ok: true,
-        version: "0.14.0",
+        version: "0.15.0",
         scoring_engine: "v1.1-deterministic",
         resend_wired: !!env.RESEND_API_KEY,
         digest_from: env.DIGEST_FROM_EMAIL ?? null,
@@ -316,6 +317,24 @@ export default {
         return jsonResponse(result, 200, cors);
       } catch (err) {
         return jsonResponse({ error: "events unavailable" }, 503, cors);
+      }
+    }
+
+    // Admin: one-run-per-call backfill of the thread layer over already-archived
+    // signals. Fails closed by default: disabled until ADMIN_TOKEN is set via
+    // `wrangler secret put ADMIN_TOKEN`, then requires the matching x-admin-token
+    // header. Call repeatedly (?limit=500 default) until `processed` is 0.
+    if (url.pathname === "/admin/backfill-threads" && req.method === "POST") {
+      if (!env.ADMIN_TOKEN || req.headers.get("x-admin-token") !== env.ADMIN_TOKEN) {
+        return jsonResponse({ error: "admin token required" }, 401, cors);
+      }
+      try {
+        const limit = Math.min(parseInt(url.searchParams.get("limit") ?? "500", 10) || 500, 2000);
+        const result = await backfillThreads(env, limit);
+        return jsonResponse(result, 200, cors);
+      } catch (err) {
+        console.error({ endpoint: "/admin/backfill-threads", error: err instanceof Error ? err.message : err, ts: new Date().toISOString() });
+        return jsonResponse({ error: "backfill failed" }, 503, cors);
       }
     }
 

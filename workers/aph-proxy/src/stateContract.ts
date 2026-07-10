@@ -90,6 +90,23 @@ export interface QonsBlock extends StateBlockBase {
   items: QonItem[];
 }
 
+// Thread item: a group of related signals (repeat coverage of the same
+// inquiry, bill, or hearing) surfaced as one row. Always `derived` when
+// populated -- it is computed from the `threads` + `signal_threads` D1
+// tables, never a direct pass-through of a single query's rows.
+export interface ThreadItem {
+  thread_id: string;
+  title: string;
+  item_count: number;
+  first_seen_at: string;
+  last_seen_at: string;
+  signal_guids: string[];
+}
+
+export interface ThreadsBlock extends StateBlockBase {
+  items: ThreadItem[];
+}
+
 export interface StateResponse {
   meta: StateMeta;
   blocks: {
@@ -97,5 +114,8 @@ export interface StateResponse {
     connectors: ConnectorsBlock;
     alerts: AlertsBlock;
     qons: QonsBlock;
+    // Additive, optional: existing consumers that do not know about threads
+    // are unaffected. Added 2026-07-10.
+    threads?: ThreadsBlock;
   };
 }

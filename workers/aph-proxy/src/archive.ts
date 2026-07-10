@@ -3,6 +3,7 @@
 
 import { APH_FEEDS, type FeedMeta, sourceGroupFor, APH_BROWSER_HEADERS } from "./feeds";
 import { scoreForArchive, matchAlertRules, type AlertRule, type NewItem } from "./workerScoring";
+import { assignThread, buildTokenSet, type ThreadCandidate, type ThreadAssignment } from "./threads";
 
 export interface Env {
   CACHE: KVNamespace;
@@ -11,6 +12,7 @@ export interface Env {
   REQUIRE_ACCESS?: string;
   RESEND_API_KEY?: string;
   DIGEST_FROM_EMAIL?: string;
+  ADMIN_TOKEN?: string;
 }
 
 export interface ArchiveRow {
@@ -78,6 +80,107 @@ function pluck(block: string, tag: string): string | null {
     .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
     .replace(/<[^>]+>/g, "")
     .trim();
+}
+
+// ---- Thread layer ------------------------------------------------------------
+// Groups related signals (repeat coverage of the same inquiry/bill/hearing)
+// under a shared thread. See ./threads.ts for the pure tokeniser + matcher;
+// everything here is D1 I/O around that pure core.
+
+const THREAD_CANDIDATE_LIMIT = 500;
+
+async function loadThreadCandidates(env: Env, limit = THREAD_CANDIDATE_LIMIT): Promise<ThreadCandidate[]> {
+  const res = await env.ARCHIVE.prepare(
+    `SELECT thread_id, fingerprint FROM threads ORDER BY last_seen_at DESC LIMIT ?`,
+  ).bind(limit).all<{ thread_id: string; fingerprint: string }>();
+  return (res.results ?? []).map((r) => ({
+    thread_id: r.thread_id,
+    fingerprint: r.fingerprint ? r.fingerprint.split(",").filter(Boolean) : [],
+  }));
+}
+
+async function persistThreadAssignment(
+  env: Env,
+  assignment: ThreadAssignment,
+  guid: string,
+  title: string,
+  now: string,
+): Promise<void> {
+  const fingerprintCsv = assignment.fingerprint.join(",");
+  if (assignment.created) {
+    await env.ARCHIVE.prepare(
+      `INSERT INTO threads (thread_id, fingerprint, title, first_seen_at, last_seen_at, item_count)
+       VALUES (?, ?, ?, ?, ?, 1)
+       ON CONFLICT(thread_id) DO UPDATE SET
+         fingerprint  = excluded.fingerprint,
+         last_seen_at = excluded.last_seen_at,
+         item_count   = threads.item_count + 1`,
+    ).bind(assignment.thread_id, fingerprintCsv, title, now, now).run();
+  } else {
+    await env.ARCHIVE.prepare(
+      `UPDATE threads SET fingerprint = ?, last_seen_at = ?, item_count = item_count + 1 WHERE thread_id = ?`,
+    ).bind(fingerprintCsv, now, assignment.thread_id).run();
+  }
+  await env.ARCHIVE.prepare(
+    `INSERT OR IGNORE INTO signal_threads (signal_guid, thread_id) VALUES (?, ?)`,
+  ).bind(guid, assignment.thread_id).run();
+}
+
+// Assigns one item and keeps the in-memory candidate list in sync so later
+// items in the same poll/backfill batch can join a thread created earlier in
+// that same batch, without a re-query per item.
+async function threadItem(
+  env: Env,
+  candidates: ThreadCandidate[],
+  guid: string,
+  title: string,
+  description: string | null,
+  now: string,
+): Promise<void> {
+  const tokens = buildTokenSet(title, description);
+  const assignment = assignThread(tokens, candidates, `thread:${guid}`);
+  await persistThreadAssignment(env, assignment, guid, title, now);
+  const idx = candidates.findIndex((c) => c.thread_id === assignment.thread_id);
+  if (idx >= 0) candidates[idx] = { thread_id: assignment.thread_id, fingerprint: assignment.fingerprint };
+  else candidates.push({ thread_id: assignment.thread_id, fingerprint: assignment.fingerprint });
+}
+
+// Threads any archived signals that pollAndArchive inserted before this layer
+// existed (or that failed thread assignment at ingest time). Chronological
+// order so earlier items seed threads that later items join, matching how
+// pollAndArchive threads items as they arrive. Idempotent: only processes
+// signals with no row in signal_threads yet, so it is safe to call repeatedly
+// (e.g. in a loop until `processed` comes back 0) to work through a large
+// backlog in bounded batches.
+export async function backfillThreads(env: Env, limit = 500): Promise<{
+  processed: number;
+  threadsCreated: number;
+  threadsJoined: number;
+}> {
+  const res = await env.ARCHIVE.prepare(
+    `SELECT s.guid, s.title, s.description, s.first_seen_at
+       FROM signals s
+       LEFT JOIN signal_threads st ON st.signal_guid = s.guid
+      WHERE st.signal_guid IS NULL
+      ORDER BY s.first_seen_at ASC
+      LIMIT ?`,
+  ).bind(limit).all<{ guid: string; title: string; description: string | null; first_seen_at: string }>();
+  const rows = res.results ?? [];
+
+  const candidates = await loadThreadCandidates(env, 1000);
+  let threadsCreated = 0;
+  let threadsJoined = 0;
+  for (const row of rows) {
+    const tokens = buildTokenSet(row.title, row.description);
+    const assignment = assignThread(tokens, candidates, `thread:${row.guid}`);
+    await persistThreadAssignment(env, assignment, row.guid, row.title, row.first_seen_at);
+    if (assignment.created) threadsCreated += 1; else threadsJoined += 1;
+    const idx = candidates.findIndex((c) => c.thread_id === assignment.thread_id);
+    if (idx >= 0) candidates[idx] = { thread_id: assignment.thread_id, fingerprint: assignment.fingerprint };
+    else candidates.push({ thread_id: assignment.thread_id, fingerprint: assignment.fingerprint });
+  }
+
+  return { processed: rows.length, threadsCreated, threadsJoined };
 }
 
 export async function pollAndArchive(env: Env): Promise<{
@@ -148,6 +251,15 @@ export async function pollAndArchive(env: Env): Promise<{
     console.warn("momentum query failed", momErr instanceof Error ? momErr.message : momErr);
   }
 
+  // Thread candidates loaded once per poll (not per item) and kept in sync
+  // in-memory as items are threaded below, mirroring the momentum map above.
+  let threadCandidates: ThreadCandidate[] = [];
+  try {
+    threadCandidates = await loadThreadCandidates(env);
+  } catch (threadLoadErr) {
+    console.warn("thread candidate load failed", threadLoadErr instanceof Error ? threadLoadErr.message : threadLoadErr);
+  }
+
   // In-poll title deduplication: tracks normalised title hashes across all feeds
   // in this cron run to prevent inserting different-GUID items with identical titles.
   const seenTitleHashes = new Set<string>();
@@ -201,8 +313,16 @@ export async function pollAndArchive(env: Env): Promise<{
           )
           .run();
         if (r.meta?.changes && r.meta.changes > 0) {
-          if (r.meta.last_row_id && r.meta.last_row_id > 0) added += 1;
-          else updated += 1;
+          if (r.meta.last_row_id && r.meta.last_row_id > 0) {
+            added += 1;
+            // Thread only genuinely new rows -- a re-seen item already has a
+            // signal_threads row from when it first arrived.
+            try {
+              await threadItem(env, threadCandidates, item.guid, item.title, item.description, now);
+            } catch (threadErr) {
+              console.warn("thread assignment failed", item.guid, threadErr instanceof Error ? threadErr.message : threadErr);
+            }
+          } else updated += 1;
         }
       }
       perFeed.push({ feed: feed.url, ok: true, new: added, seen: items.length, dedup: dedupSkipped });
