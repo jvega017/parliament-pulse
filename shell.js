@@ -430,8 +430,16 @@ function Conf({ n = 3 }) {
     }
   )));
 }
-function buildBriefSections(s) {
+function buildBriefSections(s, isLive = false) {
+  var _a;
   const evidence = (s.evidence || []).map((e) => ({ label: e.label, url: e.url }));
+  const confidenceLabel = isLive ? "Confidence score" : "Representative confidence score";
+  const provParts = [
+    `Signal ID: ${s.id}`,
+    `${confidenceLabel}: ${(_a = s.confidence) != null ? _a : "\u2014"}/5`
+  ];
+  if (s.humanReview) provParts.push(`Review status: ${s.humanReview}`);
+  provParts.push("Representative workflow trace; not a production processing log.");
   return {
     title: s.title,
     meta: {
@@ -451,7 +459,7 @@ function buildBriefSections(s) {
       reason: s.actionReason
     },
     evidence,
-    provenance: `Signal ID: ${s.id} | Representative confidence score: ${s.confidence}/5 | Review status: ${s.humanReview}. Representative workflow trace; not a production processing log.`
+    provenance: provParts.join(" | ")
   };
 }
 function SignalCard({ s }) {
@@ -615,7 +623,7 @@ function Drawer() {
         e.preventDefault();
         const s2 = SIGNALS.find((x) => x.id === signalId) || ((liveSignals == null ? void 0 : liveSignals.items) || []).find((x) => x.id === signalId);
         if (s2) {
-          copyToClipboard(generateBriefMarkdown(s2)).then(() => {
+          copyToClipboard(generateBriefMarkdown(s2, isLive)).then(() => {
             generateBrief(s2.id, "Executive brief");
             toast("Brief copied to clipboard", "brass", { label: "Open briefings", fn: () => navigate("briefings") });
           }).catch(() => toast("Clipboard unavailable \u2014 brief not copied", "error"));
@@ -684,7 +692,7 @@ function Drawer() {
     setFb(l);
     saveFeedback(s.id, l, "");
   } }, l === "Correct priority" && /* @__PURE__ */ React.createElement(Icon, { name: "check", size: 12, style: { marginRight: 6, verticalAlign: "-2px" } }), l))))), /* @__PURE__ */ React.createElement("div", { className: "drawer-foot" }, /* @__PURE__ */ React.createElement("button", { className: "btn primary", onClick: () => {
-    copyToClipboard(generateBriefMarkdown(s)).then(() => {
+    copyToClipboard(generateBriefMarkdown(s, isLive)).then(() => {
       generateBrief(s.id, "Executive brief");
       toast("Brief copied to clipboard", "brass", { label: "Open briefings", fn: () => navigate("briefings") });
     }).catch(() => toast("Clipboard unavailable \u2014 brief not copied", "error"));

@@ -464,8 +464,15 @@ function Conf({ n = 3 }) {
   );
 }
 
-function buildBriefSections(s) {
+function buildBriefSections(s, isLive = false) {
   const evidence = (s.evidence || []).map(e => ({ label: e.label, url: e.url }));
+  const confidenceLabel = isLive ? "Confidence score" : "Representative confidence score";
+  const provParts = [
+    `Signal ID: ${s.id}`,
+    `${confidenceLabel}: ${s.confidence ?? "—"}/5`,
+  ];
+  if (s.humanReview) provParts.push(`Review status: ${s.humanReview}`);
+  provParts.push("Representative workflow trace; not a production processing log.");
   return {
     title: s.title,
     meta: {
@@ -485,7 +492,7 @@ function buildBriefSections(s) {
       reason: s.actionReason,
     },
     evidence,
-    provenance: `Signal ID: ${s.id} | Representative confidence score: ${s.confidence}/5 | Review status: ${s.humanReview}. Representative workflow trace; not a production processing log.`,
+    provenance: provParts.join(" | "),
   };
 }
 
@@ -670,7 +677,7 @@ function Drawer() {
         e.preventDefault();
         const s = SIGNALS.find(x => x.id === signalId) || (liveSignals?.items || []).find(x => x.id === signalId);
         if (s) {
-          copyToClipboard(generateBriefMarkdown(s))
+          copyToClipboard(generateBriefMarkdown(s, isLive))
             .then(() => { generateBrief(s.id, "Executive brief"); toast("Brief copied to clipboard", "brass", { label: "Open briefings", fn: () => navigate("briefings") }); })
             .catch(() => toast("Clipboard unavailable — brief not copied", "error"));
         }
@@ -838,7 +845,7 @@ function Drawer() {
             </div>
             <div className="drawer-foot">
               <button className="btn primary" onClick={() => {
-                copyToClipboard(generateBriefMarkdown(s))
+                copyToClipboard(generateBriefMarkdown(s, isLive))
                   .then(() => { generateBrief(s.id, "Executive brief"); toast("Brief copied to clipboard", "brass", { label: "Open briefings", fn: () => navigate("briefings") }); })
                   .catch(() => toast("Clipboard unavailable — brief not copied", "error"));
               }}><Icon name="brief" size={13} /> Generate brief</button>
