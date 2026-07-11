@@ -330,6 +330,23 @@ export default {
       }
     }
 
+    // Admin: run one archive poll on demand and return the per-feed results.
+    // Same fail-closed ADMIN_TOKEN gate as backfill-threads. Exists so poll
+    // failures can be diagnosed directly instead of waiting on cron log tails.
+    if (url.pathname === "/admin/poll-now" && req.method === "POST") {
+      if (!env.ADMIN_TOKEN || req.headers.get("x-admin-token") !== env.ADMIN_TOKEN) {
+        return jsonResponse({ error: "admin token required" }, 401, cors);
+      }
+      try {
+        const result = await pollAndArchive(env);
+        return jsonResponse(result, 200, cors);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error({ endpoint: "/admin/poll-now", error: msg, ts: new Date().toISOString() });
+        return jsonResponse({ error: "poll failed", detail: msg }, 503, cors);
+      }
+    }
+
     // Composed state view (signals + connectors + alerts + qons), provenance-as-schema.
     if (url.pathname === "/state") {
       if (req.method !== "GET") return jsonResponse({ error: "method not allowed" }, 405, cors);
