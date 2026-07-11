@@ -51,15 +51,19 @@ function parseFeed(xml: string, feed: FeedMeta): Array<{
   const itemRegex = /<(?:item|entry)\b[\s\S]*?<\/(?:item|entry)>/g;
   const matches = xml.match(itemRegex) ?? [];
   for (const block of matches.slice(0, 50)) {
-    const title = pluck(block, "title");
+    let title = pluck(block, "title");
     let link = pluck(block, "link");
     if (!link) {
       const hrefMatch = block.match(/<link[^>]*href="([^"]+)"/);
       if (hrefMatch && hrefMatch[1]) link = hrefMatch[1];
     }
     const pubText = pluck(block, "pubDate") ?? pluck(block, "updated") ?? pluck(block, "published");
-    const guid = pluck(block, "guid") ?? link ?? `${feed.url}#${title}`;
     const rawDesc = pluck(block, "description") ?? pluck(block, "summary") ?? null;
+    // Fallback: if title is missing, use first 100 chars of description (up to first newline)
+    if (!title && rawDesc) {
+      title = rawDesc.split('\n')[0].substring(0, 100).trim();
+    }
+    const guid = pluck(block, "guid") ?? link ?? `${feed.url}#${title}`;
     if (!title || !link) continue;
     out.push({
       title: title.trim(),

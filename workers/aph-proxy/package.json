@@ -9,7 +9,7 @@
     "deploy": "wrangler deploy",
     "lint": "echo 'no lint configured' && exit 0",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types tests/threads.test.mjs"
+    "test": "node --experimental-strip-types tests/threads.test.mjs && node --experimental-strip-types tests/archive.test.mjs"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "4.20260424.1",
