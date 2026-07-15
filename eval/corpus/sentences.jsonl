@@ -1,0 +1,507 @@
+{"sentence": "Australia has 26 million people.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "The Australian population grew from 20 million in 2000 to 26 million in 2023.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "Unemployment fell to 3.5% in June 2023.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "The median house price in Sydney is $1.2 million.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "GDP growth reached 3.2% in the first quarter.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "The 2024 federal budget allocated $150 billion to health.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "Net migration added 735,000 people in 2022-23.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "The RBA raised rates by 0.25% in November.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "Carbon emissions fell by 2% year-on-year.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "The carbon price reached $75 per tonne in March.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "Malaria affects approximately 405 million people annually.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "Global GDP is estimated at $96 trillion USD.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "The global population exceeded 8 billion in 2022.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "Average global temperatures have risen 1.1\u00b0C since pre-industrial times.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "The Renewable Energy Target required 33,000 GWh by 2020.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "Income support payments currently total $200 billion per year.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "The aged care sector employed 330,000 people in 2021.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "The NDIS supports approximately 500,000 participants.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "Homelessness affects an estimated 210,000 Australians on any given night.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "Indigenous people comprise 3.2% of the population.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "The poverty rate is approximately 11.8% of the population.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "Mental health affects 1 in 5 Australians annually.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "Diabetes affects approximately 2.9 million Australians.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "Road deaths totalled 1,195 in 2022.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "The Murray-Darling Basin represents 40% of Australia's agricultural output.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "Agriculture contributes 2.2% to national GDP.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "Manufacturing represents 6% of national employment.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "Services account for 82% of economic output.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "Tourism contributed $46.4 billion to the economy in 2022-23.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "Student debt averages $20,300 per graduate.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "School funding allocates $15 billion annually to public education.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "University enrolments reached 1.3 million students in 2023.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "Literacy rates in Australia exceed 99%.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "Broadband reach extended to 98% of population.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "The National Disability Insurance Scheme has a budget of $42 billion per year.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "Tax revenue amounted to $595 billion in 2022-23.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "The budget deficit reached $22 billion in 2022-23.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "Foreign debt stands at $780 billion.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "The Australian dollar traded at 0.67 USD in August 2023.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "Interest rates reached 4.35% at their peak in late 2023.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "Prison population is 45,000 inmates nationally.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "Crime rates declined 8% in the past year.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "Police forces employ 70,000 personnel across Australia.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "Defence spending equals 2.1% of GDP.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "The military has 86,000 active members.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "Renewable energy now provides 32% of electricity generation.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "Coal power generation fell to 52% of total supply.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "Water usage in agriculture represents 77% of total consumption.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "The Great Barrier Reef has experienced 7 mass bleaching events.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "Forest cover has declined to 19% of land area.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "The Senate consists of 76 members.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The House of Representatives has 150 members.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "A federal election must be held every three years.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The minimum wage is set at $23.23 per hour.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The Age Pension eligibility age is 67 years.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "Medicare requires a 1% tax on income.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The superannuation guarantee is 11.5% of wages.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The Personal Income Tax-Free Threshold is $18,200.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The top marginal tax rate is 45% for incomes over $180,000.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "Capital Gains Tax exemption applies to principal residence.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The Corporations Act 2001 governs financial services.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The Copyright Act protects original works for the author's lifetime plus 70 years.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The Criminal Code sets penalties for fraud offences.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The Family Law Act 1975 regulates marriage and divorce.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The Privacy Act 1988 establishes data protection principles.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The Competition and Consumer Act 2010 prohibits misleading conduct.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The Environmental Protection and Biodiversity Conservation Act protects listed species.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The Disability Discrimination Act 1992 prohibits discrimination on grounds of disability.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The Sex Discrimination Act 1984 covers gender-based discrimination.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The Racial Discrimination Act 1975 prohibits discrimination based on race.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The Age Discrimination Act 2004 applies to employment.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The Fair Work Act 2009 regulates employment relations.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The National Education Agreement specifies school funding arrangements.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The Higher Education Support Act sets student contribution bands.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The Health Insurance Act 1973 regulates health funds.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The Therapeutic Goods Administration regulates medicines and devices.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The Aged Care Quality Standards are mandatory for all aged care providers.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The National Disability Insurance Scheme Act 2013 established the NDIS.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The National Housing Accord commits $10 billion to affordable housing.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The Biodiversity Conservation Act 2016 replaced endangered species legislation.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The Preventing Animal Cruelty Act sets penalties for animal abuse.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "According to research by Dr Helen Smith from ANU, economic growth has slowed.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "As reported by The Guardian, unemployment rates have risen in recent months.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "The Department of Treasury estimates that inflation will reach 3.2%.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "The Reserve Bank of Australia warned that interest rates may need further adjustment.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "According to the ABS, net migration reached record levels in 2022-23.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "Climate scientists from the Bureau of Meteorology reported warming trends.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "The CSIRO's latest report indicates declining water availability.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "The Productivity Commission recommended reforms to aged care.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "Research by the Lowy Institute shows declining public trust in institutions.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "The Australian Institute of Criminology found that violent crime has decreased.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "Studies from Harvard University demonstrate the benefits of early education.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "According to Transparency International, Australia ranks 12th on corruption index.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "The World Health Organization reports declining smoking rates globally.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "The International Labour Organization cited Australia's workforce participation rates.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "Business Council of Australia analysis shows investment gaps.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "The National Foundation for Educational Research published a comparative study.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "According to ParlInfo, 142 new bills were introduced in 2023.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "The Treasury's budget papers show revenue projections.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "Studies conducted by RMIT University examined manufacturing productivity.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "The National Farmers Federation warned about drought conditions.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "Data from the Australian Bureau of Statistics indicates growing inequality.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "According to analysis by the Parliamentary Library, homelessness has increased.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "The approach to policy development has evolved significantly in recent decades.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "This section outlines the methodology used in our research.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "The structure of this report follows best practices in government documentation.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "We examined several different aspects of the policy framework.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "The following paragraphs discuss implementation strategies.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "Multiple stakeholders were consulted during the development process.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "This definition reflects current international standards.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "The key concepts are explained below.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "Literature in this field encompasses diverse perspectives.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "A comprehensive review of existing data is presented.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "The findings are discussed in detail in subsequent chapters.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "Various approaches to measuring success have been proposed.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "This analysis builds on previous work in the field.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "The scope of this inquiry extends across multiple domains.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "Different methodological approaches have been employed.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "The current framework reflects lessons learned over time.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "The report addresses several important considerations.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "Implementation of the strategy involves coordination between agencies.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "A definition of key terms is provided in the appendix.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "The data presented here represents our findings.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "This document serves as a reference for future planning.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "Understanding these complexities is essential for effective policy-making.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "The framework described here promotes consistency in application.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "Various factors must be considered in the decision-making process.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "The following sections provide supporting evidence.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "This approach aligns with international best practices.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "The methodology section explains data collection procedures.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "Multiple perspectives were integrated in the analysis.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "The framework has been adapted for local application.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "These considerations inform the recommendations provided.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "The report concludes with a summary of findings.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "Detailed tables and charts follow in the appendices.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "The regulation defines compliance requirements as follows.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "This document outlines procedures and expectations.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "Research shows that Australia has 25,999,999.9999 people (exact count pending census adjustment).", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "Australia has 26,000,000\u00b11 million people (approximately).", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "The population is roughly 26 million, give or take a few million.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "Australia's population: 26 million (this is a rough estimate; actual figures vary).", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "With 26 million people, Australia is about the size of... let me think... Venezuela.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "The minimum wage reaches $23.23, but actually increases each year by indexation.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "Technically speaking, the superannuation guarantee of 11.5% is scheduled to increase.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "The federal tax rate is 45% on incomes exceeding $180,000 (plus 2% Medicare levy).", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "Since 2023, the tax-free threshold has remained at $18,200 (unchanged since 2008).", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "The Senate technically has 76 members unless there is a casual vacancy.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "The House of Representatives contains 150 seats, though this has varied historically.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "Elections are held every three years or sooner if the government calls an early election.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "The 2023-24 budget allocated $150bn to health, but this includes projections for future years.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "GDP growth was 3.2% in Q1, though quarterly growth rates vary significantly.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "Unemployment fell to 3.5%, but this figure excludes underemployed workers.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "Sydney's median house price reached $1.2m, depending on which statistical measure is used.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "Net migration added 735,000 people in 2022-23, marking a historic peak and subsequent adjustment.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "Carbon emissions fell 2% year-on-year from the previous year's levels.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "Renewable energy is now 32% of supply (when counting all sources including hydro from the past).", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "These strategies could potentially increase employment to unprecedented levels.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "It is widely believed that education spending drives economic growth.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "Many experts argue that climate action is essential for long-term prosperity.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "Some researchers suggest that housing policy has influenced demographic patterns.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "It could be argued that aged care funding is inadequate.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "There is some evidence that workplace flexibility improves productivity.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "The government aims to enhance educational outcomes for disadvantaged communities.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "Mental health support should be prioritised in policy settings.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "It is often stated that renewable energy transitions require significant investment.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "Public opinion regarding climate action has been shifting in recent years.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "Evidence suggests that early intervention in childhood development yields better outcomes.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "International experience shows that high tax rates can influence investment decisions.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "Studies have found correlations between education levels and health outcomes.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "Australia's commitment to international agreements includes Paris Climate Agreement targets.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "Some stakeholders advocate for stronger protections in environmental legislation.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "The government has announced plans to review disability support policies.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "It remains uncertain how technological change will affect future employment.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "The Senate comprises 76 members representing the six states and two territories.", "label": "numeric", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "In 2023, government expenditure on defence reached $57.9 billion.", "label": "numeric", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The Department of Education received $31.7 billion in funding for 2023-24.", "label": "numeric", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "Veterans' affairs allocated $27.8 billion across multiple support programs.", "label": "numeric", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "Transport infrastructure funding totalled $12.5 billion.", "label": "numeric", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The aged care sector experienced 18% growth in government funding.", "label": "numeric", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "Mental health services received $6.2 billion in annual allocation.", "label": "numeric", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "Housing assistance programs reached $2.8 billion in commitments.", "label": "numeric", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "Environmental protection spending increased by $4.1 billion.", "label": "numeric", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "Indigenous affairs received $3.5 billion across service delivery.", "label": "numeric", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The Medications Benefit Scheme cost $11.3 billion annually.", "label": "numeric", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "Research and development tax credits exceeded $3.2 billion.", "label": "numeric", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "Infrastructure investment backed $110 billion in commitments through 2030.", "label": "numeric", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "Job creation targets aimed for 1.3 million new positions.", "label": "numeric", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The critical minerals strategy involved $2 billion in investment.", "label": "numeric", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "Cyber security funding reached $2.5 billion over ten years.", "label": "numeric", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "Space sector development allocated $150 million in support.", "label": "numeric", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "Start-up ecosystem funding committed $1.2 billion.", "label": "numeric", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "Female entrepreneurs received $850 million in dedicated support.", "label": "numeric", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The National Broadband Network invested $51 billion total.", "label": "numeric", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "Public hospital funding reached $157.4 billion for 2023-24.", "label": "statute", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The Private Health Insurance Reform established strict community rating provisions.", "label": "statute", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The Closing the Gap legislation committed to health equity targets by 2035.", "label": "statute", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The Strengthening Medicare Taskforce recommended integration of aged care services.", "label": "statute", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "Sector-wide safety and quality standards apply to all aged care facilities.", "label": "statute", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The National Preventive Medicine Strategy targets chronic disease reduction.", "label": "statute", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "Mental health reform included expansion of early intervention services.", "label": "statute", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The Modern Awards system sets minimum wage levels across industries.", "label": "statute", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "Industrial relations reform strengthened protections for casual workers.", "label": "statute", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The Protecting Superannuation Interests Act regulates fund governance.", "label": "statute", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "According to the Department of Social Services, welfare participation rates have fluctuated.", "label": "attribution", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The Australian Institute of Criminology released analysis on recidivism rates.", "label": "attribution", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The Workplace Gender Equality Agency reported on pay equity progress.", "label": "attribution", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "Treasury modelling indicates long-term budget sustainability challenges.", "label": "attribution", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The CSIRO's climate projections inform emissions reduction pathway planning.", "label": "attribution", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The Australian Council of Social Service advocated for welfare payment increases.", "label": "attribution", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The Office of the Parliamentary Counsel reviewed legislative drafting standards.", "label": "attribution", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The Senate Standing Committee on Education examined tertiary access barriers.", "label": "attribution", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The House Committee on Industry and Employment heard industry testimony.", "label": "attribution", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The Joint Committee on Public Accounts reviewed budget compliance.", "label": "attribution", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The National Health and Medical Research Council established research priorities.", "label": "attribution", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The Australian Competition and Consumer Commission investigated market conduct.", "label": "attribution", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The Office of the Australian Information Commissioner addressed privacy concerns.", "label": "attribution", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "ASIC enforcement action targeted misleading financial advice.", "label": "attribution", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The APRA consultation paper addressed prudential requirements.", "label": "attribution", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "Policy implementation requires coordination across multiple government agencies.", "label": "non_claim", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "The following recommendations are based on extensive stakeholder consultation.", "label": "non_claim", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "This assessment considers both immediate and long-term implications.", "label": "non_claim", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "The framework outlined below reflects current policy principles.", "label": "non_claim", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "Effective implementation depends on adequate resourcing and commitment.", "label": "non_claim", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "These measures are designed to enhance system efficiency and effectiveness.", "label": "non_claim", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "The review process involved consultation with key stakeholders.", "label": "non_claim", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "Monitoring and evaluation mechanisms are essential for policy success.", "label": "non_claim", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "The following section details implementation timelines and milestones.", "label": "non_claim", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "Policy objectives align with national priorities and international commitments.", "label": "non_claim", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "Transition arrangements support affected parties during the implementation phase.", "label": "non_claim", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "Capacity building is a key component of this reform agenda.", "label": "non_claim", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "Regulatory frameworks will be updated to reflect these changes.", "label": "non_claim", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "Risk mitigation strategies are embedded in the implementation plan.", "label": "non_claim", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "Success metrics have been established to track progress toward objectives.", "label": "non_claim", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "Performance reporting will occur on a quarterly basis.", "label": "non_claim", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "Stakeholder engagement continues throughout the implementation period.", "label": "non_claim", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "The provisions in this Act take precedence over conflicting state legislation.", "label": "non_claim", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "Compliance with these standards is mandatory for all service providers.", "label": "non_claim", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "The Secretary has authority to issue guidance on implementation.", "label": "non_claim", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "Funding mechanisms ensure sustainable delivery of services.", "label": "non_claim", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "The government is committed to evidence-based policymaking approaches.", "label": "non_claim", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "The Department will establish advisory committees to support implementation.", "label": "non_claim", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "This initiative builds on previous policy reforms and learnings.", "label": "non_claim", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "The Senate has 76 voting members, a number that has remained consistent since 1901.", "label": "adversarial", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "Government expenditure on defence reached $57.9 billion, though this varies by fiscal year accounting.", "label": "adversarial", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "The critical minerals strategy involved $2 billion in investment commitments (subject to appropriation).", "label": "adversarial", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "Mental health services received $6.2 billion in annual allocation, yet funding gaps remain.", "label": "adversarial", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "The NBN invested $51 billion total across all construction phases and technology types.", "label": "adversarial", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "Housing assistance programs reached $2.8 billion in commitments across multiple years.", "label": "adversarial", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "This policy is designed to address longstanding inequities in service delivery.", "label": "adversarial", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "Reform initiatives aim to modernise governance structures and improve accountability.", "label": "adversarial", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "Evidence suggests that integrated service delivery can reduce administrative burden.", "label": "adversarial", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "International experience demonstrates the value of collaborative policy approaches.", "label": "adversarial", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "The consultation process revealed diverse stakeholder perspectives on the proposed changes.", "label": "adversarial", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "Best practice indicators suggest alignment with OECD country standards.", "label": "adversarial", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "Some jurisdictions have implemented similar frameworks with measurable success.", "label": "adversarial", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "The pathway forward requires sustained commitment to reform objectives.", "label": "adversarial", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "These arrangements reflect Australia's obligations under international treaties.", "label": "adversarial", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "Disability Support Pension recipients number approximately 850,000.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "The Australia-Japan trade value reached $72 billion in 2022-23.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "Solar panel installations grew by 45% year-on-year.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "Water restrictions affected 2.3 million Australians in drought-affected regions.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "International student enrolments reached 715,000 in 2023.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "The average Australian household income is $97,000.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "Rental stress affects 18% of renters nationally.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "The Gig Economy employs approximately 2 million Australians.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "Public debt reached $697 billion as of June 2023.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "The current account deficit was $27.3 billion in 2022-23.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "Infant mortality rate is 3.3 per 1,000 live births.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "Life expectancy in Australia is 83.1 years.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "The gender pay gap is 13.3% in Australia.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "Indigenous unemployment rate stands at 9.8%.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "Alcohol consumption per capita is 9.2 litres per year.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "Obesity affects 28% of adults over 18.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "One in four Australians report asthma diagnosis.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "Cardiovascular disease causes 29% of all deaths.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "Suicide rates are 11.5 per 100,000 population.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "Female participation in parliament is 36%.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "The public sector employs 1.8 million people.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "Energy prices increased 30% over two years.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "One in eight Australians experience domestic violence.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "Gaming revenue reached $16.2 billion.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "The construction industry employed 1.3 million in 2023.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "Local government employs 247,000 staff.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "Vehicle registrations numbered 13.7 million.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "Mobile phone penetration exceeds 112% of population.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "Fast food consumption occurs 4.5 times per month on average.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "Volunteer participation rate is 34% of Australians.", "label": "numeric", "should_detect": true, "domain": "reference"}
+{"sentence": "The Social Security Act 1991 establishes entitlement to income support payments.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The Crimes Act 1914 (Cth) sets Commonwealth criminal penalties.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The Workplace Gender Equality Act 2012 requires reporting by employers.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The Modern Slavery Act 2018 mandates supply chain transparency.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The Privacy Amendment (Notifiable Data Breaches) Act requires breach notification.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The NDIS Quality and Safeguards Commission regulates participant safety.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The ASX Listing Rules govern listed company disclosures.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The Financial Sector (Collection of Data) Act 2001 requires RBA reporting.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The Charities Act 2013 regulates deductible gift recipients.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The Consumer Law Regulations specify product safety requirements.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The Corporations Amendment (Guardrails) Act 2024 restricts advice.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The Trusted News Distribution Code applies to media platforms.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The Online Safety Act 2021 regulates harmful content removal.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The National Disaster Risk Reduction Framework sets resilience targets.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The Biosecurity Act 2015 sets import/export controls.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The Environment Protection and Biodiversity Conservation Amendment (Human Rights) Act.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The Telecommunications Act 1997 sets network coverage obligations.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The Australian Consumer Law prohibits unconscionable conduct.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The Customs Act 1901 governs import/export administration.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The International Arbitration Act 1974 enables enforcement of awards.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The Evidence Act 1995 establishes rules for evidence admissibility.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The Public Records Act 1961 requires government document management.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The Occupational Health and Safety Act 2004 mandates safety standards.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The Paid Parental Leave Act 2010 provides 18 weeks at minimum wage.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The Student Identifiers Act 2014 enables tracking of student outcomes.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The National Disability Strategy 2010-2020 commits to inclusion.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The Closing the Gap agreements set measurable Indigenous targets.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The Respect@Work Act 2021 defines workplace sexual harassment.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The Foreign Interference (Countermeasures) Act 2021 applies to foreign agents.", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "The Voluntary Assisted Dying Acts enable end-of-life choice (Victoria, Western Australia, South Australia).", "label": "statute", "should_detect": true, "domain": "reference"}
+{"sentence": "Research from Melbourne University indicates rising inequality trends.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "The AIHW reports show increasing mental health service utilization.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "Studies by the Grattan Institute recommend tax reform.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "Data from the ABS reveals declining wage growth.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "The World Bank assessed Australia's economic resilience.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "OECD analysis identified skills gaps in technical workforce.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "The United Nations Human Rights Committee reviewed compliance.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "Transparency International rated Australia's anti-corruption efforts.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "The World Economic Forum ranked Australia on competitiveness.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "News Corp analysis indicated media ownership concentration.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "The Guardian investigation revealed corporate tax avoidance patterns.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "ABC Four Corners exposed regulatory failures.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "The Financial Review reported on superannuation charges.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "The Sydney Morning Herald covered housing affordability crisis.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "The Age reported on aged care quality decline.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "The Conversation expert articles discuss climate policy.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "The Brookings Institution analyzed Australian geopolitics.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "The Lowy Poll tracked public opinion on government.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "The Australian think tank issued infrastructure report.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "The Institute of Public Affairs released policy brief.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "The Australian Services Union conducted wage survey.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "The Australian Chamber of Commerce surveyed business confidence.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "The Minerals Council warned on energy transition.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "The Australian Manufacturing Workers' Union called for protections.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "Environmental Justice Australia litigation strategy brief.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "The Stop the Boats campaign reported public support.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "The Every Australian Counts disability advocacy survey.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "The Reconciliation Australia study examined constitutional reform.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "The Human Rights Law Centre analysis of governance reform.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "The Australian Civil Liberties Union statement on surveillance.", "label": "attribution", "should_detect": true, "domain": "reference"}
+{"sentence": "The government response to the inquiry considers multiple factors.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "This section addresses frequently asked questions.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "The following table summarizes key data points.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "Implementation requires careful consideration of trade-offs.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "The consultation period allowed stakeholders to provide feedback.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "Risk assessment identified several potential challenges.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "Transitional arrangements smooth the pathway to change.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "The framework supports innovation and competition.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "These measures reflect evidence-based best practices.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "Compliance requirements are outlined in the regulations.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "The governance structure enables coordination between agencies.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "Outcomes will be reviewed annually against success criteria.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "The roadmap identifies critical milestones and deliverables.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "Stakeholder consultation revealed diverse perspectives.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "The review process considered international experience.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "These principles guide implementation across all sectors.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "The taskforce examined existing infrastructure gaps.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "Change management supports affected workers.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "The procurement process follows government guidelines.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "Accountability measures include quarterly reporting.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "The program targets identified disadvantaged communities.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "Service delivery models emphasize integration.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "The budget allocates resources across multiple programs.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "Pilot programs will test approaches before full rollout.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "The secretariat coordinates between portfolio areas.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "Evidence suggests the approach yields positive outcomes.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "The case studies demonstrate successful implementation elsewhere.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "The recommendations address high-priority gaps.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "Capacity building is essential for success.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "The performance indicators track progress toward goals.", "label": "non_claim", "should_detect": false, "domain": "reference"}
+{"sentence": "Australia technically comprises 6 states and 2 territories (though political structures vary).", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "The population is officially 26 million, though this changes daily due to births, deaths, and migration.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "Unemployment fell to 3.5%, though this excludes underemployed and discouraged workers.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "GDP grew 3.2%, but growth rates differ significantly between states and industries.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "The budget allocated $150 billion to health, yet some allocations were conditional on state cooperation.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "Net migration hit 735,000, representing a historic peak that may not be sustained.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "The Senate has 76 seats if fully vacant positions are filled (subject to electoral events).", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "Interest rates reached 4.35%, though they have subsequently changed.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "Renewable energy is 32% of supply, when measured by generation capacity rather than consumption.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "The minimum wage is $23.23, but this is adjusted annually for indexation.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "As one researcher noted, education impacts vary by implementation quality.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "There is widespread agreement that climate action matters, though approaches differ.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "Many believe housing affordability requires substantial intervention.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "It is often stated that innovation requires regulatory flexibility.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "Some argue that welfare dependency is a concern worth addressing.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "Others contend that social safety nets require stronger funding.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "International evidence suggests that tax competition affects investment location decisions.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "Studies indicate correlations between education and health outcomes.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "It could be argued that infrastructure investment yields long-term benefits.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "Observers note that political consensus on reform is difficult to achieve.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "Some stakeholders advocate for stronger consumer protections.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "Industry representatives warn that regulations impose compliance costs.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "Advocates emphasize the importance of stakeholder engagement.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "Critics point out that implementation timelines may be optimistic.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "Economists debate whether fiscal stimulus is warranted.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "Policymakers increasingly recognize the need for evidence-based approaches.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "Researchers continue to study the efficacy of various interventions.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "Communities express concerns about service delivery gaps.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "Reports suggest that digital transformation can improve efficiency.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "Analysis indicates that demographic change will reshape demand for services.", "label": "adversarial", "should_detect": false, "domain": "reference"}
+{"sentence": "The 2024-25 budget contained $25.5 billion for aged care reform.", "label": "numeric", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "Early childhood education reached 95% participation for 4-year-olds.", "label": "numeric", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "School funding increased by $18.2 billion over five years.", "label": "numeric", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The teacher workforce shortage stands at 14,000 positions nationally.", "label": "numeric", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "Graduate employment rates have declined to 76% within three months.", "label": "numeric", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "Tertiary completion rates improved to 58% by age 25.", "label": "numeric", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "STEM graduates comprise 24% of all graduates annually.", "label": "numeric", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "International student economic contribution reached $37 billion.", "label": "numeric", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "Domestic tuition revenue to universities totalled $9.2 billion.", "label": "numeric", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "Research funding reached $18 billion from government sources.", "label": "numeric", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The NHMRC distributed $900 million in competitive grants.", "label": "numeric", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The ARC granted $1.1 billion to research projects.", "label": "numeric", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "Patent applications increased 12% year-on-year.", "label": "numeric", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "Commercialization of university research generated $4.8 billion.", "label": "numeric", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The digital economy comprises 7.8% of GDP.", "label": "numeric", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "E-commerce sales reached $71 billion in 2023.", "label": "numeric", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "Digital skills shortages affect 47% of employers.", "label": "numeric", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "Cybersecurity incidents increased 23% in financial sector.", "label": "numeric", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "Data breaches exposed 8.9 million Australians' personal information.", "label": "numeric", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "Privacy complaints increased 18% in the past year.", "label": "numeric", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The National Plan to Reduce Violence Against Women targeted 2030.", "label": "numeric", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "Intimate partner violence costs economy $21.7 billion annually.", "label": "numeric", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "Respectful relationships training reached 450,000 school students.", "label": "numeric", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "Femicide deaths averaged 1 per week in 2023.", "label": "numeric", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "Sexual assault reports increased 14% following awareness campaigns.", "label": "numeric", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "Family violence restraining orders issued numbered 78,000 annually.", "label": "numeric", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "Culturally and Linguistically Diverse communities comprise 32% of population.", "label": "numeric", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "First Nations peoples represent 3.2% of Australian population.", "label": "numeric", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "Language diversity reached 300+ languages spoken at home.", "label": "numeric", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "Multicultural affairs funding allocated $145 million.", "label": "numeric", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The Gender Equality Act 2024 requires pay equity reporting.", "label": "statute", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The Respectful Workplaces Act mandates harassment prevention training.", "label": "statute", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The Voice Act 2023 establishes consultation mechanisms.", "label": "statute", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The Closing the Gap Act 2021 sets health equity targets.", "label": "statute", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The National Disability Insurance Scheme Amendment 2023 strengthens safeguards.", "label": "statute", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The Aged Care Quality Standards Amendment 2023 introduces unannounced visits.", "label": "statute", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The Residential Tenancies Legislation Amendment 2024 limits rent increases.", "label": "statute", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The Holiday Caravan Legislation establishes consumer protections.", "label": "statute", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The Consumer Data Right expands to new sectors annually.", "label": "statute", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The Digital Duty legislation mandates AI transparency.", "label": "statute", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The Online Harms Bill sets platforms' removal obligations.", "label": "statute", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The News Media Bargaining Code sets payment requirements.", "label": "statute", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The Accountability and Transparency Act 2024 regulates political donations.", "label": "statute", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The Electoral Reform Act 2023 changes voting thresholds.", "label": "statute", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The Freedom of Information Act requires timely disclosure.", "label": "statute", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The Whistleblower Protection Act expanded internal reporting channels.", "label": "statute", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The Public Interest Disclosure Act protects federal servants.", "label": "statute", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The Anti-Corruption Commission established federal corruption authority.", "label": "statute", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The Foreign Investment Review Board raised scrutiny thresholds.", "label": "statute", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The Foreign Acquisitions and Takeovers Regulation sets value limits.", "label": "statute", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The Department of Employment's survey found job satisfaction declining.", "label": "attribution", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "Workplace ombudsman reports identified unfair dismissal patterns.", "label": "attribution", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "Union membership data shows density declining to 11%.", "label": "attribution", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "Collective bargaining coverage declined to 16% of workforce.", "label": "attribution", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "Government analysis indicates wages growth lagging inflation.", "label": "attribution", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "Fair Work Commission decisions favored employers in 67% of disputes.", "label": "attribution", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The Workplace Gender Equality Agency audit found wage gaps increasing.", "label": "attribution", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "SEEK salary data showed tech sector wages outpacing inflation.", "label": "attribution", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The Institute for Market Economics analysed casualization trends.", "label": "attribution", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "McKinsey research on Future of Work Australia identified skills gaps.", "label": "attribution", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "PWC report projected automation could displace 5 million jobs.", "label": "attribution", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "Accenture study found 52% of workers wanted reskilling.", "label": "attribution", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "Deloitte analysis identified industries most affected by disruption.", "label": "attribution", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "EY report on workforce trends warned of demographic challenges.", "label": "attribution", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "Forrester research found 41% of Australians vulnerable to automation.", "label": "attribution", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The Conference Board research on leadership identified gaps.", "label": "attribution", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "HR Magazine surveys showed employee engagement declining.", "label": "attribution", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "Workable research found hiring timelines extended by 35%.", "label": "attribution", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "LinkedIn Workplace Learning Report identified critical skill shortages.", "label": "attribution", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The Productivity Commission analysis recommended workplace reform.", "label": "attribution", "should_detect": true, "domain": "policy_brief"}
+{"sentence": "The following recommendations address implementation gaps.", "label": "non_claim", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "Reform initiatives support achievement of national targets.", "label": "non_claim", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "The Government's commitment to evidence-based policymaking underpins these changes.", "label": "non_claim", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "These measures respond to consultations with industry bodies.", "label": "non_claim", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "The implementation pathway balances urgency with due diligence.", "label": "non_claim", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "Success requires coordination across multiple jurisdictions.", "label": "non_claim", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "Performance measurement frameworks track progress toward objectives.", "label": "non_claim", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "The initiative builds on lessons learned from trial programs.", "label": "non_claim", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "Stakeholder engagement continues throughout the implementation phase.", "label": "non_claim", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "The framework supports both innovation and consumer protection.", "label": "non_claim", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "Transitional support ensures affected workers maintain livelihoods.", "label": "non_claim", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "The governance model emphasizes transparency and accountability.", "label": "non_claim", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "These provisions align with international best-practice standards.", "label": "non_claim", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "The scheme design reflects feedback from affected communities.", "label": "non_claim", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "Revenue impacts are assessed and reported annually.", "label": "non_claim", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "The policy supports Australia's international treaty obligations.", "label": "non_claim", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "Implementation follows staged rollout to manage risks.", "label": "non_claim", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "The approach enables targeted assistance to disadvantaged groups.", "label": "non_claim", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "Monitoring arrangements capture emerging issues early.", "label": "non_claim", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "The model promotes service integration and efficiency.", "label": "non_claim", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "The budget allocation of $25.5 billion represents commitment, subject to parliamentary appropriation.", "label": "adversarial", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "Early childhood education participation at 95% demonstrates uptake, though regional variation exists.", "label": "adversarial", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "Teacher shortages of 14,000 positions reflect data from August 2023; current numbers may differ.", "label": "adversarial", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "Graduate employment at 76% within three months represents a benchmark, though outcomes vary by discipline.", "label": "adversarial", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "These figures indicate trends, though measurement methodologies differ across providers.", "label": "adversarial", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "Reform efforts aim to address system challenges, though stakeholder agreement on solutions varies.", "label": "adversarial", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "The policy builds on best practice, though local adaptation may be necessary.", "label": "adversarial", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "Evidence suggests positive outcomes, though implementation costs may be significant.", "label": "adversarial", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "Industry analysis projects automation impacts, though exact timing remains uncertain.", "label": "adversarial", "should_detect": false, "domain": "policy_brief"}
+{"sentence": "These recommendations reflect expert consensus, though some advocate alternative approaches.", "label": "adversarial", "should_detect": false, "domain": "policy_brief"}

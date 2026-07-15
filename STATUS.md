@@ -88,3 +88,73 @@ wrangler secret put DIGEST_FROM_EMAIL
 
 The app version is read at build time from `apps/web/package.json` and shown
 in the DemoBanner footer. Status page shows both frontend and Worker version.
+
+## Measured Performance & Accuracy (Warrantos Evaluation)
+
+### Corpus Statistics
+
+| Metric | Count |
+|--------|-------|
+| Total sentences | 500+ |
+| Numeric claims | 150 |
+| Statute/legal claims | 50 |
+| Attribution claims | 50 |
+| Non-claims (rhetoric/methodology) | 100 |
+| Adversarial (injection-adjacent, unicode edge cases) | 75 |
+| Real-world policy-brief sentences | 75 |
+
+### Claim Detection Accuracy
+
+Per-class precision/recall/F1 scores are computed via `eval/calibrate.py` against the evaluation corpus. Target: load-bearing claim recall ≥ 0.90 for production readiness.
+
+| Claim Class | Precision | Recall | F1 Score | Status |
+|-------------|-----------|--------|----------|--------|
+| Numeric | - | - | - | Run `python eval/calibrate.py` |
+| Statute | - | - | - | Run `python eval/calibrate.py` |
+| Attribution | - | - | - | Run `python eval/calibrate.py` |
+| Non-claims | - | - | - | Run `python eval/calibrate.py` |
+| Adversarial | - | - | - | Run `python eval/calibrate.py` |
+| **Load-bearing recall** | - | - | - | Run `python eval/calibrate.py` |
+
+### Performance Benchmarks
+
+Throughput and latency measurements from `eval/bench.py`. Budget assertion: 10k-word document must complete in <10 seconds.
+
+| Metric | Value | Status |
+|--------|-------|--------|
+| 1k word document | - | Run `python eval/bench.py` |
+| 10k word document | - | Run `python eval/bench.py` |
+| 100k word document | - | Run `python eval/bench.py` |
+| **10k word budget** | <10s target | Run `python eval/bench.py` |
+| Ledger write throughput | - claims/sec | Run `python eval/bench.py` |
+| Merkle root (10k entries) | - seconds | Run `python eval/bench.py` |
+
+### Security Review
+
+External security review checklist available in `SECURITY.md`. All critical items verified:
+
+- Envelope & attestation: signature binds prose_sha256 and cbom_sha256
+- SSRF & network safety: URL scheme validation, IP whitelist, redirect caps
+- Injection surfaces: subprocess safety, JSON parsing, path containment
+- Append-only ledger: SQLite triggers prevent UPDATE/DELETE
+- Exception handling: all errors logged to stderr, no silent swallows
+- Cryptographic implementation: SHA-256 hashing, constant-time comparison
+
+### How to Generate Metrics
+
+1. **Calibration (accuracy per class):**
+   ```bash
+   cd eval && python3 calibrate.py
+   # Outputs: calibrate_results.json with per-class precision/recall/F1
+   ```
+
+2. **Benchmarks (throughput & latency):**
+   ```bash
+   cd eval && python3 bench.py
+   # Outputs: bench_results.json with throughput and latency measurements
+   ```
+
+3. **CI Integration:**
+   - `.github/workflows/eval.yml` runs calibration and benchmarks on every PR
+   - Results posted as PR comments for easy review
+   - Artifacts uploaded for trend analysis over time

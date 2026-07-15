@@ -1,0 +1,153 @@
+name: Evaluation & Benchmarks
+
+on:
+  push:
+    branches:
+      - main
+      - claude/**
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  calibrate:
+    name: Claim Detection Calibration
+    runs-on: ubuntu-latest
+    continue-on-error: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Run calibration
+        working-directory: ./eval
+        run: |
+          python3 calibrate.py
+        continue-on-error: true
+
+      - name: Upload calibration results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: calibrate-results
+          path: eval/calibrate_results.json
+
+      - name: Comment calibration results on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const resultsPath = path.join(process.env.GITHUB_WORKSPACE, 'eval', 'calibrate_results.json');
+
+            if (!fs.existsSync(resultsPath)) {
+              console.log('No calibration results found.');
+              return;
+            }
+
+            const results = JSON.parse(fs.readFileSync(resultsPath, 'utf8'));
+            const loadBearingRecall = (results.load_bearing_recall * 100).toFixed(1);
+            const productionReady = results.production_ready ? '✅ PASS' : '❌ FAIL';
+
+            let comment = '## Claim Detection Calibration\n\n';
+            comment += `| Metric | Value |\n`;
+            comment += `|--------|-------|\n`;
+            comment += `| Corpus Size | ${results.corpus_size} |\n`;
+            comment += `| Load-Bearing Recall | ${loadBearingRecall}% ${productionReady} |\n`;
+            comment += `| Production Ready | ${results.production_ready ? 'Yes' : 'No'} |\n\n`;
+
+            comment += '### Per-Class Metrics\n\n';
+            for (const [label, metrics] of Object.entries(results.labels)) {
+              const precision = (metrics.precision * 100).toFixed(1);
+              const recall = (metrics.recall * 100).toFixed(1);
+              const f1 = (metrics.f1 * 100).toFixed(1);
+              comment += `#### ${label}\n`;
+              comment += `- Precision: ${precision}%\n`;
+              comment += `- Recall: ${recall}%\n`;
+              comment += `- F1: ${f1}%\n\n`;
+            }
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+  benchmark:
+    name: Performance Benchmarks
+    runs-on: ubuntu-latest
+    continue-on-error: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Run benchmarks
+        working-directory: ./eval
+        run: |
+          python3 bench.py
+        continue-on-error: true
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: bench-results
+          path: eval/bench_results.json
+
+      - name: Comment benchmark results on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const resultsPath = path.join(process.env.GITHUB_WORKSPACE, 'eval', 'bench_results.json');
+
+            if (!fs.existsSync(resultsPath)) {
+              console.log('No benchmark results found.');
+              return;
+            }
+
+            const results = JSON.parse(fs.readFileSync(resultsPath, 'utf8'));
+
+            let comment = '## Performance Benchmarks\n\n';
+
+            comment += '### Check Throughput\n\n';
+            comment += '| Size | Elapsed | Throughput |\n';
+            comment += '|------|---------|------------|\n';
+            for (const result of results.check_throughput) {
+              const size = result.size_words.toLocaleString();
+              const throughput = result.throughput_words_per_sec.toLocaleString();
+              comment += `| ${size} words | ${result.elapsed_seconds}s | ${throughput} w/s |\n`;
+            }
+
+            const budgetResult = results.budget['10k_words'];
+            const budgetStatus = budgetResult.pass ? '✅ PASS' : '❌ FAIL';
+            comment += `\n**Budget Check (10k words):** ${budgetResult.elapsed_seconds}s / ${budgetResult.limit_seconds}s ${budgetStatus}\n\n`;
+
+            comment += '### Ledger Write Throughput\n\n';
+            comment += `- ${results.ledger_writes.total_claims.toLocaleString()} claims in ${results.ledger_writes.elapsed_seconds}s\n`;
+            comment += `- **${Math.round(results.ledger_writes.throughput_claims_per_sec).toLocaleString()} claims/sec**\n\n`;
+
+            comment += '### Merkle Root Generation\n\n';
+            comment += `- ${results.merkle_root.num_entries.toLocaleString()} entries: ${results.merkle_root.elapsed_seconds}s\n`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
