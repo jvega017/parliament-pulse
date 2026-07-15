@@ -59,13 +59,14 @@ def simulate_detection(sentence):
     sentence_lower = sentence.lower()
 
     # Qualifiers that reduce confidence (common in adversarial/non-claim sentences)
+    # Note: removed 'indicate', 'targets', 'estimate' as they appear in legitimate claims
     hedge_phrases = [
         'may', 'might', 'could', 'perhaps', 'seems', 'appears', 'suggests',
         'though', 'however', 'but', 'yet', 'subject to', 'approximately',
-        'roughly', 'estimate', 'roughly', 'varies', 'depending on',
+        'roughly', 'varies', 'depending on',
         'differs', 'differ', 'variation', 'unclear', 'uncertain',
-        'reflects', 'indicate', 'aims', 'targets', 'aims to',
-        'somewhat', 'relatively', 'fairly', 'somewhat', 'to be',
+        'reflects', 'aims', 'aims to',
+        'somewhat', 'relatively', 'fairly', 'to be',
         'remains', 'pending', 'contingent', 'conditional',
         'alternative', 'debate', 'argue', 'contend', 'advocate',
         'if', 'when', 'unless', 'except', 'while'
@@ -101,7 +102,11 @@ def simulate_detection(sentence):
         'set', 'establish', 'define', 'comprises', 'consists',
         'amendment', 'legislation', 'bill', 'parliament', 'senate',
         'mandate', 'provision', 'eligible', 'entitled', 'eligible',
-        'threshold', 'qualify', 'approval', 'license', 'permission'
+        'threshold', 'qualify', 'approval', 'license', 'permission',
+        'govern', 'rules', 'policy', 'requirements', 'standards',
+        'reform', 'agreement', 'administration', 'taskforce',
+        'specifies', 'apply', 'regulates', 'regulating', 'strengthened',
+        'expansion', 'protections', 'integration', 'directive'
     ]
     if any(word in sentence_lower for word in statute_keywords):
         # Statute claims are strong unless heavily hedged
@@ -118,7 +123,10 @@ def simulate_detection(sentence):
         'institute', 'council', 'board', 'committee', 'university',
         'warn', 'alert', 'announce', 'reveal', 'discover', 'identify',
         'published', 'issued', 'released', 'announced', 'presented',
-        'evidence', 'findings', 'results', 'conclusion', 'determined'
+        'evidence', 'findings', 'results', 'conclusion', 'determined',
+        'cited', 'assessed', 'rated', 'exposed', 'tracked', 'briefed',
+        'brief', 'addressed', 'analyzed', 'examined', 'discussed',
+        'covered', 'papers', 'projections', 'strategy', 'statement'
     ]
     if any(phrase in sentence_lower for phrase in attribution_phrases):
         # Attribution claims are less affected by hedging
