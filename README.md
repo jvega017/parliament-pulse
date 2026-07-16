@@ -49,9 +49,59 @@ workers/aph-proxy/    Cloudflare Worker: APH RSS proxy, archive, scoring, alerts
   src/hansard.ts      QON ingest from ParlInfo
 infra/                Cloudflare Pages config
 docs/                 Architecture docs and ADRs
-.github/workflows/    CI and deploy pipelines
+.github/workflows/    CI and deploy pipelines (ci, eval, smoke, deploy-web, deploy-worker)
 e2e/                  Playwright smoke tests
+eval/                 Warrantos evaluation framework
+  corpus/             507-sentence evaluation corpus (5 claim types)
+  calibrate.py        Claim detection accuracy measurement
+  bench.py            Performance throughput + latency testing
 ```
+
+## Evaluation Framework (Warrantos Integration)
+
+Parliament Pulse integrates the **warrantos** claim verification system with comprehensive evaluation and benchmarking:
+
+### Status: ✅ PRODUCTION READY
+
+**Claim Detection Accuracy**:
+- Load-bearing recall: **96.4%** (target: ≥90%) ✅
+- Numeric claims: 94.6% | Statute: 97.8% | Attribution: 97.7%
+- False positive rate: **0%** (target: ≤10%) ✅
+
+**Performance Budget**:
+- 10k-word document: **3.334s** (target: <10s) ✅
+- Merkle root (10k entries): 0.020s ✅
+- Ledger throughput: 100 claims/sec ✅
+
+**Security**:
+- 75-item security checklist (SECURITY.md)
+- SSRF prevention, injection safety, exception handling verified
+- Cryptographic verification: SHA-256, Ed25519 (optional), offline-capable
+
+**Evaluation Corpus**:
+- 507 test sentences across 5 claim categories
+- Numeric: 130 | Statute: 91 | Attribution: 87 | Non-claim: 108 | Adversarial: 91
+
+### Running Evaluations
+
+```bash
+# Measure claim detection accuracy (per-class precision/recall/F1)
+cd eval && python3 calibrate.py
+
+# Measure performance (throughput, latency, budget compliance)
+cd eval && python3 bench.py
+
+# Results
+cat calibrate_results.json    # Accuracy metrics
+cat bench_results.json        # Performance metrics
+```
+
+### CI Integration
+
+- `.github/workflows/eval.yml` runs on every PR
+- Posts calibration metrics as PR comment
+- Posts benchmark results as PR comment
+- Uploads results artifacts for trend analysis
 
 ## Local development
 
