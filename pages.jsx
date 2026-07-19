@@ -438,7 +438,7 @@ function PageOverview() {
           <div className="cs-stat-label">Priority signals</div>
           <div className="cs-kpi cs-count-up">{priority.length}<span className="unit">{priority.length > 0 ? "to triage" : "clear"}</span></div>
           <div className="stat-meta" style={{marginTop:8, display:"flex", alignItems:"center", gap:10}}>
-            <span style={{color:"var(--ink-3)"}}>{priority.length + rest.length} signals today · {SIGNALS.filter(s => state.archived[s.id]).length}/{SIGNALS.length} actioned</span>
+            <span style={{color:"var(--ink-3)"}}>{priority.length + rest.length} signals in view · {SIGNALS.filter(s => state.archived[s.id]).length}/{SIGNALS.length} actioned</span>
             {priority.length > 0 && <button className="btn ghost sm" style={{marginLeft:"auto"}} onClick={() => document.getElementById("priority-panel")?.scrollIntoView({behavior:"smooth", block:"start"})}>Triage now →</button>}
           </div>
         </div>
@@ -495,13 +495,13 @@ function PageOverview() {
             <div className="panel-section">
               <div className="panel-section-head">
                 <h2 className="panel-section-title">What changed</h2>
-                <span className="panel-kicker" style={{marginLeft:"auto"}}>Since 17:00 yesterday</span>
+                <span className="panel-kicker" style={{marginLeft:"auto"}}>Representative set · 24 Apr 2026</span>
               </div>
               <div style={{marginBottom:12, paddingBottom:12, borderBottom:"1px solid var(--rule-2)", fontSize:12, color:"var(--ink-3)"}}>
                 {Object.keys(state.archived).length > 0
                   ? `You actioned ${Object.keys(state.archived).length} signal${Object.keys(state.archived).length !== 1 ? "s" : ""} this session.`
                   : "No signals actioned yet this session."}{" "}
-                {SIGNALS.length} new signals today.
+                {SIGNALS.length} signals in this representative set.
               </div>
               <div className="timeline">
                 <div className="tl-item"><div className="tl-time">08:15 · Senate</div><div className="tl-body">New inquiry opened: <button className="linklike" onClick={()=>openModal("inquiry","Commonwealth procurement governance (new)")}>Digital procurement governance</button></div></div>
