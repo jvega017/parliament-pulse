@@ -176,16 +176,18 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, []);
+  const liveSignals = useLiveState("signals");
   const results = React.useMemo(() => {
     if (!q.trim()) return null;
     const term = q.toLowerCase();
-    const sig = SIGNALS.filter((s) => s.title.toLowerCase().includes(term) || s.summary.toLowerCase().includes(term) || s.id.toLowerCase().includes(term));
+    const sigSource = liveSignals.items || SIGNALS;
+    const sig = sigSource.filter((s) => (s.title || "").toLowerCase().includes(term) || (s.summary || "").toLowerCase().includes(term) || (s.id || "").toLowerCase().includes(term));
     const bills = Object.values(ENTITIES.bills).filter((b) => [b.title, b.ref, b.portfolio, b.stage].some((v) => (v || "").toLowerCase().includes(term)));
     const comm = Object.values(ENTITIES.committees).filter((c) => [c.name, c.portfolio, c.chamber].some((v) => (v || "").toLowerCase().includes(term)));
     const mem = Object.values(ENTITIES.members).filter((m) => [m.name, m.party, (m.roles || []).join(" ")].some((v) => (v || "").toLowerCase().includes(term)));
     const feeds = APH_FEEDS.filter((f) => f.name.toLowerCase().includes(term));
     return { sig, bills, comm, mem, feeds };
-  }, [q]);
+  }, [q, liveSignals.items]);
   const flat = React.useMemo(() => {
     if (!results) return [];
     return [
@@ -478,14 +480,13 @@ function SignalCard({ s }) {
   return /* @__PURE__ */ React.createElement(SignalCardView, { s, archived, feedback, watched, openSignal });
 }
 const SignalCardView = React.memo(function SignalCardView2({ s, archived, feedback, watched, openSignal }) {
-  var _a;
   if (archived) return null;
   return /* @__PURE__ */ React.createElement("div", { className: "signal", "data-att": s.attention, onClick: () => openSignal(s.id), role: "button", tabIndex: 0, "aria-label": "Open signal detail", onKeyDown: (e) => {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
       openSignal(s.id);
     }
-  } }, /* @__PURE__ */ React.createElement("div", { className: "sig-head" }, /* @__PURE__ */ React.createElement("span", { className: "sig-id mono" }, s.isLive || /^https?:/.test(s.id) ? "APH" : s.id), /* @__PURE__ */ React.createElement("span", { className: "sig-source mono" }, "\xB7 ", s.source), /* @__PURE__ */ React.createElement(Att, { level: s.attention }), watched && /* @__PURE__ */ React.createElement("span", { className: "tag brass" }, "Watching"), /* @__PURE__ */ React.createElement("span", { className: "sig-time mono" }, s.time)), /* @__PURE__ */ React.createElement("div", { className: "sig-title serif" }, s.link ? /* @__PURE__ */ React.createElement("a", { href: s.link, target: "_blank", rel: "noopener noreferrer", onClick: (e) => e.stopPropagation(), style: { color: "inherit", textDecoration: "none" }, title: "Open the source at aph.gov.au" }, s.title, " ", /* @__PURE__ */ React.createElement(Icon, { name: "ext", size: 12, style: { verticalAlign: "-1px", opacity: 0.6 } })) : s.isLive ? s.source : s.title), /* @__PURE__ */ React.createElement("div", { className: "sig-sum" }, s.summary.length > 120 ? s.summary.slice(0, 120).replace(/\s\S+$/, "") + "\u2026" : s.summary), /* @__PURE__ */ React.createElement("div", { className: "sig-tags" }, s.tags.map((t, i) => /* @__PURE__ */ React.createElement("span", { key: i, className: "tag " + (t.c || "") }, t.l))), /* @__PURE__ */ React.createElement("div", { className: "sig-action" }, /* @__PURE__ */ React.createElement("span", { className: "sig-action-label" }, "Recommended"), /* @__PURE__ */ React.createElement("span", { className: "sig-action-value" }, s.action), /* @__PURE__ */ React.createElement("span", { className: "mono", title: "Analyst confidence", style: { fontSize: 10.5, color: "var(--ink-4)", letterSpacing: ".04em", whiteSpace: "nowrap" } }, (_a = s.confidence) != null ? _a : "\u2014", "/5")), feedback && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 8, fontSize: 11.5, color: "var(--brass)" } }, /* @__PURE__ */ React.createElement(Icon, { name: "check", size: 12, style: { verticalAlign: "-2px", marginRight: 4 } }), " Feedback: ", feedback.label), watched && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 8, fontSize: 11.5, color: "var(--brass)" } }, /* @__PURE__ */ React.createElement(Icon, { name: "watch", size: 12, style: { verticalAlign: "-2px", marginRight: 4 } }), " On watchlist"));
+  } }, /* @__PURE__ */ React.createElement("div", { className: "sig-head" }, /* @__PURE__ */ React.createElement("span", { className: "sig-id mono" }, s.isLive || /^https?:/.test(s.id) ? "APH" : s.id), /* @__PURE__ */ React.createElement("span", { className: "sig-source mono" }, "\xB7 ", s.source), /* @__PURE__ */ React.createElement(Att, { level: s.attention }), watched && /* @__PURE__ */ React.createElement("span", { className: "tag brass" }, "Watching"), /* @__PURE__ */ React.createElement("span", { className: "sig-time mono" }, s.time)), /* @__PURE__ */ React.createElement("div", { className: "sig-title serif" }, s.link ? /* @__PURE__ */ React.createElement("a", { href: s.link, target: "_blank", rel: "noopener noreferrer", onClick: (e) => e.stopPropagation(), style: { color: "inherit", textDecoration: "none" }, title: "Open the source at aph.gov.au" }, s.title, " ", /* @__PURE__ */ React.createElement(Icon, { name: "ext", size: 12, style: { verticalAlign: "-1px", opacity: 0.6 } })) : s.isLive ? s.source : s.title), /* @__PURE__ */ React.createElement("div", { className: "sig-sum" }, s.summary.length > 120 ? s.summary.slice(0, 120).replace(/\s\S+$/, "") + "\u2026" : s.summary), /* @__PURE__ */ React.createElement("div", { className: "sig-tags" }, s.tags.map((t, i) => /* @__PURE__ */ React.createElement("span", { key: i, className: "tag " + (t.c || "") }, t.l))), /* @__PURE__ */ React.createElement("div", { className: "sig-action" }, s.action ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("span", { className: "sig-action-label" }, "Recommended"), /* @__PURE__ */ React.createElement("span", { className: "sig-action-value" }, s.action)) : /* @__PURE__ */ React.createElement("span", { className: "sig-action-label" }, "Open to triage"), /* @__PURE__ */ React.createElement("span", { className: "mono", title: "Analyst confidence", style: { fontSize: 10.5, color: "var(--ink-4)", letterSpacing: ".04em", whiteSpace: "nowrap" } }, s.confidence == null ? "\u2014" : s.confidence + "/5")), feedback && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 8, fontSize: 11.5, color: "var(--brass)" } }, /* @__PURE__ */ React.createElement(Icon, { name: "check", size: 12, style: { verticalAlign: "-2px", marginRight: 4 } }), " Feedback: ", feedback.label), watched && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 8, fontSize: 11.5, color: "var(--brass)" } }, /* @__PURE__ */ React.createElement(Icon, { name: "watch", size: 12, style: { verticalAlign: "-2px", marginRight: 4 } }), " On watchlist"));
 });
 function generateBriefMarkdown(s, isLive = false) {
   const brief = buildBriefSections(s, isLive);

@@ -1671,8 +1671,8 @@ function PagePatterns() {
       {threads.items && (
         <div className="panel" style={{marginBottom:16}}>
           <div className="panel-head">
-            <h2 className="panel-title">Signal threads · live clustering</h2>
-            <ProvenanceChip provenance="live" title="Thread clustering from the Worker archive" />
+            <h2 className="panel-title">Signal threads · cluster analysis</h2>
+            <ProvenanceChip provenance={threads.displayProvenance} title="The Worker's own clustering of live signals (derived analysis)" />
             <span className="panel-kicker" style={{marginLeft:"auto"}}>{threads.items.length} threads · fetched {fmtFetchedAt(threads.fetchedAt)} AEST</span>
           </div>
           <div className="panel-body">

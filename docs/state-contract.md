@@ -29,7 +29,7 @@ Source: `https://aph-proxy.jvega019.workers.dev/state` (Worker v0.15.0, schema `
 |---|---|---|
 | Signals (31 real) | `blocks.signals.items` | Overview, Signal inbox (already), Attention radar, Watchlists, Briefings |
 | Feed health (11 real) | `blocks.connectors.checks` | Sources page becomes a real status surface |
-| Threads/clusters (16 real) | `blocks.threads.items` | QON patterns / thread views |
+| Threads/clusters (16 real) | `blocks.threads.items` (Worker labels this `derived`, the Worker's own clustering, updated 2026-07-19) | QON patterns / thread views, shown with a Derived chip |
 | Divisions | none (not served) | stay honestly representative, labelled |
 | Questions on notice | `blocks.qons.items` EMPTY (parlinfo 403) | stay representative, labelled; do not assert live |
 | Bills, Committees | no dedicated block (referenced inside signals.source_group) | derive from signals where honest, else representative |

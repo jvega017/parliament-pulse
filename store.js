@@ -173,11 +173,11 @@ function mapOneBlock(block, arrayKey, mapFn) {
     return { provenance: "fixture", fetchedAt: null, items: null };
   }
   const arr = block[arrayKey];
-  const live = block.provenance === "live" && Array.isArray(arr) && arr.length > 0;
+  const usable = (block.provenance === "live" || block.provenance === "derived") && Array.isArray(arr) && arr.length > 0;
   const out = {
     provenance: block.provenance,
     fetchedAt: block.fetched_at || null,
-    items: live ? arr.map(mapFn) : null
+    items: usable ? arr.map(mapFn) : null
   };
   if (block.note != null) out.note = block.note;
   return out;
@@ -211,9 +211,10 @@ function useLiveState(blockName) {
     // mapped array, or null
     fetchedAt: (block == null ? void 0 : block.fetchedAt) || null,
     note: (block == null ? void 0 : block.note) || null,
-    // What the chip shows. "live" only when live items are actually usable;
-    // an empty or missing block can never place a Live chip (invariant 2).
-    displayProvenance: items ? "live" : block && block.provenance !== "live" ? block.provenance : "fixture"
+    // What the chip shows. A block with usable items shows its own provenance
+    // ("live" or "derived"); an empty or missing block can never place a Live chip
+    // (invariant 2) and falls back to "fixture".
+    displayProvenance: items ? block.provenance : block && block.provenance !== "live" && block.provenance !== "derived" ? block.provenance : "fixture"
   };
 }
 function StoreProvider({ children, navigate = () => {

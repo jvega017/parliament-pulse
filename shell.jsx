@@ -267,17 +267,21 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
     return () => document.removeEventListener("mousedown", h);
   }, []);
 
+  // Search the signals the user actually sees: live items when the /state block is
+  // live, else the fixtures (mirrors the Signal inbox source of truth).
+  const liveSignals = useLiveState("signals");
   const results = React.useMemo(() => {
     if (!q.trim()) return null;
     const term = q.toLowerCase();
-    const sig = SIGNALS.filter(s =>
-      s.title.toLowerCase().includes(term) || s.summary.toLowerCase().includes(term) || s.id.toLowerCase().includes(term));
+    const sigSource = liveSignals.items || SIGNALS;
+    const sig = sigSource.filter(s =>
+      (s.title || "").toLowerCase().includes(term) || (s.summary || "").toLowerCase().includes(term) || (s.id || "").toLowerCase().includes(term));
     const bills = Object.values(ENTITIES.bills).filter(b => [b.title, b.ref, b.portfolio, b.stage].some(v => (v || "").toLowerCase().includes(term)));
     const comm = Object.values(ENTITIES.committees).filter(c => [c.name, c.portfolio, c.chamber].some(v => (v || "").toLowerCase().includes(term)));
     const mem = Object.values(ENTITIES.members).filter(m => [m.name, m.party, (m.roles || []).join(" ")].some(v => (v || "").toLowerCase().includes(term)));
     const feeds = APH_FEEDS.filter(f => f.name.toLowerCase().includes(term));
     return { sig, bills, comm, mem, feeds };
-  }, [q]);
+  }, [q, liveSignals.items]);
 
   // Flat ordered list for keyboard cursor
   const flat = React.useMemo(() => {
@@ -537,9 +541,10 @@ const SignalCardView = React.memo(function SignalCardView({ s, archived, feedbac
         {s.tags.map((t, i) => <span key={i} className={"tag " + (t.c || "")}>{t.l}</span>)}
       </div>
       <div className="sig-action">
-        <span className="sig-action-label">Recommended</span>
-        <span className="sig-action-value">{s.action}</span>
-        <span className="mono" title="Analyst confidence" style={{fontSize:10.5, color:"var(--ink-4)", letterSpacing:".04em", whiteSpace:"nowrap"}}>{s.confidence ?? "—"}/5</span>
+        {s.action
+          ? <><span className="sig-action-label">Recommended</span><span className="sig-action-value">{s.action}</span></>
+          : <span className="sig-action-label">Open to triage</span>}
+        <span className="mono" title="Analyst confidence" style={{fontSize:10.5, color:"var(--ink-4)", letterSpacing:".04em", whiteSpace:"nowrap"}}>{s.confidence == null ? "—" : s.confidence + "/5"}</span>
       </div>
       {feedback && (
         <div style={{marginTop:8, fontSize:11.5, color:"var(--brass)"}}>
