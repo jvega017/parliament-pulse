@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Parliament Pulse — asset forge</title>
+<!--
+  Committed build harness. Renders the raster brand assets deterministically via
+  Playwright screenshot at exact viewport sizes. Fonts load from Google Fonts at
+  build time only; this harness is never served to app users, so no CSP/self-host
+  concern applies here. All colours are the frozen Fire House tokens.
+
+  Render (from the vega-command-app dir so 'playwright' resolves; <abs> = repo path):
+    npx playwright screenshot --viewport-size=180,180 "file://<abs>/assets/asset-forge.html#i180" assets/icon-180.png
+    npx playwright screenshot --viewport-size=192,192 "file://<abs>/assets/asset-forge.html#i192" assets/icon-192.png
+    npx playwright screenshot --viewport-size=512,512 "file://<abs>/assets/asset-forge.html#i512" assets/icon-512.png
+    npx playwright screenshot --viewport-size=1200,630 --wait-for-timeout=1500 "file://<abs>/assets/asset-forge.html#og" assets/og.png
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono:wght@600&family=IBM+Plex+Serif:wght@600&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; background: #07080e; overflow: hidden; }
+  .tile { display: none; position: fixed; inset: 0; }
+  .tile.on { display: block; }
+
+  /* --- App icon tiles: canonical flame on the dark rounded-rect, full-bleed --- */
+  .icon-tile { background: #07080e; }
+  .icon-tile svg {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 60vmin; height: 60vmin; display: block;
+  }
+
+  /* --- OpenGraph card: 1200x630 --- */
+  #og .card {
+    position: relative;
+    width: 1200px; height: 630px;
+    background:
+      radial-gradient(1200px 700px at 0% 0%, #14100a 0%, rgba(20,16,10,0) 55%),
+      radial-gradient(1100px 680px at 100% 100%, #1a1108 0%, rgba(26,17,8,0) 55%),
+      #07080e;
+    font-family: "IBM Plex Sans", Arial, sans-serif;
+    overflow: hidden;
+  }
+  #og .frame {
+    position: absolute; inset: 24px;
+    border: 1px solid #ffffff14; border-radius: 4px;
+    pointer-events: none;
+  }
+  #og .lockup {
+    position: absolute; left: 72px; top: 72px;
+    display: flex; align-items: center; gap: 26px;
+  }
+  #og .lockup svg { width: 88px; height: 88px; display: block; }
+  #og .wordmark { display: flex; flex-direction: column; gap: 8px; }
+  #og .title {
+    font-family: "IBM Plex Serif", Georgia, serif; font-weight: 600;
+    font-size: 76px; line-height: 1; color: #f5f0e1; letter-spacing: -0.01em;
+  }
+  #og .kicker {
+    font-family: "IBM Plex Mono", monospace; font-weight: 600;
+    font-size: 20px; color: #8a8e9e; letter-spacing: 0.18em;
+  }
+  #og .lede {
+    position: absolute; left: 72px; top: 330px;
+    max-width: 900px;
+    font-family: "IBM Plex Sans", Arial, sans-serif; font-weight: 400;
+    font-size: 30px; line-height: 1.42; color: #d8d4c5;
+  }
+  #og .chips {
+    position: absolute; left: 72px; top: 520px;
+    display: flex; gap: 16px;
+  }
+  #og .chip {
+    font-family: "IBM Plex Mono", monospace; font-weight: 600;
+    font-size: 18px; letter-spacing: 0.08em;
+    padding: 9px 18px; border: 1px solid; border-radius: 999px;
+    line-height: 1;
+  }
+  #og .chip.teal  { color: #45b3a4; border-color: #45b3a4; }
+  #og .chip.ember { color: #f08a3c; border-color: #f08a3c; }
+  #og .chip.gold  { color: #d9b779; border-color: #d9b779; }
+</style>
+</head>
+<body>
+
+<!-- Canonical flame, reused by every tile -->
+<template id="flame">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 22 22" fill="none">
+    <path d="M11 2 C 7 5, 6 9, 8 12 C 5 11, 4 13, 5 15 C 6 17, 9 18, 11 18 C 13 18, 16 17, 17 15 C 18 13, 17 11, 14 12 C 16 9, 15 5, 11 2 Z" fill="url(#ff-g)" opacity="0.95"/>
+    <path d="M11 6 C 9 8, 9 11, 11 13 C 13 11, 13 8, 11 6 Z" fill="#fff" opacity="0.88"/>
+    <defs><linearGradient id="ff-g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ff9d4f"/><stop offset="100%" stop-color="#f08a3c"/>
+    </linearGradient></defs>
+  </svg>
+</template>
+
+<section class="tile icon-tile" id="i180"></section>
+<section class="tile icon-tile" id="i192"></section>
+<section class="tile icon-tile" id="i512"></section>
+
+<section class="tile" id="og">
+  <div class="card">
+    <div class="frame"></div>
+    <div class="lockup">
+      <span class="mark"></span>
+      <div class="wordmark">
+        <div class="title">Parliament Pulse</div>
+        <div class="kicker">PROMETHEUS POLICY LAB</div>
+      </div>
+    </div>
+    <div class="lede">Australian parliamentary intelligence: live APH signals, provenance-first triage, one-click briefs.</div>
+    <div class="chips">
+      <span class="chip teal">LIVE APH FEEDS</span>
+      <span class="chip ember">PROVENANCE FIRST</span>
+      <span class="chip gold">SOURCE-LINKED</span>
+    </div>
+  </div>
+</section>
+
+<script>
+  // Inject the canonical flame into every mark slot with unique gradient ids
+  // (multiple inline SVGs with the same defs id would collide, so clone + rename).
+  var tpl = document.getElementById("flame").content;
+  var iconHosts = document.querySelectorAll(".icon-tile");
+  iconHosts.forEach(function (host, n) {
+    var svg = tpl.cloneNode(true).querySelector("svg");
+    rename(svg, "ic" + n);
+    host.appendChild(svg);
+  });
+  var ogMark = document.querySelector("#og .mark");
+  if (ogMark) {
+    var svg = tpl.cloneNode(true).querySelector("svg");
+    rename(svg, "og0");
+    ogMark.appendChild(svg);
+  }
+  function rename(svg, suffix) {
+    var grad = svg.querySelector("linearGradient");
+    var id = "ff-" + suffix;
+    grad.setAttribute("id", id);
+    var filled = svg.querySelector('path[fill^="url("]');
+    if (filled) filled.setAttribute("fill", "url(#" + id + ")");
+  }
+
+  // Show only the tile matching the hash, full-bleed.
+  function show() {
+    var id = (location.hash || "#og").slice(1);
+    document.querySelectorAll(".tile").forEach(function (t) {
+      t.classList.toggle("on", t.id === id);
+    });
+  }
+  window.addEventListener("hashchange", show);
+  show();
+</script>
+</body>
+</html>

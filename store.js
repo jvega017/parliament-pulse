@@ -200,6 +200,13 @@ function fmtFetchedAt(iso) {
     return "\u2014";
   }
 }
+function liveStateDegradation(liveState, now = Date.now()) {
+  if (!liveState) return "loading";
+  const { status, fetchedAt } = liveState;
+  if (fetchedAt == null) return status === "error" ? "error" : "loading";
+  if (now - fetchedAt > 30 * 60 * 1e3) return "stale";
+  return "ready";
+}
 function useLiveState(blockName) {
   var _a;
   const { liveState } = useStore();
@@ -246,12 +253,22 @@ function StoreProvider({ children, navigate = () => {
   const [signalSearchQuery, setSignalSearchQuery] = React.useState("");
   const [liveState, setLiveState] = React.useState({
     status: "idle",
-    // idle | loading | ready | error
+    // idle | loading | ready | error (skeleton control; only the initial load shows "loading")
     meta: null,
     // { generated_at, worker_version, schema } passthrough
-    blocks: null
+    blocks: null,
     // { signals, connectors, threads, alerts, qons } mapped, see mapLiveBlocks
+    fetchedAt: null,
+    // ms epoch of the last SUCCESSFUL load; drives the age label and staleness
+    isRefreshing: false,
+    // a background refetch is in flight; the UI stays on cached data, never skeletons
+    lastError: null
+    // ms epoch of the last failed fetch; a background failure is silent (no toast)
   });
+  const etagRef = React.useRef(null);
+  const inFlightRef = React.useRef(false);
+  const fetchedAtRef = React.useRef(null);
+  const mountedRef = React.useRef(true);
   const pendingLiveRefreshRef = React.useRef(false);
   const requestLiveRefresh = React.useCallback(() => {
     pendingLiveRefreshRef.current = true;
@@ -261,37 +278,80 @@ function StoreProvider({ children, navigate = () => {
     pendingLiveRefreshRef.current = false;
     return pending;
   }, []);
-  React.useEffect(() => {
-    let cancelled = false;
-    let inFlight = false;
-    if (location.protocol === "file:") return () => {
-      cancelled = true;
-    };
-    const fetchState = async () => {
-      var _a;
-      if (inFlight) return;
-      inFlight = true;
-      setLiveState((s) => ({ ...s, status: "loading" }));
-      const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 8e3);
-      try {
-        const res = await fetch(`${WORKER_BASE_URL}/state`, { signal: ctrl.signal });
-        if (!res.ok) throw new Error("HTTP " + res.status);
-        const payload = await res.json();
-        if (cancelled) return;
-        setLiveState({ status: "ready", meta: (_a = payload.meta) != null ? _a : null, blocks: mapLiveBlocks(payload.blocks) });
-      } catch (e) {
-        if (!cancelled) setLiveState((s) => ({ ...s, status: "error" }));
-      } finally {
-        clearTimeout(timer);
-        inFlight = false;
+  const doFetch = React.useCallback(async () => {
+    if (location.protocol === "file:") return;
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
+    setLiveState((s) => ({ ...s, status: s.fetchedAt == null ? "loading" : "ready", isRefreshing: true }));
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 8e3);
+    try {
+      const headers = {};
+      if (etagRef.current) headers["If-None-Match"] = etagRef.current;
+      const res = await fetch(`${WORKER_BASE_URL}/state`, { signal: ctrl.signal, headers });
+      if (res.status === 304) {
+        const now2 = Date.now();
+        fetchedAtRef.current = now2;
+        if (mountedRef.current) setLiveState((s) => ({ ...s, status: "ready", isRefreshing: false, fetchedAt: now2, lastError: null }));
+        return;
       }
-    };
-    fetchState();
-    return () => {
-      cancelled = true;
-    };
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const nextEtag = res.headers.get("ETag");
+      const payload = await res.json();
+      const now = Date.now();
+      etagRef.current = nextEtag || null;
+      fetchedAtRef.current = now;
+      if (mountedRef.current) {
+        setLiveState((s) => {
+          var _a;
+          return {
+            ...s,
+            status: "ready",
+            isRefreshing: false,
+            fetchedAt: now,
+            lastError: null,
+            meta: (_a = payload.meta) != null ? _a : null,
+            blocks: mapLiveBlocks(payload.blocks)
+          };
+        });
+      }
+    } catch (e) {
+      if (mountedRef.current) {
+        setLiveState((s) => ({ ...s, status: s.fetchedAt != null ? "ready" : "error", isRefreshing: false, lastError: Date.now() }));
+      }
+      throw e;
+    } finally {
+      clearTimeout(timer);
+      inFlightRef.current = false;
+    }
   }, []);
+  const refreshLiveState = React.useCallback(() => doFetch(), [doFetch]);
+  React.useEffect(() => {
+    if (location.protocol === "file:") return;
+    mountedRef.current = true;
+    doFetch().catch(() => {
+    });
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") doFetch().catch(() => {
+      });
+    }, 5 * 60 * 1e3);
+    const onVisibility = () => {
+      if (document.visibilityState !== "visible") return;
+      const last = fetchedAtRef.current;
+      if (last == null || Date.now() - last > 5 * 60 * 1e3) doFetch().catch(() => {
+      });
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      mountedRef.current = false;
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [doFetch]);
+  React.useEffect(() => {
+    window.refreshLiveState = refreshLiveState;
+    window.__pulseLiveState = liveState;
+  }, [refreshLiveState, liveState]);
   React.useEffect(() => {
     const prev = document.body.style.overflow;
     if (modal || signalId) document.body.style.overflow = "hidden";
@@ -389,6 +449,8 @@ function StoreProvider({ children, navigate = () => {
     liveState,
     requestLiveRefresh,
     consumeLiveRefresh,
+    refreshLiveState,
+    liveStateDegradation,
     navigate,
     assignOwner,
     saveFeedback,
@@ -416,6 +478,7 @@ function StoreProvider({ children, navigate = () => {
     liveState,
     requestLiveRefresh,
     consumeLiveRefresh,
+    refreshLiveState,
     navigate,
     assignOwner,
     saveFeedback,
@@ -729,4 +792,4 @@ Suggested actions:
     closeModal();
   } }, /* @__PURE__ */ React.createElement(Icon, { name: "brief", size: 13 }), " Draft issue brief")));
 }
-Object.assign(window, { StoreProvider, useStore, DetailModal, watchlistKeywords, watchlistMatches, useLiveState, mapWorkerSignalToCard, mapLiveBlocks, fmtFetchedAt });
+Object.assign(window, { StoreProvider, useStore, DetailModal, watchlistKeywords, watchlistMatches, useLiveState, liveStateDegradation, mapWorkerSignalToCard, mapLiveBlocks, fmtFetchedAt });

@@ -473,7 +473,7 @@ function PageOverview() {
       <div className="live-strip g-live-strip" style={{display:"grid", gap:14, alignItems:"center", padding:"12px 16px", marginBottom:16}}>
         <div style={{display:"flex", alignItems:"center", gap:8}}>
           <span style={{width:7, height:7, borderRadius:"50%", background:"var(--ok)"}}/>
-          <span className="mono" style={{fontSize:10.5, letterSpacing:".16em", color:"var(--ok)", fontWeight:600}}>LATEST CONFIGURED SOURCES</span>
+          <span className="mono" style={{fontSize:"var(--t-label)", letterSpacing:".16em", color:"var(--ok)", fontWeight:600}}>LATEST CONFIGURED SOURCES</span>
         </div>
         <div style={{display:"flex", gap:18, fontSize:12.5, color:"var(--ink-2)", alignItems:"center"}}>
           <div><strong style={{color:"var(--ink)"}}>House:</strong> program links available</div>
@@ -539,7 +539,7 @@ function PageOverview() {
                     <div style={{fontSize:11.5, color:"var(--ink-3)"}}>For {b.for} · <span className="mono">{b.at}</span></div>
                   </div>
                   <div style={{display:"flex", alignItems:"center", gap:8}}>
-                    <span className="mono" style={{fontSize:10.5, color: b.ready ? "var(--ok)" : "var(--caution)", textTransform:"uppercase", letterSpacing:".12em"}}>{b.status}</span>
+                    <span className="mono" style={{fontSize:"var(--t-label)", color: b.ready ? "var(--ok)" : "var(--caution)", textTransform:"uppercase", letterSpacing:".12em"}}>{b.status}</span>
                     <button className="btn sm ghost" title="Open the briefings queue" aria-label="Open briefings queue" onClick={() => goto && goto("briefings")}><Icon name="chevron" size={13}/></button>
                   </div>
                 </div>
@@ -646,7 +646,7 @@ function LiveBroadcast({ which, toast }) {
       {mode === "embed" && (
         <button
           onClick={() => setMode("offline")}
-          style={{position:"absolute", top:12, right:12, zIndex:3, fontFamily:"var(--mono)", fontSize:10.5, color:"#fff", background:"rgba(0,0,0,0.55)", border:"1px solid var(--line-bright)", padding:"4px 9px", borderRadius:4, cursor:"pointer", letterSpacing:".08em"}}
+          style={{position:"absolute", top:12, right:12, zIndex:3, fontFamily:"var(--mono)", fontSize:"var(--t-label)", color:"#fff", background:"rgba(0,0,0,0.55)", border:"1px solid var(--line-bright)", padding:"4px 9px", borderRadius:4, cursor:"pointer", letterSpacing:".08em"}}
           title="Show alternate sources if no stream is live"
         >
           NO STREAM?
@@ -1031,7 +1031,7 @@ function PageLive() {
             )}
             {events.map((e, i) => (
               <a key={e.link || e.title + i} href={safeHttpUrl(e.link) || safeHttpUrl(e.sourceUrl) || "#"} target="_blank" rel="noopener noreferrer" className="clk data-row g-live-event" style={{display:"grid", gap:10, borderRadius:6, alignItems:"start", textDecoration:"none", color:"inherit"}}>
-                <div className="mono" style={{fontSize:10.5, color:"var(--ink-4)", paddingTop:2}}>{fmtTime(e.date)}</div>
+                <div className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)", paddingTop:2}}>{fmtTime(e.date)}</div>
                 <div style={{paddingTop:3}}>
                   {e.kind === "division" && <Icon name="flag" size={13} stroke="var(--escalate)"/>}
                   {e.kind === "hearing" && <Icon name="signal" size={13} stroke="var(--teal)"/>}
@@ -1045,7 +1045,7 @@ function PageLive() {
                   <div style={{fontSize:13, color:"var(--ink)", lineHeight:1.4}}>{e.title}</div>
                   <div style={{display:"flex", gap:8, marginTop:6, alignItems:"center", flexWrap:"wrap"}}>
                     <span className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".12em"}}>{e.kind}</span>
-                    <span style={{fontSize:10.5, color:"var(--teal)", fontFamily:"var(--mono)", display:"inline-flex", alignItems:"center", gap:3}}>
+                    <span style={{fontSize:"var(--t-micro)", color:"var(--teal)", fontFamily:"var(--mono)", display:"inline-flex", alignItems:"center", gap:3}}>
                       <Icon name="ext" size={10}/> {e.sourceLabel}
                     </span>
                   </div>
@@ -1054,8 +1054,8 @@ function PageLive() {
             ))}
           </div>
           <div className="panel-foot" style={{flexDirection:"column", alignItems:"flex-start", gap:4}}>
-            <span className="mono" style={{fontSize:10, color:"var(--ink-3)"}}>Live RSS · aph.gov.au via {isLocalHost ? "local CORS proxy (proxy-server.js)" : "Cloudflare Worker proxy"} · refreshes every 2 min</span>
-            <span className="mono" style={{fontSize:10, color:"var(--ink-4)"}}>Last poll: {lastPoll ? fmtTime(lastPoll) : "—"} · Click any item to open source</span>
+            <span className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-3)"}}>Live RSS · aph.gov.au via {isLocalHost ? "local CORS proxy (proxy-server.js)" : "Cloudflare Worker proxy"} · refreshes every 2 min</span>
+            <span className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)"}}>Last poll: {lastPoll ? fmtTime(lastPoll) : "—"} · Click any item to open source</span>
           </div>
         </div>
       </div>
@@ -1138,6 +1138,14 @@ function PageSources() {
             <ProvenanceChip provenance={health.displayProvenance}
               title={health.displayProvenance === "live" ? "Feed health from the Worker's connector checks" : "Health appears after the Worker check runs"} />
           </div>
+          {health.status === "error" && !health.items && (
+            <div className="panel-body">
+              <EmptyState icon="rss" kicker="Feed status unavailable" variant="error">
+                The status service did not respond. Direct links to each official APH feed remain available below.
+              </EmptyState>
+            </div>
+          )}
+          <div className="table-scroll">
           <table className="ds">
             <thead><tr>
               <th>Source</th><th>Group</th><th>Status</th><th>Last</th>
@@ -1150,7 +1158,7 @@ function PageSources() {
                 <tr key={f.id} onClick={() => f.group !== "Custom" && openModal("feed", f.id)}>
                   <td>
                     <div style={{fontWeight:500}}>{f.name}</div>
-                    <div className="mono" style={{fontSize:10.5, color:"var(--ink-4)"}}>{f.url.length > 56 ? f.url.slice(0,56)+"…" : f.url}</div>
+                    <div className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)"}}>{f.url.length > 56 ? f.url.slice(0,56)+"…" : f.url}</div>
                   </td>
                   <td><span className="tag">{f.group}</span></td>
                   <td style={c && !c.ok ? {color:"var(--escalate)"} : undefined}>
@@ -1169,7 +1177,7 @@ function PageSources() {
                 <tr key={c.url}>
                   <td>
                     <div style={{fontWeight:500}}>{c.label}</div>
-                    <div className="mono" style={{fontSize:10.5, color:"var(--ink-4)"}}>{c.url.length > 56 ? c.url.slice(0,56)+"…" : c.url}</div>
+                    <div className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)"}}>{c.url.length > 56 ? c.url.slice(0,56)+"…" : c.url}</div>
                   </td>
                   <td><span className="tag">{c.group}</span></td>
                   <td style={!c.ok ? {color:"var(--escalate)"} : undefined}>{c.ok ? "Live" : `Error ${c.httpStatus ?? ""}`.trim()}</td>
@@ -1181,6 +1189,7 @@ function PageSources() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
 
         <div>
@@ -1295,7 +1304,7 @@ function LiveFeedStrip({ title, items, fetchedAt, emptyText }) {
               <div style={{display:"flex", gap:10, alignItems:"center", flexWrap:"wrap"}}>
                 <span className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".12em"}}>{(s.tags && s.tags[0] && s.tags[0].l) || "item"}</span>
                 <span style={{fontSize:11.5, color:"var(--ink-3)"}}>{s.source}</span>
-                <span className="mono" style={{fontSize:10.5, color:"var(--ink-4)"}}>{s.date}</span>
+                <span className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)"}}>{s.date}</span>
               </div>
             </div>
           ))}
@@ -1325,6 +1334,7 @@ function PageCommittees() {
   };
 
   const CommitteeTable = ({ rows, compact }) => (
+    <div className="table-scroll">
     <table className="ds">
       <thead><tr>
         <th>When</th><th>Type</th><th>Committee</th>
@@ -1347,6 +1357,7 @@ function PageCommittees() {
         })}
       </tbody>
     </table>
+    </div>
   );
 
   return (
@@ -1430,6 +1441,7 @@ function PageBills() {
             <h2 className="panel-title">Tracked bills</h2>
             <span className="panel-kicker">5 of 38 watchlisted</span>
           </div>
+          <div className="table-scroll">
           <table className="ds">
             <thead><tr>
               <th>Ref</th><th>Title</th><th>Stage</th><th>Portfolio</th><th>Digest</th><th>Owner</th><th>Attn</th>
@@ -1452,6 +1464,7 @@ function PageBills() {
               })}
             </tbody>
           </table>
+          </div>
         </div>
 
         <div className="panel">
@@ -1459,7 +1472,7 @@ function PageBills() {
           <div className="panel-body">
             {DIVISIONS.map((d,i) => (
               <div key={d.when + d.bill} className="clk list-row" onClick={() => openModal("division", d)} style={{borderRadius:6}}>
-                <div className="mono" style={{fontSize:10.5, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".12em"}}>{d.when} · {d.chamber} · {d.bill}</div>
+                <div className="mono" style={{fontSize:"var(--t-label)", color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".12em"}}>{d.when} · {d.chamber} · {d.bill}</div>
                 <div style={{fontSize:13, marginTop:2}}>{d.q}</div>
                 <div style={{fontSize:12, color: d.result.startsWith("Agreed") ? "var(--ok)" : "var(--escalate)", marginTop:2}}>{d.result}</div>
               </div>
@@ -1553,7 +1566,7 @@ function PageParliament() {
           <div className="panel-body">
             {DIVISIONS.map((d, i) => (
               <div key={d.when + d.bill} className="clk list-row" onClick={() => openModal("division", d)} style={{borderRadius:6}}>
-                <div className="mono" style={{fontSize:10.5, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".12em"}}>{d.when} · {d.bill}</div>
+                <div className="mono" style={{fontSize:"var(--t-label)", color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".12em"}}>{d.when} · {d.bill}</div>
                 <div style={{fontSize:13, marginTop:2}}>{d.q}</div>
                 <div style={{fontSize:12, color: d.result.startsWith("Agreed") ? "var(--ok)" : "var(--escalate)", marginTop:2}}>{d.result}</div>
               </div>
@@ -1573,7 +1586,7 @@ function PageParliament() {
             ].map((t, i) => (
               <div key={i} style={{padding:"10px 0", borderBottom: i<2 ? "1px solid var(--line)" : 0}}>
                 <div style={{fontSize:13}}>{t}</div>
-                <div className="mono" style={{fontSize:10.5, color:"var(--ink-4)", marginTop:4}}>{["08:04", "Yesterday 16:12", "22 Apr 11:30"][i]} · House News</div>
+                <div className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)", marginTop:4}}>{["08:04", "Yesterday 16:12", "22 Apr 11:30"][i]} · House News</div>
               </div>
             ))}
           </div>
@@ -1639,7 +1652,7 @@ function ThreadRow({ t, byGuid, isLast }) {
               <div style={{display:"flex", gap:10, alignItems:"center", flexWrap:"wrap"}}>
                 <span className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".12em"}}>{(s.tags && s.tags[0] && s.tags[0].l) || "item"}</span>
                 <span style={{fontSize:11, color:"var(--ink-3)"}}>{s.source}</span>
-                <span className="mono" style={{fontSize:10.5, color:"var(--ink-4)"}}>{s.date}</span>
+                <span className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)"}}>{s.date}</span>
               </div>
             </div>
           ))}
@@ -1676,9 +1689,11 @@ function PagePatterns() {
             <span className="panel-kicker" style={{marginLeft:"auto"}}>{threads.items.length} threads · fetched {fmtFetchedAt(threads.fetchedAt)} AEST</span>
           </div>
           <div className="panel-body">
-            {threads.items.map((t, i) => (
-              <ThreadRow key={t.id || i} t={t} byGuid={byGuid} isLast={i === threads.items.length - 1} />
-            ))}
+            {threads.items.length === 0
+              ? <EmptyState icon="pattern" kicker="No threads">Thread detection groups related signals as they accumulate. Nothing has clustered yet.</EmptyState>
+              : threads.items.map((t, i) => (
+                <ThreadRow key={t.id || i} t={t} byGuid={byGuid} isLast={i === threads.items.length - 1} />
+              ))}
           </div>
         </div>
       )}
@@ -1726,7 +1741,7 @@ function PagePatterns() {
           <button className="btn" title="Confirm the analyst classification for this session" onClick={() => { setClusterStatus("Confirmed as coordinated"); toast("Cluster confirmed for review", "brass"); }}><Icon name="check" size={13}/> Confirm as coordinated</button>
           <button className="btn ghost" title="Classify the cluster as coincidence in this session" onClick={() => { setClusterStatus("Marked as coincidence"); toast("Cluster marked as coincidence"); }}>Mark as coincidence</button>
         </div>
-        <div className="mono" style={{fontSize:10.5, color:"var(--ink-3)", marginTop:8, letterSpacing:".08em"}}>Session status: {clusterStatus}</div>
+        <div className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-3)", marginTop:8, letterSpacing:".08em"}}>Session status: {clusterStatus}</div>
       </div>
 
       <div className="panel" style={{marginTop:16}}>
@@ -1802,7 +1817,9 @@ function PageBriefings() {
         <div className="panel">
           <div className="panel-head"><h2 className="panel-title">Queue</h2><span className="panel-kicker">{briefs.length} pending</span></div>
           <div>
-            {briefs.map((b, i) => {
+            {briefs.length === 0 ? (
+              <EmptyState icon="brief" kicker="No briefs yet">Open any signal and choose Generate brief. Your briefs appear here with their evidence links.</EmptyState>
+            ) : briefs.map((b, i) => {
               const id = briefId(b);
               return (
               <div key={id} className="list-row" onClick={() => setSelId(id)} style={{cursor:"pointer", background: selectedId===id ? "var(--panel-hi)" : "transparent", borderLeft: selectedId===id ? "2px solid var(--brass)" : "2px solid transparent"}}>
@@ -1914,11 +1931,17 @@ function PageWatchlists() {
         <div style={{display:"flex", gap:8, alignItems:"center"}}>
           <ProvenanceChip provenance={derived ? "derived" : "fixture"}
             title={derived ? "Keyword matches computed against the live signal stream" : "Representative match counts"} />
-          <input aria-label="New watchlist name" placeholder="New watchlist name" value={newName} onChange={e=>setNewName(e.target.value)} className="search" style={{padding:"7px 10px"}}/>
+          <input id="new-wl-name" aria-label="New watchlist name" placeholder="New watchlist name" value={newName} onChange={e=>setNewName(e.target.value)} className="search" style={{padding:"7px 10px"}}/>
           <button className="btn primary" onClick={() => { if (newName.trim()) { createWatchlist(newName.trim()); setNewName(""); } }}><Icon name="plus" size={13}/> Create</button>
         </div>
       </div>
 
+      {all.length === 0 ? (
+        <EmptyState icon="watch" kicker="No watchlists yet"
+          action={<button className="btn sm primary" onClick={() => document.getElementById("new-wl-name")?.focus()}>New watchlist</button>}>
+          Create a watchlist to get matched signals and a daily digest of what moved.
+        </EmptyState>
+      ) : (
       <div className="grid g-3">
         {all.map(w => {
           const trend = Array.isArray(w.trend) ? w.trend : [];
@@ -1928,7 +1951,7 @@ function PageWatchlists() {
             <div key={w.name} className={"wl" + (selectedWl?.name === w.name ? " active" : "")} onClick={() => { setSelectedWl(w); openModal("watchlist", w.name); }} style={selectedWl?.name === w.name ? {borderColor:"var(--brass)"} : {}}>
               <div style={{display:"flex", alignItems:"center", gap:8}}>
                 <span className="wl-name">{w.name}</span>
-                <span className="mono" style={{fontSize:10.5, color:"var(--brass)", background:"var(--panel-hi)", border:"1px solid var(--brass-soft)", padding:"1px 6px", borderRadius:4, marginLeft:"auto"}}>{matchCount} matches</span>
+                <span className="mono" style={{fontSize:"var(--t-micro)", color:"var(--brass)", background:"var(--panel-hi)", border:"1px solid var(--brass-soft)", padding:"1px 6px", borderRadius:4, marginLeft:"auto"}}>{matchCount} matches</span>
               </div>
               <div className="wl-meta"><span>{w.keywords} keywords</span><span>·</span><span>7-day</span></div>
               {derived
@@ -1940,6 +1963,7 @@ function PageWatchlists() {
           );
         })}
       </div>
+      )}
 
       <div className="panel" style={{marginTop:18}}>
         <div className="panel-head">
@@ -1953,7 +1977,7 @@ function PageWatchlists() {
             <div key={item.key} className="g-tracked-row" style={{display:"grid", gap:12, padding:"10px 0", borderBottom:"1px solid var(--line)", alignItems:"center"}}>
               <div>
                 <div style={{fontSize:13, fontWeight:500}}>{item.title}</div>
-                <div className="mono" style={{fontSize:10.5, color:"var(--ink-4)", marginTop:2}}>{item.meta}</div>
+                <div className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)", marginTop:2}}>{item.meta}</div>
               </div>
               <button className="btn sm ghost" onClick={() => removeWatchlist(item.key)}>Remove</button>
             </div>
@@ -2121,6 +2145,47 @@ function PageSignals() {
     low: sourceSignals.filter(s => s.attention === "low" && !state.archived[s.id]).length,
   }), [sourceSignals, state.archived]);
 
+  // Progressive rendering (spec 3.3). Below 81 items the list is byte-identical to
+  // before. At higher counts the list renders in CHUNK-sized pages and grows the cap
+  // as a sentinel scrolls into view. The full `visible` order still feeds
+  // visibleSignalOrder above, so keyboard j/k navigation is never truncated.
+  const CHUNK = 60;
+  const [renderCap, setRenderCap] = useState(CHUNK);
+  const sentinelRef = React.useRef(null);
+  const progressive = visible.length > 80;
+  const shown = progressive ? visible.slice(0, renderCap) : visible;
+  const moreToShow = progressive && shown.length < visible.length;
+  const filterLabel = { high: "high", med: "medium", low: "low" }[filter] || filter;
+
+  // Reset the cap when the slice changes so a filter, sort, or search switch starts
+  // from the first page.
+  React.useEffect(() => { setRenderCap(CHUNK); }, [filter, sort, signalSearchQuery]);
+
+  // Expose a bump hook while mounted so keyboard navigation can reveal a card that
+  // sits past the current cap before scrolling to it (spec 3.3 keyboard invariant).
+  // Unset on unmount so the caller treats it as a no-op elsewhere.
+  React.useEffect(() => {
+    window.ppBumpRenderCap = (index) => {
+      setRenderCap(cap => (index >= cap ? Math.ceil((index + 1) / CHUNK) * CHUNK : cap));
+    };
+    return () => { window.ppBumpRenderCap = null; };
+  }, []);
+
+  // IntersectionObserver grows the cap as the sentinel nears the viewport. The
+  // observer re-attaches after each growth; while the sentinel stays in range it
+  // pages again until the list is filled or scrolled away. The Show more button below
+  // covers the observer-less and keyboard paths.
+  React.useEffect(() => {
+    if (!moreToShow) return;
+    const el = sentinelRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(entries => {
+      if (entries.some(e => e.isIntersecting)) setRenderCap(cap => cap + CHUNK);
+    }, { rootMargin: "600px" });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [moreToShow, shown.length, visible.length]);
+
   return (
     <div className="page">
       <div className="page-head">
@@ -2153,19 +2218,40 @@ function PageSignals() {
         {[["all","All"], ["high","High"], ["med","Medium"], ["low","Low"]].map(([val, label]) => (
           <button key={val} className={"filter-chip" + (filter === val ? " active" : "")}
             aria-pressed={filter === val} onClick={() => setFilter(val)}>
-            {label} <span style={{opacity:.65}}>({counts[val]})</span>
+            {label} <span className="mono" style={{color:"var(--ink-2)"}}>({counts[val]})</span>
             {filter === val && <span className="sr-only"> (active filter)</span>}
           </button>
         ))}
       </div>
 
       {visible.length === 0 ? (
-        <EmptyState icon="signal" kicker="No signals">
-          {filter === "all" ? "No active signals - all archived." : `No ${filter} attention signals.`}
-        </EmptyState>
+        filter !== "all" ? (
+          <EmptyState icon="signal" kicker="No matches"
+            action={<button className="btn sm ghost" onClick={() => setFilter("all")}>Clear filter</button>}>
+            No {filterLabel} attention signals right now. Clear the filter to see the full inbox.
+          </EmptyState>
+        ) : signalSearchQuery ? (
+          <EmptyState icon="signal" kicker="No matches"
+            action={<button className="btn sm ghost" onClick={() => setSignalSearchQuery("")}>Clear search</button>}>
+            Nothing matches "{signalSearchQuery}" in the signal inbox. Try a shorter term.
+          </EmptyState>
+        ) : (
+          <EmptyState icon="check" kicker="Inbox zero">
+            All signals reviewed. New items appear when the next feed poll lands.
+          </EmptyState>
+        )
       ) : (
         <div>
-          {visible.map(s => <SignalCard key={s.id} s={s} />)}
+          {shown.map(s => <SignalCard key={s.id} s={s} />)}
+          {moreToShow && <div ref={sentinelRef} className="list-sentinel" aria-hidden="true" />}
+          {progressive && (
+            <div className="list-progress" style={{display:"flex", alignItems:"center", gap:12, padding:"14px 4px 4px"}}>
+              <span className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)", letterSpacing:".08em"}}>
+                {moreToShow ? `Showing ${shown.length} of ${visible.length} signals` : `Showing all ${visible.length} signals`}
+              </span>
+              {moreToShow && <button className="btn sm ghost" style={{marginLeft:"auto"}} onClick={() => setRenderCap(cap => cap + CHUNK)}>Show more</button>}
+            </div>
+          )}
         </div>
       )}
     </div>

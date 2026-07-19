@@ -69,6 +69,38 @@ function SkeletonCard() {
   );
 }
 
+// Loading placeholder for tabular desks (Sources, Bills) while /state resolves.
+// A header bar plus N rows of three bars (30% / 45% / 15%), inside a .panel.
+function SkeletonTable({ rows = 5 }) {
+  return (
+    <div className="panel" aria-hidden="true">
+      <span className="skeleton" style={{height:14, width:180, marginBottom:16}}/>
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} style={{display:"grid", gridTemplateColumns:"30% 45% 15%", gap:12, padding:"10px 0", borderBottom: i < rows - 1 ? "1px solid var(--line)" : 0, alignItems:"center"}}>
+          <span className="skeleton" style={{height:12, width:"100%"}}/>
+          <span className="skeleton" style={{height:12, width:"100%"}}/>
+          <span className="skeleton" style={{height:12, width:"100%"}}/>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Data-age formatter for the topbar manual-refresh affordance. Accepts a ms epoch
+// (the store's liveState.fetchedAt) or an ISO string, returning "now" under 60s,
+// "{n}m" under 60m, else "{h}h". A missing timestamp reads as an em-dash so the
+// topbar never claims a freshness it cannot prove.
+function fmtDataAge(fetchedAt) {
+  if (fetchedAt == null) return "—";
+  const t = typeof fetchedAt === "number" ? fetchedAt : Date.parse(fetchedAt);
+  if (!t || Number.isNaN(t)) return "—";
+  const secs = Math.max(0, Math.floor((Date.now() - t) / 1000));
+  if (secs < 60) return "now";
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return mins + "m";
+  return Math.floor(mins / 60) + "h";
+}
+
 const NAV = [
   { id: "overview", label: "Overview", group: "Today", count: null },
   { id: "live", label: "Live parliament", group: "Today", count: null, live: true },
@@ -194,7 +226,7 @@ function Sidebar({ page, onNavigate, mobileOpen }) {
         <div className="avatar">JV</div>
         <div style={{lineHeight:1.2}}>
           <div style={{fontSize:12.5, fontWeight:500}}>Juan Vega</div>
-          <div style={{fontFamily:"var(--mono)", fontSize:10, color:"var(--ink-4)"}}>Prometheus Policy Lab · live beta</div>
+          <div style={{fontFamily:"var(--mono)", fontSize:"var(--t-micro)", color:"var(--ink-4)"}}>Prometheus Policy Lab · live beta</div>
         </div>
       </div>
     </aside>
@@ -218,8 +250,8 @@ function ShortcutHelp() {
         <Icon name="pattern" size={13} />
       </button>
       {open && (
-        <div style={{position:"absolute", top:"calc(100% + 8px)", right:0, background:"var(--panel-2)", border:"1px solid var(--line-bright)", borderRadius:10, boxShadow:"var(--shadow)", zIndex:40, width:320, padding:"12px 14px"}} role="dialog" aria-label="Keyboard shortcuts">
-          <div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginBottom:10}}>Keyboard shortcuts</div>
+        <div style={{position:"absolute", top:"calc(100% + 8px)", right:0, background:"var(--panel-2)", border:"1px solid var(--line-bright)", borderRadius:"var(--r-md)", boxShadow:"var(--elev-2)", zIndex:40, width:320, padding:"12px 14px"}} role="dialog" aria-label="Keyboard shortcuts">
+          <div className="mono" style={{fontSize:"var(--t-label)", color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginBottom:10}}>Keyboard shortcuts</div>
           {shortcuts.map(([k, d]) => (
             <div key={k} style={{display:"flex", justifyContent:"space-between", alignItems:"center", padding:"5px 0", borderBottom:"1px solid var(--line)", fontSize:12.5}}>
               <span style={{color:"var(--ink-2)"}}>{d}</span>
@@ -234,14 +266,44 @@ function ShortcutHelp() {
 }
 
 function Topbar({ mobileNavOpen, setMobileNavOpen }) {
-  const { openModal, openSignal, toast, modal, signalId, setSignalSearchQuery, requestLiveRefresh, consumeLiveRefresh, navigate } = useStore();
+  const { openModal, openSignal, toast, modal, signalId, setSignalSearchQuery, requestLiveRefresh, consumeLiveRefresh, navigate, liveState, refreshLiveState } = useStore();
   const [q, setQ] = React.useState("");
   const [open, setOpen] = React.useState(false);
   const [cursor, setCursor] = React.useState(-1);
   const [isDark, setIsDark] = React.useState(() => safeGetLocalStorage("pp-theme") !== "light");
   const [focused, setFocused] = React.useState(false);
+  const [, setAgeTick] = React.useState(0);
   const ref = React.useRef(null);
   const searchRef = React.useRef(null);
+
+  // Re-render the data-age label periodically so it keeps counting up between
+  // fetches. The value itself derives from the store's liveState.fetchedAt.
+  React.useEffect(() => {
+    const id = setInterval(() => setAgeTick(t => t + 1), 30000);
+    return () => clearInterval(id);
+  }, []);
+
+  const live = liveState || {};
+  const dataAge = fmtDataAge(live.fetchedAt);
+  const isRefreshing = !!live.isRefreshing;
+  // "No cache at all": the /state fetch errored and nothing has ever loaded, so
+  // every desk is on its representative fixture. This is an honest, visible chip.
+  const noLiveCache = live.status === "error" && !live.blocks;
+
+  const handleLiveRefresh = React.useCallback(() => {
+    const ageAtClick = fmtDataAge((liveState || {}).fetchedAt);
+    if (typeof refreshLiveState === "function") {
+      Promise.resolve(refreshLiveState()).catch(() => {
+        toast(`Live refresh failed - showing data from ${ageAtClick} ago`, "error");
+      });
+      return;
+    }
+    // Fallback path while the store refresh API is landing: nudge the Live page.
+    requestLiveRefresh();
+    navigate("live");
+    if (window.__refreshLiveFeeds) { consumeLiveRefresh(); window.__refreshLiveFeeds(); toast("Refreshing live feeds..."); }
+    else toast("Opening Live page to refresh feeds", "brass");
+  }, [liveState, refreshLiveState, requestLiveRefresh, consumeLiveRefresh, navigate, toast]);
 
   React.useEffect(() => {
     const h = (e) => {
@@ -418,15 +480,19 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
       </div>
       <div className="top-right">
         <TopClock />
-        <span className="chip clk" onClick={() => navigate("live")} title="Official feeds configured; live RSS polls on the Live page" style={{borderColor:"color-mix(in srgb, var(--gold) 55%, transparent)", color:"var(--gold)", background:"transparent"}}>
-          <span className="dot" style={{background:"var(--gold)", boxShadow:"none"}}/> Live beta · {sourceCounts().total} feeds
-        </span>
-        <button className="btn ghost sm shortcut-btn" title="Go to Live parliament and refresh feeds there" aria-label="Refresh live feeds" onClick={() => {
-          requestLiveRefresh();
-          navigate("live");
-          if (window.__refreshLiveFeeds) { consumeLiveRefresh(); window.__refreshLiveFeeds(); toast("Refreshing live feeds..."); }
-          else toast("Opening Live page to refresh feeds", "brass");
-        }}><Icon name="refresh" size={14} /></button>
+        {noLiveCache ? (
+          <span className="chip warn" onClick={() => navigate("live")} title="Live APH feeds did not respond. Each desk is showing its representative fallback data; open Live for feed health." style={{borderColor:"color-mix(in srgb, var(--caution) 55%, transparent)", color:"var(--caution)", background:"transparent", cursor:"pointer"}}>
+            <span className="dot" style={{background:"var(--caution)", boxShadow:"none"}}/> LIVE DATA UNAVAILABLE
+          </span>
+        ) : (
+          <span className="chip clk" onClick={() => navigate("live")} title="Official feeds configured; live RSS polls on the Live page" style={{borderColor:"color-mix(in srgb, var(--gold) 55%, transparent)", color:"var(--gold)", background:"transparent"}}>
+            <span className="dot" style={{background:"var(--gold)", boxShadow:"none"}}/> Live beta · {sourceCounts().total} feeds
+          </span>
+        )}
+        <button className="btn ghost sm" aria-label="Refresh live data" aria-busy={isRefreshing} title={live.fetchedAt ? `Live data fetched ${dataAge} ago. Refresh now.` : "Refresh live data"} onClick={handleLiveRefresh}>
+          <Icon name="refresh" size={14} style={isRefreshing ? {animation:"spin 800ms linear infinite"} : undefined} />
+          <span className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)", letterSpacing:".04em", marginLeft:6, fontVariantNumeric:"tabular-nums"}}>{dataAge}</span>
+        </button>
         <button className="btn ghost sm" title="Show current priority count" aria-label="Alerts" onClick={() => toast(`${SIGNALS.filter(s => s.attention === "high").length} priority signals currently need review`, "brass")}><Icon name="bell" size={14} /></button>
         <button className="btn primary sm" onClick={() => navigate("briefings")}><Icon name="plus" size={13} /> New brief</button>
         <ShortcutHelp />
@@ -544,7 +610,7 @@ const SignalCardView = React.memo(function SignalCardView({ s, archived, feedbac
         {s.action
           ? <><span className="sig-action-label">Recommended</span><span className="sig-action-value">{s.action}</span></>
           : <span className="sig-action-label">Open to triage</span>}
-        <span className="mono" title="Analyst confidence" style={{fontSize:10.5, color:"var(--ink-4)", letterSpacing:".04em", whiteSpace:"nowrap"}}>{s.confidence == null ? "—" : s.confidence + "/5"}</span>
+        <span className="mono" title="Analyst confidence" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)", letterSpacing:".04em", whiteSpace:"nowrap"}}>{s.confidence == null ? "—" : s.confidence + "/5"}</span>
       </div>
       {feedback && (
         <div style={{marginTop:8, fontSize:11.5, color:"var(--brass)"}}>
@@ -743,7 +809,7 @@ function Drawer() {
           <>
             <div className="drawer-head">
               <div>
-                <div className="mono" style={{fontSize:10, color:"var(--ink-4)", letterSpacing:".16em", textTransform:"uppercase", display:"flex", alignItems:"center", gap:8}}>
+                <div className="mono" style={{fontSize:"var(--t-label)", color:"var(--ink-4)", letterSpacing:".16em", textTransform:"uppercase", display:"flex", alignItems:"center", gap:8}}>
                   <span>{s.id} · {s.date}</span>
                   <ProvenanceChip provenance={itemProvenance}
                     title={isLive ? "This item is from the Worker's live /state endpoint (D1 archive)" : "This item is representative fixture data"} />
@@ -759,9 +825,9 @@ function Drawer() {
               </div>
               <div style={{marginLeft:"auto", display:"flex", alignItems:"center", gap:12, flexShrink:0}}>
                 {sigPos !== -1 && (
-                  <span className="mono" style={{fontSize:10.5, color:"var(--ink-4)", textAlign:"right", lineHeight:1.3}}>
+                  <span className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)", textAlign:"right", lineHeight:1.3}}>
                     <span style={{display:"block"}}>{sigPos + 1} / {visibleSigs.length}</span>
-                    <span style={{fontSize:9, letterSpacing:".1em", opacity:.7}}>SIGNAL</span>
+                    <span style={{fontSize:"var(--t-label)", letterSpacing:".1em", opacity:.7}}>SIGNAL</span>
                   </span>
                 )}
                 <button ref={closeButtonRef} className="btn ghost sm" aria-label="Close signal detail" onClick={closeWithFlush}><Icon name="close" size={14} /></button>
@@ -825,8 +891,8 @@ function Drawer() {
                   <div style={{border:"1px solid var(--line-2)", borderRadius:8, overflow:"hidden"}}>
                     {s.provenance.map((p,i) => (
                       <div key={i} style={{display:"grid", gridTemplateColumns:"78px 90px 1fr", gap:10, padding:"8px 12px", fontSize:12, borderBottom: i<s.provenance.length-1 ? "1px solid var(--line)" : 0, background: i%2 ? "var(--panel-hi)" : "transparent"}}>
-                        <div className="mono" style={{color:"var(--ink-4)", fontSize:10.5}}>{p.ts}</div>
-                        <div><span className="tag" style={{fontSize:10, padding:"1px 6px"}}>{p.by}</span></div>
+                        <div className="mono" style={{color:"var(--ink-4)", fontSize:"var(--t-micro)"}}>{p.ts}</div>
+                        <div><span className="tag" style={{fontSize:"var(--t-micro)", padding:"1px 6px"}}>{p.by}</span></div>
                         <div style={{color:"var(--ink-2)"}}>{p.event}</div>
                       </div>
                     ))}
@@ -860,7 +926,7 @@ function Drawer() {
                 </div>
               )}
               <div className="drawer-section">
-                <h3>Analyst note {noteSaved && <span className="mono" style={{fontSize:10, color:"var(--brass)", marginLeft:8}}>Saved</span>}</h3>
+                <h3>Analyst note {noteSaved && <span className="mono" style={{fontSize:"var(--t-micro)", color:"var(--brass)", marginLeft:8}}>Saved</span>}</h3>
                 <textarea value={note} onChange={e=>setNote(e.target.value)} onBlur={flushNote}
                   placeholder="Private notes (auto-saved)" rows={3}
                   style={{width:"100%", background:"var(--panel)", border:"1px solid var(--line-2)", borderRadius:8, color:"var(--ink)", padding:"8px 10px", fontFamily:"var(--sans)", fontSize:13, resize:"vertical"}}/>
@@ -900,4 +966,4 @@ function Drawer() {
   );
 }
 
-Object.assign(window, { Sidebar, Topbar, TopClock, SignalCard, Drawer, Att, Conf, ProvenanceChip, BetaNotice, EmptyState, SkeletonRow, SkeletonCard, buildBriefSections });
+Object.assign(window, { Sidebar, Topbar, TopClock, SignalCard, Drawer, Att, Conf, ProvenanceChip, BetaNotice, EmptyState, SkeletonRow, SkeletonCard, SkeletonTable, fmtDataAge, buildBriefSections });
