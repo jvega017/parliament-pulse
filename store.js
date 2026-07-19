@@ -192,6 +192,18 @@ function mapLiveBlocks(blocks) {
     qons: mapOneBlock(b.qons, "items", (x) => x)
   };
 }
+function mergeLiveBlocks(prev, next) {
+  if (!prev) return next;
+  if (!next) return prev;
+  const out = {};
+  for (const k of Object.keys(next)) {
+    const nb = next[k], pb = prev[k];
+    if (nb && nb.items) out[k] = nb;
+    else if (pb && pb.items) out[k] = pb;
+    else out[k] = nb || pb;
+  }
+  return out;
+}
 function fmtFetchedAt(iso) {
   if (!iso) return "\u2014";
   try {
@@ -300,18 +312,22 @@ function StoreProvider({ children, navigate = () => {
       const payload = await res.json();
       const now = Date.now();
       etagRef.current = nextEtag || null;
-      fetchedAtRef.current = now;
       if (mountedRef.current) {
         setLiveState((s) => {
-          var _a;
+          var _a, _b;
+          const nextBlocks = mapLiveBlocks(payload.blocks);
+          const merged = mergeLiveBlocks(s.blocks, nextBlocks);
+          const signalsFresh = !!(nextBlocks.signals && nextBlocks.signals.items);
+          const nextFetchedAt = signalsFresh ? now : s.fetchedAt || null;
+          fetchedAtRef.current = nextFetchedAt;
           return {
             ...s,
             status: "ready",
             isRefreshing: false,
-            fetchedAt: now,
+            fetchedAt: nextFetchedAt,
             lastError: null,
-            meta: (_a = payload.meta) != null ? _a : null,
-            blocks: mapLiveBlocks(payload.blocks)
+            meta: (_b = (_a = payload.meta) != null ? _a : s.meta) != null ? _b : null,
+            blocks: merged
           };
         });
       }

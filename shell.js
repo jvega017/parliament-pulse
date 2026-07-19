@@ -170,7 +170,8 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
     const ageAtClick = fmtDataAge((liveState || {}).fetchedAt);
     if (typeof refreshLiveState === "function") {
       Promise.resolve(refreshLiveState()).catch(() => {
-        toast(`Live refresh failed - showing data from ${ageAtClick} ago`, "error");
+        const msg = ageAtClick === "\u2014" ? "Live refresh failed - showing representative data" : `Live refresh failed - showing data from ${ageAtClick} ago`;
+        toast(msg, "error");
       });
       return;
     }

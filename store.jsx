@@ -236,6 +236,24 @@ function mapLiveBlocks(blocks) {
   };
 }
 
+// Merge a freshly-mapped block set over the cached one, per block. A fresh block
+// with usable items replaces the cache; a fresh block that is degraded or empty
+// (items null) keeps the last-good cached block AND its own fetchedAt, so a
+// transient bad revalidation never erases good data or resets its age. This is the
+// honesty guarantee behind stale-while-revalidate.
+function mergeLiveBlocks(prev, next) {
+  if (!prev) return next;
+  if (!next) return prev;
+  const out = {};
+  for (const k of Object.keys(next)) {
+    const nb = next[k], pb = prev[k];
+    if (nb && nb.items) out[k] = nb;
+    else if (pb && pb.items) out[k] = pb;
+    else out[k] = nb || pb;
+  }
+  return out;
+}
+
 // Shared fetched-at formatter: HH:MM in Brisbane time. Desks append "AEST"
 // themselves, so this returns only the clock component.
 function fmtFetchedAt(iso) {
@@ -384,17 +402,28 @@ function StoreProvider({ children, navigate = () => {} }) {
       const payload = await res.json();
       const now = Date.now();
       etagRef.current = nextEtag || null;
-      fetchedAtRef.current = now;
       if (mountedRef.current) {
-        setLiveState(s => ({
-          ...s,
-          status: "ready",
-          isRefreshing: false,
-          fetchedAt: now,
-          lastError: null,
-          meta: payload.meta ?? null,
-          blocks: mapLiveBlocks(payload.blocks),
-        }));
+        setLiveState(s => {
+          const nextBlocks = mapLiveBlocks(payload.blocks);
+          // Merge per block: a fresh block with usable items wins; a block that comes
+          // back degraded or empty keeps its last-good cache, so a transient bad
+          // revalidation never erases good data. Freshness tracks the primary
+          // (signals) block: if signals came back usable the shown data is fresh,
+          // otherwise the age stays put so the topbar never overstates freshness.
+          const merged = mergeLiveBlocks(s.blocks, nextBlocks);
+          const signalsFresh = !!(nextBlocks.signals && nextBlocks.signals.items);
+          const nextFetchedAt = signalsFresh ? now : (s.fetchedAt || null);
+          fetchedAtRef.current = nextFetchedAt;
+          return {
+            ...s,
+            status: "ready",
+            isRefreshing: false,
+            fetchedAt: nextFetchedAt,
+            lastError: null,
+            meta: payload.meta ?? s.meta ?? null,
+            blocks: merged,
+          };
+        });
       }
     } catch (e) {
       // A failed refetch keeps the cache untouched (blocks and meta are preserved)
