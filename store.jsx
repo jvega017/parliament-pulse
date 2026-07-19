@@ -141,6 +141,10 @@ function watchlistMatches(w, signals = (typeof SIGNALS !== "undefined" ? SIGNALS
 // extended with the two new fields (link, isLive) marked NEW in the spec table.
 function mapWorkerSignalToCard(row) {
   const when = row.pub_date ? new Date(row.pub_date) : null;
+  // Validate the APH deep link once (safeHttpUrl enforces an aph.gov.au host) and
+  // reuse that single validated value for both the title anchor and the evidence
+  // link, so evidence can never keep a raw, unvalidated or non-APH URL.
+  const link = safeHttpUrl(row.link);
   return {
     id: row.guid,
     time: when ? `${String(when.getHours()).padStart(2,"0")}:${String(when.getMinutes()).padStart(2,"0")}` : "—",
@@ -148,17 +152,19 @@ function mapWorkerSignalToCard(row) {
     source: row.feed_label,
     sourceGroup: row.source_group,
     title: row.title,
-    link: safeHttpUrl(row.link),                 // NEW: the APH deep link (licence render rule)
+    link,                                        // validated APH deep link (licence render rule)
     summary: row.scoring_explanation || "",
     tags: [{ l: row.kind, c: "" }],
-    attention: row.attention || "low",
+    // Missing attention or confidence carries a null sentinel that the UI renders
+    // as an em-dash; the product never invents a "low"/0 metric the Worker did not send.
+    attention: row.attention ?? null,
     attentionReason: row.scoring_explanation || "",
     action: "",
     actionReason: "",
-    confidence: row.confidence ?? 0,
+    confidence: row.confidence ?? null,
     sourceAuthority: "Official",
     isLive: true,                                // NEW: drives the licence render rule
-    evidence: row.link ? [{ label: row.feed_label, url: row.link }] : [],
+    evidence: link ? [{ label: row.feed_label, url: link }] : [],
   };
 }
 

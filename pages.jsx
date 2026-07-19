@@ -11,10 +11,11 @@ function csvEscape(v) {
 // only caller passes PageOverview's sourceSignals (live items or the fixture).
 function exportSignalsCSV(signals) {
   const source = Array.isArray(signals) ? signals : SIGNALS;
-  const headers = ["id","date","source","attention","title","action","confidence"];
+  const headers = ["id","date","source","attention","title","link","action","confidence"];
   const rows = source.map(s => [
     s.id, s.date, s.source, s.attention,
     s.title,
+    s.link || "",
     s.action,
     s.confidence,
   ]);
@@ -357,19 +358,22 @@ function PageOverview() {
 
   const generateDailyBrief = () => {
     const today = new Date().toLocaleDateString("en-AU", { day:"numeric", month:"long", year:"numeric" });
+    // A live APH title is emitted as a markdown link to its source; a fixture title
+    // stays plain text; a live title with no valid link falls back to the source label.
+    const briefTitleMd = (brief) => brief.isLive ? (brief.link ? `[${brief.title}](${brief.link})` : brief.meta.source) : brief.title;
     const prioritySections = priority.length === 0 ? ["None."] : priority.map(s => {
-      const brief = buildBriefSections(s);
+      const brief = buildBriefSections(s, !!s.isLive);
       return [
-        `### ${brief.meta.id} - ${brief.title}`,
-        `Source: ${brief.meta.source} | Confidence: ${brief.meta.confidence}/5`,
+        `### ${brief.meta.id} - ${briefTitleMd(brief)}`,
+        `Source: ${brief.meta.source} | Confidence: ${brief.meta.confidence ?? "—"}/5`,
         brief.summary,
         `**Action:** ${brief.recommendedAction.label}. ${brief.recommendedAction.reason}`,
         ``,
       ].join("\n");
     });
     const restSections = rest.length === 0 ? ["None."] : rest.map(s => {
-      const brief = buildBriefSections(s);
-      return `- [${brief.meta.id}] ${brief.title} - ${brief.recommendedAction.label}`;
+      const brief = buildBriefSections(s, !!s.isLive);
+      return `- [${brief.meta.id}] ${briefTitleMd(brief)} - ${brief.recommendedAction.label}`;
     });
     const lines = [
       `# Parliamentary Daily Signal Brief — ${today}`,
@@ -619,12 +623,13 @@ function LiveBroadcast({ which, toast }) {
         />
       )}
 
-      {/* LIVE badge — only after the iframe has loaded; we cannot confirm playback
-          cross-origin so this never asserts LIVE before a load event. */}
+      {/* Load badge — the iframe onLoad event proves the embed loaded, not that a
+          broadcast is playing; we cannot read playback state cross-origin, so this
+          reports "status unverified" and never asserts LIVE. */}
       {mode === "embed" && loaded && (
-        <div className="live-badge" style={{position:"absolute", top:12, left:12, zIndex:3, display:"flex", alignItems:"center", gap:6, background:"rgba(0,0,0,0.6)", padding:"5px 10px", borderRadius:4, fontFamily:"var(--mono)", fontSize:11, color:"#fff", letterSpacing:".12em", border:"1px solid var(--ember-flash)"}}>
-          <span style={{width:7, height:7, borderRadius:"50%", background:"var(--ember-flash)", boxShadow:"0 0 10px var(--ember-flash)", animation:"pulse 1.6s ease-in-out infinite"}}/>
-          LIVE · {cfg.label.toUpperCase()}
+        <div className="live-badge" style={{position:"absolute", top:12, left:12, zIndex:3, display:"flex", alignItems:"center", gap:6, background:"rgba(0,0,0,0.6)", padding:"5px 10px", borderRadius:4, fontFamily:"var(--mono)", fontSize:11, color:"#fff", letterSpacing:".12em", border:"1px solid var(--line-bright)"}}>
+          <span style={{width:7, height:7, borderRadius:"50%", background:"var(--ink-3)"}}/>
+          Stream loaded · status unverified · {cfg.label.toUpperCase()}
         </div>
       )}
 
@@ -706,8 +711,19 @@ function liveFeedList() {
     .map(f => ({ url: f.url, label: f.label || f.name || f.url, kind: feedKind(f) }));
 }
 
+// Accepts a URL only when it is http(s) AND points at an aph.gov.au host (or a
+// subdomain such as parlview.aph.gov.au). The licence contract requires every
+// rendered live link to target the APH source, so a non-APH or malformed URL
+// resolves to "" and the caller falls back to the source label, never a bare title.
 function safeHttpUrl(u) {
-  return /^https?:\/\//i.test(u || "") ? u : "";
+  const url = String(u || "").trim();
+  if (!/^https?:\/\//i.test(url)) return "";
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return (host === "aph.gov.au" || host.endsWith(".aph.gov.au")) ? url : "";
+  } catch {
+    return "";
+  }
 }
 
 // Bounded-concurrency map: at most `limit` calls of fn run at once. Keeps the live
@@ -902,7 +918,8 @@ function PageLive() {
 
           <div className="panel" style={{marginTop:16}}>
             <div className="panel-head">
-              <h2 className="panel-title">Currently on program</h2>
+              <h2 className="panel-title">Daily program example</h2>
+              <span className="chip-fixture" style={{marginLeft:8}}>Representative data</span>
               <span className="panel-kicker">{which === "house" ? "House of Representatives" : which === "senate" ? "Senate" : "Federation Chamber"}</span>
               <a href={which === "house" ? "https://www.aph.gov.au/Parliamentary_Business/Chamber_documents" : "https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/Senate_chamber_documents"} target="_blank" rel="noopener noreferrer" style={{marginLeft:"auto", fontSize:11.5, color:"var(--teal)", textDecoration:"none"}}>Open daily program <Icon name="ext" size={11}/></a>
             </div>
@@ -1056,16 +1073,19 @@ function PageSources() {
   const [newName, setNewName] = useState("FlagPost Blog (HTML)");
   const startTest = () => {
     setTesting(true); setTestState(null);
+    // Simulated only: no network request is made. The lines below illustrate the
+    // steps a real backend validator would run; they never report an actual result.
     setTimeout(() => setTestState({
       status: "warn",
+      simulated: true,
       lines: [
-        { t: "ok", s: "URL resolved · 200 OK" },
-        { t: "ok", s: "Content-Type: text/html · not XML" },
-        { t: "warn", s: "No <rss> root detected — attempting HTML parse" },
-        { t: "ok", s: "Found 12 dated entries" },
-        { t: "warn", s: "Latest item date · 5 days old · verify cadence" },
-        { t: "ok", s: "Links extractable · 12/12" },
-        { t: "warn", s: "Recommended: mark as Needs validation before routing to modules" },
+        { t: "warn", s: "Simulated example only · no request was sent to this URL" },
+        { t: "ok", s: "A real check would confirm the URL resolves · 200 OK" },
+        { t: "ok", s: "A real check would inspect Content-Type for XML or HTML" },
+        { t: "warn", s: "A real check would detect an <rss> root or attempt an HTML parse" },
+        { t: "ok", s: "A real check would count dated entries and extractable links" },
+        { t: "warn", s: "A real check would verify the latest item date and cadence" },
+        { t: "warn", s: "Mark as Needs validation before routing to modules" },
       ],
     }), 1100);
   };
@@ -1091,7 +1111,7 @@ function PageSources() {
         <div>
           <div className="page-kicker">Admin</div>
           <h1 className="page-title">Sources</h1>
-          <div className="page-sub">Official APH feed register with live health checks from the Worker. Custom-feed validation remains a prototype workflow.</div>
+          <div className="page-sub">Official APH feed register{health.items ? " with live health checks from the Worker" : "; feed health appears once the Worker check runs"}. Custom-feed validation remains a prototype workflow.</div>
         </div>
         <div style={{display:"flex", gap:10}}>
           <button className="btn" title="Re-polls the live RSS feeds if the Live page poller is mounted" onClick={() => { if (typeof window.__refreshLiveFeeds === "function") { window.__refreshLiveFeeds(); toast("Live feeds re-polled"); } else { toast("Open the Live page to start the feed poller"); } }}><Icon name="refresh" size={13}/> Refresh all</button>
@@ -1205,14 +1225,15 @@ function PageSources() {
 
               {testState && (
                 <div className="feed-test" style={{marginTop:14}}>
-                  <div style={{marginBottom:6, letterSpacing:".1em", display:"flex", alignItems:"center", gap:7}} className="warn"><Icon name="flag" size={12} /> Parser: needs validation</div>
+                  <div style={{marginBottom:6, letterSpacing:".1em", display:"flex", alignItems:"center", gap:7}} className="warn"><Icon name="flag" size={12} /> Simulated example · parser needs validation</div>
+                  <div style={{fontSize:11, color:"var(--ink-4)", marginBottom:8}}>This preview is illustrative. No network request was made and no result was verified. Connect backend validation before treating any feed as checked.</div>
                   {testState.lines.map((l, i) => (
                     <div key={i} className={"feed-test-line " + l.t}>
                       <Icon name={l.t === "ok" ? "check" : l.t === "warn" ? "flag" : "close"} size={12} />
                       <span>{l.s}</span>
                     </div>
                   ))}
-                  <button className="btn primary sm" style={{marginTop:10}} onClick={saveFeed}>Save feed</button>
+                  <button className="btn primary sm" style={{marginTop:10}} onClick={saveFeed}>Save as unvalidated feed</button>
                 </div>
               )}
             </div>
@@ -1264,9 +1285,13 @@ function LiveFeedStrip({ title, items, fetchedAt, emptyText }) {
           ? <div className="empty">{emptyText}</div>
           : items.map((s, i) => (
             <div key={s.id || i} className="data-row" style={{display:"grid", gap:6, padding:"10px 0", borderBottom: i<items.length-1 ? "1px solid var(--line)" : 0}}>
-              <a href={s.link || "#"} target="_blank" rel="noopener noreferrer" style={{display:"inline-flex", alignItems:"center", gap:6, color:"var(--teal)", textDecoration:"none", fontSize:13, fontWeight:500}} title="Opens the source at aph.gov.au">
-                {s.title} <Icon name="ext" size={11}/>
-              </a>
+              {/* Licence rule: the live APH title renders only inside an anchor to its
+                  APH link; with no valid link it falls back to the source label. */}
+              {s.link
+                ? <a href={s.link} target="_blank" rel="noopener noreferrer" style={{display:"inline-flex", alignItems:"center", gap:6, color:"var(--teal)", textDecoration:"none", fontSize:13, fontWeight:500}} title="Opens the source at aph.gov.au">
+                    {s.title} <Icon name="ext" size={11}/>
+                  </a>
+                : <span style={{fontSize:13, fontWeight:500, color:"var(--ink-2)"}}>{s.source}</span>}
               <div style={{display:"flex", gap:10, alignItems:"center", flexWrap:"wrap"}}>
                 <span className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".12em"}}>{(s.tags && s.tags[0] && s.tags[0].l) || "item"}</span>
                 <span style={{fontSize:11.5, color:"var(--ink-3)"}}>{s.source}</span>
@@ -1734,7 +1759,9 @@ function PageBriefings() {
   const generated = Object.entries(state.briefsGenerated || {}).map(([sid, v]) => {
     const sig = known.find(s => s.id === sid);
     // F11: fix the "For undefined" label — precedence bug. Use an explicit ternary.
-    const label = sig ? (sig.title.slice(0, 40) + "…") : sid;
+    // A live signal's queue label uses its source, never the raw APH title as
+    // standalone product prose; fixture briefs keep their title label.
+    const label = sig ? (sig.isLive ? sig.source : (sig.title.slice(0, 40) + "…")) : sid;
     return { type: v.type || "Executive Brief", for: label, status: "Copied · clipboard", _sid: sid, _ts: v.ts };
   }).sort((a, b) => b._ts - a._ts).slice(0, 3);
 
@@ -1799,7 +1826,13 @@ function PageBriefings() {
                 return (
                 <div className="brief">
                   <div className="meta">PARLIAMENT PULSE · {b.type.toUpperCase()} · {brief.meta.date} · {brief.meta.time}</div>
-                  <h3>{brief.title}</h3>
+                  {/* Licence rule: a live APH title renders only inside an anchor to
+                      its APH link; no link falls back to the source label. */}
+                  <h3>{brief.isLive
+                    ? (brief.link
+                        ? <a href={brief.link} target="_blank" rel="noopener noreferrer" style={{color:"inherit"}} title="Open the source at aph.gov.au">{brief.title} <Icon name="ext" size={12} style={{verticalAlign:"-1px", opacity:.6}}/></a>
+                        : brief.meta.source)
+                    : brief.title}</h3>
                   <h5>What happened</h5>
                   <div>{brief.summary}</div>
                   <h5>Source</h5>

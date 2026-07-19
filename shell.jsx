@@ -452,6 +452,8 @@ function ProvenanceChip({ provenance, title }) {
 
 function Att({ level }) {
   const map = { high: "High", med: "Medium", low: "Low" };
+  // An absent attention value renders as an em-dash, never a fabricated tier.
+  if (!map[level]) return <span className="att" title="Attention not scored">—</span>;
   return <span className={"att " + level}>{map[level]}</span>;
 }
 
@@ -480,6 +482,10 @@ function buildBriefSections(s, isLive = false) {
   provParts.push("Representative workflow trace; not a production processing log.");
   return {
     title: s.title,
+    // link and isLive travel with the brief model so every downstream render and
+    // export applies the licence rule: a live APH title is emitted only as a link.
+    link: s.link || null,
+    isLive,
     meta: {
       id: s.id,
       date: s.date,
@@ -512,7 +518,7 @@ function SignalCard({ s }) {
 const SignalCardView = React.memo(function SignalCardView({ s, archived, feedback, watched, openSignal }) {
   if (archived) return null;
   return (
-    <div className="signal" data-att={s.attention} onClick={() => openSignal(s.id)} role="button" tabIndex={0} aria-label={`Signal: ${s.title}`} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openSignal(s.id); } }}>
+    <div className="signal" data-att={s.attention} onClick={() => openSignal(s.id)} role="button" tabIndex={0} aria-label="Open signal detail" onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openSignal(s.id); } }}>
       <div className="sig-head">
         <span className="sig-id mono">{s.isLive || /^https?:/.test(s.id) ? "APH" : s.id}</span>
         <span className="sig-source mono">· {s.source}</span>
@@ -520,9 +526,12 @@ const SignalCardView = React.memo(function SignalCardView({ s, archived, feedbac
         {watched && <span className="tag brass">Watching</span>}
         <span className="sig-time mono">{s.time}</span>
       </div>
+      {/* Licence rule: a live APH title renders only inside an anchor to its APH link.
+          A live row with no valid link shows the source label, never the bare title.
+          Fixture rows keep their plain title. */}
       <div className="sig-title serif">{s.link
         ? <a href={s.link} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} style={{color:"inherit", textDecoration:"none"}} title="Open the source at aph.gov.au">{s.title} <Icon name="ext" size={12} style={{verticalAlign:"-1px", opacity:.6}}/></a>
-        : s.title}</div>
+        : (s.isLive ? s.source : s.title)}</div>
       <div className="sig-sum">{s.summary.length > 120 ? s.summary.slice(0, 120).replace(/\s\S+$/, "") + "…" : s.summary}</div>
       <div className="sig-tags">
         {s.tags.map((t, i) => <span key={i} className={"tag " + (t.c || "")}>{t.l}</span>)}
@@ -530,7 +539,7 @@ const SignalCardView = React.memo(function SignalCardView({ s, archived, feedbac
       <div className="sig-action">
         <span className="sig-action-label">Recommended</span>
         <span className="sig-action-value">{s.action}</span>
-        <span className="mono" title="Analyst confidence" style={{fontSize:10.5, color:"var(--ink-4)", letterSpacing:".04em", whiteSpace:"nowrap"}}>{s.confidence}/5</span>
+        <span className="mono" title="Analyst confidence" style={{fontSize:10.5, color:"var(--ink-4)", letterSpacing:".04em", whiteSpace:"nowrap"}}>{s.confidence ?? "—"}/5</span>
       </div>
       {feedback && (
         <div style={{marginTop:8, fontSize:11.5, color:"var(--brass)"}}>
@@ -546,13 +555,17 @@ const SignalCardView = React.memo(function SignalCardView({ s, archived, feedbac
   );
 });
 
-function generateBriefMarkdown(s) {
-  const brief = buildBriefSections(s);
+function generateBriefMarkdown(s, isLive = false) {
+  const brief = buildBriefSections(s, isLive);
   const evidence = brief.evidence.map(e => `- [${e.label}](${e.url})`).join("\n");
+  // A live APH title is exported as a markdown link to its source; a fixture title
+  // is exported as plain text; a live title with no valid link falls back to the
+  // source label so verbatim APH prose is never emitted as standalone heading text.
+  const titleMd = brief.isLive ? (brief.link ? `[${brief.title}](${brief.link})` : brief.meta.source) : brief.title;
   return [
     `> BETA DRAFT — generated from the current Parliament Pulse signal record. Verify source links before distribution.`,
     ``,
-    `# Executive Brief — ${brief.title}`,
+    `# Executive Brief — ${titleMd}`,
     `Date: ${brief.meta.date} | Source: ${brief.meta.source} | Priority: ${(brief.meta.attention || "").toUpperCase()}`,
     ``,
     `## Summary`,
@@ -718,7 +731,7 @@ function Drawer() {
   return (
     <>
       <div className={"drawer-back" + (on ? " on" : "")} onClick={closeWithFlush} aria-hidden="true" />
-      <aside className={"drawer" + (on ? " on" : "")} role="dialog" aria-modal="true" aria-label={on ? s.title : "Signal detail"}>
+      <aside className={"drawer" + (on ? " on" : "")} role="dialog" aria-modal="true" aria-label="Signal detail">
         {on && (
           <>
             <div className="drawer-head">
@@ -728,7 +741,14 @@ function Drawer() {
                   <ProvenanceChip provenance={itemProvenance}
                     title={isLive ? "This item is from the Worker's live /state endpoint (D1 archive)" : "This item is representative fixture data"} />
                 </div>
-                <h2 className="h-drawer" style={{margin:"4px 0 0", maxWidth:460}}>{s.title}</h2>
+                {/* Licence rule: a live APH title renders only inside an anchor to its
+                    APH link; a live row with no link shows the source label. Fixture
+                    titles render as plain text. */}
+                <h2 className="h-drawer" style={{margin:"4px 0 0", maxWidth:460}}>{isLive
+                  ? (s.link
+                      ? <a href={s.link} target="_blank" rel="noopener noreferrer" style={{color:"inherit"}} title="Open the source at aph.gov.au">{s.title} <Icon name="ext" size={13} style={{verticalAlign:"-1px", opacity:.6}}/></a>
+                      : s.source)
+                  : s.title}</h2>
               </div>
               <div style={{marginLeft:"auto", display:"flex", alignItems:"center", gap:12, flexShrink:0}}>
                 {sigPos !== -1 && (
