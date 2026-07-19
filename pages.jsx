@@ -13,11 +13,11 @@ function exportSignalsCSV(signals) {
   const source = Array.isArray(signals) ? signals : SIGNALS;
   const headers = ["id","date","source","attention","title","link","action","confidence"];
   const rows = source.map(s => [
-    s.id, s.date, s.source, s.attention,
+    s.id, s.date, s.source, s.attention || "—",
     s.title,
     s.link || "",
     s.action,
-    s.confidence,
+    s.confidence ?? "—",
   ]);
   exportRowsCSV(headers, rows, `parliament-pulse-signals-${new Date().toISOString().slice(0,10)}.csv`);
 }
@@ -86,7 +86,7 @@ function downloadBriefingQueue(briefs, toast) {
 
 const BETA_READINESS_ROWS = [
   {
-    state: "Live",
+    state: "Configured",
     title: "Official feed spine",
     detail: "Six APH RSS sources are configured and polled through the local or Cloudflare proxy. The Live page shows runtime feed state and direct source links.",
     action: "Open Live",
@@ -113,13 +113,13 @@ const PROVENANCE_STACK = [
     label: "Official source",
     title: "APH RSS + direct source links",
     detail: "Live feed rows retain the official APH URL and expose Hansard, ParlView, YouTube or source-page links before any interpretation.",
-    state: "Live",
+    state: "Configured",
   },
   {
     label: "Transport",
     title: "CORS proxy with constrained feed list",
     detail: "Local beta uses proxy-server.js. Production uses the Cloudflare Worker route documented in the repo.",
-    state: "Live",
+    state: "Configured",
   },
   {
     label: "Enrichment",
@@ -138,14 +138,14 @@ const PROVENANCE_STACK = [
 const COVERAGE_MATRIX = [
   {
     module: "Live parliament",
-    state: "Live",
+    state: "Configured",
     evidence: "Six official APH RSS feeds plus chamber program and broadcast links.",
     activation: "Keep runtime feed health in Live page; add sitting-status check before claiming current chamber activity.",
     page: "live",
   },
   {
     module: "Sources",
-    state: "Live",
+    state: "Configured",
     evidence: "Official source register and constrained proxy route.",
     activation: "Connect custom-feed validation to backend parser instead of timeout simulation.",
     page: "sources",
@@ -658,7 +658,7 @@ function LiveBroadcast({ which, toast }) {
         <div style={{position:"absolute", inset:0, background:"linear-gradient(180deg, var(--panel-2), var(--bg))", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24, textAlign:"center"}}>
           <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:10}}>
             <span style={{width:8, height:8, borderRadius:"50%", background:"var(--ink-4)"}}/>
-            <div style={{fontFamily:"var(--serif)", fontSize:22, color:"var(--ink)"}}>Live broadcast · {cfg.label}</div>
+            <div style={{fontFamily:"var(--serif)", fontSize:22, color:"var(--ink)"}}>Official broadcast · status unverified · {cfg.label}</div>
           </div>
           <div style={{color:"var(--ink-2)", fontSize:13, maxWidth:460, lineHeight:1.5, marginBottom:18}}>
             AUSParliamentLive streams <strong>{cfg.label}</strong> while the chamber is sitting. Load the live stream here, or open the official sources.
@@ -1618,15 +1618,24 @@ function ThreadRow({ t, byGuid, isLast }) {
         <Icon name="chevron" size={13} style={{transform: open ? "rotate(90deg)" : "none", transition:"transform .15s"}}/>
         <span style={{fontSize:13.5, fontWeight:600, color:"var(--ink)"}}>{t.itemCount} items</span>
         <span className="mono" style={{fontSize:11, color:"var(--ink-3)"}}>{fmtSpanDate(t.firstSeenAt)} → {fmtSpanDate(t.lastSeenAt)}</span>
-        <span className="mono" style={{color:"var(--ink-2)", fontSize:12.5, marginLeft:4}}>&ldquo;{t.title}&rdquo;</span>
+        {/* The thread title is the product's own clustering label, not APH-sourced
+            prose. It is framed with a "Cluster" tag so it reads unambiguously as the
+            product's analysis (threads carry no link; spec 4.3). */}
+        <span className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".1em", marginLeft:4}}>Cluster</span>
+        <span className="mono" style={{color:"var(--ink-2)", fontSize:12.5}}>{t.title}</span>
       </button>
       {open && (
         <div style={{marginTop:10, marginLeft:25, display:"grid", gap:8}}>
           {resolved.map((s, i) => (
             <div key={s.id || i} style={{display:"grid", gap:4}}>
-              <a href={s.link || "#"} target="_blank" rel="noopener noreferrer" style={{display:"inline-flex", alignItems:"center", gap:6, color:"var(--teal)", textDecoration:"none", fontSize:12.5, fontWeight:500}} title="Opens the source at aph.gov.au">
-                {s.title} <Icon name="ext" size={11}/>
-              </a>
+              {/* Licence rule: the live APH title renders only inside an anchor to a
+                  valid APH link; with no link it falls back to the source label,
+                  never a bare title inside a "#" anchor. */}
+              {s.link
+                ? <a href={s.link} target="_blank" rel="noopener noreferrer" style={{display:"inline-flex", alignItems:"center", gap:6, color:"var(--teal)", textDecoration:"none", fontSize:12.5, fontWeight:500}} title="Opens the source at aph.gov.au">
+                    {s.title} <Icon name="ext" size={11}/>
+                  </a>
+                : <span style={{fontSize:12.5, fontWeight:500, color:"var(--ink-2)"}}>{s.source}</span>}
               <div style={{display:"flex", gap:10, alignItems:"center", flexWrap:"wrap"}}>
                 <span className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".12em"}}>{(s.tags && s.tags[0] && s.tags[0].l) || "item"}</span>
                 <span style={{fontSize:11, color:"var(--ink-3)"}}>{s.source}</span>
@@ -1857,7 +1866,7 @@ function PageBriefings() {
                   <h5>What happened</h5>
                   <div>The Finance and Public Administration References Committee has opened an inquiry into Commonwealth procurement and contract governance for digital programs over $100m. Submissions close 19 May.</div>
                   <h5>Source</h5>
-                  <div>APH Senate New Inquiries RSS · Official · validated 24 Apr 08:15.</div>
+                  <div>APH Senate New Inquiries RSS · representative example · not validated.</div>
                   <h5>Why it matters</h5>
                   <div>The inquiry directly overlaps two watchlists (Digital procurement, Procurement) and follows last week's ANAO report tabling. Preliminary scrutiny pattern detected on the same topic (4 QONs / 3 members / 48h).</div>
                   <h5>Recommended action</h5>
@@ -2008,9 +2017,11 @@ function PageRadar() {
     const groups = new Map();
     live.items.forEach(s => {
       const key = s.sourceGroup || "Other";
-      const g = groups.get(key) || { issue: key, count: 0, sources: new Set(), att: "low" };
+      const g = groups.get(key) || { issue: key, count: 0, sources: new Set(), att: null };
       g.count += 1;
       if (s.source) g.sources.add(s.source);
+      // Attention climbs only from a real med/high signal; a group of unscored
+      // items keeps att null and renders "—", never a fabricated "Low".
       if ((rank[s.attention] || 0) > (rank[g.att] || 0)) g.att = s.attention;
       groups.set(key, g);
     });

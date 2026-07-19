@@ -6,16 +6,19 @@ function csvEscape(v) {
 function exportSignalsCSV(signals) {
   const source = Array.isArray(signals) ? signals : SIGNALS;
   const headers = ["id", "date", "source", "attention", "title", "link", "action", "confidence"];
-  const rows = source.map((s) => [
-    s.id,
-    s.date,
-    s.source,
-    s.attention,
-    s.title,
-    s.link || "",
-    s.action,
-    s.confidence
-  ]);
+  const rows = source.map((s) => {
+    var _a;
+    return [
+      s.id,
+      s.date,
+      s.source,
+      s.attention || "\u2014",
+      s.title,
+      s.link || "",
+      s.action,
+      (_a = s.confidence) != null ? _a : "\u2014"
+    ];
+  });
   exportRowsCSV(headers, rows, `parliament-pulse-signals-${(/* @__PURE__ */ new Date()).toISOString().slice(0, 10)}.csv`);
 }
 function exportRowsCSV(headers, rows, filename) {
@@ -74,7 +77,7 @@ function downloadBriefingQueue(briefs, toast) {
 }
 const BETA_READINESS_ROWS = [
   {
-    state: "Live",
+    state: "Configured",
     title: "Official feed spine",
     detail: "Six APH RSS sources are configured and polled through the local or Cloudflare proxy. The Live page shows runtime feed state and direct source links.",
     action: "Open Live",
@@ -100,13 +103,13 @@ const PROVENANCE_STACK = [
     label: "Official source",
     title: "APH RSS + direct source links",
     detail: "Live feed rows retain the official APH URL and expose Hansard, ParlView, YouTube or source-page links before any interpretation.",
-    state: "Live"
+    state: "Configured"
   },
   {
     label: "Transport",
     title: "CORS proxy with constrained feed list",
     detail: "Local beta uses proxy-server.js. Production uses the Cloudflare Worker route documented in the repo.",
-    state: "Live"
+    state: "Configured"
   },
   {
     label: "Enrichment",
@@ -124,14 +127,14 @@ const PROVENANCE_STACK = [
 const COVERAGE_MATRIX = [
   {
     module: "Live parliament",
-    state: "Live",
+    state: "Configured",
     evidence: "Six official APH RSS feeds plus chamber program and broadcast links.",
     activation: "Keep runtime feed health in Live page; add sitting-status check before claiming current chamber activity.",
     page: "live"
   },
   {
     module: "Sources",
-    state: "Live",
+    state: "Configured",
     evidence: "Official source register and constrained proxy route.",
     activation: "Connect custom-feed validation to backend parser instead of timeout simulation.",
     page: "sources"
@@ -367,7 +370,7 @@ function LiveBroadcast({ which, toast }) {
       title: "Show alternate sources if no stream is live"
     },
     "NO STREAM?"
-  ), mode === "offline" && /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", inset: 0, background: "linear-gradient(180deg, var(--panel-2), var(--bg))", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, marginBottom: 10 } }, /* @__PURE__ */ React.createElement("span", { style: { width: 8, height: 8, borderRadius: "50%", background: "var(--ink-4)" } }), /* @__PURE__ */ React.createElement("div", { style: { fontFamily: "var(--serif)", fontSize: 22, color: "var(--ink)" } }, "Live broadcast \xB7 ", cfg.label)), /* @__PURE__ */ React.createElement("div", { style: { color: "var(--ink-2)", fontSize: 13, maxWidth: 460, lineHeight: 1.5, marginBottom: 18 } }, "AUSParliamentLive streams ", /* @__PURE__ */ React.createElement("strong", null, cfg.label), " while the chamber is sitting. Load the live stream here, or open the official sources."), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" } }, /* @__PURE__ */ React.createElement("button", { className: "btn primary", onClick: () => {
+  ), mode === "offline" && /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", inset: 0, background: "linear-gradient(180deg, var(--panel-2), var(--bg))", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, marginBottom: 10 } }, /* @__PURE__ */ React.createElement("span", { style: { width: 8, height: 8, borderRadius: "50%", background: "var(--ink-4)" } }), /* @__PURE__ */ React.createElement("div", { style: { fontFamily: "var(--serif)", fontSize: 22, color: "var(--ink)" } }, "Official broadcast \xB7 status unverified \xB7 ", cfg.label)), /* @__PURE__ */ React.createElement("div", { style: { color: "var(--ink-2)", fontSize: 13, maxWidth: 460, lineHeight: 1.5, marginBottom: 18 } }, "AUSParliamentLive streams ", /* @__PURE__ */ React.createElement("strong", null, cfg.label), " while the chamber is sitting. Load the live stream here, or open the official sources."), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" } }, /* @__PURE__ */ React.createElement("button", { className: "btn primary", onClick: () => {
     setNonce((n) => n + 1);
     setMode("embed");
   } }, /* @__PURE__ */ React.createElement(Icon, { name: "signal", size: 13 }), " Load live stream"), /* @__PURE__ */ React.createElement("a", { href: "https://www.youtube.com/@AUSParliamentLive/streams", target: "_blank", rel: "noopener noreferrer", className: "btn", style: { textDecoration: "none" } }, "YouTube ", /* @__PURE__ */ React.createElement(Icon, { name: "ext", size: 12 })), /* @__PURE__ */ React.createElement("a", { href: "https://www.aph.gov.au/News_and_Events/Watch_Read_Listen", target: "_blank", rel: "noopener noreferrer", className: "btn", style: { textDecoration: "none" } }, "APH Watch / Read / Listen ", /* @__PURE__ */ React.createElement(Icon, { name: "ext", size: 12 })), /* @__PURE__ */ React.createElement("a", { href: "https://parlview.aph.gov.au/", target: "_blank", rel: "noopener noreferrer", className: "btn", style: { textDecoration: "none" } }, "ParlView archive ", /* @__PURE__ */ React.createElement(Icon, { name: "ext", size: 12 })))));
@@ -730,8 +733,9 @@ function ThreadRow({ t, byGuid, isLast }) {
     /* @__PURE__ */ React.createElement(Icon, { name: "chevron", size: 13, style: { transform: open ? "rotate(90deg)" : "none", transition: "transform .15s" } }),
     /* @__PURE__ */ React.createElement("span", { style: { fontSize: 13.5, fontWeight: 600, color: "var(--ink)" } }, t.itemCount, " items"),
     /* @__PURE__ */ React.createElement("span", { className: "mono", style: { fontSize: 11, color: "var(--ink-3)" } }, fmtSpanDate(t.firstSeenAt), " \u2192 ", fmtSpanDate(t.lastSeenAt)),
-    /* @__PURE__ */ React.createElement("span", { className: "mono", style: { color: "var(--ink-2)", fontSize: 12.5, marginLeft: 4 } }, "\u201C", t.title, "\u201D")
-  ), open && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 10, marginLeft: 25, display: "grid", gap: 8 } }, resolved.map((s, i) => /* @__PURE__ */ React.createElement("div", { key: s.id || i, style: { display: "grid", gap: 4 } }, /* @__PURE__ */ React.createElement("a", { href: s.link || "#", target: "_blank", rel: "noopener noreferrer", style: { display: "inline-flex", alignItems: "center", gap: 6, color: "var(--teal)", textDecoration: "none", fontSize: 12.5, fontWeight: 500 }, title: "Opens the source at aph.gov.au" }, s.title, " ", /* @__PURE__ */ React.createElement(Icon, { name: "ext", size: 11 })), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("span", { className: "mono t-label", style: { color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: ".12em" } }, s.tags && s.tags[0] && s.tags[0].l || "item"), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 11, color: "var(--ink-3)" } }, s.source), /* @__PURE__ */ React.createElement("span", { className: "mono", style: { fontSize: 10.5, color: "var(--ink-4)" } }, s.date)))), unresolved > 0 && /* @__PURE__ */ React.createElement("div", { className: "mono", style: { fontSize: 11, color: "var(--ink-4)" } }, unresolved, " further item", unresolved !== 1 ? "s" : "", " in the archive")));
+    /* @__PURE__ */ React.createElement("span", { className: "mono t-label", style: { color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: ".1em", marginLeft: 4 } }, "Cluster"),
+    /* @__PURE__ */ React.createElement("span", { className: "mono", style: { color: "var(--ink-2)", fontSize: 12.5 } }, t.title)
+  ), open && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 10, marginLeft: 25, display: "grid", gap: 8 } }, resolved.map((s, i) => /* @__PURE__ */ React.createElement("div", { key: s.id || i, style: { display: "grid", gap: 4 } }, s.link ? /* @__PURE__ */ React.createElement("a", { href: s.link, target: "_blank", rel: "noopener noreferrer", style: { display: "inline-flex", alignItems: "center", gap: 6, color: "var(--teal)", textDecoration: "none", fontSize: 12.5, fontWeight: 500 }, title: "Opens the source at aph.gov.au" }, s.title, " ", /* @__PURE__ */ React.createElement(Icon, { name: "ext", size: 11 })) : /* @__PURE__ */ React.createElement("span", { style: { fontSize: 12.5, fontWeight: 500, color: "var(--ink-2)" } }, s.source), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("span", { className: "mono t-label", style: { color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: ".12em" } }, s.tags && s.tags[0] && s.tags[0].l || "item"), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 11, color: "var(--ink-3)" } }, s.source), /* @__PURE__ */ React.createElement("span", { className: "mono", style: { fontSize: 10.5, color: "var(--ink-4)" } }, s.date)))), unresolved > 0 && /* @__PURE__ */ React.createElement("div", { className: "mono", style: { fontSize: 11, color: "var(--ink-4)" } }, unresolved, " further item", unresolved !== 1 ? "s" : "", " in the archive")));
 }
 function PagePatterns() {
   const { openModal, toast } = useStore();
@@ -807,7 +811,7 @@ Generated: ${(/* @__PURE__ */ new Date()).toISOString()}`, toast, "Brief handoff
       const brief = buildBriefSections(sig, !!sig.isLive);
       return /* @__PURE__ */ React.createElement("div", { className: "brief" }, /* @__PURE__ */ React.createElement("div", { className: "meta" }, "PARLIAMENT PULSE \xB7 ", b.type.toUpperCase(), " \xB7 ", brief.meta.date, " \xB7 ", brief.meta.time), /* @__PURE__ */ React.createElement("h3", null, brief.isLive ? brief.link ? /* @__PURE__ */ React.createElement("a", { href: brief.link, target: "_blank", rel: "noopener noreferrer", style: { color: "inherit" }, title: "Open the source at aph.gov.au" }, brief.title, " ", /* @__PURE__ */ React.createElement(Icon, { name: "ext", size: 12, style: { verticalAlign: "-1px", opacity: 0.6 } })) : brief.meta.source : brief.title), /* @__PURE__ */ React.createElement("h5", null, "What happened"), /* @__PURE__ */ React.createElement("div", null, brief.summary), /* @__PURE__ */ React.createElement("h5", null, "Source"), /* @__PURE__ */ React.createElement("div", null, brief.meta.source, " \xB7 ", brief.meta.sourceAuthority, " \xB7 ", brief.meta.date), /* @__PURE__ */ React.createElement("h5", null, "Why it matters"), /* @__PURE__ */ React.createElement("div", null, brief.whyItMatters), /* @__PURE__ */ React.createElement("h5", null, "Recommended action"), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("strong", null, brief.recommendedAction.label, "."), " ", brief.recommendedAction.reason), brief.evidence.length > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("h5", null, "Evidence"), /* @__PURE__ */ React.createElement("ul", null, brief.evidence.map((e, i) => /* @__PURE__ */ React.createElement("li", { key: i }, /* @__PURE__ */ React.createElement("a", { href: e.url, target: "_blank", rel: "noopener noreferrer", style: { color: "var(--brief-link)", textDecoration: "underline" } }, e.label))))), /* @__PURE__ */ React.createElement("h5", null, "Provenance"), /* @__PURE__ */ React.createElement("div", null, brief.provenance));
     }
-    return /* @__PURE__ */ React.createElement("div", { className: "brief" }, /* @__PURE__ */ React.createElement("div", { className: "meta" }, "PARLIAMENT PULSE \xB7 ", b.type.toUpperCase(), " \xB7 24 APR 2026 \xB7 08:20"), /* @__PURE__ */ React.createElement("h3", null, "New Senate inquiry: Digital procurement governance"), /* @__PURE__ */ React.createElement("h5", null, "What happened"), /* @__PURE__ */ React.createElement("div", null, "The Finance and Public Administration References Committee has opened an inquiry into Commonwealth procurement and contract governance for digital programs over $100m. Submissions close 19 May."), /* @__PURE__ */ React.createElement("h5", null, "Source"), /* @__PURE__ */ React.createElement("div", null, "APH Senate New Inquiries RSS \xB7 Official \xB7 validated 24 Apr 08:15."), /* @__PURE__ */ React.createElement("h5", null, "Why it matters"), /* @__PURE__ */ React.createElement("div", null, "The inquiry directly overlaps two watchlists (Digital procurement, Procurement) and follows last week's ANAO report tabling. Preliminary scrutiny pattern detected on the same topic (4 QONs / 3 members / 48h)."), /* @__PURE__ */ React.createElement("h5", null, "Recommended action"), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("strong", null, "Assign Policy Owner."), " Draft submission plan by 02 May. Coordinate with Legal on contract-variation data scope."), /* @__PURE__ */ React.createElement("h5", null, "Evidence"), /* @__PURE__ */ React.createElement("ul", null, /* @__PURE__ */ React.createElement("li", null, "APH \xB7 inquiry listing (primary)"), /* @__PURE__ */ React.createElement("li", null, "ANAO \xB7 performance audit report 2025\u201326/41"), /* @__PURE__ */ React.createElement("li", null, "Internal \xB7 existing procurement governance framework v4.2")), /* @__PURE__ */ React.createElement("h5", null, "Uncertainty"), /* @__PURE__ */ React.createElement("div", null, "The inquiry's terms of reference may expand during hearings. Confidence: Moderate."), /* @__PURE__ */ React.createElement("h5", null, "Human review"), /* @__PURE__ */ React.createElement("div", null, "Required \xB7 to be cleared by Director, Digital Strategy."));
+    return /* @__PURE__ */ React.createElement("div", { className: "brief" }, /* @__PURE__ */ React.createElement("div", { className: "meta" }, "PARLIAMENT PULSE \xB7 ", b.type.toUpperCase(), " \xB7 24 APR 2026 \xB7 08:20"), /* @__PURE__ */ React.createElement("h3", null, "New Senate inquiry: Digital procurement governance"), /* @__PURE__ */ React.createElement("h5", null, "What happened"), /* @__PURE__ */ React.createElement("div", null, "The Finance and Public Administration References Committee has opened an inquiry into Commonwealth procurement and contract governance for digital programs over $100m. Submissions close 19 May."), /* @__PURE__ */ React.createElement("h5", null, "Source"), /* @__PURE__ */ React.createElement("div", null, "APH Senate New Inquiries RSS \xB7 representative example \xB7 not validated."), /* @__PURE__ */ React.createElement("h5", null, "Why it matters"), /* @__PURE__ */ React.createElement("div", null, "The inquiry directly overlaps two watchlists (Digital procurement, Procurement) and follows last week's ANAO report tabling. Preliminary scrutiny pattern detected on the same topic (4 QONs / 3 members / 48h)."), /* @__PURE__ */ React.createElement("h5", null, "Recommended action"), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("strong", null, "Assign Policy Owner."), " Draft submission plan by 02 May. Coordinate with Legal on contract-variation data scope."), /* @__PURE__ */ React.createElement("h5", null, "Evidence"), /* @__PURE__ */ React.createElement("ul", null, /* @__PURE__ */ React.createElement("li", null, "APH \xB7 inquiry listing (primary)"), /* @__PURE__ */ React.createElement("li", null, "ANAO \xB7 performance audit report 2025\u201326/41"), /* @__PURE__ */ React.createElement("li", null, "Internal \xB7 existing procurement governance framework v4.2")), /* @__PURE__ */ React.createElement("h5", null, "Uncertainty"), /* @__PURE__ */ React.createElement("div", null, "The inquiry's terms of reference may expand during hearings. Confidence: Moderate."), /* @__PURE__ */ React.createElement("h5", null, "Human review"), /* @__PURE__ */ React.createElement("div", null, "Required \xB7 to be cleared by Director, Digital Strategy."));
   })()))));
 }
 function PageWatchlists() {
@@ -853,7 +857,7 @@ function PageRadar() {
     const groups = /* @__PURE__ */ new Map();
     live.items.forEach((s) => {
       const key = s.sourceGroup || "Other";
-      const g = groups.get(key) || { issue: key, count: 0, sources: /* @__PURE__ */ new Set(), att: "low" };
+      const g = groups.get(key) || { issue: key, count: 0, sources: /* @__PURE__ */ new Set(), att: null };
       g.count += 1;
       if (s.source) g.sources.add(s.source);
       if ((rank[s.attention] || 0) > (rank[g.att] || 0)) g.att = s.attention;

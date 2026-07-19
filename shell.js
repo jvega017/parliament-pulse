@@ -65,7 +65,7 @@ function Sidebar({ page, onNavigate, mobileOpen }) {
       overview: null,
       /* a dashboard has no unambiguous count; omit (the hero KPI carries the priority number) */
       live: null,
-      radar: active.filter((s) => s.attention !== "low").length,
+      radar: active.filter((s) => s.attention === "high" || s.attention === "med").length,
       signals: active.length,
       committees: COMMITTEE_ITEMS.length,
       bills: BILLS.length,
@@ -495,7 +495,7 @@ function generateBriefMarkdown(s, isLive = false) {
     `> BETA DRAFT \u2014 generated from the current Parliament Pulse signal record. Verify source links before distribution.`,
     ``,
     `# Executive Brief \u2014 ${titleMd}`,
-    `Date: ${brief.meta.date} | Source: ${brief.meta.source} | Priority: ${(brief.meta.attention || "").toUpperCase()}`,
+    `Date: ${brief.meta.date} | Source: ${brief.meta.source} | Priority: ${(brief.meta.attention || "\u2014").toUpperCase()}`,
     ``,
     `## Summary`,
     brief.summary,
