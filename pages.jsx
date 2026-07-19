@@ -418,7 +418,7 @@ function PageOverview() {
     <div className="page">
       <div className="page-head">
         <div>
-          <div className="page-kicker">{new Date().toLocaleDateString("en-AU", {weekday:"short", day:"numeric", month:"short", year:"numeric"})} · Verify sitting status from APH</div>
+          <div className="page-kicker">Representative signals as at 24 Apr 2026 · Verify current sitting status and live data from the Live page</div>
           <h1 className="page-title">Today's signals</h1>
         </div>
         <div style={{display:"flex", gap:8, alignItems:"center", flexWrap:"wrap", justifyContent:"flex-end"}}>
