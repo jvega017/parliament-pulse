@@ -359,17 +359,17 @@ const RADAR = [
 ];
 const QON_PATTERN = {
   topic: "Digital procurement governance",
-  members: ["Sen. A. Hollis", "Sen. M. Quirke", "Hon. P. Rafferty MP"],
+  members: ["Opposition Senator (representative)", "Crossbench Senator (representative)", "Opposition Member (representative)"],
   window: "24 to 72 hours",
   count: 4,
   target: "Minister for Digital Services / Department",
   trigger: "Audit report tabled 22 Apr",
   confidence: "Moderate",
   items: [
-    { memberId: "hollis", when: "22 Apr 14:12", who: "Sen. A. Hollis (Opposition)", chamber: "Senate", q: "Details of contract governance framework for digital programs over $100m since FY23\u201324" },
-    { memberId: "quirke", when: "22 Apr 15:40", who: "Sen. M. Quirke (Crossbench)", chamber: "Senate", q: "Number of variations to digital procurement contracts in the last 24 months, by department" },
-    { memberId: "rafferty", when: "23 Apr 11:02", who: "Hon. P. Rafferty MP", chamber: "House", q: "Status of Departmental response to ANAO report on digital program governance" },
-    { memberId: "hollis", when: "23 Apr 16:18", who: "Sen. A. Hollis (Opposition)", chamber: "Senate", q: "Use of limited tender for digital platforms where contract value exceeded $10m" }
+    { memberId: "hollis", when: "22 Apr 14:12", who: "Opposition Senator (representative)", chamber: "Senate", q: "Details of contract governance framework for digital programs over $100m since FY23\u201324" },
+    { memberId: "quirke", when: "22 Apr 15:40", who: "Crossbench Senator (representative)", chamber: "Senate", q: "Number of variations to digital procurement contracts in the last 24 months, by department" },
+    { memberId: "rafferty", when: "23 Apr 11:02", who: "Opposition Member (representative)", chamber: "House", q: "Status of Departmental response to ANAO report on digital program governance" },
+    { memberId: "hollis", when: "23 Apr 16:18", who: "Opposition Senator (representative)", chamber: "Senate", q: "Use of limited tender for digital platforms where contract value exceeded $10m" }
   ]
 };
 const BRIEFING_QUEUE = [

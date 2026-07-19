@@ -415,7 +415,7 @@ function CommitteeDetail({ id, titleId, closeButtonRef }) {
       <div className="modal-body">
         <p style={{color:"var(--ink-2)", marginTop:0}}>{c.bio}</p>
         <dl className="kv" style={{marginTop:14}}>
-          <dt>Chair</dt><dd>{c.chair}</dd>
+          <dt>Chair</dt><dd>{c.chair || (c.url ? <a href={"https://www." + c.url.replace(/^https?:\/\/(www\.)?/, "")} target="_blank" rel="noopener noreferrer">See current membership at APH →</a> : "See APH for current membership")}</dd>
           <dt>Members</dt><dd>{c.members}</dd>
           <dt>Portfolio</dt><dd>{c.portfolio}</dd>
           <dt>Active inquiries</dt><dd>{c.active}</dd>

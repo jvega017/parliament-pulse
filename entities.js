@@ -4,7 +4,7 @@ window.ENTITIES = {
       id: "legcon",
       name: "Legal & Constitutional Affairs Legislation Committee",
       chamber: "Senate",
-      chair: "Sen. A. Morrow",
+      chair: null,
       members: 7,
       portfolio: "Attorney-General, Home Affairs, Digital",
       active: 3,
@@ -22,7 +22,7 @@ window.ENTITIES = {
       id: "finpa",
       name: "Finance & Public Administration References Committee",
       chamber: "Senate",
-      chair: "Sen. J. Prentice",
+      chair: null,
       members: 6,
       portfolio: "Finance, PM&C, Public administration, Procurement",
       active: 4,
@@ -39,7 +39,7 @@ window.ENTITIES = {
       id: "econ",
       name: "Economics Legislation Committee",
       chamber: "Senate",
-      chair: "Sen. L. Hartley",
+      chair: null,
       members: 6,
       portfolio: "Treasury, Industry",
       active: 2,
@@ -47,13 +47,13 @@ window.ENTITIES = {
       bio: "Senate legislation committee for Treasury and Industry portfolios.",
       hearings: [{ when: "25 Apr, 09:00", topic: "Consumer Data Right \u2014 expansion review", room: "Committee Room 2R2" }],
       inquiries: ["Consumer Data Right expansion", "Competition reforms"],
-      url: "aph.gov.au/\u2026/Economics"
+      url: "aph.gov.au/Parliamentary_Business/Committees/Senate/Economics"
     },
     "rra": {
       id: "rra",
       name: "Rural & Regional Affairs Committee",
       chamber: "Senate",
-      chair: "Sen. K. Forrest",
+      chair: null,
       members: 6,
       portfolio: "Regional, Comms, Infrastructure",
       active: 3,
@@ -61,13 +61,13 @@ window.ENTITIES = {
       bio: "Committee dealing with rural and regional matters including connectivity and infrastructure.",
       hearings: [{ when: "26 Apr, 14:00", topic: "Regional connectivity outcomes", room: "CR 2S1" }],
       inquiries: ["Regional 5G rollout", "Regional banking"],
-      url: "aph.gov.au/\u2026/RRA"
+      url: "aph.gov.au/Parliamentary_Business/Committees/Senate/Rural_and_Regional_Affairs_and_Transport"
     },
     "jcle": {
       id: "jcle",
       name: "Joint Committee on Law Enforcement",
       chamber: "Joint",
-      chair: "Hon. P. Chand MP",
+      chair: null,
       members: 10,
       portfolio: "AFP, AIC, ACIC",
       active: 2,
@@ -75,13 +75,13 @@ window.ENTITIES = {
       bio: "Joint committee responsible for oversight of Commonwealth law enforcement.",
       hearings: [{ when: "28 Apr, 11:00", topic: "Scam activity trends", room: "CR 1R3" }],
       inquiries: ["Scam activity trends", "AFP capability review"],
-      url: "aph.gov.au/\u2026/Law_Enforcement"
+      url: "aph.gov.au/Parliamentary_Business/Committees/Joint/Law_Enforcement"
     },
     "envcomms": {
       id: "envcomms",
       name: "Environment & Communications References",
       chamber: "Senate",
-      chair: "Sen. O. Frew",
+      chair: null,
       members: 6,
       portfolio: "Environment, Communications",
       active: 1,
@@ -89,13 +89,13 @@ window.ENTITIES = {
       bio: "References committee on environment and communications.",
       hearings: [],
       inquiries: ["Regional 5G rollout", "Spectrum allocation review"],
-      url: "aph.gov.au/\u2026/Env_Comms"
+      url: "aph.gov.au/Parliamentary_Business/Committees/Senate/Environment_and_Communications"
     },
     "jcpaa": {
       id: "jcpaa",
       name: "Joint Committee on Public Accounts & Audit",
       chamber: "Joint",
-      chair: "Hon. R. Calder MP",
+      chair: null,
       members: 16,
       portfolio: "ANAO, cross-portfolio",
       active: 5,
@@ -103,39 +103,39 @@ window.ENTITIES = {
       bio: "Joint parliamentary committee overseeing the Auditor-General's reports.",
       hearings: [{ when: "29 Apr, 10:30", topic: "Digital transformation program governance", room: "CR 1R5" }],
       inquiries: ["Digital transformation governance (new)", "Review of ANAO reports tabled Q1"],
-      url: "aph.gov.au/\u2026/PAA"
+      url: "aph.gov.au/Parliamentary_Business/Committees/Joint/Public_Accounts_and_Audit"
     }
   },
   members: {
     "hollis": {
       id: "hollis",
-      name: "Sen. Arabella Hollis",
+      name: "Opposition Senator (representative)",
       party: "Opposition",
       state: "QLD",
       roles: ["Shadow Assistant Minister for Digital Services", "Economics Committee"],
-      bio: "Senator for Queensland since 2019. Shadow spokesperson on digital services and procurement. Frequent contributor to estimates on ICT matters.",
+      bio: "Representative Opposition senator profile. No real parliamentarian is depicted; wire live APH member data before relying on this.",
       qons: 14,
       hansard: 28,
       committees: ["Economics", "Finance & PA"]
     },
     "quirke": {
       id: "quirke",
-      name: "Sen. Marcus Quirke",
+      name: "Crossbench Senator (representative)",
       party: "Crossbench",
       state: "TAS",
       roles: ["Independent senator"],
-      bio: "Senator focused on transparency and consultancy reform. Active in procurement-related QONs.",
+      bio: "Representative crossbench senator profile. No real parliamentarian is depicted; wire live APH member data before relying on this.",
       qons: 9,
       hansard: 17,
       committees: ["Finance & PA"]
     },
     "rafferty": {
       id: "rafferty",
-      name: "Hon. Priya Rafferty MP",
+      name: "Opposition Member (representative)",
       party: "Opposition",
       state: "VIC",
       roles: ["Shadow Minister for Government Services"],
-      bio: "Opposition member \xB7 Victoria. Shadow spokesperson on government services and digital delivery.",
+      bio: "Representative Opposition member profile. No real parliamentarian is depicted; wire live APH member data before relying on this.",
       qons: 22,
       hansard: 41,
       committees: ["PAA"]
