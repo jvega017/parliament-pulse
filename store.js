@@ -102,13 +102,116 @@ function watchlistKeywords(w) {
   if (Array.isArray(w.keywordList) && w.keywordList.length) return w.keywordList;
   return w.name.toLowerCase().split(/\s+|&/).map((t) => t.trim()).filter((t) => t.length > 2);
 }
-function watchlistMatches(w) {
+function watchlistMatches(w, signals = typeof SIGNALS !== "undefined" ? SIGNALS : []) {
   const terms = watchlistKeywords(w);
-  if (typeof SIGNALS === "undefined" || !Array.isArray(SIGNALS)) return [];
-  return SIGNALS.filter((s) => (s.tags || []).some((t) => {
-    const label = (t.l || "").toLowerCase();
-    return terms.some((term) => label.includes(term.toLowerCase()));
-  }));
+  if (!Array.isArray(signals)) return [];
+  return signals.filter((s) => {
+    const title = (s.title || "").toLowerCase();
+    const tagHit = (s.tags || []).some((t) => {
+      const label = (t.l || "").toLowerCase();
+      return terms.some((term) => label.includes(term.toLowerCase()));
+    });
+    const titleHit = terms.some((term) => title.includes(term.toLowerCase()));
+    return tagHit || titleHit;
+  });
+}
+function mapWorkerSignalToCard(row) {
+  var _a;
+  const when = row.pub_date ? new Date(row.pub_date) : null;
+  return {
+    id: row.guid,
+    time: when ? `${String(when.getHours()).padStart(2, "0")}:${String(when.getMinutes()).padStart(2, "0")}` : "\u2014",
+    date: when ? when.toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" }) : "\u2014",
+    source: row.feed_label,
+    sourceGroup: row.source_group,
+    title: row.title,
+    link: safeHttpUrl(row.link),
+    // NEW: the APH deep link (licence render rule)
+    summary: row.scoring_explanation || "",
+    tags: [{ l: row.kind, c: "" }],
+    attention: row.attention || "low",
+    attentionReason: row.scoring_explanation || "",
+    action: "",
+    actionReason: "",
+    confidence: (_a = row.confidence) != null ? _a : 0,
+    sourceAuthority: "Official",
+    isLive: true,
+    // NEW: drives the licence render rule
+    evidence: row.link ? [{ label: row.feed_label, url: row.link }] : []
+  };
+}
+function mapConnectorCheck(row) {
+  const registry = typeof SOURCE_REGISTRY !== "undefined" && Array.isArray(SOURCE_REGISTRY) ? SOURCE_REGISTRY : [];
+  const reg = registry.find((r) => r.url === row.url);
+  const stripped = String(row.url || "").replace(/^https?:\/\/(www\.)?/, "");
+  return {
+    url: row.url,
+    checkedAt: row.checked_at,
+    ok: !!row.ok,
+    // live sample carries 1; coerce truthy
+    httpStatus: row.status,
+    error: row.error,
+    label: (reg == null ? void 0 : reg.label) || stripped,
+    group: (reg == null ? void 0 : reg.group) || "Worker"
+  };
+}
+function mapThreadItem(row) {
+  return {
+    id: row.thread_id,
+    title: row.title,
+    itemCount: row.item_count,
+    firstSeenAt: row.first_seen_at,
+    lastSeenAt: row.last_seen_at,
+    signalGuids: Array.isArray(row.signal_guids) ? row.signal_guids : []
+  };
+}
+function mapOneBlock(block, arrayKey, mapFn) {
+  if (!block || typeof block !== "object") {
+    return { provenance: "fixture", fetchedAt: null, items: null };
+  }
+  const arr = block[arrayKey];
+  const live = block.provenance === "live" && Array.isArray(arr) && arr.length > 0;
+  const out = {
+    provenance: block.provenance,
+    fetchedAt: block.fetched_at || null,
+    items: live ? arr.map(mapFn) : null
+  };
+  if (block.note != null) out.note = block.note;
+  return out;
+}
+function mapLiveBlocks(blocks) {
+  const b = blocks || {};
+  return {
+    signals: mapOneBlock(b.signals, "items", mapWorkerSignalToCard),
+    connectors: mapOneBlock(b.connectors, "checks", mapConnectorCheck),
+    threads: mapOneBlock(b.threads, "items", mapThreadItem),
+    alerts: mapOneBlock(b.alerts, "events", (x) => x),
+    qons: mapOneBlock(b.qons, "items", (x) => x)
+  };
+}
+function fmtFetchedAt(iso) {
+  if (!iso) return "\u2014";
+  try {
+    return new Date(iso).toLocaleTimeString("en-AU", { hour: "2-digit", minute: "2-digit", timeZone: "Australia/Brisbane" });
+  } catch (e) {
+    return "\u2014";
+  }
+}
+function useLiveState(blockName) {
+  var _a;
+  const { liveState } = useStore();
+  const block = ((_a = liveState.blocks) == null ? void 0 : _a[blockName]) || null;
+  const items = (block == null ? void 0 : block.items) || null;
+  return {
+    status: liveState.status,
+    items,
+    // mapped array, or null
+    fetchedAt: (block == null ? void 0 : block.fetchedAt) || null,
+    note: (block == null ? void 0 : block.note) || null,
+    // What the chip shows. "live" only when live items are actually usable;
+    // an empty or missing block can never place a Live chip (invariant 2).
+    displayProvenance: items ? "live" : block && block.provenance !== "live" ? block.provenance : "fixture"
+  };
 }
 function StoreProvider({ children, navigate = () => {
 } }) {
@@ -137,7 +240,14 @@ function StoreProvider({ children, navigate = () => {
   const closeSignal = React.useCallback(() => setSignalId(null), []);
   const [visibleSignalOrder, setVisibleSignalOrder] = React.useState(null);
   const [signalSearchQuery, setSignalSearchQuery] = React.useState("");
-  const [liveSignals, setLiveSignals] = React.useState({ provenance: "fixture", items: null });
+  const [liveState, setLiveState] = React.useState({
+    status: "idle",
+    // idle | loading | ready | error
+    meta: null,
+    // { generated_at, worker_version, schema } passthrough
+    blocks: null
+    // { signals, connectors, threads, alerts, qons } mapped, see mapLiveBlocks
+  });
   const pendingLiveRefreshRef = React.useRef(false);
   const requestLiveRefresh = React.useCallback(() => {
     pendingLiveRefreshRef.current = true;
@@ -146,6 +256,37 @@ function StoreProvider({ children, navigate = () => {
     const pending = pendingLiveRefreshRef.current;
     pendingLiveRefreshRef.current = false;
     return pending;
+  }, []);
+  React.useEffect(() => {
+    let cancelled = false;
+    let inFlight = false;
+    if (location.protocol === "file:") return () => {
+      cancelled = true;
+    };
+    const fetchState = async () => {
+      var _a;
+      if (inFlight) return;
+      inFlight = true;
+      setLiveState((s) => ({ ...s, status: "loading" }));
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 8e3);
+      try {
+        const res = await fetch(`${WORKER_BASE_URL}/state`, { signal: ctrl.signal });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const payload = await res.json();
+        if (cancelled) return;
+        setLiveState({ status: "ready", meta: (_a = payload.meta) != null ? _a : null, blocks: mapLiveBlocks(payload.blocks) });
+      } catch (e) {
+        if (!cancelled) setLiveState((s) => ({ ...s, status: "error" }));
+      } finally {
+        clearTimeout(timer);
+        inFlight = false;
+      }
+    };
+    fetchState();
+    return () => {
+      cancelled = true;
+    };
   }, []);
   React.useEffect(() => {
     const prev = document.body.style.overflow;
@@ -241,8 +382,7 @@ function StoreProvider({ children, navigate = () => {
     setVisibleSignalOrder,
     signalSearchQuery,
     setSignalSearchQuery,
-    liveSignals,
-    setLiveSignals,
+    liveState,
     requestLiveRefresh,
     consumeLiveRefresh,
     navigate,
@@ -269,7 +409,7 @@ function StoreProvider({ children, navigate = () => {
     closeSignal,
     visibleSignalOrder,
     signalSearchQuery,
-    liveSignals,
+    liveState,
     requestLiveRefresh,
     consumeLiveRefresh,
     navigate,
@@ -585,4 +725,4 @@ Suggested actions:
     closeModal();
   } }, /* @__PURE__ */ React.createElement(Icon, { name: "brief", size: 13 }), " Draft issue brief")));
 }
-Object.assign(window, { StoreProvider, useStore, DetailModal, watchlistKeywords, watchlistMatches });
+Object.assign(window, { StoreProvider, useStore, DetailModal, watchlistKeywords, watchlistMatches, useLiveState, mapWorkerSignalToCard, mapLiveBlocks, fmtFetchedAt });

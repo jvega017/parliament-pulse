@@ -112,14 +112,148 @@ function watchlistKeywords(w) {
   return w.name.toLowerCase().split(/\s+|&/).map(t => t.trim()).filter(t => t.length > 2);
 }
 
-// Count signals matching a watchlist by tag against the keyword list.
-function watchlistMatches(w) {
+// Count signals matching a watchlist by tag OR title against the keyword list.
+// The optional `signals` argument lets a desk match against the live signal
+// stream; the default preserves every existing caller (matches against SIGNALS).
+// Live items carry only the `kind` tag, so title matching is what makes a live
+// match real (section 2.4 of the live-wiring spec).
+function watchlistMatches(w, signals = (typeof SIGNALS !== "undefined" ? SIGNALS : [])) {
   const terms = watchlistKeywords(w);
-  if (typeof SIGNALS === "undefined" || !Array.isArray(SIGNALS)) return [];
-  return SIGNALS.filter(s => (s.tags || []).some(t => {
-    const label = (t.l || "").toLowerCase();
-    return terms.some(term => label.includes(term.toLowerCase()));
-  }));
+  if (!Array.isArray(signals)) return [];
+  return signals.filter(s => {
+    const title = (s.title || "").toLowerCase();
+    const tagHit = (s.tags || []).some(t => {
+      const label = (t.l || "").toLowerCase();
+      return terms.some(term => label.includes(term.toLowerCase()));
+    });
+    const titleHit = terms.some(term => title.includes(term.toLowerCase()));
+    return tagHit || titleHit;
+  });
+}
+
+// ---- Live /state mappers (module scope) ----
+// Worker snake_case -> frontend fields. Every worker field is Verified from
+// docs/state-contract.md. Mapping may rename and derive; it never fabricates a
+// field. action/score/provenance-trail/updates stay undefined for live items;
+// existing consumers guard on their presence.
+
+// signals.items[] -> signal card shape. Moved from pages.jsx unchanged, then
+// extended with the two new fields (link, isLive) marked NEW in the spec table.
+function mapWorkerSignalToCard(row) {
+  const when = row.pub_date ? new Date(row.pub_date) : null;
+  return {
+    id: row.guid,
+    time: when ? `${String(when.getHours()).padStart(2,"0")}:${String(when.getMinutes()).padStart(2,"0")}` : "—",
+    date: when ? when.toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" }) : "—",
+    source: row.feed_label,
+    sourceGroup: row.source_group,
+    title: row.title,
+    link: safeHttpUrl(row.link),                 // NEW: the APH deep link (licence render rule)
+    summary: row.scoring_explanation || "",
+    tags: [{ l: row.kind, c: "" }],
+    attention: row.attention || "low",
+    attentionReason: row.scoring_explanation || "",
+    action: "",
+    actionReason: "",
+    confidence: row.confidence ?? 0,
+    sourceAuthority: "Official",
+    isLive: true,                                // NEW: drives the licence render rule
+    evidence: row.link ? [{ label: row.feed_label, url: row.link }] : [],
+  };
+}
+
+// connectors.checks[] -> feed-health row. Joins each check to SOURCE_REGISTRY by
+// exact url for its label and group; unmatched checks are real Worker-monitored
+// endpoints the frontend does not poll directly.
+function mapConnectorCheck(row) {
+  const registry = (typeof SOURCE_REGISTRY !== "undefined" && Array.isArray(SOURCE_REGISTRY)) ? SOURCE_REGISTRY : [];
+  const reg = registry.find(r => r.url === row.url);
+  const stripped = String(row.url || "").replace(/^https?:\/\/(www\.)?/, "");
+  return {
+    url: row.url,
+    checkedAt: row.checked_at,
+    ok: !!row.ok,                                // live sample carries 1; coerce truthy
+    httpStatus: row.status,
+    error: row.error,
+    label: reg?.label || stripped,
+    group: reg?.group || "Worker",
+  };
+}
+
+// threads.items[] -> thread row. signalGuids MAY resolve against the mapped
+// signals; unresolved guids render as a count only, never a fabricated row.
+function mapThreadItem(row) {
+  return {
+    id: row.thread_id,
+    title: row.title,
+    itemCount: row.item_count,
+    firstSeenAt: row.first_seen_at,
+    lastSeenAt: row.last_seen_at,
+    signalGuids: Array.isArray(row.signal_guids) ? row.signal_guids : [],
+  };
+}
+
+// Map one raw block. Copies provenance, maps fetched_at -> fetchedAt and note ->
+// note (when present), and maps the payload array ONLY when provenance is "live"
+// and the array is non-empty; otherwise the mapped array is null so the desk
+// falls back to its fixture. The mapped array is always stored under `items`
+// (the hook is uniform; connectors know their rows are checks).
+function mapOneBlock(block, arrayKey, mapFn) {
+  if (!block || typeof block !== "object") {
+    return { provenance: "fixture", fetchedAt: null, items: null };
+  }
+  const arr = block[arrayKey];
+  const live = block.provenance === "live" && Array.isArray(arr) && arr.length > 0;
+  const out = {
+    provenance: block.provenance,
+    fetchedAt: block.fetched_at || null,
+    items: live ? arr.map(mapFn) : null,
+  };
+  if (block.note != null) out.note = block.note;
+  return out;
+}
+
+// mapLiveBlocks(blocks) -> object keyed by the five block names. The payload
+// array field differs per block (signals/threads/qons -> items, connectors ->
+// checks, alerts -> events); each maps into the uniform `items` slot.
+function mapLiveBlocks(blocks) {
+  const b = blocks || {};
+  return {
+    signals: mapOneBlock(b.signals, "items", mapWorkerSignalToCard),
+    connectors: mapOneBlock(b.connectors, "checks", mapConnectorCheck),
+    threads: mapOneBlock(b.threads, "items", mapThreadItem),
+    alerts: mapOneBlock(b.alerts, "events", x => x),
+    qons: mapOneBlock(b.qons, "items", x => x),
+  };
+}
+
+// Shared fetched-at formatter: HH:MM in Brisbane time. Desks append "AEST"
+// themselves, so this returns only the clock component.
+function fmtFetchedAt(iso) {
+  if (!iso) return "—";
+  try {
+    return new Date(iso).toLocaleTimeString("en-AU", { hour: "2-digit", minute: "2-digit", timeZone: "Australia/Brisbane" });
+  } catch {
+    return "—";
+  }
+}
+
+// Selector over the store's /state cache. blockName: "signals" | "connectors"
+// | "threads" | "alerts" | "qons".
+function useLiveState(blockName) {
+  const { liveState } = useStore();
+  const block = liveState.blocks?.[blockName] || null;
+  const items = block?.items || null;      // null => render the desk's fixture
+  return {
+    status: liveState.status,
+    items,                                  // mapped array, or null
+    fetchedAt: block?.fetchedAt || null,
+    note: block?.note || null,
+    // What the chip shows. "live" only when live items are actually usable;
+    // an empty or missing block can never place a Live chip (invariant 2).
+    displayProvenance: items ? "live"
+      : (block && block.provenance !== "live" ? block.provenance : "fixture"),
+  };
 }
 
 function StoreProvider({ children, navigate = () => {} }) {
@@ -155,16 +289,54 @@ function StoreProvider({ children, navigate = () => {} }) {
   const closeSignal = React.useCallback(() => setSignalId(null), []);
   const [visibleSignalOrder, setVisibleSignalOrder] = React.useState(null);
   const [signalSearchQuery, setSignalSearchQuery] = React.useState("");
-  // Live /state items — shared between PageSignals (fetches) and Drawer (renders on open).
-  // Kept out of `state`/localStorage: this is polled data, not a user preference, so it must
-  // reflect the current fetch rather than a stale persisted snapshot.
-  const [liveSignals, setLiveSignals] = React.useState({ provenance: "fixture", items: null });
+  // Live /state cache — polled data, deliberately NOT persisted to localStorage.
+  // One fetch, one cache, one selector (useLiveState). Every desk reads this
+  // through the hook rather than fetching for itself.
+  const [liveState, setLiveState] = React.useState({
+    status: "idle",   // idle | loading | ready | error
+    meta: null,       // { generated_at, worker_version, schema } passthrough
+    blocks: null,     // { signals, connectors, threads, alerts, qons } mapped, see mapLiveBlocks
+  });
   const pendingLiveRefreshRef = React.useRef(false);
   const requestLiveRefresh = React.useCallback(() => { pendingLiveRefreshRef.current = true; }, []);
   const consumeLiveRefresh = React.useCallback(() => {
     const pending = pendingLiveRefreshRef.current;
     pendingLiveRefreshRef.current = false;
     return pending;
+  }, []);
+
+  // Single /state fetch for the whole app (once on mount; no polling interval
+  // today). Guards preserved verbatim from the former PageSignals effect:
+  // file:// early-return, AbortController with an 8-second timeout, inFlight
+  // flag, cancelled cleanup. A failed refetch never erases a good cache.
+  React.useEffect(() => {
+    let cancelled = false;
+    let inFlight = false;
+    // Guard: file:// origins cannot reach the Worker (same guard as the Live page poller).
+    if (location.protocol === "file:") return () => { cancelled = true; };
+
+    const fetchState = async () => {
+      if (inFlight) return;
+      inFlight = true;
+      setLiveState(s => ({ ...s, status: "loading" }));
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 8000);
+      try {
+        const res = await fetch(`${WORKER_BASE_URL}/state`, { signal: ctrl.signal });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const payload = await res.json();
+        if (cancelled) return;
+        setLiveState({ status: "ready", meta: payload.meta ?? null, blocks: mapLiveBlocks(payload.blocks) });
+      } catch (e) {
+        // Leave blocks (and meta) as they were: a failed refetch never erases a good cache.
+        if (!cancelled) setLiveState(s => ({ ...s, status: "error" }));
+      } finally {
+        clearTimeout(timer);
+        inFlight = false;
+      }
+    };
+    fetchState();
+    return () => { cancelled = true; };
   }, []);
 
   React.useEffect(() => {
@@ -257,7 +429,7 @@ function StoreProvider({ children, navigate = () => {} }) {
       signalId, openSignal, closeSignal,
       visibleSignalOrder, setVisibleSignalOrder,
       signalSearchQuery, setSignalSearchQuery,
-      liveSignals, setLiveSignals,
+      liveState,
       requestLiveRefresh, consumeLiveRefresh,
       navigate,
       assignOwner, saveFeedback, archive, unarchive,
@@ -267,7 +439,7 @@ function StoreProvider({ children, navigate = () => {} }) {
     modal, openModal, closeModal,
     signalId, openSignal, closeSignal,
     visibleSignalOrder, signalSearchQuery,
-    liveSignals,
+    liveState,
     requestLiveRefresh, consumeLiveRefresh,
     navigate, assignOwner, saveFeedback, archive, unarchive,
     addWatchlist, removeWatchlist, isWatched, createWatchlist, generateBrief, addFeed, saveNote,
@@ -788,4 +960,4 @@ function RadarDetail({ id, titleId, closeButtonRef }) {
   );
 }
 
-Object.assign(window, { StoreProvider, useStore, DetailModal, watchlistKeywords, watchlistMatches });
+Object.assign(window, { StoreProvider, useStore, DetailModal, watchlistKeywords, watchlistMatches, useLiveState, mapWorkerSignalToCard, mapLiveBlocks, fmtFetchedAt });

@@ -91,8 +91,13 @@ const ICONS = {
 
 function Sidebar({ page, onNavigate, mobileOpen }) {
   const { state } = useStore();
+  // Live counts derive from the shared /state cache where a live block exists; a
+  // desk with no live block keeps its fixture-derived count (invariant 5).
+  const signalsLive = useLiveState("signals");
+  const threadsLive = useLiveState("threads");
   const navCount = React.useMemo(() => {
-    const active = SIGNALS.filter(s => !state.archived[s.id]);
+    const signalSource = signalsLive.items || SIGNALS;
+    const active = signalSource.filter(s => !state.archived[s.id]);
     return {
       overview: null,  /* a dashboard has no unambiguous count; omit (the hero KPI carries the priority number) */
       live: null,
@@ -101,12 +106,12 @@ function Sidebar({ page, onNavigate, mobileOpen }) {
       committees: COMMITTEE_ITEMS.length,
       bills: BILLS.length,
       parliament: DIVISIONS.length,
-      patterns: QON_PATTERN.items.length,
+      patterns: threadsLive.items ? threadsLive.items.length : QON_PATTERN.items.length,
       briefings: BRIEFING_QUEUE.length + Object.keys(state.briefsGenerated || {}).length,
       watchlists: WATCHLISTS.length + (state.watchlistCreated || []).length,
       sources: null,  /* "6" was ambiguous (feeds? errors?); the Sources page states it plainly */
     };
-  }, [state.archived, state.briefsGenerated, state.watchlistCreated, state.feeds]);
+  }, [state.archived, state.briefsGenerated, state.watchlistCreated, state.feeds, signalsLive.items, threadsLive.items]);
   const groups = [...new Set(NAV.map(n => n.group))];
   // Streak: consecutive days the tool has been opened — reflection of practice, not gamification.
   // Compute the display value without side effects so the lazy initialiser is pure if dev StrictMode is added.

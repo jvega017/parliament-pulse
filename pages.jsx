@@ -7,9 +7,12 @@ function csvEscape(v) {
   return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 
-function exportSignalsCSV() {
+// Takes the array to export so a live inbox exports live rows (spec 2.1). The
+// only caller passes PageOverview's sourceSignals (live items or the fixture).
+function exportSignalsCSV(signals) {
+  const source = Array.isArray(signals) ? signals : SIGNALS;
   const headers = ["id","date","source","attention","title","action","confidence"];
-  const rows = SIGNALS.map(s => [
+  const rows = source.map(s => [
     s.id, s.date, s.source, s.attention,
     s.title,
     s.action,
@@ -328,12 +331,17 @@ function OnboardingGuide() {
 function PageOverview() {
   const { openModal, state, toast, navigate } = useStore();
   const goto = navigate;
+  // Live signals feed the priority/rest computation and the command strip. When
+  // the /state signals block is not live, sourceSignals falls back to the fixture
+  // (spec 2.1); the chip below reflects which one is on screen.
+  const live = useLiveState("signals");
+  const sourceSignals = live.items || SIGNALS;
   // Local overview controls (F4): real state, not toast-only stubs.
   const [groupByTopic, setGroupByTopic] = useState(false);
   const [sortByAttention, setSortByAttention] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
-  const priority = SIGNALS.filter(s => s.attention === "high" && !state.archived[s.id]);
-  let rest = SIGNALS.filter(s => s.attention !== "high" && !state.archived[s.id]);
+  const priority = sourceSignals.filter(s => s.attention === "high" && !state.archived[s.id]);
+  let rest = sourceSignals.filter(s => s.attention !== "high" && !state.archived[s.id]);
   if (sortByAttention) {
     const rank = { high: 0, med: 1, low: 2 };
     rest = [...rest].sort((a, b) => (rank[a.attention] ?? 3) - (rank[b.attention] ?? 3));
@@ -418,13 +426,16 @@ function PageOverview() {
     <div className="page">
       <div className="page-head">
         <div>
-          <div className="page-kicker">Representative signals as at 24 Apr 2026 · Verify current sitting status and live data from the Live page</div>
+          <div className="page-kicker">{live.items
+            ? `Live signals · fetched ${fmtFetchedAt(live.fetchedAt)} AEST · verify sitting status from the Live page`
+            : "Representative signals as at 24 Apr 2026 · Verify current sitting status and live data from the Live page"}</div>
           <h1 className="page-title">Today's signals</h1>
         </div>
         <div style={{display:"flex", gap:8, alignItems:"center", flexWrap:"wrap", justifyContent:"flex-end"}}>
-          <span className="chip-fixture" title="Signal counts and tiles are representative; the Live page polls official RSS feeds">Representative signals · live RSS available</span>
+          <ProvenanceChip provenance={live.displayProvenance}
+            title={live.displayProvenance === "live" ? "Signals from the Worker's composed /state endpoint (D1 archive)" : "Signal counts and tiles are representative; the Live page polls official RSS feeds"} />
           <button className="btn ghost sm" aria-expanded={showHelp} onClick={() => setShowHelp(v => !v)}><Icon name="signal" size={12}/> How it works</button>
-          <button className="btn ghost sm" onClick={exportSignalsCSV}><Icon name="ext" size={12}/> Export CSV</button>
+          <button className="btn ghost sm" onClick={() => exportSignalsCSV(sourceSignals)}><Icon name="ext" size={12}/> Export CSV</button>
           <button className="btn ghost sm" onClick={copyBetaHandoff}><Icon name="brief" size={12}/> Copy beta handoff</button>
           <button className="btn primary" onClick={generateDailyBrief}><Icon name="brief" size={13}/> Generate daily brief</button>
         </div>
@@ -438,12 +449,12 @@ function PageOverview() {
           <div className="cs-stat-label">Priority signals</div>
           <div className="cs-kpi cs-count-up">{priority.length}<span className="unit">{priority.length > 0 ? "to triage" : "clear"}</span></div>
           <div className="stat-meta" style={{marginTop:8, display:"flex", alignItems:"center", gap:10}}>
-            <span style={{color:"var(--ink-3)"}}>{priority.length + rest.length} signals in view · {SIGNALS.filter(s => state.archived[s.id]).length}/{SIGNALS.length} actioned</span>
+            <span style={{color:"var(--ink-3)"}}>{priority.length + rest.length} signals in view · {sourceSignals.filter(s => state.archived[s.id]).length}/{sourceSignals.length} actioned</span>
             {priority.length > 0 && <button className="btn ghost sm" style={{marginLeft:"auto"}} onClick={() => document.getElementById("priority-panel")?.scrollIntoView({behavior:"smooth", block:"start"})}>Triage now →</button>}
           </div>
         </div>
-        <div className="cs-secondary">
-          <div className="cs-stat-label">Committee activity</div>
+        <div className="cs-secondary" title="Representative count">
+          <div className="cs-stat-label" style={{display:"flex", alignItems:"center", gap:8}}>Committee activity <span className="chip-fixture">Representative data</span></div>
           <div className="cs-stat">7<span className="unit">items</span></div>
           <div className="stat-meta">2 hearings · 1 inquiry · 1 report</div>
         </div>
@@ -495,13 +506,13 @@ function PageOverview() {
             <div className="panel-section">
               <div className="panel-section-head">
                 <h2 className="panel-section-title">What changed</h2>
-                <span className="panel-kicker" style={{marginLeft:"auto"}}>Representative set · 24 Apr 2026</span>
+                <span className="panel-kicker" style={{marginLeft:"auto"}}>{live.items ? "Representative timeline · live inbox on Signals" : "Representative set · 24 Apr 2026"}</span>
               </div>
               <div style={{marginBottom:12, paddingBottom:12, borderBottom:"1px solid var(--rule-2)", fontSize:12, color:"var(--ink-3)"}}>
                 {Object.keys(state.archived).length > 0
                   ? `You actioned ${Object.keys(state.archived).length} signal${Object.keys(state.archived).length !== 1 ? "s" : ""} this session.`
                   : "No signals actioned yet this session."}{" "}
-                {SIGNALS.length} signals in this representative set.
+                {sourceSignals.length} signals in the current inbox.
               </div>
               <div className="timeline">
                 <div className="tl-item"><div className="tl-time">08:15 · Senate</div><div className="tl-body">New inquiry opened: <button className="linklike" onClick={()=>openModal("inquiry","Commonwealth procurement governance (new)")}>Digital procurement governance</button></div></div>
@@ -1038,6 +1049,7 @@ function PageLive() {
 // ---------- SOURCES ----------
 function PageSources() {
   const { openModal, addFeed, state, toast } = useStore();
+  const health = useLiveState("connectors");   // health.items is the mapped checks array
   const [testing, setTesting] = useState(false);
   const [testState, setTestState] = useState(null);
   const [newUrl, setNewUrl] = useState("https://www.aph.gov.au/.../FlagPost/Blog_entries");
@@ -1065,13 +1077,21 @@ function PageSources() {
 
   const allFeeds = [...APH_FEEDS, ...state.feeds.map(f => ({ ...f, last:"just now", today:0, fpr:"—", modules:["Custom"], parser:"Needs validation", authority:"Custom", confidence:"—" }))];
 
+  // Feed-health from the Worker's connector checks, joined to the registry by url.
+  const checkByUrl = new Map((health.items || []).map(c => [c.url, c]));
+  const registryUrls = new Set((typeof SOURCE_REGISTRY !== "undefined" && Array.isArray(SOURCE_REGISTRY) ? SOURCE_REGISTRY : []).map(r => r.url));
+  // Real endpoints the Worker health-checks that the frontend does not poll directly
+  // (11 checks vs 6 registry rows). Counted from data, never hardcoded.
+  const workerRows = (health.items || []).filter(c => !registryUrls.has(c.url));
+  const healthyCount = (health.items || []).filter(c => c.ok).length;
+
   return (
     <div className="page">
       <div className="page-head">
         <div>
           <div className="page-kicker">Admin</div>
           <h1 className="page-title">Sources</h1>
-          <div className="page-sub">Official APH feed bundle plus any custom RSS feeds you've added. Official feeds are polled live; custom validation is a prototype workflow until backend validation is connected.</div>
+          <div className="page-sub">Official APH feed register with live health checks from the Worker. Custom-feed validation remains a prototype workflow.</div>
         </div>
         <div style={{display:"flex", gap:10}}>
           <button className="btn" title="Re-polls the live RSS feeds if the Live page poller is mounted" onClick={() => { if (typeof window.__refreshLiveFeeds === "function") { window.__refreshLiveFeeds(); toast("Live feeds re-polled"); } else { toast("Open the Live page to start the feed poller"); } }}><Icon name="refresh" size={13}/> Refresh all</button>
@@ -1080,8 +1100,12 @@ function PageSources() {
       </div>
 
       <div className="grid g-4" style={{marginBottom:18}}>
-        <div className="panel stat"><div className="stat-label">Active feeds</div><div className="stat-value">{sourceCounts().total}</div><div className="stat-meta">Official APH feeds configured</div></div>
-        <div className="panel stat"><div className="stat-label">Healthy</div><div className="stat-value" style={{fontSize:18, color:"var(--ink-3)"}}>—</div><div className="stat-meta">Available after live poll</div></div>
+        <div className="panel stat"><div className="stat-label">Active feeds</div><div className="stat-value">{sourceCounts().total}</div><div className="stat-meta">{health.items ? "Official feeds configured · " + health.items.length + " endpoints health-checked" : "Official APH feeds configured"}</div></div>
+        <div className="panel stat"><div className="stat-label">Healthy</div>
+          {health.items
+            ? <><div className="stat-value">{healthyCount}/{health.items.length}</div><div className="stat-meta">as at {fmtFetchedAt(health.fetchedAt)} AEST</div></>
+            : <><div className="stat-value" style={{fontSize:18, color:"var(--ink-3)"}}>—</div><div className="stat-meta">Available after live poll</div></>}
+        </div>
         <div className="panel stat"><div className="stat-label">Items ingested · today</div><div className="stat-value" style={{fontSize:18, color:"var(--ink-3)"}}>—</div><div className="stat-meta">Available after live poll</div></div>
         <div className="panel stat"><div className="stat-label">False positive rate</div><div className="stat-value" style={{fontSize:18, color:"var(--ink-3)"}}>—</div><div className="stat-meta">Available after 30 days' operation</div></div>
       </div>
@@ -1091,6 +1115,8 @@ function PageSources() {
           <div className="panel-head">
             <h2 className="panel-title">Official APH Feed Bundle</h2>
             <span className="panel-kicker">{sourceCounts().total} official feeds configured · click a row for detail</span>
+            <ProvenanceChip provenance={health.displayProvenance}
+              title={health.displayProvenance === "live" ? "Feed health from the Worker's connector checks" : "Health appears after the Worker check runs"} />
           </div>
           <table className="ds">
             <thead><tr>
@@ -1098,18 +1124,39 @@ function PageSources() {
               <th className="num">Today</th><th>FPR</th><th>Parser</th>
             </tr></thead>
             <tbody>
-              {allFeeds.map(f => (
+              {allFeeds.map(f => {
+                const c = checkByUrl.get(f.url);
+                return (
                 <tr key={f.id} onClick={() => f.group !== "Custom" && openModal("feed", f.id)}>
                   <td>
                     <div style={{fontWeight:500}}>{f.name}</div>
                     <div className="mono" style={{fontSize:10.5, color:"var(--ink-4)"}}>{f.url.length > 56 ? f.url.slice(0,56)+"…" : f.url}</div>
                   </td>
                   <td><span className="tag">{f.group}</span></td>
-                  <td>{f.lastStatusCode != null ? (f.lastStatusCode >= 200 && f.lastStatusCode < 300 ? "Live" : "Error") : "—"}</td>
-                  <td className="mono" style={{fontSize:11.5, color:"var(--ink-3)"}}>{f.last || "—"}</td>
+                  <td style={c && !c.ok ? {color:"var(--escalate)"} : undefined}>
+                    {c
+                      ? (c.ok ? "Live" : `Error ${c.httpStatus ?? ""}`.trim())
+                      : (f.lastStatusCode != null ? (f.lastStatusCode >= 200 && f.lastStatusCode < 300 ? "Live" : "Error") : "—")}
+                  </td>
+                  <td className="mono" style={{fontSize:11.5, color:"var(--ink-3)"}}>{c ? fmtFetchedAt(c.checkedAt) : (f.last || "—")}</td>
                   <td className="num">{f.lastItemCount ?? "—"}</td>
                   <td><span className="tag">{f.fpr}</span></td>
                   <td>{f.parser || "—"}</td>
+                </tr>
+                );
+              })}
+              {workerRows.map(c => (
+                <tr key={c.url}>
+                  <td>
+                    <div style={{fontWeight:500}}>{c.label}</div>
+                    <div className="mono" style={{fontSize:10.5, color:"var(--ink-4)"}}>{c.url.length > 56 ? c.url.slice(0,56)+"…" : c.url}</div>
+                  </td>
+                  <td><span className="tag">{c.group}</span></td>
+                  <td style={!c.ok ? {color:"var(--escalate)"} : undefined}>{c.ok ? "Live" : `Error ${c.httpStatus ?? ""}`.trim()}</td>
+                  <td className="mono" style={{fontSize:11.5, color:"var(--ink-3)"}}>{fmtFetchedAt(c.checkedAt)}</td>
+                  <td className="num">—</td>
+                  <td><span className="tag">—</span></td>
+                  <td>Worker-monitored</td>
                 </tr>
               ))}
             </tbody>
@@ -1200,8 +1247,43 @@ function PageSources() {
   );
 }
 
+// Shared additive live strip (Committees, Daily program). Every live title renders
+// ONLY inside an anchor to its APH link (licence contract, spec section 4.1); the
+// product's own metadata (kind, feed label, date) renders as ordinary content around
+// it. Filtered lists pass items already narrowed by verified feed_label.
+function LiveFeedStrip({ title, items, fetchedAt, emptyText }) {
+  return (
+    <div className="panel" style={{marginBottom:16}}>
+      <div className="panel-head">
+        <h2 className="panel-title">{title}</h2>
+        <ProvenanceChip provenance="live" title="Live items from the Worker's composed /state feed" />
+        <span className="panel-kicker" style={{marginLeft:"auto"}}>fetched {fmtFetchedAt(fetchedAt)} AEST</span>
+      </div>
+      <div className="panel-body">
+        {items.length === 0
+          ? <div className="empty">{emptyText}</div>
+          : items.map((s, i) => (
+            <div key={s.id || i} className="data-row" style={{display:"grid", gap:6, padding:"10px 0", borderBottom: i<items.length-1 ? "1px solid var(--line)" : 0}}>
+              <a href={s.link || "#"} target="_blank" rel="noopener noreferrer" style={{display:"inline-flex", alignItems:"center", gap:6, color:"var(--teal)", textDecoration:"none", fontSize:13, fontWeight:500}} title="Opens the source at aph.gov.au">
+                {s.title} <Icon name="ext" size={11}/>
+              </a>
+              <div style={{display:"flex", gap:10, alignItems:"center", flexWrap:"wrap"}}>
+                <span className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".12em"}}>{(s.tags && s.tags[0] && s.tags[0].l) || "item"}</span>
+                <span style={{fontSize:11.5, color:"var(--ink-3)"}}>{s.source}</span>
+                <span className="mono" style={{fontSize:10.5, color:"var(--ink-4)"}}>{s.date}</span>
+              </div>
+            </div>
+          ))}
+      </div>
+    </div>
+  );
+}
+
 // ---------- COMMITTEES ----------
 function PageCommittees() {
+  const liveSignalsState = useLiveState("signals");
+  const committeeFeedLabels = new Set(["Senate Committee Reports Tabled", "Senate New Inquiries", "Senate Upcoming Hearings"]);
+  const committeeLive = liveSignalsState.items ? liveSignalsState.items.filter(s => committeeFeedLabels.has(s.source)) : null;
   const { openModal, toast } = useStore();
   const [highOnly, setHighOnly] = useState(false);
   const rows = highOnly ? COMMITTEE_ITEMS.filter(i => i.att === "high") : COMMITTEE_ITEMS;
@@ -1248,15 +1330,22 @@ function PageCommittees() {
         <div>
           <div className="page-kicker">Parliament</div>
           <h1 className="page-title">Committees</h1>
-          <div className="page-sub">Powered by Senate and House committee feeds. Click any row to open the committee, hearings, inquiries and prep pack.</div>
+          <div className="page-sub">Committee profiles and schedules are representative; the live strip lists real items from the Senate committee feeds.</div>
         </div>
-        <div style={{display:"flex", gap:10}}>
+        <div style={{display:"flex", gap:10, alignItems:"center"}}>
+          <span className="chip-fixture">Representative data</span>
           <button className={"btn" + (highOnly ? " primary" : "")} title="Toggle high-attention committee rows" onClick={() => setHighOnly(v => !v)}><Icon name="filter" size={13}/> High attention</button>
           <button className="btn ghost" title="Export the current committee prep rows" onClick={exportPrepPack}><Icon name="brief" size={13}/> Export prep pack</button>
         </div>
       </div>
 
+      {committeeLive && (
+        <LiveFeedStrip title="Latest committee items · live feed" items={committeeLive} fetchedAt={liveSignalsState.fetchedAt}
+          emptyText="No committee items in the current live window." />
+      )}
+
       <div className="grid g-3" style={{marginBottom:18}}>
+        <div style={{gridColumn:"1 / -1", display:"flex", justifyContent:"flex-end", marginBottom:-6}}><span className="chip-fixture">Representative data</span></div>
         <div className="panel stat"><div className="stat-label">Today</div><div className="stat-value">2<span className="unit">hearings</span></div></div>
         <div className="panel stat"><div className="stat-label">Upcoming · 7 days</div><div className="stat-value">3<span className="unit">hearings</span></div></div>
         <div className="panel stat"><div className="stat-label">Reports tabled · 30 days</div><div className="stat-value">5</div></div>
@@ -1289,7 +1378,7 @@ function PageBills() {
       <div className="page-head">
         <div>
           <div className="page-kicker">Parliament · Bills Intelligence</div>
-          <h1 className="page-title">Bills intelligence</h1>
+          <h1 className="page-title" style={{display:"flex", alignItems:"center", gap:10}}>Bills intelligence <span className="chip-fixture" title="Bill stages and provisions are representative until a bills register connector exists">Representative data</span></h1>
           <div className="page-sub">Click a bill for full details, provisions and timeline. Assign a policy owner directly from the bill detail.</div>
         </div>
         <div style={{display:"flex", gap:10}}>
@@ -1391,6 +1480,9 @@ function PageBills() {
 // ---------- PARLIAMENT ----------
 function PageParliament() {
   const { openModal, toast } = useStore();
+  const live = useLiveState("signals");
+  const chamberFeedLabels = new Set(["House Divisions", "House Daily Program", "House Media Releases"]);
+  const chamberLive = live.items ? live.items.filter(s => chamberFeedLabels.has(s.source)) : null;
   return (
     <div className="page">
       <div className="page-head">
@@ -1401,9 +1493,14 @@ function PageParliament() {
         </div>
       </div>
 
+      {chamberLive && (
+        <LiveFeedStrip title="Latest chamber items · live feed" items={chamberLive} fetchedAt={live.fetchedAt}
+          emptyText="No chamber items in the current live window." />
+      )}
+
       <div className="grid g-overview">
         <div className="panel">
-          <div className="panel-head"><h2 className="panel-title">House · daily program</h2><span className="panel-kicker">24 Apr 2026</span></div>
+          <div className="panel-head"><h2 className="panel-title">House · daily program</h2><span className="panel-kicker">24 Apr 2026</span><span className="chip-fixture" style={{marginLeft:"auto"}}>Representative data</span></div>
           <div className="panel-body">
             <div className="timeline">
               {[
@@ -1427,7 +1524,7 @@ function PageParliament() {
         </div>
 
         <div className="panel">
-          <div className="panel-head"><h2 className="panel-title">Recent divisions</h2><span className="panel-kicker">House</span></div>
+          <div className="panel-head"><h2 className="panel-title">Recent divisions</h2><span className="panel-kicker">House</span><span className="chip-fixture" style={{marginLeft:"auto"}}>Representative data</span></div>
           <div className="panel-body">
             {DIVISIONS.map((d, i) => (
               <div key={d.when + d.bill} className="clk list-row" onClick={() => openModal("division", d)} style={{borderRadius:6}}>
@@ -1442,7 +1539,7 @@ function PageParliament() {
 
       <div className="grid g-2" style={{marginTop:16}}>
         <div className="panel">
-          <div className="panel-head"><h2 className="panel-title">House news & media</h2><span className="panel-kicker">Official feeds</span></div>
+          <div className="panel-head"><h2 className="panel-title">House news & media</h2><span className="panel-kicker">Official feeds</span><span className="chip-fixture" style={{marginLeft:"auto"}}>Representative data</span></div>
           <div className="panel-body">
             {[
               "Speaker announces procedural changes to Wednesday sittings",
@@ -1475,8 +1572,57 @@ function PageParliament() {
 }
 
 // ---------- PATTERNS ----------
+// Format a thread span date (day + month) from an ISO timestamp.
+function fmtSpanDate(iso) {
+  if (!iso) return "—";
+  try { return new Date(iso).toLocaleDateString("en-AU", { day: "numeric", month: "short" }); }
+  catch { return "—"; }
+}
+
+// One live thread row. The product-owned facts (item count, first/last seen) lead;
+// the thread title is a quoted identifier with no anchor of its own (threads carry no
+// link field; spec 4.3). Expanding lists member signals, each anchored to its APH link.
+function ThreadRow({ t, byGuid, isLast }) {
+  const [open, setOpen] = useState(false);
+  const resolved = t.signalGuids.map(g => byGuid.get(g)).filter(Boolean);
+  const unresolved = t.signalGuids.length - resolved.length;
+  return (
+    <div style={{padding:"12px 0", borderBottom: isLast ? 0 : "1px solid var(--line)"}}>
+      <button onClick={() => setOpen(v => !v)} aria-expanded={open}
+        style={{display:"flex", alignItems:"center", gap:12, width:"100%", background:"none", border:"none", padding:0, cursor:"pointer", textAlign:"left", color:"inherit"}}>
+        <Icon name="chevron" size={13} style={{transform: open ? "rotate(90deg)" : "none", transition:"transform .15s"}}/>
+        <span style={{fontSize:13.5, fontWeight:600, color:"var(--ink)"}}>{t.itemCount} items</span>
+        <span className="mono" style={{fontSize:11, color:"var(--ink-3)"}}>{fmtSpanDate(t.firstSeenAt)} → {fmtSpanDate(t.lastSeenAt)}</span>
+        <span className="mono" style={{color:"var(--ink-2)", fontSize:12.5, marginLeft:4}}>&ldquo;{t.title}&rdquo;</span>
+      </button>
+      {open && (
+        <div style={{marginTop:10, marginLeft:25, display:"grid", gap:8}}>
+          {resolved.map((s, i) => (
+            <div key={s.id || i} style={{display:"grid", gap:4}}>
+              <a href={s.link || "#"} target="_blank" rel="noopener noreferrer" style={{display:"inline-flex", alignItems:"center", gap:6, color:"var(--teal)", textDecoration:"none", fontSize:12.5, fontWeight:500}} title="Opens the source at aph.gov.au">
+                {s.title} <Icon name="ext" size={11}/>
+              </a>
+              <div style={{display:"flex", gap:10, alignItems:"center", flexWrap:"wrap"}}>
+                <span className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".12em"}}>{(s.tags && s.tags[0] && s.tags[0].l) || "item"}</span>
+                <span style={{fontSize:11, color:"var(--ink-3)"}}>{s.source}</span>
+                <span className="mono" style={{fontSize:10.5, color:"var(--ink-4)"}}>{s.date}</span>
+              </div>
+            </div>
+          ))}
+          {unresolved > 0 && (
+            <div className="mono" style={{fontSize:11, color:"var(--ink-4)"}}>{unresolved} further item{unresolved !== 1 ? "s" : ""} in the archive</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PagePatterns() {
   const { openModal, toast } = useStore();
+  const threads = useLiveState("threads");
+  const signalsLive = useLiveState("signals");
+  const byGuid = React.useMemo(() => new Map((signalsLive.items || []).map(s => [s.id, s])), [signalsLive.items]);
   const [clusterStatus, setClusterStatus] = useState("Needs analyst review");
   return (
     <div className="page">
@@ -1488,9 +1634,26 @@ function PagePatterns() {
         </div>
       </div>
 
+      {threads.items && (
+        <div className="panel" style={{marginBottom:16}}>
+          <div className="panel-head">
+            <h2 className="panel-title">Signal threads · live clustering</h2>
+            <ProvenanceChip provenance="live" title="Thread clustering from the Worker archive" />
+            <span className="panel-kicker" style={{marginLeft:"auto"}}>{threads.items.length} threads · fetched {fmtFetchedAt(threads.fetchedAt)} AEST</span>
+          </div>
+          <div className="panel-body">
+            {threads.items.map((t, i) => (
+              <ThreadRow key={t.id || i} t={t} byGuid={byGuid} isLast={i === threads.items.length - 1} />
+            ))}
+          </div>
+        </div>
+      )}
+
       <div style={{padding:"10px 14px", background:"var(--panel-hi)", border:"1px solid var(--line-bright)", borderRadius:8, marginBottom:16, display:"flex", gap:10, alignItems:"center", color:"var(--ink-2)", fontSize:12.5}}>
         <Icon name="flag" size={14} stroke="var(--info)"/>
-        <span><strong>Design-state module.</strong> Direct QON feed not yet connected. Patterns below use sample scrutiny data. Status visible on Sources page.</span>
+        {threads.items
+          ? <span><strong>QON feed not connected</strong> (source returns 403). Thread clustering above is live from the archive. The QON pattern below remains representative.</span>
+          : <span><strong>Design-state module.</strong> Direct QON feed not yet connected. Patterns below use sample scrutiny data. Status visible on Sources page.</span>}
       </div>
 
       <div className="pattern">
@@ -1562,10 +1725,14 @@ function PagePatterns() {
 function PageBriefings() {
   const [selId, setSelId] = useState(null);
   const { toast, state, setSignalSearchQuery, navigate } = useStore();
+  // A generated brief may reference a live signal, so resolve sids against both the
+  // fixture and the live inbox (spec 2.5).
+  const live = useLiveState("signals");
+  const known = live.items ? [...SIGNALS, ...live.items] : SIGNALS;
 
   // Merge drawer-generated briefs into the queue
   const generated = Object.entries(state.briefsGenerated || {}).map(([sid, v]) => {
-    const sig = SIGNALS.find(s => s.id === sid);
+    const sig = known.find(s => s.id === sid);
     // F11: fix the "For undefined" label — precedence bug. Use an explicit ternary.
     const label = sig ? (sig.title.slice(0, 40) + "…") : sid;
     return { type: v.type || "Executive Brief", for: label, status: "Copied · clipboard", _sid: sid, _ts: v.ts };
@@ -1626,9 +1793,9 @@ function PageBriefings() {
             {(() => {
               const b = selected;
               if (!b) return <div className="empty">No briefs in the queue.</div>;
-              const sig = b._sid ? SIGNALS.find(s => s.id === b._sid) : null;
+              const sig = b._sid ? known.find(s => s.id === b._sid) : null;
               if (sig) {
-                const brief = buildBriefSections(sig);
+                const brief = buildBriefSections(sig, !!sig.isLive);
                 return (
                 <div className="brief">
                   <div className="meta">PARLIAMENT PULSE · {b.type.toUpperCase()} · {brief.meta.date} · {brief.meta.time}</div>
@@ -1682,6 +1849,11 @@ function PageBriefings() {
 function PageWatchlists() {
   const { openModal, createWatchlist, state, removeWatchlist } = useStore();
   const [newName, setNewName] = useState("");
+  // Derived matching: keyword matches computed against the live signal stream. In
+  // fixture mode the card keeps its stored representative match count (spec 2.4).
+  const live = useLiveState("signals");
+  const matchSource = live.items || SIGNALS;
+  const derived = !!live.items;
   const all = [...WATCHLISTS, ...state.watchlistCreated];
   const [selectedWl, setSelectedWl] = useState(() => all[0]);
   const selectedKeywords = watchlistKeywords(selectedWl || all[0]);
@@ -1697,7 +1869,9 @@ function PageWatchlists() {
           <h1 className="page-title">Watchlists</h1>
           <div className="page-sub">The relevance engine. Click any watchlist for matches and configuration.</div>
         </div>
-        <div style={{display:"flex", gap:8}}>
+        <div style={{display:"flex", gap:8, alignItems:"center"}}>
+          <ProvenanceChip provenance={derived ? "derived" : "fixture"}
+            title={derived ? "Keyword matches computed against the live signal stream" : "Representative match counts"} />
           <input aria-label="New watchlist name" placeholder="New watchlist name" value={newName} onChange={e=>setNewName(e.target.value)} className="search" style={{padding:"7px 10px"}}/>
           <button className="btn primary" onClick={() => { if (newName.trim()) { createWatchlist(newName.trim()); setNewName(""); } }}><Icon name="plus" size={13}/> Create</button>
         </div>
@@ -1707,16 +1881,19 @@ function PageWatchlists() {
         {all.map(w => {
           const trend = Array.isArray(w.trend) ? w.trend : [];
           const max = Math.max(...trend, 1);
+          const matchCount = derived ? watchlistMatches(w, matchSource).length : w.matches;
           return (
             <div key={w.name} className={"wl" + (selectedWl?.name === w.name ? " active" : "")} onClick={() => { setSelectedWl(w); openModal("watchlist", w.name); }} style={selectedWl?.name === w.name ? {borderColor:"var(--brass)"} : {}}>
               <div style={{display:"flex", alignItems:"center", gap:8}}>
                 <span className="wl-name">{w.name}</span>
-                <span className="mono" style={{fontSize:10.5, color:"var(--brass)", background:"var(--panel-hi)", border:"1px solid var(--brass-soft)", padding:"1px 6px", borderRadius:4, marginLeft:"auto"}}>{w.matches} matches</span>
+                <span className="mono" style={{fontSize:10.5, color:"var(--brass)", background:"var(--panel-hi)", border:"1px solid var(--brass-soft)", padding:"1px 6px", borderRadius:4, marginLeft:"auto"}}>{matchCount} matches</span>
               </div>
               <div className="wl-meta"><span>{w.keywords} keywords</span><span>·</span><span>7-day</span></div>
-              <div className="spark" style={{marginTop:2}}>
-                {trend.map((v,i) => <span key={i} style={{height: (v/max*20+2)+"px"}}/>)}
-              </div>
+              {derived
+                ? <div className="mono" style={{marginTop:6, color:"var(--ink-4)", fontSize:11}}>— no trend history</div>
+                : <div className="spark" style={{marginTop:2}}>
+                    {trend.map((v,i) => <span key={i} style={{height: (v/max*20+2)+"px"}}/>)}
+                  </div>}
             </div>
           );
         })}
@@ -1788,6 +1965,29 @@ function PageWatchlists() {
 // ---------- RADAR ----------
 function PageRadar() {
   const { openModal } = useStore();
+  // Derived clustering: the product's own grouping of live signals by source group.
+  // Momentum and confidence require history the product does not hold, so they render
+  // "—" in derived mode rather than an invented number (spec 2.3, invariant 4).
+  const live = useLiveState("signals");
+  const derivedRows = React.useMemo(() => {
+    if (!live.items) return null;
+    const rank = { high: 3, med: 2, low: 1 };
+    const groups = new Map();
+    live.items.forEach(s => {
+      const key = s.sourceGroup || "Other";
+      const g = groups.get(key) || { issue: key, count: 0, sources: new Set(), att: "low" };
+      g.count += 1;
+      if (s.source) g.sources.add(s.source);
+      if ((rank[s.attention] || 0) > (rank[g.att] || 0)) g.att = s.attention;
+      groups.set(key, g);
+    });
+    return [...groups.values()]
+      .map(g => ({ issue: g.issue, att: g.att, sources: g.sources.size, count: g.count,
+        reason: `${g.count} live items across ${g.sources.size} feed${g.sources.size !== 1 ? "s" : ""}` }))
+      .sort((a, b) => b.count - a.count);
+  }, [live.items]);
+  const derived = !!derivedRows;
+  const rows = derivedRows || RADAR;
   return (
     <div className="page">
       <div className="page-head">
@@ -1796,12 +1996,14 @@ function PageRadar() {
           <h1 className="page-title">Attention radar</h1>
           <div className="page-sub">Transparent categories, no fake precision scores. Click any issue for momentum detail and suggested actions.</div>
         </div>
+        <ProvenanceChip provenance={derived ? "derived" : "fixture"}
+          title={derived ? "Grouped live signals; momentum and confidence require history the product does not yet have" : "Representative clusters"} />
       </div>
 
       <div className="panel">
         <div className="panel-head">
           <h2 className="panel-title">Active issues</h2>
-          <span className="panel-kicker">Last 7 days</span>
+          <span className="panel-kicker">{derived ? "Grouped from the live signal stream" : "Last 7 days"}</span>
         </div>
         <div className="panel-body">
           <div className="radar-row g-radar-table" style={{display:"grid", padding:"4px 0 10px", borderBottom:"1px solid var(--line)", alignItems:"center", gap:14}}>
@@ -1811,18 +2013,22 @@ function PageRadar() {
             <div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em"}}>Momentum</div>
             <div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em"}}>Confidence</div>
           </div>
-          {RADAR.map((r,i) => (
-            <div key={r.issue} className="clk radar-row g-radar-table" onClick={() => openModal("radar", r.issue)} style={{display:"grid", padding:"14px 8px", borderBottom: i<RADAR.length-1 ? "1px solid var(--line)" : 0, gap:14, alignItems:"center", borderRadius:6}}>
+          {rows.map((r,i) => (
+            <div key={r.issue} className={(derived ? "" : "clk ") + "radar-row g-radar-table"} onClick={derived ? undefined : () => openModal("radar", r.issue)} style={{display:"grid", padding:"14px 8px", borderBottom: i<rows.length-1 ? "1px solid var(--line)" : 0, gap:14, alignItems:"center", borderRadius:6, cursor: derived ? "default" : undefined}}>
               <div>
                 <div style={{fontSize:14, fontWeight:500}}>{r.issue}</div>
                 <div style={{fontSize:12, color:"var(--ink-3)", marginTop:2}}>{r.reason}</div>
               </div>
               <div><Att level={r.att}/></div>
               <div className="mono" style={{textAlign:"right", color:"var(--ink-2)"}}>{r.sources}</div>
-              <div><div className="bar"><div className="fill" style={{width:`${r.momentum*100}%`}}/></div></div>
-              <div style={{display:"flex", alignItems:"center", gap:10}}>
-                <div className="ring" style={{"--p": Math.round(r.confidence*100)}} data-p={Math.round(r.confidence*100)}></div>
-              </div>
+              {derived
+                ? <div className="mono" style={{color:"var(--ink-4)"}}>—</div>
+                : <div><div className="bar"><div className="fill" style={{width:`${r.momentum*100}%`}}/></div></div>}
+              {derived
+                ? <div className="mono" style={{color:"var(--ink-4)"}}>—</div>
+                : <div style={{display:"flex", alignItems:"center", gap:10}}>
+                    <div className="ring" style={{"--p": Math.round(r.confidence*100)}} data-p={Math.round(r.confidence*100)}></div>
+                  </div>}
             </div>
           ))}
         </div>
@@ -1832,81 +2038,18 @@ function PageRadar() {
 }
 
 // ---------- SIGNALS ----------
-// Maps one worker /state signals-block row (see workers/aph-proxy/src/stateContract.ts
-// SignalItem) onto the shape SignalCard/SignalCardView already render. Only fields the
-// Worker actually returned are populated — action, score, provenance-trail and updates
-// are left undefined rather than invented, and Drawer/SignalCardView already guard on
-// their presence, so an undefined field just renders nothing instead of a fabricated one.
-function mapWorkerSignalToCard(row) {
-  const when = row.pub_date ? new Date(row.pub_date) : null;
-  return {
-    id: row.guid,
-    time: when ? `${String(when.getHours()).padStart(2,"0")}:${String(when.getMinutes()).padStart(2,"0")}` : "—",
-    date: when ? when.toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" }) : "—",
-    source: row.feed_label,
-    sourceGroup: row.source_group,
-    title: row.title,
-    summary: row.scoring_explanation || "",
-    tags: [{ l: row.kind, c: "" }],
-    attention: row.attention || "low",
-    attentionReason: row.scoring_explanation || "",
-    action: "",
-    actionReason: "",
-    confidence: row.confidence ?? 0,
-    sourceAuthority: "Official",
-    evidence: row.link ? [{ label: row.feed_label, url: row.link }] : [],
-  };
-}
-
+// The signals-block mapper (mapWorkerSignalToCard) and the single /state fetch now
+// live in store.jsx. PageSignals reads the shared cache through useLiveState, so the
+// Drawer resolves a clicked live row against the same items the inbox renders.
 function PageSignals() {
-  // liveSignals/setLiveSignals live in the store (not local state) so the Drawer can
-  // also resolve a clicked row's item when it came from the live block, not the fixture.
-  const { state, setVisibleSignalOrder, signalSearchQuery, setSignalSearchQuery, liveSignals, setLiveSignals } = useStore();
+  const { state, setVisibleSignalOrder, signalSearchQuery, setSignalSearchQuery } = useStore();
   const [filter, setFilter] = useState("all");
   const [sort, setSort] = useState("time");
-  // Live /state consumer, proof-of-wiring for the composed endpoint (D7). Starts as
-  // fixture (the current SIGNALS array) and only switches over once the Worker
-  // confirms the block is live and non-empty — the fixture is never replaced on a
-  // guess. See workers/aph-proxy/src/state.ts for the provenance contract.
-
-  React.useEffect(() => {
-    let cancelled = false;
-    let inFlight = false;
-    // Guard: file:// origins cannot reach the Worker (same guard as the Live page poller).
-    if (location.protocol === "file:") return () => { cancelled = true; };
-
-    const fetchState = async () => {
-      if (inFlight) return;
-      inFlight = true;
-      const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 8000);
-      try {
-        const res = await fetch(`${WORKER_BASE_URL}/state`, { signal: ctrl.signal });
-        if (!res.ok) throw new Error("HTTP " + res.status);
-        const payload = await res.json();
-        if (cancelled) return;
-        const block = payload?.blocks?.signals;
-        if (block?.provenance === "live" && Array.isArray(block.items) && block.items.length > 0) {
-          setLiveSignals({ provenance: "live", items: block.items.map(mapWorkerSignalToCard) });
-        } else {
-          // Fixture SIGNALS renders in this branch (items stays null), so the chip must
-          // never say "live" here even if the block itself claimed to be — the fixture
-          // array is what is actually on screen, not the (possibly empty) live rows.
-          const fallback = (block?.provenance && block.provenance !== "live") ? block.provenance : "fixture";
-          setLiveSignals({ provenance: fallback, items: null });
-        }
-      } catch (e) {
-        if (!cancelled) setLiveSignals(s => ({ provenance: s.items ? s.provenance : "fixture", items: s.items }));
-      } finally {
-        clearTimeout(timer);
-        inFlight = false;
-      }
-    };
-    fetchState();
-    return () => { cancelled = true; };
-  }, []);
-
-  const sourceSignals = liveSignals.items || SIGNALS;
+  // Live /state consumer via the shared hook. sourceSignals is the fixture until the
+  // Worker confirms the block is live and non-empty; the fixture is never replaced on
+  // a guess, and the chip reflects whichever array is on screen.
+  const live = useLiveState("signals");
+  const sourceSignals = live.items || SIGNALS;
 
   const visible = React.useMemo(() => {
     let sigs = sourceSignals.filter(s => !state.archived[s.id]);
@@ -1943,8 +2086,8 @@ function PageSignals() {
           <div className="page-sub">{counts.all} active signals · {counts.high} high · {counts.med} medium · {counts.low} low. Open any signal to action, archive, or generate a brief.</div>
         </div>
         <div style={{display:"flex", gap:8, alignItems:"center"}}>
-          <ProvenanceChip provenance={liveSignals.provenance}
-            title={liveSignals.provenance === "live" ? "Signals from the Worker's composed /state endpoint (D1 archive)" : "Representative data — the /state signals block is not live"} />
+          <ProvenanceChip provenance={live.displayProvenance}
+            title={live.displayProvenance === "live" ? "Signals from the Worker's composed /state endpoint (D1 archive)" : "Representative data — the /state signals block is not live"} />
           <label htmlFor="sig-sort" className="sr-only">Sort signals</label>
           <span aria-hidden="true" style={{fontSize:12, color:"var(--ink-4)"}}>Sort:</span>
           <select id="sig-sort" value={sort} onChange={e => setSort(e.target.value)}
