@@ -517,9 +517,10 @@ function generateBriefMarkdown(s, isLive = false) {
 }
 function Drawer() {
   var _a, _b;
-  const { signalId, openSignal, closeSignal, state, modal, openModal, saveFeedback, archive, addWatchlist, isWatched, saveNote, generateBrief, toast, visibleSignalOrder, navigate, liveSignals } = useStore();
+  const { signalId, openSignal, closeSignal, state, modal, openModal, saveFeedback, archive, addWatchlist, isWatched, saveNote, generateBrief, toast, visibleSignalOrder, navigate } = useStore();
+  const liveSignals = useLiveState("signals");
   const fixtureSignal = React.useMemo(() => SIGNALS.find((s2) => s2.id === signalId), [signalId]);
-  const liveSignal = React.useMemo(() => ((liveSignals == null ? void 0 : liveSignals.items) || []).find((s2) => s2.id === signalId), [signalId, liveSignals]);
+  const liveSignal = React.useMemo(() => (liveSignals.items || []).find((s2) => s2.id === signalId), [signalId, liveSignals.items]);
   const signal = fixtureSignal || liveSignal;
   const [fb, setFb] = React.useState(null);
   const [note, setNote] = React.useState("");

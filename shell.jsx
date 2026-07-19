@@ -588,11 +588,13 @@ function generateBriefMarkdown(s, isLive = false) {
 }
 
 function Drawer() {
-  const { signalId, openSignal, closeSignal, state, modal, openModal, saveFeedback, archive, addWatchlist, isWatched, saveNote, generateBrief, toast, visibleSignalOrder, navigate, liveSignals } = useStore();
-  // Fixture first, then the live /state block: a clicked row's id is a fixture SIGNALS.id
-  // OR a Worker guid, never both, so this is a straightforward either/or lookup.
+  const { signalId, openSignal, closeSignal, state, modal, openModal, saveFeedback, archive, addWatchlist, isWatched, saveNote, generateBrief, toast, visibleSignalOrder, navigate } = useStore();
+  // Live signals come from the shared hook, not the store (the old store.liveSignals
+  // was removed in the useLiveState refactor). A clicked row's id is a fixture
+  // SIGNALS.id OR a Worker guid, never both, so this is a straightforward either/or.
+  const liveSignals = useLiveState("signals");
   const fixtureSignal = React.useMemo(() => SIGNALS.find(s => s.id === signalId), [signalId]);
-  const liveSignal = React.useMemo(() => (liveSignals?.items || []).find(s => s.id === signalId), [signalId, liveSignals]);
+  const liveSignal = React.useMemo(() => (liveSignals.items || []).find(s => s.id === signalId), [signalId, liveSignals.items]);
   const signal = fixtureSignal || liveSignal;
   const [fb, setFb] = React.useState(null);
   const [note, setNote] = React.useState("");
