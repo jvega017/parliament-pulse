@@ -514,13 +514,15 @@ const SignalCardView = React.memo(function SignalCardView({ s, archived, feedbac
   return (
     <div className="signal" data-att={s.attention} onClick={() => openSignal(s.id)} role="button" tabIndex={0} aria-label={`Signal: ${s.title}`} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openSignal(s.id); } }}>
       <div className="sig-head">
-        <span className="sig-id mono">{s.id}</span>
+        <span className="sig-id mono">{s.isLive || /^https?:/.test(s.id) ? "APH" : s.id}</span>
         <span className="sig-source mono">· {s.source}</span>
         <Att level={s.attention} />
         {watched && <span className="tag brass">Watching</span>}
         <span className="sig-time mono">{s.time}</span>
       </div>
-      <div className="sig-title serif">{s.title}</div>
+      <div className="sig-title serif">{s.link
+        ? <a href={s.link} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} style={{color:"inherit", textDecoration:"none"}} title="Open the source at aph.gov.au">{s.title} <Icon name="ext" size={12} style={{verticalAlign:"-1px", opacity:.6}}/></a>
+        : s.title}</div>
       <div className="sig-sum">{s.summary.length > 120 ? s.summary.slice(0, 120).replace(/\s\S+$/, "") + "…" : s.summary}</div>
       <div className="sig-tags">
         {s.tags.map((t, i) => <span key={i} className={"tag " + (t.c || "")}>{t.l}</span>)}
