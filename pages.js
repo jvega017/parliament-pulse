@@ -631,6 +631,7 @@ function PageSources() {
   ].map((x) => /* @__PURE__ */ React.createElement("div", { key: x.name, style: { display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px dashed var(--line-2)" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13 } }, x.name), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11.5, color: "var(--ink-3)" } }, x.note)), /* @__PURE__ */ React.createElement("button", { className: "btn ghost sm", title: "Copy a backlog request for this source", onClick: () => copyBacklogRequest(x.name, x.note, toast) }, "Request"))))))));
 }
 function LiveFeedStrip({ title, items, fetchedAt, emptyText }) {
+  if (!items || items.length === 0) return null;
   return /* @__PURE__ */ React.createElement("div", { className: "panel", style: { marginBottom: 16 } }, /* @__PURE__ */ React.createElement("div", { className: "panel-head" }, /* @__PURE__ */ React.createElement("h2", { className: "panel-title" }, title), /* @__PURE__ */ React.createElement(ProvenanceChip, { provenance: "live", title: "Live items from the Worker's composed /state feed" }), /* @__PURE__ */ React.createElement("span", { className: "panel-kicker", style: { marginLeft: "auto" } }, "fetched ", fmtFetchedAt(fetchedAt), " AEST")), /* @__PURE__ */ React.createElement("div", { className: "panel-body" }, items.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "empty" }, emptyText) : items.map((s, i) => /* @__PURE__ */ React.createElement("div", { key: s.id || i, className: "data-row", style: { display: "grid", gap: 6, padding: "10px 0", borderBottom: i < items.length - 1 ? "1px solid var(--line)" : 0 } }, s.link ? /* @__PURE__ */ React.createElement("a", { href: s.link, target: "_blank", rel: "noopener noreferrer", style: { display: "inline-flex", alignItems: "center", gap: 6, color: "var(--teal)", textDecoration: "none", fontSize: 13, fontWeight: 500 }, title: "Opens the source at aph.gov.au" }, s.title, " ", /* @__PURE__ */ React.createElement(Icon, { name: "ext", size: 11 })) : /* @__PURE__ */ React.createElement("span", { style: { fontSize: 13, fontWeight: 500, color: "var(--ink-2)" } }, s.source), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("span", { className: "mono t-label", style: { color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: ".12em" } }, s.tags && s.tags[0] && s.tags[0].l || "item"), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 11.5, color: "var(--ink-3)" } }, s.source), /* @__PURE__ */ React.createElement("span", { className: "mono", style: { fontSize: "var(--t-micro)", color: "var(--ink-4)" } }, s.date))))));
 }
 function PageCommittees() {
@@ -941,9 +942,9 @@ function PageSignals() {
     setRenderCap(CHUNK);
   }, [filter, sort, signalSearchQuery]);
   React.useEffect(() => {
-    window.ppBumpRenderCap = (delta) => {
-      const step = typeof delta === "number" && delta > 0 ? delta : CHUNK;
-      setRenderCap((cap) => cap + step);
+    window.ppBumpRenderCap = (targetIndex) => {
+      const idx = typeof targetIndex === "number" && targetIndex >= 0 ? targetIndex : 0;
+      setRenderCap((cap) => idx < cap ? cap : Math.ceil((idx + 1) / CHUNK) * CHUNK);
     };
     return () => {
       window.ppBumpRenderCap = null;

@@ -431,7 +431,10 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
                 <div key={s.id} id={`search-option-${sigOff + i}`} role="option" aria-selected={cursor === sigOff + i}
                   className={"sr-item" + (cursor === sigOff + i ? " active" : "")}
                   onMouseDown={e => { e.preventDefault(); selectItem(flat[sigOff + i]); }}>
-                  <span className="k">{s.id}</span><span>{s.title}</span>
+                  <span className="k">{s.isLive ? s.source : s.id}</span>
+                  {s.isLive && s.link
+                    ? <a href={s.link} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} style={{color:"inherit", textDecoration:"none"}} title="Open the source at aph.gov.au">{s.title}</a>
+                    : <span>{s.title}</span>}
                 </div>
               ))}
               {results.sig.length > 4 && (

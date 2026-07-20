@@ -362,8 +362,8 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
           selectItem(flat[sigOff + i]);
         }
       },
-      /* @__PURE__ */ React.createElement("span", { className: "k" }, s.id),
-      /* @__PURE__ */ React.createElement("span", null, s.title)
+      /* @__PURE__ */ React.createElement("span", { className: "k" }, s.isLive ? s.source : s.id),
+      s.isLive && s.link ? /* @__PURE__ */ React.createElement("a", { href: s.link, target: "_blank", rel: "noopener noreferrer", onClick: (e) => e.stopPropagation(), style: { color: "inherit", textDecoration: "none" }, title: "Open the source at aph.gov.au" }, s.title) : /* @__PURE__ */ React.createElement("span", null, s.title)
     )), results.sig.length > 4 && /* @__PURE__ */ React.createElement(
       "div",
       {

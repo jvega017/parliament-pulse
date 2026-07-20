@@ -1288,6 +1288,10 @@ function PageSources() {
 // product's own metadata (kind, feed label, date) renders as ordinary content around
 // it. Filtered lists pass items already narrowed by verified feed_label.
 function LiveFeedStrip({ title, items, fetchedAt, emptyText }) {
+  // Data-gate the whole strip: with no live items there is no live surface, so the
+  // panel and its Live chip do not render at all (a Live chip must never sit over an
+  // empty match). The desk's representative content stands on its own.
+  if (!items || items.length === 0) return null;
   return (
     <div className="panel" style={{marginBottom:16}}>
       <div className="panel-head">
@@ -2190,9 +2194,9 @@ function PageSignals() {
   // not chunked, so the bump is a harmless no-op. Unset on unmount so the caller
   // treats it as a no-op elsewhere.
   React.useEffect(() => {
-    window.ppBumpRenderCap = (delta) => {
-      const step = (typeof delta === "number" && delta > 0) ? delta : CHUNK;
-      setRenderCap(cap => cap + step);
+    window.ppBumpRenderCap = (targetIndex) => {
+      const idx = (typeof targetIndex === "number" && targetIndex >= 0) ? targetIndex : 0;
+      setRenderCap(cap => (idx < cap ? cap : Math.ceil((idx + 1) / CHUNK) * CHUNK));
     };
     return () => { window.ppBumpRenderCap = null; };
   }, []);
