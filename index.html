@@ -24,9 +24,7 @@
 <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
 <link rel="apple-touch-icon" href="assets/icon-180.png" />
 <link rel="manifest" href="manifest.webmanifest" />
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Serif:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/fonts/fonts.css">
 <style>
   @font-face {
     font-family: "IBM Plex Sans Fallback";
@@ -1411,8 +1409,8 @@
 </noscript>
 <div id="root"></div>
 
-<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" integrity="sha384-DGyLxAyjq0f9SPpVevD6IgztCFlnMF6oW/XQGmfe+IsZ8TqEiDrcHkMLKI6fiB/Z" crossorigin="anonymous"></script>
-<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" integrity="sha384-gTGxhz21lVGYNMcdJOyq01Edg0jhn/c22nsx0kyqP0TxaV5WVdsSH1fSDUf5YJj1" crossorigin="anonymous"></script>
+<script src="vendor/react.production.min.js"></script>
+<script src="vendor/react-dom.production.min.js"></script>
 <!-- JSX is precompiled to .js by build-jsx.ps1 (esbuild); no in-browser Babel, so the CSP can forbid eval. -->
 
 <script src="data.js"></script>
