@@ -335,6 +335,12 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
   // Search the signals the user actually sees: live items when the /state block is
   // live, else the fixtures (mirrors the Signal inbox source of truth).
   const liveSignals = useLiveState("signals");
+  // Whole-cache staleness read from the shared liveState (fetchedAt older than 30 min
+  // with a good cache present). It is false while data is fresh and false while no
+  // cache has ever landed, so the slim stale banner below and the LIVE DATA
+  // UNAVAILABLE chip can never show at the same time. The explicit && !noLiveCache
+  // documents that mutual exclusion at the call site.
+  const liveStale = liveSignals.liveStale && !noLiveCache;
   const results = React.useMemo(() => {
     if (!q.trim()) return null;
     const term = q.toLowerCase();
@@ -382,6 +388,7 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
   const feedOff = memOff  + (results ? results.mem.length : 0);
 
   return (
+    <>
     <div className="topbar">
       <button
         className="btn ghost sm nav-toggle"
@@ -507,6 +514,29 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
         }}><Icon name={isDark ? "sun" : "moon"} size={13} /></button>
       </div>
     </div>
+    {/* Slim honest staleness ribbon: only when a good cache exists and is older than
+        30 min. Never shows for fresh data, and never when there is no cache (that
+        state is carried by the LIVE DATA UNAVAILABLE chip above). Carries the same
+        refresh affordance as the topbar plus a route to the Live page. */}
+    {liveStale && (
+      <div className="stale-banner" role="status" style={{
+        display:"flex", alignItems:"center", gap:10, padding:"7px 16px",
+        fontSize:12.5, color:"var(--ink-2)", background:"var(--panel-2)",
+        borderBottom:"1px solid var(--line)", boxShadow:"inset 3px 0 0 var(--caution)"
+      }}>
+        <Icon name="refresh" size={13} stroke="var(--caution)" />
+        <span>Live data is over 30 minutes old. Refresh, or see the Live page.</span>
+        <div style={{marginLeft:"auto", display:"flex", gap:8, alignItems:"center", flexShrink:0}}>
+          <button className="btn ghost sm" aria-label="Refresh live data" aria-busy={isRefreshing}
+            title={live.fetchedAt ? `Live data fetched ${dataAge} ago. Refresh now.` : "Refresh live data"}
+            onClick={handleLiveRefresh}>
+            <Icon name="refresh" size={13} style={isRefreshing ? {animation:"spin 800ms linear infinite"} : undefined} /> Refresh
+          </button>
+          <button className="btn ghost sm" onClick={() => navigate("live")}>Live page</button>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 
@@ -767,7 +797,15 @@ function Drawer() {
         const next = e.key === "j"
           ? Math.min(cur + 1, visibleSigs.length - 1)
           : Math.max(cur - 1, 0);
-        if (visibleSigs[next] && visibleSigs[next].id !== signalId) { flushNote(); openSignal(visibleSigs[next].id); }
+        if (visibleSigs[next] && visibleSigs[next].id !== signalId) {
+          // Reveal the target card if it sits past the inbox render cap so it exists
+          // in the DOM before focus moves to it. pages.jsx owns the render cap and
+          // self-gates: a target already within the cap is a no-op, so this only
+          // grows the list when the cursor moves beyond what is currently rendered.
+          if (typeof window.ppBumpRenderCap === "function") window.ppBumpRenderCap(next);
+          flushNote();
+          openSignal(visibleSigs[next].id);
+        }
       }
       if (e.key === "b" && signalId) {
         e.preventDefault();

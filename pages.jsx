@@ -493,8 +493,12 @@ function PageOverview() {
               <span className="panel-kicker">{priority.length} items · human review required</span>
             </div>
             <div className="panel-body">
-              {priority.map(s => <SignalCard key={s.id} s={s} />)}
-              {priority.length === 0 && <EmptyState icon="check" kicker="Priority clear">All priority signals actioned.</EmptyState>}
+              {live.status === "loading" && !live.items
+                ? [...Array(3)].map((_, i) => <SkeletonCard key={i} />)
+                : <>
+                    {priority.map(s => <SignalCard key={s.id} s={s} />)}
+                    {priority.length === 0 && <EmptyState icon="check" kicker="Priority clear">All priority signals actioned.</EmptyState>}
+                  </>}
             </div>
             {rest.length > 0 && (
               <div className="panel-foot">
@@ -1131,6 +1135,7 @@ function PageSources() {
       </div>
 
       <div className="grid g-overview">
+        {health.status === "loading" && !health.items ? <SkeletonTable rows={6} /> : (
         <div className="panel">
           <div className="panel-head">
             <h2 className="panel-title">Official APH Feed Bundle</h2>
@@ -1140,7 +1145,7 @@ function PageSources() {
           </div>
           {health.status === "error" && !health.items && (
             <div className="panel-body">
-              <EmptyState icon="rss" kicker="Feed status unavailable" variant="error">
+              <EmptyState icon="sources" kicker="Feed status unavailable" variant="error">
                 The status service did not respond. Direct links to each official APH feed remain available below.
               </EmptyState>
             </div>
@@ -1191,6 +1196,7 @@ function PageSources() {
           </table>
           </div>
         </div>
+        )}
 
         <div>
           <div className="panel" style={{marginBottom:16}}>
@@ -1408,7 +1414,11 @@ function PageCommittees() {
 
 // ---------- BILLS ----------
 function PageBills() {
-  const { openModal, state } = useStore();
+  const { openModal, state, liveState } = useStore();
+  // First-load skeleton (spec 2): show a skeleton table until the shared /state cache
+  // exists, so the register shows a skeleton on first load instead of flashing the
+  // fixture. Bills stays representative; the skeleton only covers the initial load.
+  const loadingNoCache = liveState.status === "loading" && !liveState.blocks;
   return (
     <div className="page">
       <div className="page-head">
@@ -1436,6 +1446,7 @@ function PageBills() {
       </div>
 
       <div className="grid g-overview">
+        {loadingNoCache ? <SkeletonTable rows={6} /> : (
         <div className="panel">
           <div className="panel-head">
             <h2 className="panel-title">Tracked bills</h2>
@@ -1466,6 +1477,7 @@ function PageBills() {
           </table>
           </div>
         </div>
+        )}
 
         <div className="panel">
           <div className="panel-head"><h2 className="panel-title">Related divisions</h2><span className="panel-kicker">House · last 7 days</span></div>
@@ -1519,8 +1531,13 @@ function PageBills() {
 function PageParliament() {
   const { openModal, toast } = useStore();
   const live = useLiveState("signals");
-  const chamberFeedLabels = new Set(["House Divisions", "House Daily Program", "House Media Releases"]);
-  const chamberLive = live.items ? live.items.filter(s => chamberFeedLabels.has(s.source)) : null;
+  // Two dormant chamber feeds, matched against signal.source (the feed_label). Each
+  // strip renders ONLY when it holds at least one live item; with no match the desk
+  // stays representative under its honest chip and never places a Live chip over an
+  // empty match (honesty invariant). Titles inside the strip render only within the
+  // APH anchor, per the shared LiveFeedStrip.
+  const dailyProgramLive = live.items ? live.items.filter(s => s.source === "House Daily Program") : null;
+  const divisionsLive = live.items ? live.items.filter(s => s.source === "House Divisions") : null;
   return (
     <div className="page">
       <div className="page-head">
@@ -1531,9 +1548,13 @@ function PageParliament() {
         </div>
       </div>
 
-      {chamberLive && (
-        <LiveFeedStrip title="Latest chamber items · live feed" items={chamberLive} fetchedAt={live.fetchedAt}
-          emptyText="No chamber items in the current live window." />
+      {dailyProgramLive && dailyProgramLive.length > 0 && (
+        <LiveFeedStrip title="Latest daily program · live feed" items={dailyProgramLive} fetchedAt={live.fetchedAt}
+          emptyText="No daily program items in the current live window." />
+      )}
+      {divisionsLive && divisionsLive.length > 0 && (
+        <LiveFeedStrip title="Latest divisions · live feed" items={divisionsLive} fetchedAt={live.fetchedAt}
+          emptyText="No division items in the current live window." />
       )}
 
       <div className="grid g-overview">
@@ -2163,10 +2184,15 @@ function PageSignals() {
 
   // Expose a bump hook while mounted so keyboard navigation can reveal a card that
   // sits past the current cap before scrolling to it (spec 3.3 keyboard invariant).
-  // Unset on unmount so the caller treats it as a no-op elsewhere.
+  // Frozen interface: window.ppBumpRenderCap(delta) raises the render cap by `delta`
+  // rows; shell.jsx's j/k nav calls it when the cursor passes the current cap. A
+  // non-positive or missing delta falls back to one CHUNK. Below 81 items the list is
+  // not chunked, so the bump is a harmless no-op. Unset on unmount so the caller
+  // treats it as a no-op elsewhere.
   React.useEffect(() => {
-    window.ppBumpRenderCap = (index) => {
-      setRenderCap(cap => (index >= cap ? Math.ceil((index + 1) / CHUNK) * CHUNK : cap));
+    window.ppBumpRenderCap = (delta) => {
+      const step = (typeof delta === "number" && delta > 0) ? delta : CHUNK;
+      setRenderCap(cap => cap + step);
     };
     return () => { window.ppBumpRenderCap = null; };
   }, []);
@@ -2224,7 +2250,9 @@ function PageSignals() {
         ))}
       </div>
 
-      {visible.length === 0 ? (
+      {live.status === "loading" && !live.items ? (
+        <div aria-busy="true" aria-label="Loading signals">{[...Array(5)].map((_, i) => <SkeletonCard key={i} />)}</div>
+      ) : visible.length === 0 ? (
         filter !== "all" ? (
           <EmptyState icon="signal" kicker="No matches"
             action={<button className="btn sm ghost" onClick={() => setFilter("all")}>Clear filter</button>}>

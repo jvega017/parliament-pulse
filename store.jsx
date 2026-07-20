@@ -293,11 +293,24 @@ function useLiveState(blockName) {
   const { liveState } = useStore();
   const block = liveState.blocks?.[blockName] || null;
   const items = block?.items || null;      // null => render the desk's fixture
+  // liveStale is a whole-cache freshness flag, deliberately read from the shared
+  // liveState.fetchedAt (the last SUCCESSFUL load) rather than this one block's
+  // stamp, so every desk agrees on staleness. It is true ONLY when a good cache
+  // exists (at least one mapped block carries items) AND that cache is older than
+  // 30 minutes. It stays false while data is fresh, during the first load (no
+  // cache yet), and whenever no cache has ever landed. This mirrors the "stale"
+  // arm of liveStateDegradation and never overstates freshness.
+  const hasGoodCache = !!(liveState.blocks && Object.values(liveState.blocks).some(b => b && b.items));
+  const liveStale = hasGoodCache
+    && liveState.fetchedAt != null
+    && (Date.now() - liveState.fetchedAt) > 30 * 60 * 1000;
   return {
     status: liveState.status,
     items,                                  // mapped array, or null
     fetchedAt: block?.fetchedAt || null,
     note: block?.note || null,
+    isRefreshing: liveState.isRefreshing,
+    liveStale,                              // cache older than 30 min AND a good cache exists
     // What the chip shows. A block with usable items shows its own provenance
     // ("live" or "derived"); an empty or missing block can never place a Live chip
     // (invariant 2) and falls back to "fixture".

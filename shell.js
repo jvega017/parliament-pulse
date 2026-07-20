@@ -216,6 +216,7 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
     return () => document.removeEventListener("mousedown", h);
   }, []);
   const liveSignals = useLiveState("signals");
+  const liveStale = liveSignals.liveStale && !noLiveCache;
   const results = React.useMemo(() => {
     if (!q.trim()) return null;
     const term = q.toLowerCase();
@@ -289,7 +290,7 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
   const commOff = billOff + (results ? results.bills.length : 0);
   const memOff = commOff + (results ? results.comm.length : 0);
   const feedOff = memOff + (results ? results.mem.length : 0);
-  return /* @__PURE__ */ React.createElement("div", { className: "topbar" }, /* @__PURE__ */ React.createElement(
+  return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "topbar" }, /* @__PURE__ */ React.createElement(
     "button",
     {
       className: "btn ghost sm nav-toggle",
@@ -443,7 +444,28 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
     document.documentElement.dataset.theme = next;
     safeSetLocalStorage("pp-theme", next);
     setIsDark(!isDark);
-  } }, /* @__PURE__ */ React.createElement(Icon, { name: isDark ? "sun" : "moon", size: 13 }))));
+  } }, /* @__PURE__ */ React.createElement(Icon, { name: isDark ? "sun" : "moon", size: 13 })))), liveStale && /* @__PURE__ */ React.createElement("div", { className: "stale-banner", role: "status", style: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    padding: "7px 16px",
+    fontSize: 12.5,
+    color: "var(--ink-2)",
+    background: "var(--panel-2)",
+    borderBottom: "1px solid var(--line)",
+    boxShadow: "inset 3px 0 0 var(--caution)"
+  } }, /* @__PURE__ */ React.createElement(Icon, { name: "refresh", size: 13, stroke: "var(--caution)" }), /* @__PURE__ */ React.createElement("span", null, "Live data is over 30 minutes old. Refresh, or see the Live page."), /* @__PURE__ */ React.createElement("div", { style: { marginLeft: "auto", display: "flex", gap: 8, alignItems: "center", flexShrink: 0 } }, /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      className: "btn ghost sm",
+      "aria-label": "Refresh live data",
+      "aria-busy": isRefreshing,
+      title: live.fetchedAt ? `Live data fetched ${dataAge} ago. Refresh now.` : "Refresh live data",
+      onClick: handleLiveRefresh
+    },
+    /* @__PURE__ */ React.createElement(Icon, { name: "refresh", size: 13, style: isRefreshing ? { animation: "spin 800ms linear infinite" } : void 0 }),
+    " Refresh"
+  ), /* @__PURE__ */ React.createElement("button", { className: "btn ghost sm", onClick: () => navigate("live") }, "Live page"))));
 }
 function ProvenanceChip({ provenance, title }) {
   const LABELS = { live: "Live", derived: "Derived", fixture: "Fixture" };
@@ -658,6 +680,7 @@ function Drawer() {
         const cur = visibleSigs.findIndex((s2) => s2.id === signalId);
         const next = e.key === "j" ? Math.min(cur + 1, visibleSigs.length - 1) : Math.max(cur - 1, 0);
         if (visibleSigs[next] && visibleSigs[next].id !== signalId) {
+          if (typeof window.ppBumpRenderCap === "function") window.ppBumpRenderCap(next);
           flushNote();
           openSignal(visibleSigs[next].id);
         }

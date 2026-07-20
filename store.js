@@ -224,12 +224,17 @@ function useLiveState(blockName) {
   const { liveState } = useStore();
   const block = ((_a = liveState.blocks) == null ? void 0 : _a[blockName]) || null;
   const items = (block == null ? void 0 : block.items) || null;
+  const hasGoodCache = !!(liveState.blocks && Object.values(liveState.blocks).some((b) => b && b.items));
+  const liveStale = hasGoodCache && liveState.fetchedAt != null && Date.now() - liveState.fetchedAt > 30 * 60 * 1e3;
   return {
     status: liveState.status,
     items,
     // mapped array, or null
     fetchedAt: (block == null ? void 0 : block.fetchedAt) || null,
     note: (block == null ? void 0 : block.note) || null,
+    isRefreshing: liveState.isRefreshing,
+    liveStale,
+    // cache older than 30 min AND a good cache exists
     // What the chip shows. A block with usable items shows its own provenance
     // ("live" or "derived"); an empty or missing block can never place a Live chip
     // (invariant 2) and falls back to "fixture".

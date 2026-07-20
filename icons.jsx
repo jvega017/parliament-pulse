@@ -47,6 +47,8 @@ const Icon = ({ name, size = 16, stroke = "currentColor", strokeWidth = 1.75, ..
     // Secondary hero stats: activity (throughput) and gauge (attention level).
     case "activity":   return <svg {...props}><path d="M3 12h4l2-7 4 14 2-7h6"/></svg>;
     case "gauge":      return <svg {...props}><path d="M4 18a8 8 0 1 1 16 0"/><path d="M12 18l4-5"/><circle cx="12" cy="18" r="1.2" fill={stroke} stroke="none"/></svg>;
+    // Feed glyph: the broadcasting-arc RSS mark for the "Official feeds" provenance metric.
+    case "rss":        return <svg {...props}><circle cx="5" cy="19" r="1.4" fill={stroke} stroke="none"/><path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/></svg>;
     default: return <svg {...props}><circle cx="12" cy="12" r="9"/></svg>;
   }
 };
