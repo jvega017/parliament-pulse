@@ -54,20 +54,29 @@ const RAW = jurisdictionsData as Record<string, Omit<JurisdictionConfig, "feeds"
 }>;
 
 /**
- * Reads one jurisdiction's config. The Bills Digests feed label carries a
- * "{year}" placeholder in the JSON (a computed value cannot live in static
- * JSON); it is substituted here at read time, matching the original code's
- * `Bills Digests ${new Date().getFullYear()}` evaluated once at module load.
+ * Reads one jurisdiction's config.
+ *
+ * A "{year}" placeholder in a feed label is substituted here at read time.
+ *
+ * WARNING, and the reason no label currently uses it: in a Cloudflare Worker
+ * the clock is frozen until the isolate performs I/O, so `new Date()` read
+ * early in a fresh isolate can return the epoch. That shipped to production as
+ * a feed publicly labelled "Bills Digests 1970" (observed in the live /state
+ * payload, 2026-07-21). The substitution is kept because it is correct once
+ * I/O has occurred, and any label using it must be resolved after a fetch,
+ * never during module init. Prefer a label with no computed date.
  */
 export function getJurisdiction(id: string = DEFAULT_JURISDICTION_ID): JurisdictionConfig {
   const entry = RAW[id];
   if (!entry) throw new Error(`Unknown jurisdiction: "${id}"`);
-  const year = String(new Date().getFullYear());
+  const now = new Date();
+  // Guard the frozen-clock case rather than rendering a 1970 label publicly.
+  const year = now.getFullYear() > 2000 ? String(now.getFullYear()) : "";
   return {
     ...entry,
     feeds: entry.feeds.map((f) => ({
       url: f.url,
-      label: f.label.replace("{year}", year),
+      label: f.label.replace("{year}", year).trim(),
       kind: asFeedKind(f.kind),
     })),
   };

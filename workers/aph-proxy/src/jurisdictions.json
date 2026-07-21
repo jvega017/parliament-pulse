@@ -25,9 +25,14 @@
       { "url": "https://www.aph.gov.au/house/rss/joint_inquiries", "label": "Joint committee inquiries", "kind": "inquiry" },
       {
         "url": "https://parlinfo.aph.gov.au/parlInfo/feeds/rss.w3p;adv=yes;orderBy=date-eFirst;page=0;query=Date%3AthisYear%20Dataset%3Abillsdgs;resCount=100",
-        "label": "Bills Digests {year}",
+        "label": "Bills Digests",
         "kind": "digest"
-      }
+      },
+      { "url": "https://www.aph.gov.au/house/rss/divisions", "label": "House divisions", "kind": "division" },
+      { "url": "https://www.aph.gov.au/house/rss/daily_program", "label": "House daily program", "kind": "program" },
+      { "url": "https://www.aph.gov.au/house/rss/todays_hearings", "label": "Today's House and joint hearings", "kind": "hearing" },
+      { "url": "https://www.aph.gov.au/senate/rss/red", "label": "Today's Senate hearings", "kind": "hearing" },
+      { "url": "https://www.aph.gov.au/house/rss/house_news", "label": "House news", "kind": "signal" }
     ],
     "connectors": [
       "https://www.aph.gov.au/Help/RSS_feeds",

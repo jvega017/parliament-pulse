@@ -42,10 +42,14 @@ enabled = true
 
 # Cron triggers.
 #   */30 * * * *   poll APH RSS every 30 minutes and upsert into D1; re-derive member roster
-#   0 0 */14 * *   re-verify the 12 APH connector URLs every 14 days
+#   0 5 * * *      re-verify the 12 APH connector URLs daily. Was every 14 days,
+#                  which meant the public Sources desk displayed feed health up
+#                  to a fortnight old beside a Live chip (observed 2026-07-21:
+#                  checks stamped 15 July). Feed health has to be current to
+#                  mean anything. 12 requests a day is negligible.
 #   0 19 * * *     daily 05:00 AEST: Hansard QON ingest + digest delivery
 [triggers]
-crons = ["*/30 * * * *", "0 0 */14 * *", "0 19 * * *"]
+crons = ["*/30 * * * *", "0 5 * * *", "0 19 * * *"]
 
 # ---- Secrets (set with `wrangler secret put <NAME>`) -----------------------
 #
