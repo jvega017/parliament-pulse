@@ -514,16 +514,21 @@ function StoreProvider({ children, navigate = () => {} }) {
   }, []);
   const archive = React.useCallback((signalId) => {
     let remaining = 0;
+    // The count must reflect whichever inbox is actually on screen: live items
+    // when the /state signals block is connected, otherwise the (now empty)
+    // SIGNALS fixture. Reading SIGNALS alone would always report "0 remaining"
+    // even while real live signals are still sitting unarchived.
+    const currentSignals = liveState.blocks?.signals?.items || SIGNALS;
     setState(s => {
       const archived = { ...s.archived, [signalId]: true };
       // Compute the count from the NEXT state so rapid successive archives do
       // not read a stale snapshot. Clamp at 0 for safety.
-      remaining = Math.max(0, SIGNALS.filter(x => !archived[x.id]).length);
+      remaining = Math.max(0, currentSignals.filter(x => !archived[x.id]).length);
       return { ...s, archived };
     });
     const msg = remaining > 0 ? `${signalId} archived · ${remaining} remaining` : "All signals reviewed";
     toast(msg, "ok", { label: "Undo", fn: () => unarchive(signalId) });
-  }, [toast, unarchive]);
+  }, [toast, unarchive, liveState]);
   const addWatchlist = React.useCallback((key) => {
     // Persist the flag and report the real running count so the action is
     // observable, not a bare success toast. The flag survives reload and can
@@ -553,10 +558,13 @@ function StoreProvider({ children, navigate = () => {} }) {
   }, [toast]);
   const createWatchlist = React.useCallback((name) => {
     // Seed sensibly: derive keyword terms from the name and compute real match
-    // counts against the current signal stream so a new watchlist is not a dead
-    // zero row. trend is left flat and the entry is flagged new for the UI.
+    // counts against whichever signal stream is actually on screen (live items
+    // when connected, otherwise the now-empty SIGNALS fixture, which honestly
+    // yields 0 rather than a fabricated seed). trend is left flat and the entry
+    // is flagged new for the UI.
     const keywordList = name.toLowerCase().split(/\s+|&/).map(t => t.trim()).filter(t => t.length > 2);
-    const matches = watchlistMatches({ name, keywordList }).length;
+    const currentSignals = liveState.blocks?.signals?.items || SIGNALS;
+    const matches = watchlistMatches({ name, keywordList }, currentSignals).length;
     const entry = {
       name,
       keywordList,
@@ -567,7 +575,7 @@ function StoreProvider({ children, navigate = () => {} }) {
     };
     setState(s => ({ ...s, watchlistCreated: [...s.watchlistCreated, entry] }));
     toast(`Watchlist "${name}" created`, "brass");
-  }, [toast]);
+  }, [toast, liveState]);
   const generateBrief = React.useCallback((signalId, type) => {
     setState(s => ({ ...s, briefsGenerated: { ...s.briefsGenerated, [signalId]: { ts: Date.now(), type } } }));
   }, []);
@@ -753,18 +761,10 @@ function CommitteeDetail({ id, titleId, closeButtonRef }) {
         </dl>
 
         <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:22, marginBottom:8}}>Upcoming & today's hearings</h3>
-        {c.hearings.length === 0 && <div className="empty">No scheduled hearings.</div>}
-        {c.hearings.map((h, i) => (
-          <div key={i} className="clk" onClick={() => openModal("hearing", { ...h, committee: c.name })}
-               style={{display:"grid", gridTemplateColumns:"130px 1fr auto", padding:"10px 12px", border:"1px solid var(--line-2)", borderRadius:8, marginBottom:6, gap:12, alignItems:"center"}}>
-            <div className="mono" style={{fontSize:11.5, color:"var(--ink-2)"}}>{h.when}</div>
-            <div>
-              <div style={{fontSize:13, fontWeight:500}}>{h.topic}</div>
-              <div style={{fontSize:11.5, color:"var(--ink-3)"}}>{h.room}</div>
-            </div>
-            <Icon name="chevron" size={14} stroke="var(--ink-3)" />
-          </div>
-        ))}
+        <div className="empty">
+          Parliament Pulse holds no verified hearing schedule for this committee, because APH publishes hearing programmes on the committee page rather than as a machine-readable feed. See the current schedule at{" "}
+          <a href="https://www.aph.gov.au/Parliamentary_Business/Committees" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>aph.gov.au/Parliamentary_Business/Committees <Icon name="ext" size={11} style={{verticalAlign:"-1px"}}/></a>.
+        </div>
 
         <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:22, marginBottom:8}}>Open inquiries</h3>
         <div style={{display:"flex", flexWrap:"wrap", gap:6}}>
@@ -789,7 +789,7 @@ function HearingDetail({ data, titleId, closeButtonRef }) {
   const { closeModal, toast } = useStore();
   return (
     <>
-      <ModalHead kicker="Hearing" title={data.topic} titleId={titleId} closeButtonRef={closeButtonRef} />
+      <ModalHead kicker="Hearing" title={data.topic} representative titleId={titleId} closeButtonRef={closeButtonRef} />
       <div className="modal-body">
         <dl className="kv">
           <dt>Committee</dt><dd>{data.committee}</dd>
@@ -798,17 +798,10 @@ function HearingDetail({ data, titleId, closeButtonRef }) {
           <dt>Broadcast</dt><dd><a href="https://parlview.aph.gov.au/" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>ParlView <Icon name="ext" size={11} style={{verticalAlign:"-1px"}}/></a></dd>
         </dl>
         <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:8}}>Witnesses</h3>
-        <ul style={{margin:0, paddingLeft:18, color:"var(--ink-2)"}}>
-          <li>Department (First Assistant Secretary)</li>
-          <li>OAIC (Privacy Commissioner)</li>
-          <li>Industry peak body</li>
-        </ul>
-        <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:8}}>Sample questions <span className="chip-fixture" style={{verticalAlign:"middle", marginLeft:6}}>Representative data</span></h3>
-        <ol style={{margin:0, paddingLeft:18, color:"var(--ink-2)"}}>
-          <li>How does the department assure AI models against bias in high-risk contexts?</li>
-          <li>Which programs currently use automated decision-making for benefit eligibility?</li>
-          <li>What is the escalation pathway when assurance fails in production?</li>
-        </ol>
+        <div className="empty">
+          Parliament Pulse holds no verified witness list for this hearing, because APH publishes witness lists as hearing programmes on the committee page rather than as a machine-readable feed. See the real hearing programme at{" "}
+          <a href="https://www.aph.gov.au/Parliamentary_Business/Committees" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>aph.gov.au/Parliamentary_Business/Committees <Icon name="ext" size={11} style={{verticalAlign:"-1px"}}/></a>.
+        </div>
       </div>
       <div className="modal-foot">
         <button className="btn primary" onClick={() => {
@@ -816,7 +809,7 @@ function HearingDetail({ data, titleId, closeButtonRef }) {
           closeModal();
         }}>Copy calendar stub</button>
         <button className="btn" onClick={() => {
-          copyModalText(`# Hearing prep note\nTopic: ${data.topic}\nCommittee: ${data.committee}\nWhen: ${data.when}\nRoom: ${data.room}\n\nQuestions:\n- How does the department assure AI models against bias in high-risk contexts?\n- Which programs currently use automated decision-making for benefit eligibility?\n- What is the escalation pathway when assurance fails in production?`, toast, "Prep note copied");
+          copyModalText(`# Hearing prep note\nTopic: ${data.topic}\nCommittee: ${data.committee}\nWhen: ${data.when}\nRoom: ${data.room}\n\nParliament Pulse holds no verified witness list for this hearing. See the real hearing programme at https://www.aph.gov.au/Parliamentary_Business/Committees`, toast, "Prep note copied");
         }}><Icon name="brief" size={13}/> Generate prep note</button>
       </div>
     </>
@@ -831,19 +824,10 @@ function InquiryDetail({ id, titleId, closeButtonRef }) {
     <>
       <ModalHead kicker="Inquiry" title={name} titleId={titleId} closeButtonRef={closeButtonRef} />
       <div className="modal-body">
-        <dl className="kv">
-          <dt>Status</dt><dd>Accepting submissions</dd>
-          <dt>Submissions close</dt><dd>19 May 2026</dd>
-          <dt>Reporting</dt><dd>by 30 August 2026</dd>
-          <dt>Scope</dt><dd>Commonwealth procurement and contract governance for digital programs over $100m</dd>
-        </dl>
-        <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:8}}>Terms of reference</h3>
-        <ol style={{margin:0, paddingLeft:18, color:"var(--ink-2)"}}>
-          <li>Adequacy of current governance frameworks</li>
-          <li>Use of limited tender and contract variations</li>
-          <li>Transparency and public reporting</li>
-          <li>Any related matters</li>
-        </ol>
+        <div className="empty">
+          Parliament Pulse holds no verified detail for this inquiry, because APH publishes no machine-readable feed of inquiry terms of reference. See the real committee page at{" "}
+          <a href="https://www.aph.gov.au/Parliamentary_Business/Committees" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>aph.gov.au/Parliamentary_Business/Committees <Icon name="ext" size={11} style={{verticalAlign:"-1px"}}/></a>.
+        </div>
         <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:8}}>Assign owner</h3>
         <div style={{display:"flex", gap:8}}>
           <input aria-label="Owner name" value={owner} onChange={e=>setOwner(e.target.value)} placeholder="Owner name" className="search" style={{padding:"7px 10px", flex:1}}/>
@@ -852,7 +836,7 @@ function InquiryDetail({ id, titleId, closeButtonRef }) {
         {state.owners[name] && <div style={{marginTop:8, fontSize:12.5, color:"var(--ok)"}}><Icon name="check" size={13} style={{verticalAlign:"-2px", marginRight:4}}/>Owner: <strong>{state.owners[name]}</strong></div>}
       </div>
       <div className="modal-foot">
-        <button className="btn primary" onClick={() => copyModalText(`# Submission starter\nInquiry: ${name}\nOwner: ${state.owners[name] || owner || "Unassigned"}\nGenerated: ${new Date().toISOString()}\n\nInitial scope:\n- Governance framework\n- Transparency and reporting\n- Procurement assurance\n- Related matters`, toast, "Submission starter copied")}><Icon name="brief" size={13}/> Start submission</button>
+        <button className="btn primary" onClick={() => copyModalText(`# Submission starter\nInquiry: ${name}\nOwner: ${state.owners[name] || owner || "Unassigned"}\nGenerated: ${new Date().toISOString()}`, toast, "Submission starter copied")}><Icon name="brief" size={13}/> Start submission</button>
         <button className="btn ghost" style={{marginLeft:"auto"}} onClick={closeModal}>Close</button>
       </div>
     </>
@@ -943,11 +927,10 @@ function MemberDetail({ id, titleId, closeButtonRef }) {
           <div className="panel stat"><div className="stat-label">Committees</div><div className="stat-value" style={{fontSize:26}}>{m.committees.length}</div></div>
         </div>
         <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:8}}>Recent activity</h3>
-        <ul style={{margin:0, paddingLeft:18, color:"var(--ink-2)"}}>
-          <li>Lodged QON on digital procurement · 23 Apr</li>
-          <li>Spoke on Cyber Security Bill · 22 Apr</li>
-          <li>Committee questioning at FinPA hearing · 21 Apr</li>
-        </ul>
+        <div className="empty">
+          Parliament Pulse holds no verified activity log for this member, because Hansard and Questions on Notice records are not yet wired to a live feed. See Hansard search at{" "}
+          <a href="https://www.aph.gov.au/Parliamentary_Business/Hansard" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>aph.gov.au/Parliamentary_Business/Hansard <Icon name="ext" size={11} style={{verticalAlign:"-1px"}}/></a>.
+        </div>
       </div>
       <div className="modal-foot">
         <button className="btn primary" onClick={() => { addWatchlist(watchKey); closeModal(); }} style={watched ? {borderColor:"var(--brass)", color:"var(--brass)"} : undefined}>{watched ? "Tracking member" : "Track member"}</button>
@@ -1047,11 +1030,20 @@ function WatchlistDetail({ id, titleId, closeButtonRef }) {
   const all = [...WATCHLISTS, ...(state.watchlistCreated || [])];
   const w = all.find(x => x.name === id);
   if (!w) return <ModalHead kicker="Watchlist" title="Not found" titleId={titleId} closeButtonRef={closeButtonRef} />;
+  // Matches and keyword count are always computed live, never read from a stored
+  // field: a built-in watchlist's matches/trend are held null (the fixture
+  // numbers were invented) and a created watchlist's seed values would
+  // otherwise go stale as new signals arrive. matchSource is the same live
+  // items or (now empty) SIGNALS fallback every other desk uses.
+  const live = useLiveState("signals");
+  const matchSource = live.items || SIGNALS;
+  // F16: stable keyword matching against signal tags, not a name-prefix substring.
+  const matchingAll = watchlistMatches(w, matchSource);
+  const matchingSignals = matchingAll.slice(0, 3);
+  const keywordList = watchlistKeywords(w);
   // F2: guard the spark divisor so an all-zero trend cannot divide by zero.
   const trend = Array.isArray(w.trend) ? w.trend : [];
   const max = Math.max(...trend, 1);
-  // F16: stable keyword matching against signal tags, not a name-prefix substring.
-  const matchingSignals = watchlistMatches(w).slice(0, 3);
   return (
     <>
       <ModalHead kicker={w.created ? "Watchlist · New" : "Watchlist"} title={w.name} representative={!!w.representative} titleId={titleId} closeButtonRef={closeButtonRef} />
@@ -1060,10 +1052,12 @@ function WatchlistDetail({ id, titleId, closeButtonRef }) {
           <div className="empty" style={{marginBottom:14}}>Created watchlist. Keyword matching runs against the current signal stream. Trend builds as new signals arrive.</div>
         )}
         <div className="grid g-3" style={{gap:12}}>
-          <div className="panel stat"><div className="stat-label">Matches</div><div className="stat-value" style={{fontSize:26}}>{w.matches}</div></div>
-          <div className="panel stat"><div className="stat-label">Keywords</div><div className="stat-value" style={{fontSize:26}}>{w.keywords}</div></div>
+          <div className="panel stat"><div className="stat-label">Matches</div><div className="stat-value" style={{fontSize:26}}>{matchingAll.length}</div></div>
+          <div className="panel stat"><div className="stat-label">Keywords</div><div className="stat-value" style={{fontSize:26}}>{keywordList.length}</div></div>
           <div className="panel stat"><div className="stat-label">7-day trend</div>
-            <div className="spark" style={{marginTop:8}}>{trend.map((v,i) => <span key={i} style={{height:(v/max*24+3)+"px"}}/>)}</div>
+            {trend.length === 0
+              ? <div className="mono" style={{marginTop:8, color:"var(--ink-4)", fontSize:11}}>— no trend history</div>
+              : <div className="spark" style={{marginTop:8}}>{trend.map((v,i) => <span key={i} style={{height:(v/max*24+3)+"px"}}/>)}</div>}
           </div>
         </div>
         <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:6}}>Matching signals</h3>
@@ -1077,7 +1071,7 @@ function WatchlistDetail({ id, titleId, closeButtonRef }) {
       </div>
       <div className="modal-foot">
         <button className="btn ghost" onClick={() => {
-          copyModalText(`# Watchlist digest\nWatchlist: ${w.name}\nMatches: ${w.matches}\nKeywords: ${watchlistKeywords(w).join(", ")}\n\nMatching signals:\n${matchingSignals.map(s => `- ${s.id}: ${s.title}`).join("\n") || "- No matching signals in the current stream."}`, toast, "Watchlist digest copied");
+          copyModalText(`# Watchlist digest\nWatchlist: ${w.name}\nMatches: ${matchingAll.length}\nKeywords: ${keywordList.join(", ")}\n\nMatching signals:\n${matchingSignals.map(s => `- ${s.id}: ${s.title}`).join("\n") || "- No matching signals in the current stream."}`, toast, "Watchlist digest copied");
           closeModal();
         }}>Copy digest</button>
         <button className="btn" onClick={() => toast("Configuration saved locally")}>Save config</button>

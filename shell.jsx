@@ -122,11 +122,17 @@ const ICONS = {
 };
 
 function Sidebar({ page, onNavigate, mobileOpen }) {
-  const { state } = useStore();
+  const { state, liveState } = useStore();
   // Live counts derive from the shared /state cache where a live block exists; a
   // desk with no live block keeps its fixture-derived count (invariant 5).
   const signalsLive = useLiveState("signals");
   const threadsLive = useLiveState("threads");
+  // Same real health signal the topbar's LIVE DATA UNAVAILABLE chip reads (see
+  // Topbar's noLiveCache, shell.jsx ~496): the /state fetch errored and nothing
+  // has ever loaded, so every desk shows its honest empty state. Driving this
+  // block from that shared signal means it can never show "configured" while
+  // the topbar is simultaneously showing an outage.
+  const noLiveCache = !!(liveState && liveState.status === "error" && !liveState.blocks);
   const navCount = React.useMemo(() => {
     const signalSource = signalsLive.items || SIGNALS;
     const active = signalSource.filter(s => !state.archived[s.id]);
@@ -215,11 +221,23 @@ function Sidebar({ page, onNavigate, mobileOpen }) {
         ))}
       </nav>
       <div className="side-status" aria-label="System status">
-        <div className="side-status-head">
-          <span className="dot" style={{background:"var(--ok)", boxShadow:"none"}}/>
-          <span>Feeds configured</span>
-        </div>
-        <div>Official RSS proxy configured; runtime health appears on Live</div>
+        {noLiveCache ? (
+          <>
+            <div className="side-status-head">
+              <span className="dot" style={{background:"var(--caution)", boxShadow:"none"}}/>
+              <span>Live data unavailable</span>
+            </div>
+            <div>Official RSS proxy did not respond at the last check; desks show an honest empty state rather than invented data. See Live for feed health.</div>
+          </>
+        ) : (
+          <>
+            <div className="side-status-head">
+              <span className="dot" style={{background:"var(--ok)", boxShadow:"none"}}/>
+              <span>Feeds configured</span>
+            </div>
+            <div>Official RSS proxy configured; runtime health appears on Live</div>
+          </>
+        )}
         <div className="mono">Status: local beta</div>
       </div>
       <div className="side-foot">
@@ -295,7 +313,7 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
     if (typeof refreshLiveState === "function") {
       Promise.resolve(refreshLiveState()).catch(() => {
         const msg = ageAtClick === "—"
-          ? "Live refresh failed - showing representative data"
+          ? "Live refresh failed - live data is unavailable"
           : `Live refresh failed - showing data from ${ageAtClick} ago`;
         toast(msg, "error");
       });
@@ -494,7 +512,7 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
       <div className="top-right">
         <TopClock />
         {noLiveCache ? (
-          <span className="chip warn" onClick={() => navigate("live")} title="Live APH feeds did not respond. Each desk is showing its representative fallback data; open Live for feed health." style={{borderColor:"color-mix(in srgb, var(--caution) 55%, transparent)", color:"var(--caution)", background:"transparent", cursor:"pointer"}}>
+          <span className="chip warn" onClick={() => navigate("live")} title="Live APH feeds did not respond. Each desk shows an honest empty state rather than invented data; open Live for feed health." style={{borderColor:"color-mix(in srgb, var(--caution) 55%, transparent)", color:"var(--caution)", background:"transparent", cursor:"pointer"}}>
             <span className="dot" style={{background:"var(--caution)", boxShadow:"none"}}/> LIVE DATA UNAVAILABLE
           </span>
         ) : (
@@ -506,7 +524,11 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
           <Icon name="refresh" size={14} style={isRefreshing ? {animation:"spin 800ms linear infinite"} : undefined} />
           <span className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)", letterSpacing:".04em", marginLeft:6, fontVariantNumeric:"tabular-nums"}}>{dataAge}</span>
         </button>
-        <button className="btn ghost sm" title="Show current priority count" aria-label="Alerts" onClick={() => toast(`${SIGNALS.filter(s => s.attention === "high").length} priority signals currently need review`, "brass")}><Icon name="bell" size={14} /></button>
+        <button className="btn ghost sm" title="Show current priority count" aria-label="Alerts" onClick={() => {
+          const source = liveSignals.items || SIGNALS;
+          const count = source.filter(s => s.attention === "high").length;
+          toast(source.length === 0 ? "Live data is unavailable — no signals to review" : `${count} priority signals currently need review`, "brass");
+        }}><Icon name="bell" size={14} /></button>
         <button className="btn primary sm" onClick={() => navigate("briefings")}><Icon name="plus" size={13} /> New brief</button>
         <ShortcutHelp />
         <button className="btn ghost sm" title={isDark ? "Switch to light mode" : "Switch to dark mode"} aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"} onClick={() => {
@@ -898,9 +920,10 @@ function Drawer() {
                   <dt>Human review</dt><dd>{s.humanReview ? `Review status: ${s.humanReview === "Required" ? "Not reviewed · policy officer must verify source links before use" : "Optional for internal triage; required before external distribution"}` : "—"}</dd>
                 </dl>
               </div>
-              {s.score && (
+              {!isLive && s.score && (
                 <div className="drawer-section">
-                  <h3>Attention score breakdown</h3>
+                  <h3>Attention score breakdown <span className="chip-fixture" style={{verticalAlign:"middle", marginLeft:6}}>Representative data</span></h3>
+                  <div style={{color:"var(--ink-4)", fontSize:12, marginBottom:6}}>Illustrative five-factor breakdown for an example signal, not a computed score.</div>
                   {Object.entries(s.score).map(([k,v]) => {
                     const lab = {authority:"Source authority", portfolio:"Portfolio relevance", novelty:"Novelty", momentum:"Momentum", time:"Time sensitivity", scrutiny:"Scrutiny relevance", ops:"Operational impact"};
                     return (
@@ -929,20 +952,29 @@ function Drawer() {
                 )) : <div style={{color:"var(--ink-4)", fontSize:13}}>— No source link recorded for this item.</div>}
               </div>
 
-              {s.provenance && s.provenance.length > 0 && (
-                <div className="drawer-section">
-                  <h3>Representative provenance · target workflow, not a production audit log <span className="chip-fixture" style={{verticalAlign:"middle", marginLeft:6}}>Representative data</span></h3>
-                  <div style={{border:"1px solid var(--line-2)", borderRadius:8, overflow:"hidden"}}>
-                    {s.provenance.map((p,i) => (
-                      <div key={i} style={{display:"grid", gridTemplateColumns:"78px 90px 1fr", gap:10, padding:"8px 12px", fontSize:12, borderBottom: i<s.provenance.length-1 ? "1px solid var(--line)" : 0, background: i%2 ? "var(--panel-hi)" : "transparent"}}>
-                        <div className="mono" style={{color:"var(--ink-4)", fontSize:"var(--t-micro)"}}>{p.ts}</div>
-                        <div><span className="tag" style={{fontSize:"var(--t-micro)", padding:"1px 6px"}}>{p.by}</span></div>
-                        <div style={{color:"var(--ink-2)"}}>{p.event}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <div className="drawer-section">
+                <h3>Processing log</h3>
+                {s.provenance && s.provenance.length > 0 ? (
+                  <>
+                    <div className="chip-fixture" style={{marginBottom:8}}>
+                      Illustrative example only, not a production audit log · target workflow shown, not a record of what happened to this item
+                    </div>
+                    <div style={{border:"1px solid var(--line-2)", borderRadius:8, overflow:"hidden"}}>
+                      {s.provenance.map((p,i) => (
+                        <div key={i} style={{display:"grid", gridTemplateColumns:"78px 90px 1fr", gap:10, padding:"8px 12px", fontSize:12, borderBottom: i<s.provenance.length-1 ? "1px solid var(--line)" : 0, background: i%2 ? "var(--panel-hi)" : "transparent"}}>
+                          <div className="mono" style={{color:"var(--ink-4)", fontSize:"var(--t-micro)"}}>{p.ts}</div>
+                          <div><span className="tag" style={{fontSize:"var(--t-micro)", padding:"1px 6px"}}>{p.by}</span></div>
+                          <div style={{color:"var(--ink-2)"}}>{p.event}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <EmptyState icon="signal" kicker="No processing log held">
+                    Parliament Pulse does not record a per-signal processing log for this item. This section shows one only for illustrative example signals.
+                  </EmptyState>
+                )}
+              </div>
 
               {s.updates && s.updates.length > 0 && (
                 <div className="drawer-section">

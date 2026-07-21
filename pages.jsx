@@ -330,7 +330,7 @@ function OnboardingGuide() {
 }
 
 function PageOverview() {
-  const { openModal, state, toast, navigate } = useStore();
+  const { state, toast, navigate } = useStore();
   const goto = navigate;
   // Live signals feed the priority/rest computation and the command strip. When
   // the /state signals block is not live, sourceSignals falls back to the fixture
@@ -355,6 +355,22 @@ function PageOverview() {
         return acc;
       }, {})
     : null;
+
+  // Committee activity tile: counted from COMMITTEE_ITEMS itself so the tile moves
+  // when the data moves (spec: no placeholder wearing a number's clothes). Renders
+  // 0/0/0/0 honestly while the fixture is empty.
+  const committeeHearingCount = COMMITTEE_ITEMS.filter(i => i.type === "Hearing").length;
+  const committeeInquiryCount = COMMITTEE_ITEMS.filter(i => i.type === "New inquiry").length;
+  const committeeReportCount = COMMITTEE_ITEMS.filter(i => i.type === "Report tabled").length;
+
+  // Overview briefing queue: the user's own generated briefs (state.briefsGenerated),
+  // the same real source PageBriefings uses. No static example rows (spec: an honest
+  // empty state replaces the fixture queue when nothing has been generated yet).
+  const overviewBriefs = Object.entries(state.briefsGenerated || {}).map(([sid, v]) => {
+    const sig = sourceSignals.find(s => s.id === sid) || SIGNALS.find(s => s.id === sid);
+    const label = sig ? (sig.isLive ? sig.source : (sig.title.slice(0, 40) + "…")) : sid;
+    return { type: v.type || "Executive Brief", for: label, ts: v.ts };
+  }).sort((a, b) => b.ts - a.ts).slice(0, 4);
 
   const generateDailyBrief = () => {
     const today = new Date().toLocaleDateString("en-AU", { day:"numeric", month:"long", year:"numeric" });
@@ -432,7 +448,7 @@ function PageOverview() {
         <div>
           <div className="page-kicker">{live.items
             ? `Live signals · fetched ${fmtFetchedAt(live.fetchedAt)} AEST · verify sitting status from the Live page`
-            : "Representative signals as at 24 Apr 2026 · Verify current sitting status and live data from the Live page"}</div>
+            : "Live data is unavailable · Parliament Pulse shows nothing rather than an invented signal · see the Live page for feed health"}</div>
           <h1 className="page-title">Today's signals</h1>
         </div>
         <div style={{display:"flex", gap:8, alignItems:"center", flexWrap:"wrap", justifyContent:"flex-end"}}>
@@ -457,10 +473,10 @@ function PageOverview() {
             {priority.length > 0 && <button className="btn ghost sm" style={{marginLeft:"auto"}} onClick={() => document.getElementById("priority-panel")?.scrollIntoView({behavior:"smooth", block:"start"})}>Triage now →</button>}
           </div>
         </div>
-        <div className="cs-secondary" title="Representative count">
+        <div className="cs-secondary" title="Counted from the committee dataset">
           <div className="cs-stat-label" style={{display:"flex", alignItems:"center", gap:8}}>Committee activity <span className="chip-fixture">Representative data</span></div>
-          <div className="cs-stat">7<span className="unit">items</span></div>
-          <div className="stat-meta">2 hearings · 1 inquiry · 1 report</div>
+          <div className="cs-stat">{COMMITTEE_ITEMS.length}<span className="unit">items</span></div>
+          <div className="stat-meta">{committeeHearingCount} hearing{committeeHearingCount !== 1 ? "s" : ""} · {committeeInquiryCount} inquir{committeeInquiryCount !== 1 ? "ies" : "y"} · {committeeReportCount} report{committeeReportCount !== 1 ? "s" : ""}</div>
         </div>
         <div className="cs-secondary">
           <div className="cs-stat-label">Source health</div>
@@ -495,7 +511,11 @@ function PageOverview() {
             <div className="panel-body">
               {live.status === "loading" && !live.items
                 ? [...Array(3)].map((_, i) => <SkeletonCard key={i} />)
-                : <>
+                : !live.items ? (
+                    <EmptyState icon="signal" kicker="Live data unavailable" variant="error">
+                      Live data is unavailable. Parliament Pulse shows nothing rather than showing something invented. <a href="https://www.aph.gov.au" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>Go to aph.gov.au</a>.
+                    </EmptyState>
+                  ) : <>
                     {priority.map(s => <SignalCard key={s.id} s={s} />)}
                     {priority.length === 0 && <EmptyState icon="check" kicker="Priority clear">All priority signals actioned.</EmptyState>}
                   </>}
@@ -514,7 +534,7 @@ function PageOverview() {
             <div className="panel-section">
               <div className="panel-section-head">
                 <h2 className="panel-section-title">What changed</h2>
-                <span className="panel-kicker" style={{marginLeft:"auto"}}>{live.items ? "Representative timeline · live inbox on Signals" : "Representative set · 24 Apr 2026"}</span>
+                <span className="panel-kicker" style={{marginLeft:"auto"}}>{live.items ? `Live · fetched ${fmtFetchedAt(live.fetchedAt)} AEST` : "No live feed yet"}</span>
               </div>
               <div style={{marginBottom:12, paddingBottom:12, borderBottom:"1px solid var(--rule-2)", fontSize:12, color:"var(--ink-3)"}}>
                 {Object.keys(state.archived).length > 0
@@ -522,28 +542,46 @@ function PageOverview() {
                   : "No signals actioned yet this session."}{" "}
                 {sourceSignals.length} signals in the current inbox.
               </div>
-              <div className="timeline">
-                <div className="tl-item"><div className="tl-time">08:15 · Senate</div><div className="tl-body">New inquiry opened: <button className="linklike" onClick={()=>openModal("inquiry","Commonwealth procurement governance (new)")}>Digital procurement governance</button></div></div>
-                <div className="tl-item teal"><div className="tl-time">07:48 · Library</div><div className="tl-body">Bills Digest: <button className="linklike" onClick={()=>openModal("bill","BILL-2026-048")}>Digital ID Amendment (Assurance) Bill 2026</button></div></div>
-                <div className="tl-item info"><div className="tl-time">07:30 · Senate</div><div className="tl-body">Today's hearing · <button className="linklike" onClick={()=>openModal("committee","legcon")}>Legal & Constitutional</button> · AI assurance</div></div>
-                <div className="tl-item"><div className="tl-time">07:10 · House</div><div className="tl-body">Daily program: <button className="linklike" onClick={()=>openModal("bill","BILL-2026-041")}>Cyber Security Bill</button>: 2nd reading</div></div>
-                <div className="tl-item info"><div className="tl-time">Yesterday 18:04</div><div className="tl-body"><button className="linklike" onClick={()=>openModal("division", DIVISIONS[2])}>Division: CDR Expansion Bill, 2nd reading agreed</button></div></div>
-                <div className="tl-item teal"><div className="tl-time">Yesterday 17:20</div><div className="tl-body">Report tabled: Regional 5G rollout, interim</div></div>
-              </div>
+              {/* Derived from the live signal stream itself, never a fixed script of
+                  events (spec: what changed must move when the data moves). With no
+                  live feed connected this renders an honest empty state and invents
+                  nothing about the day. */}
+              {live.items ? (
+                <div className="timeline">
+                  {live.items.slice(0, 6).map((s, i) => (
+                    <div key={s.id || i} className="tl-item">
+                      <div className="tl-time">{s.time} · {s.source}</div>
+                      <div className="tl-body">
+                        {s.link
+                          ? <a href={s.link} target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)", textDecoration:"none"}} title="Opens the source at aph.gov.au">{s.title}</a>
+                          : s.title}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState icon="signal" kicker="No live timeline held">
+                  Parliament Pulse holds no verified live changes for this window: the /state signals block is not currently live. This timeline populates from the same feed as the Signal inbox once it connects.
+                </EmptyState>
+              )}
             </div>
             <div className="panel-section">
               <div className="panel-section-head">
                 <h2 className="panel-section-title">Briefing queue</h2>
-                <span className="panel-kicker" style={{marginLeft:"auto"}}>4 pending</span>
+                <span className="panel-kicker" style={{marginLeft:"auto"}}>{overviewBriefs.length} generated</span>
               </div>
-              {BRIEFING_QUEUE.map((b,i) => (
-                <div key={b.type + b.for} className="data-row g-brief-row" style={{display:"grid", gap:10, padding:"10px 0", borderBottom: i < BRIEFING_QUEUE.length-1 ? "1px solid var(--rule-2)" : 0}}>
+              {overviewBriefs.length === 0 ? (
+                <EmptyState icon="brief" kicker="No briefs generated yet">
+                  Open any signal and choose Generate brief. Your briefs appear here and in the full Briefings queue.
+                </EmptyState>
+              ) : overviewBriefs.map((b,i) => (
+                <div key={b.for + i} className="data-row g-brief-row" style={{display:"grid", gap:10, padding:"10px 0", borderBottom: i < overviewBriefs.length-1 ? "1px solid var(--rule-2)" : 0}}>
                   <div>
                     <div style={{fontSize:13, fontWeight:500}}>{b.type}</div>
-                    <div style={{fontSize:11.5, color:"var(--ink-3)"}}>For {b.for} · <span className="mono">{b.at}</span></div>
+                    <div style={{fontSize:11.5, color:"var(--ink-3)"}}>For {b.for}</div>
                   </div>
                   <div style={{display:"flex", alignItems:"center", gap:8}}>
-                    <span className="mono" style={{fontSize:"var(--t-label)", color: b.ready ? "var(--ok)" : "var(--caution)", textTransform:"uppercase", letterSpacing:".12em"}}>{b.status}</span>
+                    <span className="mono" style={{fontSize:"var(--t-label)", color:"var(--ok)", textTransform:"uppercase", letterSpacing:".12em"}}>Copied · clipboard</span>
                     <button className="btn sm ghost" title="Open the briefings queue" aria-label="Open briefings queue" onClick={() => goto && goto("briefings")}><Icon name="chevron" size={13}/></button>
                   </div>
                 </div>
@@ -750,7 +788,7 @@ async function mapPool(items, limit, fn) {
 
 function PageLive() {
   const [which, setWhich] = useState("house");
-  const { toast, openModal, consumeLiveRefresh } = useStore();
+  const { toast, consumeLiveRefresh } = useStore();
 
   const [events, setEvents] = useState([]);
   const [feedStatus, setFeedStatus] = useState({}); // url -> {ok, count, error}
@@ -922,17 +960,14 @@ function PageLive() {
 
           <div className="panel" style={{marginTop:16}}>
             <div className="panel-head">
-              <h2 className="panel-title">Daily program example</h2>
-              <span className="chip-fixture" style={{marginLeft:8}}>Representative data</span>
+              <h2 className="panel-title">Daily program</h2>
               <span className="panel-kicker">{which === "house" ? "House of Representatives" : which === "senate" ? "Senate" : "Federation Chamber"}</span>
               <a href={which === "house" ? "https://www.aph.gov.au/Parliamentary_Business/Chamber_documents" : "https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/Senate_chamber_documents"} target="_blank" rel="noopener noreferrer" style={{marginLeft:"auto", fontSize:11.5, color:"var(--teal)", textDecoration:"none"}}>Open daily program <Icon name="ext" size={11}/></a>
             </div>
             <div className="panel-body">
-              <div className="timeline">
-                <div className="tl-item"><div className="tl-time">12:00</div><div className="tl-body">Question time · <button className="linklike" onClick={()=>openModal("bill","BILL-2026-048")}>Digital ID Amendment</button> expected</div></div>
-                <div className="tl-item teal"><div className="tl-time">14:00</div><div className="tl-body">Government business · 2nd reading <button className="linklike" onClick={()=>openModal("bill","BILL-2026-041")}>Cyber Security Bill</button> <span className="tag brass" style={{marginLeft:6}}>Watchlist · Cyber</span></div></div>
-                <div className="tl-item info"><div className="tl-time">16:30</div><div className="tl-body">Adjournment debate</div></div>
-              </div>
+              <EmptyState icon="clock" kicker="No verified daily program held">
+                Parliament Pulse does not yet build a chamber-specific daily program on this page. Official House Daily Program items appear in the "Recent items · APH RSS" panel alongside this player when the feed returns them. Open the daily program above for the current official schedule.
+              </EmptyState>
             </div>
           </div>
 
@@ -1099,7 +1134,11 @@ function PageSources() {
     setTestState(null);
   };
 
-  const allFeeds = [...APH_FEEDS, ...state.feeds.map(f => ({ ...f, last:"just now", today:0, fpr:"—", modules:["Custom"], parser:"Needs validation", authority:"Custom", confidence:"—" }))];
+  // Custom saved feeds are never polled: liveFeedList() (the Live page poller) reads
+  // only SOURCE_REGISTRY, so a feed saved here never fetches. "Not polled" replaces
+  // any invented "just now" freshness claim so the row cannot be mistaken for a
+  // monitored feed.
+  const allFeeds = [...APH_FEEDS, ...state.feeds.map(f => ({ ...f, last:"Not polled", today:0, fpr:"—", modules:["Custom"], parser:"Needs validation", authority:"Custom", confidence:"—" }))];
 
   // Feed-health from the Worker's connector checks, joined to the registry by url.
   const checkByUrl = new Map((health.items || []).map(c => [c.url, c]));
@@ -1167,9 +1206,11 @@ function PageSources() {
                   </td>
                   <td><span className="tag">{f.group}</span></td>
                   <td style={c && !c.ok ? {color:"var(--escalate)"} : undefined}>
-                    {c
-                      ? (c.ok ? "Live" : `Error ${c.httpStatus ?? ""}`.trim())
-                      : (f.lastStatusCode != null ? (f.lastStatusCode >= 200 && f.lastStatusCode < 300 ? "Live" : "Error") : "—")}
+                    {f.group === "Custom"
+                      ? <span style={{color:"var(--ink-4)", fontStyle:"italic"}} title="Saved feeds are not polled by the live feed poller">Not polled</span>
+                      : (c
+                        ? (c.ok ? "Live" : `Error ${c.httpStatus ?? ""}`.trim())
+                        : (f.lastStatusCode != null ? (f.lastStatusCode >= 200 && f.lastStatusCode < 300 ? "Live" : "Error") : "—"))}
                   </td>
                   <td className="mono" style={{fontSize:11.5, color:"var(--ink-3)"}}>{c ? fmtFetchedAt(c.checkedAt) : (f.last || "—")}</td>
                   <td className="num">{f.lastItemCount ?? "—"}</td>
@@ -1202,7 +1243,7 @@ function PageSources() {
           <div className="panel" style={{marginBottom:16}}>
             <div className="panel-head">
               <h2 className="panel-title">Add RSS feed</h2>
-              <span className="panel-kicker">6-step workflow</span>
+              <span className="panel-kicker">Name, URL, validate, save</span>
             </div>
             <div className="panel-body">
               <label htmlFor="new-feed-name" className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em"}}>Display name</label>
@@ -1211,31 +1252,6 @@ function PageSources() {
               <div style={{display:"flex", gap:8, marginTop:4}}>
                 <input id="new-feed-url" value={newUrl} onChange={e=>setNewUrl(e.target.value)} className="search" style={{flex:1, padding:"8px 10px"}}/>
                 <button className="btn primary" onClick={startTest}>{testing && !testState ? "Testing…" : "Validate"}</button>
-              </div>
-              <div className="g-feed-form" style={{marginTop:12, display:"grid", gap:10}}>
-                <div>
-                  <div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", marginBottom:4}}>Source type</div>
-                  <select className="btn" aria-label="Source type" style={{width:"100%", padding:"7px 10px"}}>
-                    <option>Parliamentary Library</option><option>Senate</option><option>House</option><option>Department</option><option>Ministerial</option><option>Regulator</option><option>News</option><option>Think tank</option><option>Industry</option>
-                  </select>
-                </div>
-                <div>
-                  <div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", marginBottom:4}}>Refresh cadence</div>
-                  <select className="btn" aria-label="Refresh cadence" style={{width:"100%", padding:"7px 10px"}}>
-                    <option>Hourly</option><option>Every 15 min</option><option>Daily</option>
-                  </select>
-                </div>
-              </div>
-              <div style={{marginTop:12}}>
-                <div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", marginBottom:6}}>Route to modules</div>
-                <div style={{display:"flex", flexWrap:"wrap", gap:6}}>
-                  {["Today's Signal","Committees","Bills","Parliament","Briefings","Emerging Issues","Watchlists","Search"].map(m => (
-                    <label key={m} style={{display:"inline-flex", alignItems:"center", gap:6, padding:"4px 10px", border:"1px solid var(--line-2)", borderRadius:999, fontSize:12, cursor:"pointer"}}>
-                      <input type="checkbox" defaultChecked={["Emerging Issues","Briefings"].includes(m)} style={{accentColor:"var(--brass)"}}/>
-                      {m}
-                    </label>
-                  ))}
-                </div>
               </div>
 
               {testState && (
@@ -1334,6 +1350,9 @@ function PageCommittees() {
   const today = rows.filter(i => i.when.startsWith("Today"));
   const upcoming = rows.filter(i => !i.when.startsWith("Today") && !i.when.startsWith("Yesterday"));
   const recent = rows.filter(i => i.when.startsWith("Yesterday"));
+  // Reports tabled: counted from the same dataset so the tile moves when the
+  // underlying rows move.
+  const reportsTabled = rows.filter(i => i.type === "Report tabled").length;
   const exportPrepPack = () => {
     exportRowsCSV(
       ["when", "type", "committee", "topic", "portfolio", "attention"],
@@ -1343,7 +1362,15 @@ function PageCommittees() {
     toast("Committee prep pack exported", "brass");
   };
 
-  const CommitteeTable = ({ rows, compact }) => (
+  const CommitteeTable = ({ rows, compact, emptyText }) => {
+    if (rows.length === 0) {
+      return (
+        <div className="panel-body">
+          <EmptyState icon="signal" kicker="No verified committee items held">{emptyText}</EmptyState>
+        </div>
+      );
+    }
+    return (
     <div className="table-scroll">
     <table className="ds">
       <thead><tr>
@@ -1368,7 +1395,8 @@ function PageCommittees() {
       </tbody>
     </table>
     </div>
-  );
+    );
+  };
 
   return (
     <div className="page">
@@ -1392,24 +1420,24 @@ function PageCommittees() {
 
       <div className="grid g-3" style={{marginBottom:18}}>
         <div style={{gridColumn:"1 / -1", display:"flex", justifyContent:"flex-end", marginBottom:-6}}><span className="chip-fixture">Representative data</span></div>
-        <div className="panel stat"><div className="stat-label">Today</div><div className="stat-value">2<span className="unit">hearings</span></div></div>
-        <div className="panel stat"><div className="stat-label">Upcoming · 7 days</div><div className="stat-value">3<span className="unit">hearings</span></div></div>
-        <div className="panel stat"><div className="stat-label">Reports tabled · 30 days</div><div className="stat-value">5</div></div>
+        <div className="panel stat"><div className="stat-label">Today</div><div className="stat-value">{today.length}<span className="unit">hearings</span></div></div>
+        <div className="panel stat"><div className="stat-label">Upcoming · 7 days</div><div className="stat-value">{upcoming.length}<span className="unit">hearings</span></div></div>
+        <div className="panel stat"><div className="stat-label">Reports tabled</div><div className="stat-value">{reportsTabled}</div></div>
       </div>
 
       <div className="panel" style={{marginBottom:16}}>
         <div className="panel-head"><h2 className="panel-title">Today's hearings</h2><span className="panel-kicker">{today.length} items</span></div>
-        <CommitteeTable rows={today} />
+        <CommitteeTable rows={today} emptyText={<>Parliament Pulse holds no verified committee hearings for today. <a href="https://www.aph.gov.au/Parliamentary_Business/Committees" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>Open committee hearings on aph.gov.au</a>.</>} />
       </div>
 
       <div className="grid g-2">
         <div className="panel">
           <div className="panel-head"><h2 className="panel-title">Upcoming hearings</h2><span className="panel-kicker">Next 7 days</span></div>
-          <CommitteeTable rows={upcoming} compact />
+          <CommitteeTable rows={upcoming} compact emptyText={<>Parliament Pulse holds no verified upcoming hearings. <a href="https://www.aph.gov.au/Parliamentary_Business/Committees" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>Open committee hearings on aph.gov.au</a>.</>} />
         </div>
         <div className="panel">
           <div className="panel-head"><h2 className="panel-title">Recently tabled / opened</h2><span className="panel-kicker">Last 48h</span></div>
-          <CommitteeTable rows={recent} compact />
+          <CommitteeTable rows={recent} compact emptyText={<>Parliament Pulse holds no verified reports or inquiries opened in the last 48 hours. <a href="https://www.aph.gov.au/Parliamentary_Business/Committees" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>Open committee reports on aph.gov.au</a>.</>} />
         </div>
       </div>
     </div>
@@ -1423,6 +1451,9 @@ function PageBills() {
   // exists, so the register shows a skeleton on first load instead of flashing the
   // fixture. Bills stays representative; the skeleton only covers the initial load.
   const loadingNoCache = liveState.status === "loading" && !liveState.blocks;
+  // Featured bill for the Bills Digest panel: the highest-attention tracked bill,
+  // computed from BILLS (spec: derive, never hardcode a ref).
+  const featuredBill = BILLS.find(b => b.att === "high") || BILLS[0];
   return (
     <div className="page">
       <div className="page-head">
@@ -1445,7 +1476,7 @@ function PageBills() {
             ]);
             exportRowsCSV(headers, rows, `parliament-pulse-bills-${new Date().toISOString().slice(0,10)}.csv`);
           }}><Icon name="download" size={13}/> Export register</button>
-          <button className="btn primary" onClick={() => openModal("bill", "BILL-2026-048")}><Icon name="brief" size={13}/> Draft bill brief</button>
+          <button className="btn primary" disabled={!featuredBill} onClick={() => featuredBill && openModal("bill", featuredBill.ref)}><Icon name="brief" size={13}/> Draft bill brief</button>
         </div>
       </div>
 
@@ -1454,7 +1485,7 @@ function PageBills() {
         <div className="panel">
           <div className="panel-head">
             <h2 className="panel-title">Tracked bills</h2>
-            <span className="panel-kicker">5 of 38 watchlisted</span>
+            <span className="panel-kicker">{BILLS.length} bill{BILLS.length !== 1 ? "s" : ""} tracked</span>
           </div>
           <div className="table-scroll">
           <table className="ds">
@@ -1486,7 +1517,11 @@ function PageBills() {
         <div className="panel">
           <div className="panel-head"><h2 className="panel-title">Related divisions</h2><span className="panel-kicker">House · last 7 days</span></div>
           <div className="panel-body">
-            {DIVISIONS.map((d,i) => (
+            {DIVISIONS.length === 0 ? (
+              <EmptyState icon="flag" kicker="No verified divisions held">
+                Parliament Pulse holds no verified division results for tracked bills. A live House Divisions feed is being wired into the Worker. <a href="https://www.aph.gov.au/Parliamentary_Business/Chamber_documents" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>Open division results on aph.gov.au</a>.
+              </EmptyState>
+            ) : DIVISIONS.map((d,i) => (
               <div key={d.when + d.bill} className="clk list-row" onClick={() => openModal("division", d)} style={{borderRadius:6}}>
                 <div className="mono" style={{fontSize:"var(--t-label)", color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".12em"}}>{d.when} · {d.chamber} · {d.bill}</div>
                 <div style={{fontSize:13, marginTop:2}}>{d.q}</div>
@@ -1497,43 +1532,27 @@ function PageBills() {
         </div>
       </div>
 
+      {featuredBill && (
       <div className="panel" style={{marginTop:16}}>
         <div className="panel-head">
           <h2 className="panel-title">Bills Digest</h2>
-          <span className="panel-kicker">Featured · Digital ID Amendment (Assurance) Bill 2026 (highest attention)</span>
-          <div style={{marginLeft:"auto"}}><button className="btn ghost sm" onClick={() => openModal("bill", "BILL-2026-048")}>Open full detail →</button></div>
+          <span className="panel-kicker">Featured · {featuredBill.title} (highest attention)</span>
+          <div style={{marginLeft:"auto"}}><button className="btn ghost sm" onClick={() => openModal("bill", featuredBill.ref)}>Open full detail →</button></div>
         </div>
         <div className="panel-body">
-          <div className="grid g-2">
-            <div>
-              <h5 className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", margin:"0 0 4px"}}>Purpose</h5>
-              <p style={{margin:0, color:"var(--ink-2)"}}>Amends the Digital ID Act to expand the scope of the accreditation scheme and introduce new consumer assurance provisions, including revised obligations on accredited entities handling biometric attributes.</p>
-              <h5 className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", margin:"14px 0 4px"}}>Key provisions</h5>
-              <ul style={{margin:0, paddingLeft:18, color:"var(--ink-2)"}}>
-                <li>Part 2: accreditation scope expanded to cover state-level identity exchanges</li>
-                <li>Part 4: new reporting obligations on biometric attribute use</li>
-                <li>Schedule 1: consequential amendments to Privacy Act s.26</li>
-              </ul>
-            </div>
-            <div>
-              <h5 className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", margin:"0 0 4px"}}>Portfolio relevance</h5>
-              <p style={{margin:0, color:"var(--ink-2)"}}>High. Matches Digital identity and Data sharing & privacy watchlists.</p>
-              <h5 className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", margin:"14px 0 4px"}}>Recommended action</h5>
-              <div style={{padding:"10px 14px", borderLeft:"3px solid var(--brass)", borderRadius:"0 6px 6px 0", background:"var(--panel-2)"}}>
-                <div style={{color:"var(--ink)", fontWeight:600}}>Draft Executive Brief</div>
-                <div style={{fontSize:12, color:"var(--ink-2)", marginTop:4}}>Scope of accreditation warrants director-level awareness before 2nd reading.</div>
-              </div>
-            </div>
-          </div>
+          <EmptyState icon="brief" kicker="No verified digest held">
+            Parliament Pulse holds no verified digest for this bill, because the APH Bills Digests feed sits behind an access control that blocks automated retrieval. <a href="https://www.aph.gov.au/Parliamentary_Business/Bills_Legislation" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>Open Bills Legislation on aph.gov.au</a>.
+          </EmptyState>
         </div>
       </div>
+      )}
     </div>
   );
 }
 
 // ---------- PARLIAMENT ----------
 function PageParliament() {
-  const { openModal, toast } = useStore();
+  const { openModal, navigate } = useStore();
   const live = useLiveState("signals");
   // Two dormant chamber feeds, matched against signal.source (the feed_label). Each
   // strip renders ONLY when it holds at least one live item; with no match the desk
@@ -1563,33 +1582,31 @@ function PageParliament() {
 
       <div className="grid g-overview">
         <div className="panel">
-          <div className="panel-head"><h2 className="panel-title">House · daily program</h2><span className="panel-kicker">24 Apr 2026</span><span className="chip-fixture" style={{marginLeft:"auto"}}>Representative data</span></div>
+          <div className="panel-head"><h2 className="panel-title">House · daily program</h2></div>
           <div className="panel-body">
-            <div className="timeline">
-              {[
-                ["09:30", "House meets", null],
-                ["10:00", "Government business: 2nd reading, Cyber Security Legislation Amendment Bill 2026", "BILL-2026-041"],
-                ["11:15", "Matter of public importance", null],
-                ["12:00", "Question time", null],
-                ["14:00", "Private members' business", null],
-                ["16:30", "Adjournment debate", null],
-              ].map(([t, b, billRef], i) => (
-                <div key={i} className={"tl-item " + (billRef ? "teal" : "")}>
-                  <div className="tl-time">{t}</div>
-                  <div className="tl-body">
-                    {billRef ? <button className="linklike" onClick={()=>openModal("bill", billRef)}>{b}</button> : b}
-                    {billRef && <span className="tag brass" style={{marginLeft:8}}>Watchlist · Cyber</span>}
-                  </div>
-                </div>
-              ))}
-            </div>
+            {/* Only shown when the live strip above is not already covering this
+                chamber, so the page never says "no verified data" directly beneath a
+                panel of genuinely live items for the same feed. */}
+            {dailyProgramLive && dailyProgramLive.length > 0 ? (
+              <div className="empty">Live daily program items for the House are shown above.</div>
+            ) : (
+              <EmptyState icon="clock" kicker="No verified daily program held">
+                Parliament Pulse holds no verified daily program for the House. The most likely reason is that the House is not currently sitting, or the official daily program feed has not returned an item at the last check. <a href="https://www.aph.gov.au/Parliamentary_Business/Chamber_documents" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>Open the House daily program on aph.gov.au</a>.
+              </EmptyState>
+            )}
           </div>
         </div>
 
         <div className="panel">
-          <div className="panel-head"><h2 className="panel-title">Recent divisions</h2><span className="panel-kicker">House</span><span className="chip-fixture" style={{marginLeft:"auto"}}>Representative data</span></div>
+          <div className="panel-head"><h2 className="panel-title">Recent divisions</h2><span className="panel-kicker">House</span></div>
           <div className="panel-body">
-            {DIVISIONS.map((d, i) => (
+            {divisionsLive && divisionsLive.length > 0 ? (
+              <div className="empty">Live division items are shown above.</div>
+            ) : DIVISIONS.length === 0 ? (
+              <EmptyState icon="flag" kicker="No verified divisions held">
+                Parliament Pulse holds no verified division results. A live House Divisions feed is being wired into the Worker. <a href="https://www.aph.gov.au/Parliamentary_Business/Chamber_documents" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>Open division results on aph.gov.au</a>.
+              </EmptyState>
+            ) : DIVISIONS.map((d, i) => (
               <div key={d.when + d.bill} className="clk list-row" onClick={() => openModal("division", d)} style={{borderRadius:6}}>
                 <div className="mono" style={{fontSize:"var(--t-label)", color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".12em"}}>{d.when} · {d.bill}</div>
                 <div style={{fontSize:13, marginTop:2}}>{d.q}</div>
@@ -1602,30 +1619,20 @@ function PageParliament() {
 
       <div className="grid g-2" style={{marginTop:16}}>
         <div className="panel">
-          <div className="panel-head"><h2 className="panel-title">House news & media</h2><span className="panel-kicker">Official feeds</span><span className="chip-fixture" style={{marginLeft:"auto"}}>Representative data</span></div>
+          <div className="panel-head"><h2 className="panel-title">House news & media</h2></div>
           <div className="panel-body">
-            {[
-              "Speaker announces procedural changes to Wednesday sittings",
-              "Parliamentary Triangle security review complete",
-              "New Select Committee on AI Governance established",
-            ].map((t, i) => (
-              <div key={i} style={{padding:"10px 0", borderBottom: i<2 ? "1px solid var(--line)" : 0}}>
-                <div style={{fontSize:13}}>{t}</div>
-                <div className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)", marginTop:4}}>{["08:04", "Yesterday 16:12", "22 Apr 11:30"][i]} · House News</div>
-              </div>
-            ))}
+            <EmptyState icon="signal" kicker="No verified items held"
+              action={<button className="btn sm ghost" onClick={() => navigate && navigate("live")}>Open live feed →</button>}>
+              Parliament Pulse holds no verified House news items on this page. Live House Media Releases are polled on the Live page.
+            </EmptyState>
           </div>
         </div>
         <div className="panel">
-          <div className="panel-head"><h2 className="panel-title">Parliamentary lines</h2><span className="panel-kicker">For Cyber Security Bill 2nd reading</span><span className="chip-fixture" style={{marginLeft:"auto"}}>Representative data</span></div>
+          <div className="panel-head"><h2 className="panel-title">Parliamentary lines</h2><span className="chip-fixture" style={{marginLeft:"auto"}}>Representative data</span></div>
           <div className="panel-body">
             <div style={{padding:12, border:"1px dashed var(--line-2)", borderRadius:8, fontSize:13, color:"var(--ink-3)", lineHeight:1.6, fontStyle:"italic"}}>
               <div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", marginBottom:8, fontStyle:"normal"}}>No lines drafted yet</div>
-              Lines will appear here once generated by an analyst. Use "Generate brief" from a signal to start the drafting workflow. <span className="chip-fixture">Representative data</span>
-            </div>
-            <div style={{marginTop:12, display:"flex", gap:8}}>
-              <button className="btn sm primary" onClick={() => toast("Generate a brief from a signal first to start the drafting workflow")}>Submit for review</button>
-              <button className="btn sm" onClick={() => toast("Generate a brief from a signal first to start the drafting workflow")}>Regenerate</button>
+              Lines will appear here once generated by an analyst. Use "Generate brief" from a signal to start the drafting workflow.
             </div>
           </div>
         </div>
@@ -1696,6 +1703,11 @@ function PagePatterns() {
   const signalsLive = useLiveState("signals");
   const byGuid = React.useMemo(() => new Map((signalsLive.items || []).map(s => [s.id, s])), [signalsLive.items]);
   const [clusterStatus, setClusterStatus] = useState("Needs analyst review");
+  // Defensive against the QON fixture being emptied (or reshaped) upstream: never
+  // assume .items exists, and derive every displayed number directly from it so a
+  // stale hardcoded count can never outlive the data it once described.
+  const qonItems = (QON_PATTERN && Array.isArray(QON_PATTERN.items)) ? QON_PATTERN.items : [];
+  const qonMemberCount = new Set(qonItems.map(q => q.memberId || q.who).filter(Boolean)).size;
   return (
     <div className="page">
       <div className="page-head">
@@ -1725,32 +1737,33 @@ function PagePatterns() {
 
       <div style={{padding:"10px 14px", background:"var(--panel-hi)", border:"1px solid var(--line-bright)", borderRadius:8, marginBottom:16, display:"flex", gap:10, alignItems:"center", color:"var(--ink-2)", fontSize:12.5}}>
         <Icon name="flag" size={14} stroke="var(--info)"/>
-        {threads.items
-          ? <span><strong>QON feed not connected</strong> (source returns 403). Thread clustering above is live from the archive. The QON pattern below remains representative.</span>
-          : <span><strong>Design-state module.</strong> Direct QON feed not yet connected. Patterns below use sample scrutiny data. Status visible on Sources page.</span>}
+        <span><strong>QON feed not connected</strong> (source returns 403). {threads.items ? "Thread clustering above is live from the archive. " : ""}{qonItems.length > 0 ? "The scrutiny pattern below uses representative sample data." : "No scrutiny pattern is held below until the feed connects."}</span>
       </div>
 
+      {qonItems.length > 0 ? (
       <div className="pattern">
         <div className="ribbon">Clustered pattern · moderate confidence</div>
-        <div className="serif" style={{fontSize:22, fontWeight:500, marginBottom:6, paddingRight:200}}>Clustered scrutiny pattern on digital procurement governance</div>
-        <div style={{color:"var(--ink-2)", fontSize:13.5, maxWidth:720}}>
-          4 related questions lodged by 3 members within 48 hours, all targeting digital services portfolio. Trigger likely: ANAO report tabled 22 Apr. Cross-source reinforcement with today's Senate inquiry.
-        </div>
+        <div className="serif" style={{fontSize:22, fontWeight:500, marginBottom:6, paddingRight:200}}>Clustered scrutiny pattern{QON_PATTERN.topic ? ` on ${QON_PATTERN.topic}` : ""}</div>
+        {QON_PATTERN.trigger && (
+          <div style={{color:"var(--ink-2)", fontSize:13.5, maxWidth:720}}>
+            {qonItems.length} related question{qonItems.length !== 1 ? "s" : ""} lodged by {qonMemberCount} member{qonMemberCount !== 1 ? "s" : ""}{QON_PATTERN.window ? ` within ${QON_PATTERN.window}` : ""}. Trigger likely: {QON_PATTERN.trigger}.
+          </div>
+        )}
 
         <div className="grid g-4" style={{marginTop:16, marginBottom:18}}>
-          <div><div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em"}}>Members</div><div style={{fontSize:18, marginTop:4}}>3</div></div>
-          <div><div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em"}}>Questions</div><div style={{fontSize:18, marginTop:4}}>4</div></div>
-          <div><div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em"}}>Window</div><div style={{fontSize:18, marginTop:4}}>48h</div></div>
-          <div><div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em"}}>Target</div><div style={{fontSize:13, marginTop:4, lineHeight:1.25}}>Minister for Digital Services / Dept.</div></div>
+          <div><div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em"}}>Members</div><div style={{fontSize:18, marginTop:4}}>{qonMemberCount}</div></div>
+          <div><div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em"}}>Questions</div><div style={{fontSize:18, marginTop:4}}>{qonItems.length}</div></div>
+          <div><div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em"}}>Window</div><div style={{fontSize:18, marginTop:4}}>{QON_PATTERN.window || "—"}</div></div>
+          <div><div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em"}}>Target</div><div style={{fontSize:13, marginTop:4, lineHeight:1.25}}>{QON_PATTERN.target || "—"}</div></div>
         </div>
 
         <div style={{borderTop:"1px dashed var(--line-2)", paddingTop:14}}>
           <div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", marginBottom:8}}>Evidence · click member for profile</div>
-          {QON_PATTERN.items.map((q,i) => {
+          {qonItems.map((q,i) => {
             const mid = q.memberId;
             const canOpen = !!(mid && ENTITIES.members[mid]);
             return (
-              <div key={q.when + q.who} className="g-qon-evidence" style={{display:"grid", gap:12, padding:"8px 0", borderBottom: i<QON_PATTERN.items.length-1 ? "1px solid var(--line)" : 0, alignItems:"start", fontSize:12.5}}>
+              <div key={q.when + q.who} className="g-qon-evidence" style={{display:"grid", gap:12, padding:"8px 0", borderBottom: i<qonItems.length-1 ? "1px solid var(--line)" : 0, alignItems:"start", fontSize:12.5}}>
                 <div className="mono" style={{color:"var(--ink-3)"}}>{q.when}</div>
                 <div><span className={"tag brass" + (canOpen ? " clk" : "")} onClick={canOpen ? () => openModal("member", mid) : undefined} style={canOpen ? undefined : {opacity:.65, cursor:"not-allowed"}}>{q.who}</span></div>
                 <div style={{color:"var(--ink-2)"}}>{q.q}</div>
@@ -1761,13 +1774,23 @@ function PagePatterns() {
         </div>
 
         <div style={{display:"flex", gap:10, marginTop:16, flexWrap:"wrap"}}>
-          <button className="btn" title="Copy an Estimates monitor note" onClick={() => copyText(`# Estimates monitor note\nGenerated: ${new Date().toISOString()}\n\nPattern: ${QON_PATTERN.title}\nStatus: ${clusterStatus}\n\nRecommended action: monitor for Estimates references and verify against Hansard or QON source material.`, toast, "Estimates monitor note copied")}><Icon name="brief" size={13}/> Draft Estimates monitor note</button>
+          <button className="btn" title="Copy an Estimates monitor note" onClick={() => copyText(`# Estimates monitor note\nGenerated: ${new Date().toISOString()}\n\nPattern: ${QON_PATTERN.topic || "Unknown"}\nStatus: ${clusterStatus}\n\nRecommended action: monitor for Estimates references and verify against Hansard or QON source material.`, toast, "Estimates monitor note copied")}><Icon name="brief" size={13}/> Draft Estimates monitor note</button>
           <button className="btn" title="Mark this cluster as tracked in this session" onClick={() => { setClusterStatus("Tracked"); toast("Cluster marked as tracked", "brass"); }}><Icon name="watch" size={13}/> Track cluster</button>
           <button className="btn" title="Confirm the analyst classification for this session" onClick={() => { setClusterStatus("Confirmed as coordinated"); toast("Cluster confirmed for review", "brass"); }}><Icon name="check" size={13}/> Confirm as coordinated</button>
           <button className="btn ghost" title="Classify the cluster as coincidence in this session" onClick={() => { setClusterStatus("Marked as coincidence"); toast("Cluster marked as coincidence"); }}>Mark as coincidence</button>
         </div>
         <div className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-3)", marginTop:8, letterSpacing:".08em"}}>Session status: {clusterStatus}</div>
       </div>
+      ) : (
+      <div className="panel">
+        <div className="panel-head"><h2 className="panel-title">Clustered scrutiny pattern</h2></div>
+        <div className="panel-body">
+          <EmptyState icon="pattern" kicker="No verified scrutiny cluster held">
+            Parliament Pulse holds no verified Questions on Notice to detect a scrutiny cluster from: the QON feed is not connected (source returns 403). <a href="https://www.aph.gov.au/Parliamentary_Business/Chamber_documents" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>Open Questions on Notice on aph.gov.au</a>.
+          </EmptyState>
+        </div>
+      </div>
+      )}
 
       <div className="panel" style={{marginTop:16}}>
         <div className="panel-head"><h2 className="panel-title">How patterns are detected</h2><span className="panel-kicker">Indicator logic</span></div>
@@ -1798,30 +1821,31 @@ function PagePatterns() {
 // ---------- BRIEFINGS ----------
 function PageBriefings() {
   const [selId, setSelId] = useState(null);
+  // Local, honest "Mark reviewed" state: page-session state only, since store.jsx sits
+  // outside this file's edit scope. It genuinely changes what the queue displays the
+  // moment a brief is marked, where the previous control only fired a toast and left
+  // the brief's status untouched.
+  const [reviewedIds, setReviewedIds] = useState({});
   const { toast, state, setSignalSearchQuery, navigate } = useStore();
   // A generated brief may reference a live signal, so resolve sids against both the
   // fixture and the live inbox (spec 2.5).
   const live = useLiveState("signals");
   const known = live.items ? [...SIGNALS, ...live.items] : SIGNALS;
 
-  // Merge drawer-generated briefs into the queue
-  const generated = Object.entries(state.briefsGenerated || {}).map(([sid, v]) => {
+  // The queue is the user's own generated briefs only (state.briefsGenerated). The
+  // previous four static "Example" rows always rendered the identical hardcoded
+  // procurement-inquiry preview regardless of which row was selected, so they have
+  // been deleted entirely, per the honest-empty-state rule (spec: a clean empty state
+  // beats keeping something that looks richer).
+  const briefs = Object.entries(state.briefsGenerated || {}).map(([sid, v]) => {
     const sig = known.find(s => s.id === sid);
     // F11: fix the "For undefined" label — precedence bug. Use an explicit ternary.
     // A live signal's queue label uses its source, never the raw APH title as
     // standalone product prose; fixture briefs keep their title label.
     const label = sig ? (sig.isLive ? sig.source : (sig.title.slice(0, 40) + "…")) : sid;
     return { type: v.type || "Executive Brief", for: label, status: "Copied · clipboard", _sid: sid, _ts: v.ts };
-  }).sort((a, b) => b._ts - a._ts).slice(0, 3);
-
-  const staticBriefs = [
-    { type: "Daily Signal Brief", for: "Director, Digital Policy", status: "Example · drafted" },
-    { type: "Committee Brief", for: "Procurement lead", status: "Example · awaiting review" },
-    { type: "Bill Digest Note", for: "Identity policy", status: "Example · drafted" },
-    { type: "Estimates Monitor Note", for: "Estimates pack", status: "Example · in progress" },
-  ];
-  const briefs = [...generated, ...staticBriefs];
-  const briefId = (b) => b._sid || `${b.type}|${b.for}`;
+  }).sort((a, b) => b._ts - a._ts);
+  const briefId = (b) => b._sid;
   const selected = briefs.find(b => briefId(b) === selId) || briefs[0];
   const selectedId = selected ? briefId(selected) : null;
   return (
@@ -1830,27 +1854,28 @@ function PageBriefings() {
         <div>
           <div className="page-kicker">Workflow</div>
           <h1 className="page-title">Briefings</h1>
-          <div className="page-sub">Generated local briefs appear above. Representative queue examples below show the intended review workflow: What happened · Source · Why it matters · Recommended action · Evidence · Uncertainty · Human review.</div>
+          <div className="page-sub">Briefs you generate from a signal appear here with their evidence links: What happened · Source · Why it matters · Recommended action · Evidence · Provenance.</div>
         </div>
         <div style={{display:"flex", gap:8, flexWrap:"wrap", justifyContent:"flex-end"}}>
-          <button className="btn" onClick={() => downloadBriefingQueue(briefs, toast)}><Icon name="download" size={13}/> Export queue</button>
+          <button className="btn" disabled={briefs.length === 0} onClick={() => downloadBriefingQueue(briefs, toast)}><Icon name="download" size={13}/> Export queue</button>
           <button className="btn primary" title="Open signals to generate a brief" onClick={() => { setSignalSearchQuery(""); navigate("signals"); }}><Icon name="plus" size={13}/> New brief</button>
         </div>
       </div>
 
       <div className="grid g-briefings" style={{gap:16}}>
         <div className="panel">
-          <div className="panel-head"><h2 className="panel-title">Queue</h2><span className="panel-kicker">{briefs.length} pending</span></div>
+          <div className="panel-head"><h2 className="panel-title">Queue</h2><span className="panel-kicker">{briefs.length} generated</span></div>
           <div>
             {briefs.length === 0 ? (
               <EmptyState icon="brief" kicker="No briefs yet">Open any signal and choose Generate brief. Your briefs appear here with their evidence links.</EmptyState>
             ) : briefs.map((b, i) => {
               const id = briefId(b);
+              const status = reviewedIds[id] ? "Reviewed" : b.status;
               return (
               <div key={id} className="list-row" onClick={() => setSelId(id)} style={{cursor:"pointer", background: selectedId===id ? "var(--panel-hi)" : "transparent", borderLeft: selectedId===id ? "2px solid var(--brass)" : "2px solid transparent"}}>
                 <div style={{fontSize:13, fontWeight:500}}>{b.type}</div>
                 <div style={{fontSize:11.5, color:"var(--ink-3)"}}>For {b.for}</div>
-                <div className="mono t-label" style={{marginTop:4, color: b.status.startsWith("Copied") ? "var(--ok)" : b.status.includes("in progress") ? "var(--caution)" : b.status.includes("awaiting") ? "var(--info)" : "var(--ink-4)", textTransform:"uppercase", letterSpacing:".12em"}}>{b.status}</div>
+                <div className="mono t-label" style={{marginTop:4, color: status === "Reviewed" ? "var(--ok)" : status.startsWith("Copied") ? "var(--ink-3)" : "var(--ink-4)", textTransform:"uppercase", letterSpacing:".12em"}}>{status}</div>
               </div>
               );
             })}
@@ -1863,63 +1888,48 @@ function PageBriefings() {
             <span className="panel-kicker">{selected ? `For ${selected.for}` : "Queue empty"}</span>
             <div style={{marginLeft:"auto", display:"flex", gap:6}}>
               <button className="btn ghost sm" disabled={!selected} onClick={() => window.print()}><Icon name="download" size={12}/> Print</button>
-              <button className="btn sm" disabled={!selected} title="Copy a send-ready handoff note" onClick={() => copyText(`# Brief handoff\nType: ${selected.type}\nFor: ${selected.for}\nStatus: ${selected.status}\nGenerated: ${new Date().toISOString()}`, toast, "Brief handoff copied")}>Copy handoff</button>
-              <button className="btn ghost sm" disabled={!selected} title="Mark this brief reviewed in the local queue" onClick={() => toast(`Marked reviewed: ${selected.type}`, "brass")}>Mark reviewed</button>
+              <button className="btn sm" disabled={!selected} title="Copy a send-ready handoff note" onClick={() => copyText(`# Brief handoff\nType: ${selected.type}\nFor: ${selected.for}\nStatus: ${reviewedIds[selectedId] ? "Reviewed" : selected.status}\nGenerated: ${new Date().toISOString()}`, toast, "Brief handoff copied")}>Copy handoff</button>
+              <button className="btn ghost sm" disabled={!selected || reviewedIds[selectedId]} title="Mark this brief reviewed in the local queue" onClick={() => { setReviewedIds(r => ({ ...r, [selectedId]: true })); toast(`Marked reviewed: ${selected.type}`, "brass"); }}>{selected && reviewedIds[selectedId] ? "Reviewed" : "Mark reviewed"}</button>
             </div>
           </div>
           <div className="panel-body">
             {(() => {
               const b = selected;
-              if (!b) return <div className="empty">No briefs in the queue.</div>;
+              if (!b) return <div className="empty">No briefs in the queue. Open any signal and choose Generate brief.</div>;
               const sig = b._sid ? known.find(s => s.id === b._sid) : null;
-              if (sig) {
-                const brief = buildBriefSections(sig, !!sig.isLive);
+              if (!sig) {
                 return (
-                <div className="brief">
-                  <div className="meta">PARLIAMENT PULSE · {b.type.toUpperCase()} · {brief.meta.date} · {brief.meta.time}</div>
-                  {/* Licence rule: a live APH title renders only inside an anchor to
-                      its APH link; no link falls back to the source label. */}
-                  <h3>{brief.isLive
-                    ? (brief.link
-                        ? <a href={brief.link} target="_blank" rel="noopener noreferrer" style={{color:"inherit"}} title="Open the source at aph.gov.au">{brief.title} <Icon name="ext" size={12} style={{verticalAlign:"-1px", opacity:.6}}/></a>
-                        : brief.meta.source)
-                    : brief.title}</h3>
-                  <h5>What happened</h5>
-                  <div>{brief.summary}</div>
-                  <h5>Source</h5>
-                  <div>{brief.meta.source} · {brief.meta.sourceAuthority} · {brief.meta.date}</div>
-                  <h5>Why it matters</h5>
-                  <div>{brief.whyItMatters}</div>
-                  <h5>Recommended action</h5>
-                  <div><strong>{brief.recommendedAction.label}.</strong> {brief.recommendedAction.reason}</div>
-                  {brief.evidence.length > 0 && <>
-                    <h5>Evidence</h5>
-                    <ul>{brief.evidence.map((e,i) => <li key={i}><a href={e.url} target="_blank" rel="noopener noreferrer" style={{color:"var(--brief-link)", textDecoration:"underline"}}>{e.label}</a></li>)}</ul>
-                  </>}
-                  <h5>Provenance</h5>
-                  <div>{brief.provenance}</div>
-                </div>
+                  <EmptyState icon="brief" kicker="Source signal not found">
+                    Parliament Pulse cannot rebuild this brief because the original signal is no longer in the inbox.
+                  </EmptyState>
                 );
               }
+              const brief = buildBriefSections(sig, !!sig.isLive);
               return (
-                <div className="brief">
-                  <div className="meta">PARLIAMENT PULSE · {b.type.toUpperCase()} · 24 APR 2026 · 08:20</div>
-                  <h3>New Senate inquiry: Digital procurement governance</h3>
-                  <h5>What happened</h5>
-                  <div>The Finance and Public Administration References Committee has opened an inquiry into Commonwealth procurement and contract governance for digital programs over $100m. Submissions close 19 May.</div>
-                  <h5>Source</h5>
-                  <div>APH Senate New Inquiries RSS · representative example · not validated.</div>
-                  <h5>Why it matters</h5>
-                  <div>The inquiry directly overlaps two watchlists (Digital procurement, Procurement) and follows last week's ANAO report tabling. Preliminary scrutiny pattern detected on the same topic (4 QONs / 3 members / 48h).</div>
-                  <h5>Recommended action</h5>
-                  <div><strong>Assign Policy Owner.</strong> Draft submission plan by 02 May. Coordinate with Legal on contract-variation data scope.</div>
+              <div className="brief">
+                <div className="meta">PARLIAMENT PULSE · {b.type.toUpperCase()} · {brief.meta.date} · {brief.meta.time}</div>
+                {/* Licence rule: a live APH title renders only inside an anchor to
+                    its APH link; no link falls back to the source label. */}
+                <h3>{brief.isLive
+                  ? (brief.link
+                      ? <a href={brief.link} target="_blank" rel="noopener noreferrer" style={{color:"inherit"}} title="Open the source at aph.gov.au">{brief.title} <Icon name="ext" size={12} style={{verticalAlign:"-1px", opacity:.6}}/></a>
+                      : brief.meta.source)
+                  : brief.title}</h3>
+                <h5>What happened</h5>
+                <div>{brief.summary}</div>
+                <h5>Source</h5>
+                <div>{brief.meta.source} · {brief.meta.sourceAuthority} · {brief.meta.date}</div>
+                <h5>Why it matters</h5>
+                <div>{brief.whyItMatters}</div>
+                <h5>Recommended action</h5>
+                <div><strong>{brief.recommendedAction.label}.</strong> {brief.recommendedAction.reason}</div>
+                {brief.evidence.length > 0 && <>
                   <h5>Evidence</h5>
-                  <ul><li>APH · inquiry listing (primary)</li><li>ANAO · performance audit report 2025–26/41</li><li>Internal · existing procurement governance framework v4.2</li></ul>
-                  <h5>Uncertainty</h5>
-                  <div>The inquiry's terms of reference may expand during hearings. Confidence: Moderate.</div>
-                  <h5>Human review</h5>
-                  <div>Required · to be cleared by Director, Digital Strategy.</div>
-                </div>
+                  <ul>{brief.evidence.map((e,i) => <li key={i}><a href={e.url} target="_blank" rel="noopener noreferrer" style={{color:"var(--brief-link)", textDecoration:"underline"}}>{e.label}</a></li>)}</ul>
+                </>}
+                <h5>Provenance</h5>
+                <div>{brief.provenance}</div>
+              </div>
               );
             })()}
           </div>
@@ -1933,8 +1943,11 @@ function PageBriefings() {
 function PageWatchlists() {
   const { openModal, createWatchlist, state, removeWatchlist } = useStore();
   const [newName, setNewName] = useState("");
-  // Derived matching: keyword matches computed against the live signal stream. In
-  // fixture mode the card keeps its stored representative match count (spec 2.4).
+  // Keyword matches are always computed live against matchSource (live.items when
+  // connected, otherwise the empty SIGNALS fixture), never read from a stored
+  // count: the WATCHLISTS fixture's matches/trend fields were invented and are
+  // held null. derived only controls the chip label and the trend spark, since a
+  // freshly-connected live stream has no history yet either.
   const live = useLiveState("signals");
   const matchSource = live.items || SIGNALS;
   const derived = !!live.items;
@@ -1955,7 +1968,7 @@ function PageWatchlists() {
         </div>
         <div style={{display:"flex", gap:8, alignItems:"center"}}>
           <ProvenanceChip provenance={derived ? "derived" : "fixture"}
-            title={derived ? "Keyword matches computed against the live signal stream" : "Representative match counts"} />
+            title={derived ? "Keyword matches computed against the live signal stream" : "Live data is unavailable, so matches show 0 rather than an invented count"} />
           <input id="new-wl-name" aria-label="New watchlist name" placeholder="New watchlist name" value={newName} onChange={e=>setNewName(e.target.value)} className="search" style={{padding:"7px 10px"}}/>
           <button className="btn primary" onClick={() => { if (newName.trim()) { createWatchlist(newName.trim()); setNewName(""); } }}><Icon name="plus" size={13}/> Create</button>
         </div>
@@ -1971,15 +1984,16 @@ function PageWatchlists() {
         {all.map(w => {
           const trend = Array.isArray(w.trend) ? w.trend : [];
           const max = Math.max(...trend, 1);
-          const matchCount = derived ? watchlistMatches(w, matchSource).length : w.matches;
+          const matchCount = watchlistMatches(w, matchSource).length;
+          const keywordCount = watchlistKeywords(w).length;
           return (
             <div key={w.name} className={"wl" + (selectedWl?.name === w.name ? " active" : "")} onClick={() => { setSelectedWl(w); openModal("watchlist", w.name); }} style={selectedWl?.name === w.name ? {borderColor:"var(--brass)"} : {}}>
               <div style={{display:"flex", alignItems:"center", gap:8}}>
                 <span className="wl-name">{w.name}</span>
                 <span className="mono" style={{fontSize:"var(--t-micro)", color:"var(--brass)", background:"var(--panel-hi)", border:"1px solid var(--brass-soft)", padding:"1px 6px", borderRadius:4, marginLeft:"auto"}}>{matchCount} matches</span>
               </div>
-              <div className="wl-meta"><span>{w.keywords} keywords</span><span>·</span><span>7-day</span></div>
-              {derived
+              <div className="wl-meta"><span>{keywordCount} keywords</span><span>·</span><span>7-day</span></div>
+              {trend.length === 0
                 ? <div className="mono" style={{marginTop:6, color:"var(--ink-4)", fontSize:11}}>— no trend history</div>
                 : <div className="spark" style={{marginTop:2}}>
                     {trend.map((v,i) => <span key={i} style={{height: (v/max*20+2)+"px"}}/>)}
@@ -2017,36 +2031,15 @@ function PageWatchlists() {
           <span className="chip-fixture" style={{marginLeft:8}}>Fixture</span>
         </div>
         <div className="panel-body">
-          <div className="empty" style={{marginBottom:14}}>Keyword chips follow the selected watchlist. Thresholds, linked committees, and audit entries are illustrative in this build.</div>
-          <div className="grid g-2">
-            <div>
-              <div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", marginBottom:6}}>Keywords</div>
-              <div style={{display:"flex", flexWrap:"wrap", gap:6}}>
-                {selectedKeywords.map(k => <span key={k} className="tag brass">{k}</span>)}
-              </div>
-              <div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", margin:"14px 0 6px"}}>Linked committees</div>
-              <div style={{display:"flex", flexWrap:"wrap", gap:6}}>
-                <span className="tag teal clk" onClick={() => openModal("committee","jcpaa")}>Joint Committee on Public Accounts & Audit</span>
-                <span className="tag teal clk" onClick={() => openModal("committee","finpa")}>Finance & Public Administration (Sen)</span>
-                <span className="tag teal clk" onClick={() => openModal("committee","econ")}>Economics Legislation (Sen)</span>
-              </div>
-            </div>
-            <div>
-              <div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", marginBottom:6}}>Attention thresholds</div>
-              <div className="g-threshold-row" style={{display:"grid", gap:8, fontSize:13}}>
-                <div>Source authority weight</div><div className="mono">0.95</div>
-                <div>Portfolio relevance weight</div><div className="mono">0.90</div>
-                <div>Minimum attention score</div><div className="mono">0.55</div>
-                <div>Auto-escalate above</div><div className="mono">0.80</div>
-                <div>Suppress duplicates within</div><div className="mono">24h</div>
-              </div>
-              <div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", margin:"14px 0 6px"}}>Audit — recent corrections</div>
-              <div style={{fontSize:12.5, color:"var(--ink-2)"}}>
-                08:43 · House media releases → downgraded procedural items (weight −0.12)<br/>
-                Yesterday 14:10 · Duplicate suppression added for cross-posted inquiry notices
-              </div>
-            </div>
+          <div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", marginBottom:6}}>Keywords</div>
+          <div style={{display:"flex", flexWrap:"wrap", gap:6}}>
+            {selectedKeywords.map(k => <span key={k} className="tag brass">{k}</span>)}
           </div>
+          {/* Linked committees, attention thresholds, and an audit log were previously
+              rendered here as static blocks identical for all 12 watchlists (only the
+              keywords above are genuinely per-watchlist). They have been removed rather
+              than left to imply a per-watchlist configuration that does not exist. */}
+          <div className="empty" style={{marginTop:14}}>Parliament Pulse does not yet hold linked committees, attention thresholds, or an audit log for watchlists. These configuration surfaces need a backend before they can show real per-watchlist data.</div>
         </div>
       </div>
     </div>
@@ -2090,15 +2083,21 @@ function PageRadar() {
           <div className="page-sub">Transparent categories, no fake precision scores. Click any issue for momentum detail and suggested actions.</div>
         </div>
         <ProvenanceChip provenance={derived ? "derived" : "fixture"}
-          title={derived ? "Grouped live signals; momentum and confidence require history the product does not yet have" : "Representative clusters"} />
+          title={derived ? "Grouped live signals; momentum and confidence require history the product does not yet have" : "Live data is unavailable, so no clusters render"} />
       </div>
 
       <div className="panel">
         <div className="panel-head">
           <h2 className="panel-title">Active issues</h2>
-          <span className="panel-kicker">{derived ? "Grouped from the live signal stream" : "Last 7 days"}</span>
+          <span className="panel-kicker">{derived ? "Grouped from the live signal stream" : "No live signal stream connected"}</span>
         </div>
         <div className="panel-body">
+          {rows.length === 0 ? (
+            <EmptyState icon="radar" kicker="Live data unavailable" variant="error">
+              Live data is unavailable. Parliament Pulse shows nothing rather than showing an invented issue cluster. <a href="https://www.aph.gov.au" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>Go to aph.gov.au</a>.
+            </EmptyState>
+          ) : (
+          <>
           <div className="radar-row g-radar-table" style={{display:"grid", padding:"4px 0 10px", borderBottom:"1px solid var(--line)", alignItems:"center", gap:14}}>
             <div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em"}}>Issue</div>
             <div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em"}}>Attention</div>
@@ -2124,6 +2123,8 @@ function PageRadar() {
                   </div>}
             </div>
           ))}
+          </>
+          )}
         </div>
       </div>
     </div>
@@ -2226,7 +2227,7 @@ function PageSignals() {
         </div>
         <div style={{display:"flex", gap:8, alignItems:"center"}}>
           <ProvenanceChip provenance={live.displayProvenance}
-            title={live.displayProvenance === "live" ? "Signals from the Worker's composed /state endpoint (D1 archive)" : "Representative data — the /state signals block is not live"} />
+            title={live.displayProvenance === "live" ? "Signals from the Worker's composed /state endpoint (D1 archive)" : "Live data is unavailable — the /state signals block is not live"} />
           <label htmlFor="sig-sort" className="sr-only">Sort signals</label>
           <span aria-hidden="true" style={{fontSize:12, color:"var(--ink-4)"}}>Sort:</span>
           <select id="sig-sort" value={sort} onChange={e => setSort(e.target.value)}
@@ -2266,6 +2267,10 @@ function PageSignals() {
           <EmptyState icon="signal" kicker="No matches"
             action={<button className="btn sm ghost" onClick={() => setSignalSearchQuery("")}>Clear search</button>}>
             Nothing matches "{signalSearchQuery}" in the signal inbox. Try a shorter term.
+          </EmptyState>
+        ) : !live.items ? (
+          <EmptyState icon="signal" kicker="Live data unavailable" variant="error">
+            Live data is unavailable. Parliament Pulse shows nothing rather than showing something invented. <a href="https://www.aph.gov.au" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>Go to aph.gov.au</a>.
           </EmptyState>
         ) : (
           <EmptyState icon="check" kicker="Inbox zero">

@@ -1,21 +1,37 @@
 # Parliament Pulse — app tracker
 <!-- Updated by: manual or session review | Format: DATE | agent/manual -->
-Last updated: 2026-05-31 | Updated by: deploy session (Sprint 7)
+Last updated: 2026-07-21 | Updated by: Wave 1 honesty sweep agent (shell.jsx/app-tracker.md scope)
 
 ## Status
 GREEN — DEPLOYED LIVE 2026-05-31 (Sprint 7). Production-readiness pass driven by an 8-dimension
 multi-agent review (87 findings: 18 P1, all fixed). ALL P1s done + most P2/P3. Reviewed/built with
 Codex (Worker security + 2 frontend passes) and Claude (design, mobile, PERF-1, deploy). Verified
-live on production apex: production React, Sources=6 (no fabrication), real APH data 22 items / 5-of-6
+live on production apex: production React, Sources=6, real APH data 22 items / 5-of-6
 feeds. Frontend commit 3eba693+, Worker version 4678538d.
-Shipped this sprint: data-honesty (killed all 13/15 fabrications, derive counts from the 6-feed
-registry, Representative chips in modals/provenance, relabel fake "connectors" to source links);
-modal a11y parity (focus trap + accessible name) + contrast/forms/headings; RSS link scheme guard +
-fail-closed CORS + HSTS + manual-redirect revalidation + digest href escaping; error boundary +
-watchlist crash guard; React production.min + regenerated SRI; bounded-concurrency poller
-(mapPool 3 + abort + inFlight); interaction (Track/Watch persist, search reach, filter-aware drawer,
-stable keys); mobile (grids collapse, horizontal nav strip, full-width overlays); ember restraint +
-neutral fixture chips + opacity-only animations.
+Shipped this sprint: a first data-honesty pass (derive counts from the 6-feed registry,
+Representative chips added to several modals and the provenance section, relabel fake "connectors"
+to source links); modal a11y parity (focus trap + accessible name) + contrast/forms/headings; RSS
+link scheme guard + fail-closed CORS + HSTS + manual-redirect revalidation + digest href escaping;
+error boundary + watchlist crash guard; React production.min + regenerated SRI; bounded-concurrency
+poller (mapPool 3 + abort + inFlight); interaction (Track/Watch persist, search reach, filter-aware
+drawer, stable keys); mobile (grids collapse, horizontal nav strip, full-width overlays); ember
+restraint + neutral fixture chips + opacity-only animations. This paragraph's original claims,
+"Sources=6 (no fabrication)" and "killed all 13/15 fabrications", were false: see the 2026-07-21
+correction below.
+
+2026-07-21: Wave 1 honesty sweep, ahead of the free public release. A read-only survey of the live
+site found the two claims above were inaccurate: the product was still rendering a fabricated
+inquiry record and witness list (`InquiryDetail`/`HearingDetail` modals, unlabelled), a fabricated
+QON scrutiny cluster with invented quoted questions, a fabricated "38 watchlisted bills" statistic,
+invented operational detail attached to real named committees, and a per-signal processing log that
+read like a genuine audit trail. Some of these carried no honesty chip at all. This sweep addressed
+the surfaces identified in that survey, including the sidebar status block that could show "Feeds
+configured" while the topbar simultaneously showed a live-data outage, and strengthened the honesty
+labelling on the per-signal processing log and the attention-score breakdown. It did not build a
+verification harness that can prove the surfaces above (or the site overall) are now fabrication-free;
+treat "fabrication-free" as unverified until that harness exists, and check each desk directly before
+citing it as fixed. Owner decision: the product proceeds to free public release once this sweep and a
+verification pass are complete.
 REMAINING POLISH (queued for Codex on reset, non-user-blocking): polished mobile hamburger,
 render-memoisation (PERF-4/5), nav refactor off window.__ (MAINT-2), CSV/brief dedup (MAINT-3),
 font-CLS preload (PERF-6), iframe debounce (PERF-9), and the L-effort design-system refactors

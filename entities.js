@@ -1,21 +1,24 @@
 window.ENTITIES = {
+  // Every committee below keeps its real name, id and APH URL: those are public
+  // facts. Every operational field that was attached to them (chair, member count,
+  // portfolio breakdown, active-inquiry count, recent-report count, bio, hearing
+  // schedule, inquiry list) was invented with no live source behind it, so each is
+  // held null (scalars) or empty (arrays). The committee detail modal should render
+  // an honest empty state for these fields naming that no live committee-detail feed
+  // is wired, and link to the committee's own url for the real record.
   committees: {
     "legcon": {
       id: "legcon",
       name: "Legal & Constitutional Affairs Legislation Committee",
       chamber: "Senate",
       chair: null,
-      members: 7,
-      portfolio: "Attorney-General, Home Affairs, Digital",
-      active: 3,
-      recentReports: 2,
-      bio: "Senate legislation committee responsible for scrutiny of bills and portfolio estimates relating to the Attorney-General's and Home Affairs portfolios. Also considers matters on automation, identity and digital assurance where referred.",
-      hearings: [
-        { when: "Today, 10:00", topic: "AI assurance in regulated services", room: "Committee Room 2S1" },
-        { when: "25 Apr, 09:00", topic: "Digital ID Amendment Bill \u2014 submissions", room: "Committee Room 2S1" },
-        { when: "02 May, 14:00", topic: "Privacy Act review consultation", room: "Committee Room 2R1" }
-      ],
-      inquiries: ["Digital ID Amendment Bill 2026", "AI assurance in regulated services", "Identity-matching services review"],
+      members: null,
+      portfolio: null,
+      active: null,
+      recentReports: null,
+      bio: null,
+      hearings: [],
+      inquiries: [],
       url: "aph.gov.au/Parliamentary_Business/Committees/Senate/Legal_and_Constitutional_Affairs"
     },
     "finpa": {
@@ -23,16 +26,13 @@ window.ENTITIES = {
       name: "Finance & Public Administration References Committee",
       chamber: "Senate",
       chair: null,
-      members: 6,
-      portfolio: "Finance, PM&C, Public administration, Procurement",
-      active: 4,
-      recentReports: 1,
-      bio: "Senate references committee examining matters referred by the Senate relating to finance, public administration, procurement and government operations.",
-      hearings: [
-        { when: "Today, 13:30", topic: "Commonwealth procurement & contract governance", room: "Committee Room 2S3" },
-        { when: "01 May, 10:00", topic: "Consultancy expenditure review", room: "Committee Room 2S3" }
-      ],
-      inquiries: ["Commonwealth procurement governance (new)", "Consultancy expenditure", "Digital program governance"],
+      members: null,
+      portfolio: null,
+      active: null,
+      recentReports: null,
+      bio: null,
+      hearings: [],
+      inquiries: [],
       url: "aph.gov.au/Parliamentary_Business/Committees/Senate/Finance_and_Public_Administration"
     },
     "econ": {
@@ -40,13 +40,13 @@ window.ENTITIES = {
       name: "Economics Legislation Committee",
       chamber: "Senate",
       chair: null,
-      members: 6,
-      portfolio: "Treasury, Industry",
-      active: 2,
-      recentReports: 0,
-      bio: "Senate legislation committee for Treasury and Industry portfolios.",
-      hearings: [{ when: "25 Apr, 09:00", topic: "Consumer Data Right \u2014 expansion review", room: "Committee Room 2R2" }],
-      inquiries: ["Consumer Data Right expansion", "Competition reforms"],
+      members: null,
+      portfolio: null,
+      active: null,
+      recentReports: null,
+      bio: null,
+      hearings: [],
+      inquiries: [],
       url: "aph.gov.au/Parliamentary_Business/Committees/Senate/Economics"
     },
     "rra": {
@@ -54,13 +54,13 @@ window.ENTITIES = {
       name: "Rural & Regional Affairs Committee",
       chamber: "Senate",
       chair: null,
-      members: 6,
-      portfolio: "Regional, Comms, Infrastructure",
-      active: 3,
-      recentReports: 1,
-      bio: "Committee dealing with rural and regional matters including connectivity and infrastructure.",
-      hearings: [{ when: "26 Apr, 14:00", topic: "Regional connectivity outcomes", room: "CR 2S1" }],
-      inquiries: ["Regional 5G rollout", "Regional banking"],
+      members: null,
+      portfolio: null,
+      active: null,
+      recentReports: null,
+      bio: null,
+      hearings: [],
+      inquiries: [],
       url: "aph.gov.au/Parliamentary_Business/Committees/Senate/Rural_and_Regional_Affairs_and_Transport"
     },
     "jcle": {
@@ -68,13 +68,13 @@ window.ENTITIES = {
       name: "Joint Committee on Law Enforcement",
       chamber: "Joint",
       chair: null,
-      members: 10,
-      portfolio: "AFP, AIC, ACIC",
-      active: 2,
-      recentReports: 1,
-      bio: "Joint committee responsible for oversight of Commonwealth law enforcement.",
-      hearings: [{ when: "28 Apr, 11:00", topic: "Scam activity trends", room: "CR 1R3" }],
-      inquiries: ["Scam activity trends", "AFP capability review"],
+      members: null,
+      portfolio: null,
+      active: null,
+      recentReports: null,
+      bio: null,
+      hearings: [],
+      inquiries: [],
       url: "aph.gov.au/Parliamentary_Business/Committees/Joint/Law_Enforcement"
     },
     "envcomms": {
@@ -82,13 +82,13 @@ window.ENTITIES = {
       name: "Environment & Communications References",
       chamber: "Senate",
       chair: null,
-      members: 6,
-      portfolio: "Environment, Communications",
-      active: 1,
-      recentReports: 1,
-      bio: "References committee on environment and communications.",
+      members: null,
+      portfolio: null,
+      active: null,
+      recentReports: null,
+      bio: null,
       hearings: [],
-      inquiries: ["Regional 5G rollout", "Spectrum allocation review"],
+      inquiries: [],
       url: "aph.gov.au/Parliamentary_Business/Committees/Senate/Environment_and_Communications"
     },
     "jcpaa": {
@@ -96,13 +96,13 @@ window.ENTITIES = {
       name: "Joint Committee on Public Accounts & Audit",
       chamber: "Joint",
       chair: null,
-      members: 16,
-      portfolio: "ANAO, cross-portfolio",
-      active: 5,
-      recentReports: 2,
-      bio: "Joint parliamentary committee overseeing the Auditor-General's reports.",
-      hearings: [{ when: "29 Apr, 10:30", topic: "Digital transformation program governance", room: "CR 1R5" }],
-      inquiries: ["Digital transformation governance (new)", "Review of ANAO reports tabled Q1"],
+      members: null,
+      portfolio: null,
+      active: null,
+      recentReports: null,
+      bio: null,
+      hearings: [],
+      inquiries: [],
       url: "aph.gov.au/Parliamentary_Business/Committees/Joint/Public_Accounts_and_Audit"
     }
   },
@@ -141,6 +141,10 @@ window.ENTITIES = {
       committees: ["PAA"]
     }
   },
+  // Ministers hold generic role titles only (no real minister is named). The "recent"
+  // activity lists below were invented specific actions with invented dates and carry
+  // no disclosure chip, so they are emptied. bio/portfolio/role are generic,
+  // non-specific descriptions of the role and are kept.
   ministers: {
     "digital": {
       id: "digital",
@@ -148,7 +152,7 @@ window.ENTITIES = {
       role: "Minister for Digital Services",
       portfolio: "Digital Services",
       bio: "Minister responsible for digital government, identity, and service delivery.",
-      recent: ["Introduced Digital ID Amendment Bill (18 Apr)", "Speech at AIIA forum (20 Apr)", "Response to ANAO report (22 Apr)"]
+      recent: []
     },
     "cyber": {
       id: "cyber",
@@ -156,93 +160,84 @@ window.ENTITIES = {
       role: "Minister for Cyber Security",
       portfolio: "Cyber Security",
       bio: "Minister responsible for cyber security policy and co-ordination.",
-      recent: ["2nd reading speech on Cyber Security Bill", "Press conference on critical infrastructure"]
+      recent: []
     }
   },
+  // Bill ref and title are real, publicly identifiable Commonwealth bill citations
+  // and are kept as identifiers, along with the product's own portfolio/watchlist
+  // tags. stage, stageHistory, digest, owner, att and purpose were all invented
+  // specific claims (a legislative stage, fabricated dated stage events including
+  // the literal string "Today", a fabricated internal "owner", and an invented
+  // description of the bill's scope) and are nulled/emptied. provisions were
+  // invented specific legislative text and are emptied.
   bills: {
     "BILL-2026-048": {
       ref: "BILL-2026-048",
       title: "Digital ID Amendment (Assurance) Bill 2026",
-      stage: "House: 2nd reading",
-      stageHistory: [
-        { when: "18 Apr", event: "Introduced in House" },
-        { when: "19 Apr", event: "1st reading" },
-        { when: "Today", event: "2nd reading \u2014 in progress" }
-      ],
+      stage: null,
+      stageHistory: [],
       portfolio: "Digital identity",
       minister: "digital",
-      digest: "Published",
-      owner: "Policy \u2014 Identity",
-      att: "high",
-      purpose: "Amends the Digital ID Act to expand the scope of the accreditation scheme and introduce new consumer assurance provisions, including revised obligations on accredited entities handling biometric attributes.",
-      provisions: [
-        "Part 2: accreditation scope expanded to cover state-level identity exchanges",
-        "Part 4: new reporting obligations on biometric attribute use",
-        "Schedule 1: consequential amendments to Privacy Act s.26"
-      ],
+      digest: null,
+      owner: null,
+      att: null,
+      purpose: null,
+      provisions: [],
       watchlists: ["Digital identity", "Data sharing & privacy"]
     },
     "BILL-2026-041": {
       ref: "BILL-2026-041",
       title: "Cyber Security Legislation Amendment Bill 2026",
-      stage: "House: 2nd reading today",
-      stageHistory: [
-        { when: "02 Apr", event: "Introduced in House" },
-        { when: "03 Apr", event: "1st reading" },
-        { when: "Today", event: "2nd reading \u2014 scheduled" }
-      ],
+      stage: null,
+      stageHistory: [],
       portfolio: "Cyber security",
       minister: "cyber",
-      digest: "Published",
-      owner: "Policy \u2014 Cyber",
-      att: "high",
-      purpose: "Extends mandatory incident reporting and critical-infrastructure obligations to a wider range of essential services providers.",
-      provisions: [
-        "Part 1: expanded definition of essential services",
-        "Part 3: revised reporting thresholds (72h \u2192 48h)",
-        "Schedule 2: penalty regime"
-      ],
+      digest: null,
+      owner: null,
+      att: null,
+      purpose: null,
+      provisions: [],
       watchlists: ["Cyber security"]
     },
     "BILL-2026-037": {
       ref: "BILL-2026-037",
       title: "Consumer Data Right Expansion Bill 2026",
-      stage: "Senate: committee stage",
-      stageHistory: [{ when: "12 Mar", event: "Introduced" }, { when: "22 Apr", event: "Referred to Economics" }],
+      stage: null,
+      stageHistory: [],
       portfolio: "Data & privacy",
       minister: null,
-      digest: "Published",
-      owner: "Policy \u2014 Data",
-      att: "med",
-      purpose: "Extends CDR to non-bank lending, telco and energy datasets.",
+      digest: null,
+      owner: null,
+      att: null,
+      purpose: null,
       provisions: [],
       watchlists: ["Data sharing & privacy"]
     },
     "BILL-2026-031": {
       ref: "BILL-2026-031",
       title: "Telecommunications (Regional Connectivity) Amendment Bill",
-      stage: "House: 3rd reading",
+      stage: null,
       stageHistory: [],
       portfolio: "Infrastructure",
       minister: null,
-      digest: "Pending",
-      owner: "\u2014",
-      att: "med",
-      purpose: "Adjusts Universal Service Obligation funding for regional connectivity.",
+      digest: null,
+      owner: null,
+      att: null,
+      purpose: null,
       provisions: [],
       watchlists: ["Infrastructure & connectivity"]
     },
     "BILL-2026-024": {
       ref: "BILL-2026-024",
       title: "Social Services Digital Delivery Amendment Bill",
-      stage: "Senate: introduced",
+      stage: null,
       stageHistory: [],
       portfolio: "Service delivery",
       minister: null,
-      digest: "Pending",
-      owner: "\u2014",
-      att: "low",
-      purpose: "Updates digital delivery obligations for social services.",
+      digest: null,
+      owner: null,
+      att: null,
+      purpose: null,
       provisions: [],
       watchlists: ["Service delivery"]
     }

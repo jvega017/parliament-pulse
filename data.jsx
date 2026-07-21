@@ -116,269 +116,111 @@ function sourceCounts() {
   return { total, live, configured: total };
 }
 
-const SIGNALS = [
-  {
-    id: "CS-0412",
-    time: "08:15",
-    date: "24 Apr 2026",
-    source: "Senate New Inquiries RSS",
-    sourceGroup: "Senate",
-    title: "New Senate inquiry into digital government procurement governance",
-    summary: "The Senate Finance and Public Administration References Committee has opened an inquiry examining procurement governance across large-scale digital programs, with submissions due 19 May.",
-    tags: [{ l: "Digital procurement", c: "brass" }, { l: "Finance & PA Committee", c: "teal" }, { l: "Watchlist match", c: "info" }],
-    attention: "high",
-    attentionReason: "Matches two watchlists (Digital procurement, Procurement). Source authority: Official APH feed. Novelty: new inquiry.",
-    action: "Assign Policy Owner",
-    actionReason: "New inquiry with direct portfolio relevance and submission window open. A named owner reduces the risk of a missed submission date.",
-    confidence: 4,
-    sourceAuthority: "Official",
-    humanReview: "Required",
-    evidence: [
-      { label: "Senate inquiry listing", url: "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Finance_and_Public_Administration" },
-      { label: "Finance & PA Committee page", url: "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Finance_and_Public_Administration" },
-      { label: "Senate New Inquiries RSS", url: "https://www.aph.gov.au/Parliamentary_Business/Committees" },
-    ],
-    score: { authority: 0.95, portfolio: 0.9, novelty: 0.9, momentum: 0.4, time: 0.6, scrutiny: 0.85, ops: 0.7 },
-    provenance: [
-      { ts: "08:14:02", by: "parser", event: "Fetched item from Senate New Inquiries RSS (200 OK · 2.3kb)" },
-      { ts: "08:14:03", by: "parser", event: "Matched <item> schema v3 · GUID: aph-inq-2026-0412" },
-      { ts: "08:14:04", by: "enrichment", event: "Keyword match: ‘procurement’, ‘digital programs’, ‘$100m’ → watchlists [Digital procurement, Procurement]" },
-      { ts: "08:14:05", by: "scoring", event: "Attention = 0.86 → HIGH (5-factor primary mean: authority 0.95 + portfolio 0.90 + novelty 0.90 + scrutiny 0.85 + ops 0.70) ÷ 5 = 0.86. Auxiliary signals: momentum 0.40 · time 0.60 (inform human review, not primary score)" },
-      { ts: "08:15:00", by: "publish", event: "Published as CS-0412 · human review: REQUIRED" },
-    ],
-    updates: [
-      { ts: "08:47", who: "System", what: "Cross-linked to BILL-2026-048 via procurement co-occurrence" },
-      { ts: "09:12", who: "System", what: "Momentum +0.1 — 2nd media release picked up (House Media RSS)" },
-      { ts: "09:30", who: "K. Ngata (analyst)", what: "Confirmed portfolio match · no reclassification" },
-    ],
-    members: ["hollis", "quirke"],
-  },
-  {
-    id: "CS-0411",
-    time: "08:04",
-    date: "24 Apr 2026",
-    source: "House Media Releases RSS",
-    sourceGroup: "House",
-    title: "Speaker announces procedural changes to Wednesday sittings",
-    summary: "The Speaker has confirmed adjusted sitting order for private members' business on Wednesdays, effective next sitting week.",
-    tags: [{ l: "Procedural", c: "" }, { l: "House", c: "" }],
-    attention: "low",
-    attentionReason: "No portfolio keywords, no watchlist match, procedural in nature. Downgraded from Medium after prior feedback on similar items.",
-    action: "No Action Required / Archive",
-    actionReason: "Procedural update with no portfolio or scrutiny implications.",
-    confidence: 5,
-    sourceAuthority: "Official",
-    humanReview: "Optional",
-    evidence: [{ label: "Speaker's media release", url: "https://www.aph.gov.au/About_Parliament/House_of_Representatives" }],
-    score: { authority: 0.95, portfolio: 0.05, novelty: 0.3, momentum: 0.1, time: 0.1, scrutiny: 0.1, ops: 0.05 },
-    provenance: [
-      { ts: "08:03:22", by: "parser", event: "Fetched item from House Media Releases RSS (200 OK)" },
-      { ts: "08:03:23", by: "enrichment", event: "No watchlist match · no portfolio keywords" },
-      { ts: "08:03:24", by: "scoring", event: "Attention = 0.18 → LOW (portfolio 0.05)" },
-      { ts: "08:03:25", by: "learning", event: "Downgrade rule applied: 3 prior 'Too high' votes on procedural items from this source" },
-      { ts: "08:04:00", by: "publish", event: "Published as CS-0411" },
-    ],
-    updates: [],
-    members: [],
-  },
-  {
-    id: "CS-0410",
-    time: "07:48",
-    date: "24 Apr 2026",
-    source: "Bills Digests RSS",
-    sourceGroup: "Library",
-    title: "Bills Digest published: Digital ID Amendment (Assurance) Bill 2026",
-    summary: "Parliamentary Library Bills Digest provides background, purpose and key provisions for the Digital ID Amendment (Assurance) Bill, with notes on scope of accreditation and consumer safeguards.",
-    tags: [{ l: "Digital identity", c: "brass" }, { l: "Bills Digest", c: "teal" }, { l: "Watchlist match", c: "info" }],
-    attention: "high",
-    attentionReason: "Bill touches two watchlists (Digital identity, Data sharing & privacy). Digest explicitly notes accreditation scope changes.",
-    action: "Draft Executive Brief",
-    actionReason: "Material shift in accreditation scope warrants director-level awareness ahead of second reading.",
-    confidence: 4,
-    sourceAuthority: "Official",
-    humanReview: "Required",
-    evidence: [
-      { label: "Bills Digest (Parliamentary Library)", url: "https://www.aph.gov.au/Parliamentary_Business/Bills_Legislation/bd/bd2526a" },
-      { label: "Bill homepage — Digital ID Amendment", url: "https://www.aph.gov.au/Parliamentary_Business/Bills_Legislation/Bills_Search_Results/Result?bId=r6890" },
-      { label: "Bills Digests RSS", url: "https://www.aph.gov.au/About_Parliament/Parliamentary_departments/Parliamentary_Library/pubs/BillsDigests/RSS" },
-    ],
-    score: { authority: 0.95, portfolio: 0.85, novelty: 0.8, momentum: 0.55, time: 0.5, scrutiny: 0.7, ops: 0.7 },
-    provenance: [
-      { ts: "07:46:11", by: "parser", event: "Fetched Bills Digest bd2526a-048 (PDF · 342kb)" },
-      { ts: "07:46:45", by: "extractor", event: "Extracted sections: Purpose, Key provisions, Parliamentary consideration" },
-      { ts: "07:47:02", by: "enrichment", event: "Linked to BILL-2026-048 · 2 watchlists matched" },
-      { ts: "07:47:10", by: "scoring", event: "Attention = 0.78 → HIGH · accreditation scope flagged as novel" },
-      { ts: "07:48:00", by: "publish", event: "Published as CS-0410" },
-    ],
-    updates: [
-      { ts: "08:22", who: "System", what: "Linked to incoming QON cluster (3 references)" },
-    ],
-    members: ["rafferty"],
-  },
-  {
-    id: "CS-0409",
-    time: "07:30",
-    date: "24 Apr 2026",
-    source: "Today's Senate Hearings RSS",
-    sourceGroup: "Senate",
-    title: "Today: Legal & Constitutional — AI assurance in regulated services",
-    summary: "Hearing scheduled 10:00 AEST. Witnesses include Dept. of Industry, OAIC, and two industry peak bodies. Related to ongoing AI assurance inquiry.",
-    tags: [{ l: "AI assurance", c: "brass" }, { l: "Today", c: "amber" }, { l: "Legal & Constitutional", c: "teal" }],
-    attention: "high",
-    attentionReason: "Hearing today, portfolio match, cross-source reinforcement with last week's FlagPost on AI assurance.",
-    action: "Monitor for Estimates",
-    actionReason: "Likely to produce QONs and Hansard references useful for Estimates preparation.",
-    confidence: 4,
-    sourceAuthority: "Official",
-    humanReview: "Required",
-    evidence: [
-      { label: "Today's hearing program", url: "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Legal_and_Constitutional_Affairs" },
-      { label: "Committee home page", url: "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Legal_and_Constitutional_Affairs" },
-    ],
-    score: { authority: 0.95, portfolio: 0.85, novelty: 0.4, momentum: 0.7, time: 0.95, scrutiny: 0.9, ops: 0.6 },
-    provenance: [
-      { ts: "07:28:30", by: "parser", event: "Fetched Today's Senate Hearings RSS" },
-      { ts: "07:28:45", by: "enrichment", event: "Witness list extracted · OAIC flagged (regulator)" },
-      { ts: "07:29:10", by: "scoring", event: "Attention = 0.82 → HIGH · time-sensitive (today)" },
-      { ts: "07:30:00", by: "publish", event: "Published as CS-0409" },
-    ],
-    updates: [
-      { ts: "09:45", who: "System", what: "Hearing commenced — live broadcast link attached" },
-    ],
-    members: [],
-  },
-  {
-    id: "CS-0408",
-    time: "07:10",
-    date: "24 Apr 2026",
-    source: "House Daily Program RSS",
-    sourceGroup: "House",
-    title: "House daily program: Cyber Security Legislation Amendment listed for 2nd reading",
-    summary: "Program shows second reading debate scheduled for Cyber Security Legislation Amendment Bill 2026. Private members' business follows at 4:30pm.",
-    tags: [{ l: "Cyber security", c: "brass" }, { l: "2nd reading", c: "amber" }],
-    attention: "med",
-    attentionReason: "Tracked bill on daily program. Time sensitivity elevated for sitting day.",
-    action: "Prepare Ministerial / Parliamentary Lines",
-    actionReason: "Public debate may surface new scrutiny angles; suggested lines should be ready before 2pm.",
-    confidence: 4,
-    sourceAuthority: "Official",
-    humanReview: "Optional",
-    evidence: [
-      { label: "House daily program — 24 Apr", url: "https://www.aph.gov.au/Parliamentary_Business/Chamber_documents" },
-      { label: "Cyber Security Bill 2026", url: "https://www.aph.gov.au/Parliamentary_Business/Bills_Legislation/Bills_Search_Results/Result?bId=r6883" },
-    ],
-    score: { authority: 0.95, portfolio: 0.75, novelty: 0.35, momentum: 0.5, time: 0.85, scrutiny: 0.7, ops: 0.55 },
-    provenance: [
-      { ts: "07:08:15", by: "parser", event: "Fetched House Daily Program RSS" },
-      { ts: "07:08:40", by: "enrichment", event: "Matched BILL-2026-041 · stage change: Listed for 2nd reading" },
-      { ts: "07:09:20", by: "scoring", event: "Attention = 0.64 → MEDIUM · sitting day" },
-      { ts: "07:10:00", by: "publish", event: "Published as CS-0408" },
-    ],
-    updates: [],
-    members: [],
-  },
-  {
-    id: "CS-0407",
-    time: "06:30",
-    date: "24 Apr 2026",
-    source: "Library Publications RSS",
-    sourceGroup: "Library",
-    title: "FlagPost: Trust, automation, and the next phase of Digital ID",
-    summary: "Research commentary on governance frameworks for automated identity assurance and implications for public-sector service delivery.",
-    tags: [{ l: "Digital identity", c: "brass" }, { l: "FlagPost", c: "" }],
-    attention: "med",
-    attentionReason: "Strong contextual source. Reinforces the Digital ID bill signal.",
-    action: "Add to Watchlist",
-    actionReason: "Feeds into emerging issues cluster around Digital ID assurance governance.",
-    confidence: 3,
-    sourceAuthority: "Official",
-    humanReview: "Optional",
-    evidence: [
-      { label: "FlagPost — Trust, automation, and Digital ID", url: "https://www.aph.gov.au/About_Parliament/Parliamentary_departments/Parliamentary_Library/FlagPost" },
-      { label: "Library Publications RSS", url: "https://www.aph.gov.au/About_Parliament/Parliamentary_departments/Parliamentary_Library/Publications_Archive/RSS" },
-    ],
-    score: { authority: 0.8, portfolio: 0.7, novelty: 0.6, momentum: 0.5, time: 0.3, scrutiny: 0.4, ops: 0.3 },
-    provenance: [
-      { ts: "06:28:50", by: "parser", event: "Fetched Library Publications RSS" },
-      { ts: "06:29:10", by: "enrichment", event: "Cluster match: Digital ID (co-occurring with CS-0410)" },
-      { ts: "06:29:30", by: "scoring", event: "Attention = 0.52 → MEDIUM · contextual support" },
-      { ts: "06:30:00", by: "publish", event: "Published as CS-0407" },
-    ],
-    updates: [],
-    members: [],
-  },
-];
+// SIGNALS emptied: every entry was an invented parliamentary event (an invented
+// Senate inquiry, an invented Speaker announcement, an invented Bills Digest, an
+// invented hearing, an invented daily-program listing, an invented FlagPost), each
+// dressed with a fabricated source attribution, an invented analyst rationale and an
+// "evidence" link to a real aph.gov.au page it did not actually document. On a
+// provenance-first product this is the most damaging thing it can render, so the
+// binding stays an empty array: SIGNALS is read as a global across pages.jsx,
+// shell.jsx and store.jsx and removing the name breaks the app at load. The real
+// signal source is the Worker's live /state endpoint (see useLiveState in
+// store.jsx); when it is unreachable the desks must show an honest outage state,
+// never this fixture.
+const SIGNALS = [];
 
-const COMMITTEE_ITEMS = [
-  { id: "legcon", when: "Today, 10:00", type: "Hearing", name: "Legal & Constitutional Affairs Legislation Committee", topic: "AI assurance in regulated services", portfolio: "Digital government", att: "high" },
-  { id: "finpa", when: "Today, 13:30", type: "Hearing", name: "Finance & Public Administration References", topic: "Commonwealth procurement & contract governance", portfolio: "Procurement", att: "high" },
-  { id: "econ", when: "25 Apr, 09:00", type: "Hearing", name: "Economics Legislation Committee", topic: "Consumer Data Right — expansion review", portfolio: "Data & privacy", att: "med" },
-  { id: "rra", when: "26 Apr, 14:00", type: "Hearing", name: "Rural & Regional Affairs Committee", topic: "Regional connectivity outcomes", portfolio: "Infrastructure", att: "med" },
-  { id: "jcle", when: "28 Apr, 11:00", type: "Hearing", name: "Joint Committee on Law Enforcement", topic: "Scam activity trends", portfolio: "Cyber security", att: "low" },
-  { id: "envcomms", when: "Yesterday", type: "Report tabled", name: "Environment & Communications References", topic: "Regional 5G rollout — interim report", portfolio: "Infrastructure", att: "med" },
-  { id: "jcpaa", when: "Yesterday", type: "New inquiry", name: "Joint Committee on Public Accounts & Audit", topic: "Digital transformation program governance", portfolio: "Digital government", att: "high" },
-];
+// COMMITTEE_ITEMS emptied: every field beyond the committee name (schedule time,
+// hearing type, topic, portfolio tag, attention rating) was invented, including the
+// literal string "Today" as a hardcoded (not computed) schedule value. The binding
+// stays an empty array so the Committees desk still loads; it should render an
+// honest empty state naming that no live committee-schedule feed is wired yet, with
+// a link to https://www.aph.gov.au/Parliamentary_Business/Committees.
+const COMMITTEE_ITEMS = [];
 
+// BILLS: bill ref + short title are real, publicly identifiable Commonwealth bill
+// citations and are kept as identifiers. stage/digest/owner/att were all invented
+// specific claims (a legislative stage, a fabricated internal "owner", an attention
+// rating) and are nulled. portfolio is kept as the product's own thematic tag (a
+// watchlist-style category Parliament Pulse assigns), not a claim about the bill's
+// parliamentary status.
 const BILLS = [
-  { ref: "BILL-2026-048", title: "Digital ID Amendment (Assurance) Bill 2026", stage: "House: 2nd reading", portfolio: "Digital identity", digest: "Published", owner: "Policy — Identity", att: "high" },
-  { ref: "BILL-2026-041", title: "Cyber Security Legislation Amendment Bill 2026", stage: "House: 2nd reading today", portfolio: "Cyber security", digest: "Published", owner: "Policy — Cyber", att: "high" },
-  { ref: "BILL-2026-037", title: "Consumer Data Right Expansion Bill 2026", stage: "Senate: committee stage", portfolio: "Data & privacy", digest: "Published", owner: "Policy — Data", att: "med" },
-  { ref: "BILL-2026-031", title: "Telecommunications (Regional Connectivity) Amendment Bill", stage: "House: 3rd reading", portfolio: "Infrastructure", digest: "Pending", owner: "—", att: "med" },
-  { ref: "BILL-2026-024", title: "Social Services Digital Delivery Amendment Bill", stage: "Senate: introduced", portfolio: "Service delivery", digest: "Pending", owner: "—", att: "low" },
+  { ref: "BILL-2026-048", title: "Digital ID Amendment (Assurance) Bill 2026", stage: null, portfolio: "Digital identity", digest: null, owner: null, att: null },
+  { ref: "BILL-2026-041", title: "Cyber Security Legislation Amendment Bill 2026", stage: null, portfolio: "Cyber security", digest: null, owner: null, att: null },
+  { ref: "BILL-2026-037", title: "Consumer Data Right Expansion Bill 2026", stage: null, portfolio: "Data & privacy", digest: null, owner: null, att: null },
+  { ref: "BILL-2026-031", title: "Telecommunications (Regional Connectivity) Amendment Bill", stage: null, portfolio: "Infrastructure", digest: null, owner: null, att: null },
+  { ref: "BILL-2026-024", title: "Social Services Digital Delivery Amendment Bill", stage: null, portfolio: "Service delivery", digest: null, owner: null, att: null },
 ];
 
-const DIVISIONS = [
-  { when: "23 Apr, 16:42", chamber: "House", q: "Question — amendment to Cyber Security Bill, clause 12", result: "Negatived (64–78)", bill: "BILL-2026-041" },
-  { when: "23 Apr, 15:10", chamber: "House", q: "Motion — adjournment of debate on Digital ID Bill", result: "Agreed (77–63)", bill: "BILL-2026-048" },
-  { when: "22 Apr, 12:05", chamber: "House", q: "Second reading — CDR Expansion Bill", result: "Agreed (81–58)", bill: "BILL-2026-037" },
-];
+// DIVISIONS emptied: every field (date, chamber, question text, vote tally) described
+// a specific division event with no verified source. Vote counts are explicitly named
+// in the remediation brief as a forbidden invention class. Binding kept as an empty
+// array; the Daily Program desk should render an honest empty state naming that no
+// verified division-result feed is wired, with a link to
+// https://www.aph.gov.au/house/rss/divisions (House) or the Senate equivalent.
+const DIVISIONS = [];
 
+// WATCHLISTS: name and keyword list are the product's own real configuration (a
+// true statement about what Parliament Pulse is configured to watch for, kept per
+// the honesty rule for genuine reference data). matches and trend claimed specific
+// counts of live parliamentary activity that never happened: no keyword matcher
+// over the signal stream is built (see DATASET_FLAGS below), so those counts were
+// invented. Both are nulled/emptied; consumers compute the real match count from
+// watchlistMatches() against the live signal stream (0 while it is disconnected)
+// and show an honest "no trend history" state rather than a fabricated spark line.
 const WATCHLISTS = [
-  { name: "Digital government", keywords: 24, matches: 11, trend: [3, 4, 5, 4, 6, 8, 11] },
-  { name: "AI & automation", keywords: 18, matches: 7, trend: [2, 2, 3, 5, 4, 6, 7] },
-  { name: "Cyber security", keywords: 21, matches: 9, trend: [6, 5, 7, 8, 6, 9, 9] },
-  { name: "Digital identity", keywords: 14, matches: 6, trend: [1, 2, 3, 4, 5, 5, 6] },
-  { name: "Data sharing & privacy", keywords: 19, matches: 5, trend: [3, 3, 4, 4, 5, 5, 5] },
-  { name: "Procurement", keywords: 16, matches: 8, trend: [4, 4, 5, 6, 7, 7, 8] },
-  { name: "Service delivery", keywords: 17, matches: 3, trend: [2, 2, 2, 3, 3, 3, 3] },
-  { name: "Infrastructure & connectivity", keywords: 15, matches: 4, trend: [2, 3, 3, 4, 4, 4, 4] },
-  { name: "Health digital systems", keywords: 12, matches: 2, trend: [1, 1, 2, 2, 2, 2, 2] },
-  { name: "Parliamentary scrutiny", keywords: 22, matches: 10, trend: [6, 7, 8, 9, 9, 10, 10] },
-  { name: "Estimates preparation", keywords: 11, matches: 4, trend: [2, 2, 3, 3, 4, 4, 4] },
-  { name: "Queensland federal signals", keywords: 13, matches: 2, trend: [1, 1, 1, 2, 2, 2, 2] },
+  { name: "Digital government", keywords: 24, matches: null, trend: [] },
+  { name: "AI & automation", keywords: 18, matches: null, trend: [] },
+  { name: "Cyber security", keywords: 21, matches: null, trend: [] },
+  { name: "Digital identity", keywords: 14, matches: null, trend: [] },
+  { name: "Data sharing & privacy", keywords: 19, matches: null, trend: [] },
+  { name: "Procurement", keywords: 16, matches: null, trend: [] },
+  { name: "Service delivery", keywords: 17, matches: null, trend: [] },
+  { name: "Infrastructure & connectivity", keywords: 15, matches: null, trend: [] },
+  { name: "Health digital systems", keywords: 12, matches: null, trend: [] },
+  { name: "Parliamentary scrutiny", keywords: 22, matches: null, trend: [] },
+  { name: "Estimates preparation", keywords: 11, matches: null, trend: [] },
+  { name: "Queensland federal signals", keywords: 13, matches: null, trend: [] },
 ];
 
-const RADAR = [
-  { issue: "Digital procurement governance", att: "high", reason: "New Senate inquiry + 2 media releases + 4 QON references", sources: 7, momentum: 0.82, confidence: 0.82 },
-  { issue: "Digital ID accreditation scope", att: "high", reason: "New Bills Digest + FlagPost + committee hearing", sources: 5, momentum: 0.74, confidence: 0.78 },
-  { issue: "AI assurance in regulated services", att: "med", reason: "Hearing today + library publication + prior FlagPost", sources: 4, momentum: 0.62, confidence: 0.65 },
-  { issue: "Cyber resilience for critical infrastructure", att: "med", reason: "Upcoming hearing + related bill on daily program", sources: 3, momentum: 0.55, confidence: 0.6 },
-  { issue: "Consumer Data Right expansion", att: "med", reason: "Committee stage + QON cluster", sources: 3, momentum: 0.48, confidence: 0.55 },
-  { issue: "Regional connectivity outcomes", att: "low", reason: "Interim report tabled", sources: 2, momentum: 0.3, confidence: 0.5 },
-];
+// RADAR emptied: every issue named a specific cluster of invented parliamentary
+// activity (an invented Senate inquiry, invented QON references, an invented
+// committee hearing) with an invented momentum/confidence score. No clustering
+// layer over real signals is built. The binding stays an empty array; PageRadar
+// renders an honest empty state in fixture mode and only shows rows once it is
+// clustering the live signal stream (derived mode).
+const RADAR = [];
 
+// QON_PATTERN emptied: this fixture invented an entire analytical finding (a scrutiny
+// cluster, a trigger event, four verbatim questions on notice) with no real ParlInfo
+// or Hansard data behind it. Every field is kept in place with a null/empty value so
+// the QON desk still loads and any code that reads QON_PATTERN.count or
+// QON_PATTERN.items.length continues to work. The true reason there is no live
+// substitute: ParlInfo's Questions on Notice search returns 403 to automated access,
+// so no machine-readable QON feed can currently be fetched. The QON page should
+// render an honest empty state naming that reason and linking to
+// https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/Questions_on_Notice
+// (or the ParlInfo QON search) so a user can look it up manually.
 const QON_PATTERN = {
-  topic: "Digital procurement governance",
-  members: ["Opposition Senator (representative)", "Crossbench Senator (representative)", "Opposition Member (representative)"],
-  window: "24 to 72 hours",
-  count: 4,
-  target: "Minister for Digital Services / Department",
-  trigger: "Audit report tabled 22 Apr",
-  confidence: "Moderate",
-  items: [
-    { memberId: "hollis", when: "22 Apr 14:12", who: "Opposition Senator (representative)", chamber: "Senate", q: "Details of contract governance framework for digital programs over $100m since FY23–24" },
-    { memberId: "quirke", when: "22 Apr 15:40", who: "Crossbench Senator (representative)", chamber: "Senate", q: "Number of variations to digital procurement contracts in the last 24 months, by department" },
-    { memberId: "rafferty", when: "23 Apr 11:02", who: "Opposition Member (representative)", chamber: "House", q: "Status of Departmental response to ANAO report on digital program governance" },
-    { memberId: "hollis", when: "23 Apr 16:18", who: "Opposition Senator (representative)", chamber: "Senate", q: "Use of limited tender for digital platforms where contract value exceeded $10m" },
-  ],
+  topic: null,
+  members: [],
+  window: null,
+  count: 0,
+  target: null,
+  trigger: null,
+  confidence: null,
+  items: [],
 };
 
-const BRIEFING_QUEUE = [
-  { type: "Daily Signal Brief", for: "Director, Digital Policy", status: "Drafted", at: "08:20", ready: true },
-  { type: "Committee Brief", for: "Procurement lead", status: "Awaiting review", at: "07:50", ready: false },
-  { type: "Bill Digest Note", for: "Identity policy", status: "Drafted", at: "07:02", ready: true },
-  { type: "Estimates Monitor Note", for: "Estimates pack", status: "In progress", at: "06:44", ready: false },
-];
+// BRIEFING_QUEUE emptied: every row invented a specific piece of parliamentary
+// business (a "Bill Digest Note" on a specific bill, an "Estimates Monitor Note")
+// as if a named policy team already held it in review, naming real-sounding
+// recipients ("Director, Digital Policy", "Procurement lead") against fabricated
+// status and timestamps. A shared briefings queue needs a backend that does not
+// exist. The binding stays an empty array; PageBriefings and the Overview briefing
+// panel already read the user's own generated briefs (state.briefsGenerated) as
+// their real source, so this fixture emptying only removes the invented rows and
+// the nav badge count now reflects real generated briefs only.
+const BRIEFING_QUEUE = [];
 
 // ---------- Honesty: representative-data flags ----------
 //
@@ -395,14 +237,14 @@ const BRIEFING_QUEUE = [
 // SOURCE_REGISTRY itself is live: it is the registry of verified feeds, not a fixture.
 const DATASET_FLAGS = {
   SOURCE_REGISTRY: { representative: false, note: "Verified APH feeds, polled live via the Worker proxy." },
-  SIGNALS:         { representative: true,  note: "Enrichment pipeline (attention, scoring, provenance, NER) is not built. Representative data." },
-  COMMITTEE_ITEMS: { representative: true,  note: "Committee profiles and schedules are partly representative. Hearings and reports go live via RSS." },
-  BILLS:           { representative: true,  note: "Bill stage and provisions need scraping or PDF extraction. Representative data." },
-  DIVISIONS:       { representative: true,  note: "Per-member tallies need TheyVoteForYou. Result text only is near-live. Representative data." },
-  WATCHLISTS:      { representative: true,  note: "Keyword matcher over the signal stream is not built. Representative data." },
-  RADAR:           { representative: true,  note: "Clustering layer over enriched signals is not built. Representative data." },
-  QON_PATTERN:     { representative: true,  note: "Questions on Notice need ParlInfo and Hansard scraping plus NLP. Representative data." },
-  BRIEFING_QUEUE:  { representative: true,  note: "A shared briefings queue needs a backend that does not exist. Representative data." },
+  SIGNALS:         { representative: true,  note: "Empty: every fixture signal was an invented parliamentary event with a fabricated source and evidence link. No enrichment pipeline (attention, scoring, provenance, NER) is built. The desks read the live /state signal stream instead; with no live connection they show an honest outage state, never invented signals." },
+  COMMITTEE_ITEMS: { representative: true,  note: "Empty: no live committee-schedule feed is wired. Hearing times, topics and attention ratings were invented and have been removed. See https://www.aph.gov.au/Parliamentary_Business/Committees." },
+  BILLS:           { representative: true,  note: "Bill ref and title are real. Stage, digest, owner and attention were invented and are held null pending scraping or PDF extraction." },
+  DIVISIONS:       { representative: true,  note: "Empty: no verified division-result feed is wired. Vote tallies were invented and have been removed. See https://www.aph.gov.au/house/rss/divisions." },
+  WATCHLISTS:      { representative: true,  note: "Name and keyword list are real product configuration and are kept. matches and trend were invented counts of live activity: no keyword matcher over the signal stream is built, so both are nulled/emptied and consumers compute the real (currently zero) match count live." },
+  RADAR:           { representative: true,  note: "Empty: every issue named an invented cluster of parliamentary activity (fabricated inquiries, QON references, hearings) with an invented momentum/confidence score. No clustering layer over real signals is built; rows only render once the live signal stream is grouped (derived mode)." },
+  QON_PATTERN:     { representative: true,  note: "Empty: ParlInfo Questions on Notice search returns 403 to automated access, so no live QON feed can be fetched. No representative fixture is held either. See https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/Questions_on_Notice." },
+  BRIEFING_QUEUE:  { representative: true,  note: "Empty: every row invented a piece of parliamentary business already sitting in a named policy team's queue. A shared briefings queue needs a backend that does not exist; the desks read the user's own generated briefs (state.briefsGenerated) as the real source instead." },
 };
 
 // Stamp representative:true onto every item of each representative dataset so the UI
