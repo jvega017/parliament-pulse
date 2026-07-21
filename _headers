@@ -11,17 +11,76 @@
 /*.js
   Content-Type: text/javascript; charset=utf-8
 
+# Cache-Control. Cloudflare Pages does not let a later rule override an
+# earlier one for a matching path: when two rules both match, their header
+# values are concatenated, not replaced. So these rules use path patterns
+# that do not overlap with different Cache-Control values - vendor/fonts/
+# assets get a hard year-long cache, the HTML shell and the app's own
+# hand-authored scripts do not, and no pattern here matches both.
+#
+# /vendor/*, /assets/fonts/*, /assets/* - the self-hosted React/ReactDOM
+# bundle, the IBM Plex webfonts and the icon/manifest assets. Filenames are
+# not content-hashed, so this is safe only as long as an upgrade to any of
+# these (e.g. bumping the vendored React build) ships under a NEW filename;
+# reusing an existing filename with different content would leave it stale
+# in browser caches for up to a year under this rule.
+/vendor/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/assets/fonts/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# index.html and the app's own precompiled scripts change on every deploy
+# under the SAME filename (no content hash), so they must never be cached
+# immutably: a stale index.html or pages.js would pin returning users to an
+# old build. Short cache, always revalidated (conditional GET / 304s) so a
+# repeat visit is cheap but never silently stale.
+/
+  Cache-Control: public, max-age=0, must-revalidate
+
+/index.html
+  Cache-Control: public, max-age=0, must-revalidate
+
+/data.js
+  Cache-Control: public, max-age=0, must-revalidate
+
+/entities.js
+  Cache-Control: public, max-age=0, must-revalidate
+
+/icons.js
+  Cache-Control: public, max-age=0, must-revalidate
+
+/store.js
+  Cache-Control: public, max-age=0, must-revalidate
+
+/shell.js
+  Cache-Control: public, max-age=0, must-revalidate
+
+/pages.js
+  Cache-Control: public, max-age=0, must-revalidate
+
+/app.js
+  Cache-Control: public, max-age=0, must-revalidate
+
 # Security headers for every HTML response (and all other paths). The MIME
 # rules above already set Content-Type for scripts, so adding these headers to
 # /* does not disturb script delivery.
 #
-# CSP notes (browser-only React-over-Babel build):
-#   JSX is now PRECOMPILED to .js by build-jsx.ps1 (esbuild) and React is pinned
-#     to production .min.js, so script-src is locked to 'self' + unpkg only: no
+# CSP notes (fully self-hosted, browser-only React build):
+#   JSX is PRECOMPILED to .js by build-jsx.ps1 (esbuild) and React is pinned to
+#     production .min.js, both served from this origin under /vendor/, so
+#     script-src is locked to 'self' with no external script host: no
 #     'unsafe-eval' (no in-browser Babel) and no 'unsafe-inline' (no inline scripts).
-#   The CDN host is unpkg.com (React, ReactDOM UMD).
+#   No CDN dependency remains: React/ReactDOM were previously loaded from
+#     unpkg.com and are now vendored under /vendor/; do not reintroduce an
+#     external script-src origin.
 #   style-src keeps 'unsafe-inline' for the inline <style> block and React inline
-#     style attributes; font-src allows Google Fonts (IBM Plex Sans, Mono, Serif).
+#     style attributes; font-src is locked to 'self' because IBM Plex Sans, Mono
+#     and Serif are self-hosted under /assets/fonts/ (previously Google Fonts,
+#     now vendored) - do not reintroduce fonts.googleapis.com or fonts.gstatic.com.
 #   connect-src allows the production Worker origin (RSS proxy fetch) and the
 #     local dev proxy at localhost:3001 / 127.0.0.1:3001.
 #   frame-src allows the YouTube live embed. img-src allows YouTube thumbnail + data URIs.

@@ -113,12 +113,14 @@ const NAV = [
   { id: "briefings", label: "Briefings", group: "Workspace", count: 4 },
   { id: "watchlists", label: "Watchlists", group: "Workspace", count: 12 },
   { id: "sources", label: "Sources", group: "Workspace", count: null },
+  { id: "about", label: "About the data", group: "Workspace", count: null },
 ];
 
 const ICONS = {
   overview: "overview", radar: "radar", committees: "committee", bills: "bill",
   parliament: "parliament", patterns: "pattern", briefings: "brief",
   watchlists: "watch", sources: "sources", live: "signal", signals: "signal",
+  about: "book",
 };
 
 function Sidebar({ page, onNavigate, mobileOpen }) {
@@ -148,6 +150,7 @@ function Sidebar({ page, onNavigate, mobileOpen }) {
       briefings: BRIEFING_QUEUE.length + Object.keys(state.briefsGenerated || {}).length,
       watchlists: WATCHLISTS.length + (state.watchlistCreated || []).length,
       sources: null,  /* "6" was ambiguous (feeds? errors?); the Sources page states it plainly */
+      about: null,  /* reference material, not a live count */
     };
   }, [state.archived, state.briefsGenerated, state.watchlistCreated, state.feeds, signalsLive.items, threadsLive.items]);
   const groups = [...new Set(NAV.map(n => n.group))];
@@ -1004,6 +1007,7 @@ function Drawer() {
               <div className="drawer-section">
                 <h3>Analyst note {noteSaved && <span className="mono" style={{fontSize:"var(--t-micro)", color:"var(--brass)", marginLeft:8}}>Saved</span>}</h3>
                 <textarea value={note} onChange={e=>setNote(e.target.value)} onBlur={flushNote}
+                  aria-label="Analyst note for this signal, saved privately in this browser"
                   placeholder="Private notes (auto-saved)" rows={3}
                   style={{width:"100%", background:"var(--panel)", border:"1px solid var(--line-2)", borderRadius:8, color:"var(--ink)", padding:"8px 10px", fontFamily:"var(--sans)", fontSize:13, resize:"vertical"}}/>
               </div>

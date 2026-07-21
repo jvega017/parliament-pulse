@@ -54,11 +54,13 @@ function App() {
         return /* @__PURE__ */ React.createElement(PageRadar, null);
       case "signals":
         return /* @__PURE__ */ React.createElement(PageSignals, null);
+      case "about":
+        return /* @__PURE__ */ React.createElement(PageAbout, null);
       default:
         return /* @__PURE__ */ React.createElement(PageOverview, null);
     }
   };
-  return /* @__PURE__ */ React.createElement(StoreProvider, { navigate }, /* @__PURE__ */ React.createElement("div", { className: "app" }, /* @__PURE__ */ React.createElement("div", { className: "drawer-back mobile-nav-back" + (mobileNavOpen ? " on" : ""), onClick: () => setMobileNavOpen(false), "aria-hidden": "true" }), /* @__PURE__ */ React.createElement(Sidebar, { page, onNavigate: navigate, mobileOpen: mobileNavOpen }), /* @__PURE__ */ React.createElement("div", { className: "main" }, /* @__PURE__ */ React.createElement(Topbar, { mobileNavOpen, setMobileNavOpen }), /* @__PURE__ */ React.createElement(BetaNotice, null), /* @__PURE__ */ React.createElement("div", { className: "content" }, /* @__PURE__ */ React.createElement(ErrorBoundary, null, renderPage()))), /* @__PURE__ */ React.createElement(ErrorBoundary, null, /* @__PURE__ */ React.createElement(Drawer, null)), /* @__PURE__ */ React.createElement(ErrorBoundary, null, /* @__PURE__ */ React.createElement(DetailModal, null))));
+  return /* @__PURE__ */ React.createElement(StoreProvider, { navigate }, /* @__PURE__ */ React.createElement("a", { className: "skip-link", href: "#pp-content" }, "Skip to content"), /* @__PURE__ */ React.createElement("div", { className: "app" }, /* @__PURE__ */ React.createElement("div", { className: "drawer-back mobile-nav-back" + (mobileNavOpen ? " on" : ""), onClick: () => setMobileNavOpen(false), "aria-hidden": "true" }), /* @__PURE__ */ React.createElement(Sidebar, { page, onNavigate: navigate, mobileOpen: mobileNavOpen }), /* @__PURE__ */ React.createElement("div", { className: "main" }, /* @__PURE__ */ React.createElement(Topbar, { mobileNavOpen, setMobileNavOpen }), /* @__PURE__ */ React.createElement(BetaNotice, null), /* @__PURE__ */ React.createElement("main", { className: "content", id: "pp-content", tabIndex: -1 }, /* @__PURE__ */ React.createElement(ErrorBoundary, null, renderPage()))), /* @__PURE__ */ React.createElement(ErrorBoundary, null, /* @__PURE__ */ React.createElement(Drawer, null)), /* @__PURE__ */ React.createElement(ErrorBoundary, null, /* @__PURE__ */ React.createElement(DetailModal, null))));
 }
 ReactDOM.createRoot(document.getElementById("root")).render(
   /* @__PURE__ */ React.createElement(React.StrictMode, null, /* @__PURE__ */ React.createElement(App, null))

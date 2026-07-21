@@ -300,16 +300,19 @@ function CoverageActivationMatrix({ navigate, copyPlan }) {
 }
 
 // ---------- OVERVIEW ----------
-function OnboardingGuide() {
+// Visibility is owned entirely by the caller (PageOverview's showHelp state), which
+// initialises from the absence of the pp-onboarded key so a genuinely new visitor sees
+// this once. Dismissing here writes the key AND tells the caller to close, so the
+// "How it works" toggle keeps working for every later manual open.
+function OnboardingGuide({ onDismiss }) {
   const key = "pp-onboarded";
-  const [visible, setVisible] = React.useState(() => !safeGetLocalStorage(key));
-  if (!visible) return null;
+  const dismiss = () => { safeSetLocalStorage(key, "1"); if (onDismiss) onDismiss(); };
   return (
     <div style={{background:"var(--panel-hi)", border:"1px solid var(--brass-soft)", borderRadius:10, padding:"16px", marginBottom:18}}>
       <div style={{display:"flex", alignItems:"center", gap:10, marginBottom:10}}>
         <Icon name="signal" size={14} stroke="var(--brass)" />
         <span className="mono t-label" style={{color:"var(--brass)", textTransform:"uppercase", letterSpacing:".18em"}}>Getting started</span>
-        <button onClick={() => { safeSetLocalStorage(key, "1"); setVisible(false); }}
+        <button onClick={dismiss}
           style={{marginLeft:"auto", background:"none", border:"none", color:"var(--ink-4)", cursor:"pointer", fontSize:16, lineHeight:1, padding:"0 4px"}}
           aria-label="Dismiss guide">×</button>
       </div>
@@ -340,7 +343,10 @@ function PageOverview() {
   // Local overview controls (F4): real state, not toast-only stubs.
   const [groupByTopic, setGroupByTopic] = useState(false);
   const [sortByAttention, setSortByAttention] = useState(false);
-  const [showHelp, setShowHelp] = useState(false);
+  // Auto-opens once for a genuinely new visitor (no pp-onboarded key yet) and never
+  // again after OnboardingGuide's dismiss path writes that key. The "How it works"
+  // button still opens it manually at any time regardless of the stored key.
+  const [showHelp, setShowHelp] = useState(() => !safeGetLocalStorage("pp-onboarded"));
   const priority = sourceSignals.filter(s => s.attention === "high" && !state.archived[s.id]);
   let rest = sourceSignals.filter(s => s.attention !== "high" && !state.archived[s.id]);
   if (sortByAttention) {
@@ -424,24 +430,6 @@ function PageOverview() {
     ].join("\n");
     copyText(handoff, toast, "Beta handoff copied");
   };
-  const copyActivationPlan = () => {
-    const table = COVERAGE_MATRIX.map(row => `| ${row.module} | ${row.state} | ${row.evidence} | ${row.activation} |`).join("\n");
-    const plan = [
-      "# Parliament Pulse activation plan",
-      `Generated: ${new Date().toISOString()}`,
-      "",
-      "| Module | Current coverage | Evidence basis | Activation needed |",
-      "| --- | --- | --- | --- |",
-      table,
-      "",
-      "## Immediate priorities",
-      "1. Keep official feed polling visible in Live and avoid current-sitting claims until verified.",
-      "2. Connect backend validation for custom feeds before routing them as production sources.",
-      "3. Wire production enrichment for scoring, entity extraction, watchlist matching, Hansard/QON extraction and briefing persistence.",
-      "4. Keep representative labels until each module has verified item-level evidence.",
-    ].join("\n");
-    copyText(plan, toast, "Activation plan copied");
-  };
   return (
     <div className="page">
       <div className="page-head">
@@ -461,7 +449,7 @@ function PageOverview() {
         </div>
       </div>
 
-      {showHelp && <OnboardingGuide />}
+      {showHelp && <OnboardingGuide onDismiss={() => setShowHelp(false)} />}
 
       {/* COMMAND STRIP HERO — Priority is the hero KPI; the only number that drives a decision */}
       <div className="command-strip">
@@ -590,6 +578,57 @@ function PageOverview() {
           </div>
         </div>
       </div>
+
+      <div className="about-data-line" style={{marginTop:"var(--gap-section)", fontSize:12.5, color:"var(--ink-3)"}}>
+        Every figure here links to its source. See what is live, what is derived, and what is coming:{" "}
+        <a href="#" onClick={e => { e.preventDefault(); goto && goto("about"); }} style={{color:"var(--teal)"}}>About the data</a>.
+      </div>
+    </div>
+  );
+}
+
+// ---------- ABOUT THE DATA ----------
+// Home for the beta evidence ledger, coverage matrix and provenance panels: reference
+// material about what this product currently proves, moved off the landing page so
+// the overview reads as a working product rather than a beta explainer.
+function PageAbout() {
+  const { navigate, toast } = useStore();
+  const goto = navigate;
+  const copyActivationPlan = () => {
+    const table = COVERAGE_MATRIX.map(row => `| ${row.module} | ${row.state} | ${row.evidence} | ${row.activation} |`).join("\n");
+    const plan = [
+      "# Parliament Pulse activation plan",
+      `Generated: ${new Date().toISOString()}`,
+      "",
+      "| Module | Current coverage | Evidence basis | Activation needed |",
+      "| --- | --- | --- | --- |",
+      table,
+      "",
+      "## Immediate priorities",
+      "1. Keep official feed polling visible in Live and avoid current-sitting claims until verified.",
+      "2. Connect backend validation for custom feeds before routing them as production sources.",
+      "3. Wire production enrichment for scoring, entity extraction, watchlist matching, Hansard/QON extraction and briefing persistence.",
+      "4. Keep representative labels until each module has verified item-level evidence.",
+    ].join("\n");
+    copyText(plan, toast, "Activation plan copied");
+  };
+  return (
+    <div className="page">
+      <div className="page-head">
+        <div>
+          <div className="page-kicker">Reference</div>
+          <h1 className="page-title">About the data</h1>
+          <div className="page-sub">What is live, what is representative, and what activates next. Every module below states its evidence basis and links to the page that carries it.</div>
+        </div>
+      </div>
+
+      <p style={{color:"var(--ink-2)", fontSize:13.5, lineHeight:1.6, maxWidth:760, marginBottom:"var(--gap-section)"}}>
+        Parliament Pulse is a live beta. Six official APH RSS feeds poll on the Live page, and every
+        live item links back to its source at aph.gov.au. Signal scoring, radar clustering, watchlist
+        matching, QON pattern detection and the briefing queue are representative until the
+        enrichment pipeline connects. This page is the honest account of that split: what you can
+        already trust, and what still needs wiring.
+      </p>
 
       <BetaReadinessPanel navigate={goto} />
 
@@ -2230,8 +2269,7 @@ function PageSignals() {
             title={live.displayProvenance === "live" ? "Signals from the Worker's composed /state endpoint (D1 archive)" : "Live data is unavailable — the /state signals block is not live"} />
           <label htmlFor="sig-sort" className="sr-only">Sort signals</label>
           <span aria-hidden="true" style={{fontSize:12, color:"var(--ink-4)"}}>Sort:</span>
-          <select id="sig-sort" value={sort} onChange={e => setSort(e.target.value)}
-            style={{background:"var(--panel)", border:"1px solid var(--line-2)", color:"var(--ink)", borderRadius:6, padding:"5px 8px", fontSize:12, cursor:"pointer"}}>
+          <select id="sig-sort" className="select" value={sort} onChange={e => setSort(e.target.value)}>
             <option value="time">Time</option>
             <option value="score">Authority score</option>
           </select>
@@ -2295,4 +2333,4 @@ function PageSignals() {
   );
 }
 
-Object.assign(window, { PageOverview, PageLive, PageSources, PageCommittees, PageBills, PageParliament, PagePatterns, PageBriefings, PageWatchlists, PageRadar, PageSignals, OnboardingGuide });
+Object.assign(window, { PageOverview, PageLive, PageSources, PageCommittees, PageBills, PageParliament, PagePatterns, PageBriefings, PageWatchlists, PageRadar, PageSignals, PageAbout, OnboardingGuide });

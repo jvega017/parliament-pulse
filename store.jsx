@@ -613,10 +613,15 @@ function StoreProvider({ children, navigate = () => {} }) {
   return (
     <StoreCtx.Provider value={storeValue}>
       {children}
-      <div className="toast-wrap" aria-live="polite" aria-atomic="false">
+      <div className="toast-wrap" role="status" aria-live="polite" aria-atomic="false">
         {toasts.map(t => (
           <div
             key={t.id}
+            // Errors announce assertively: a failed live refresh is exactly the
+            // case a screen-reader user must not miss, because the data on
+            // screen is then older than it appears.
+            role={t.kind === "error" ? "alert" : undefined}
+            aria-live={t.kind === "error" ? "assertive" : undefined}
             className={"toast" + (t.kind === "error" ? " toast-err" : "")}
             style={{
               border: "1px solid var(--line-bright)",

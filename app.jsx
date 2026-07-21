@@ -53,19 +53,21 @@ function App() {
       case "watchlists": return <PageWatchlists />;
       case "radar":      return <PageRadar />;
       case "signals":    return <PageSignals />;
+      case "about":      return <PageAbout />;
       default:           return <PageOverview />;
     }
   };
 
   return (
     <StoreProvider navigate={navigate}>
+      <a className="skip-link" href="#pp-content">Skip to content</a>
       <div className="app">
         <div className={"drawer-back mobile-nav-back" + (mobileNavOpen ? " on" : "")} onClick={() => setMobileNavOpen(false)} aria-hidden="true" />
         <Sidebar page={page} onNavigate={navigate} mobileOpen={mobileNavOpen} />
         <div className="main">
           <Topbar mobileNavOpen={mobileNavOpen} setMobileNavOpen={setMobileNavOpen} />
           <BetaNotice />
-          <div className="content"><ErrorBoundary>{renderPage()}</ErrorBoundary></div>
+          <main className="content" id="pp-content" tabIndex={-1}><ErrorBoundary>{renderPage()}</ErrorBoundary></main>
         </div>
         <ErrorBoundary><Drawer /></ErrorBoundary>
         <ErrorBoundary><DetailModal /></ErrorBoundary>

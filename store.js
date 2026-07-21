@@ -517,10 +517,12 @@ function StoreProvider({ children, navigate = () => {
     addFeed,
     saveNote
   ]);
-  return /* @__PURE__ */ React.createElement(StoreCtx.Provider, { value: storeValue }, children, /* @__PURE__ */ React.createElement("div", { className: "toast-wrap", "aria-live": "polite", "aria-atomic": "false" }, toasts.map((t) => /* @__PURE__ */ React.createElement(
+  return /* @__PURE__ */ React.createElement(StoreCtx.Provider, { value: storeValue }, children, /* @__PURE__ */ React.createElement("div", { className: "toast-wrap", role: "status", "aria-live": "polite", "aria-atomic": "false" }, toasts.map((t) => /* @__PURE__ */ React.createElement(
     "div",
     {
       key: t.id,
+      role: t.kind === "error" ? "alert" : void 0,
+      "aria-live": t.kind === "error" ? "assertive" : void 0,
       className: "toast" + (t.kind === "error" ? " toast-err" : ""),
       style: {
         border: "1px solid var(--line-bright)",
