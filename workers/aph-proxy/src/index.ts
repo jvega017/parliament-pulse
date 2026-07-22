@@ -491,7 +491,14 @@ export default {
       }));
       return;
     }
-    if (event.cron === "0 0 */14 * *") {
+    // Daily connector re-verification. This string MUST match wrangler.toml's
+    // [triggers] crons entry exactly: dispatch is by literal cron string, so a
+    // schedule change in wrangler.toml with no matching change here silently
+    // disables the job with no error anywhere. That happened on 2026-07-21 when
+    // the cadence moved from "0 0 */14 * *" to daily and this line was not
+    // updated, leaving connector health frozen at 15 July. If you change the
+    // schedule, change it in both places and verify MAX(checked_at) in D1 moves.
+    if (event.cron === "0 5 * * *") {
       ctx.waitUntil(checkConnectors(env, APH_CONNECTORS).then((r) => {
         console.log("connector check", JSON.stringify(r));
       }));
@@ -507,5 +514,15 @@ export default {
       }));
       return;
     }
+    // Unmatched schedule. Cloudflare fired a trigger this handler does not
+    // recognise, which means wrangler.toml and this dispatch have drifted apart
+    // and a scheduled job is silently not running. Reaching here is always a
+    // defect, so it is logged at error level to surface in tail and any alerting.
+    console.error({
+      event: "scheduled.unmatched_cron",
+      cron: event.cron,
+      detail: "wrangler.toml [triggers] and the scheduled() dispatch have drifted; a job is not running",
+      ts: new Date().toISOString(),
+    });
   },
 } satisfies ExportedHandler<Env>;
