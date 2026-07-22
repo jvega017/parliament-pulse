@@ -291,6 +291,19 @@ export async function pollAndArchive(env: Env): Promise<{
         seenTitleHashes.add(titleHash);
         const momentumHint = momentumMap.get(feed.kind) ?? 0.5;
         const scored = scoreForArchive(item.title, feed.kind, item.pubDate, nowDate, momentumHint);
+        // NOTE: attention, confidence and scoring_explanation below are an
+        // INGEST-TIME SNAPSHOT only. scoring_explanation in particular embeds a
+        // relative-age phrase ("today", "3d ago") that is true only at `now`
+        // above -- it is never true again after this row is written. Once an
+        // item drops out of its RSS feed, the ON CONFLICT branch below stops
+        // firing for its guid, so these three columns freeze permanently.
+        // Every read path that SERVES a score to a user (queryTopSignals,
+        // queryArchive, queryBills, the /state signals block, the digest
+        // renderer) must call scoreForArchive again at read time with a fresh
+        // `now` and serve that result, never these stored columns directly.
+        // These columns exist for historical analysis only (e.g. the
+        // /archive/timeline day-by-day volume chart, which is deliberately an
+        // ingest-time record of what was assessed on each day).
         const r = await env.ARCHIVE.prepare(
           `INSERT INTO signals
              (guid, title, link, pub_date, feed_url, feed_label, source_group, kind,
@@ -459,7 +472,29 @@ export async function queryArchive(env: Env, params: URLSearchParams): Promise<{
     .bind(...binds, limit, offset)
     .all<ArchiveRow>();
 
-  return { rows: rowsRes.results ?? [], total, has_more: total > offset + limit };
+  // The /archive page (PageArchive.tsx) renders scoring_explanation directly,
+  // including its relative-age phrase. Recompute attention/confidence/
+  // scoring_explanation against the current instant before serving so an old
+  // row never claims to have been "published today". The `attention` WHERE
+  // filter above still runs against the stored ingest-time bucket -- that is
+  // a coarse pre-filter D1 can do cheaply without loading every row -- so a
+  // row's returned attention can occasionally differ from the bucket it was
+  // filtered on if it has decayed since ingest; that is an accepted tradeoff,
+  // not a fabrication, because the served value is always the honest current
+  // score. entities_json is left untouched: entity extraction is a pure
+  // function of title text only and does not change over time.
+  const now = new Date();
+  const rows = (rowsRes.results ?? []).map((row) => {
+    const scored = scoreForArchive(row.title, row.kind, row.pub_date, now);
+    return {
+      ...row,
+      attention: scored.attention,
+      confidence: scored.confidence,
+      scoring_explanation: scored.explanation,
+    };
+  });
+
+  return { rows, total, has_more: total > offset + limit };
 }
 
 export async function watchlistAnalytics(env: Env, params: URLSearchParams): Promise<{
@@ -504,6 +539,14 @@ export async function timelineArchive(env: Env, params: URLSearchParams): Promis
   if (group) { where.push("source_group = ?"); binds.push(group); }
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
+  // Deliberately left as the stored, ingest-time `attention` bucket, not
+  // recomputed: this is a day-by-day historical volume chart ("N days · by
+  // attention level" on PageArchive.tsx), an audit of how much high/med/low
+  // material was assessed on each past day. Recomputing against `now` would
+  // time-decay almost every past day's counts down to "low" (scoreTime and
+  // scoreNovelty both collapse after a few days), destroying the comparison
+  // the chart exists to show. This is the "historical record" exception noted
+  // in the INSERT comment above.
   const res = await env.ARCHIVE.prepare(
     `SELECT
        DATE(COALESCE(pub_date, first_seen_at)) AS day,
@@ -557,6 +600,12 @@ export async function deleteAlertRule(env: Env, id: number): Promise<void> {
   await env.ARCHIVE.prepare(`DELETE FROM alert_rules WHERE id = ?`).bind(id).run();
 }
 
+// `attention` here is the alert_events.attention column: the level the rule
+// actually fired against at fired_at. It is a point-in-time audit record of
+// why the alert fired, not a live signal score, so it is deliberately left
+// as stored -- recomputing it against `now` would misrepresent the reason
+// the alert fired in the past. This is the other "historical record"
+// exception noted in the INSERT comment in pollAndArchive.
 export async function listAlertEvents(env: Env, limit = 50): Promise<{
   events: Array<{ id: number; rule_id: number; rule_name: string; signal_guid: string; fired_at: string; title: string; link: string; attention: string }>;
 }> {
@@ -598,7 +647,17 @@ export async function queryBills(env: Env, params: URLSearchParams): Promise<{
        LIMIT ? OFFSET ?`,
   ).bind(...binds, limit, offset).all<{ guid: string; title: string; link: string; pub_date: string | null; description: string | null; attention: string | null; confidence: number | null }>();
 
-  return { rows: rows.results ?? [], total };
+  // PageBills.tsx renders `attention` as a coloured chip per row. kind is
+  // always 'digest' here (see the WHERE clause above). Recompute at read time
+  // for the same reason as queryTopSignals/queryArchive: the stored value is
+  // an ingest-time snapshot that freezes once the bill drops out of its feed.
+  const now = new Date();
+  const scoredRows = (rows.results ?? []).map((row) => {
+    const scored = scoreForArchive(row.title, "digest", row.pub_date, now);
+    return { ...row, attention: scored.attention, confidence: scored.confidence };
+  });
+
+  return { rows: scoredRows, total };
 }
 
 // ---- QONs -------------------------------------------------------------------
@@ -758,9 +817,18 @@ export async function queryMembers(env: Env, params: URLSearchParams): Promise<{
 }
 
 // ---- Top signals (composed /state endpoint) ---------------------------------
-// Ordered by attention (high first) then recency. Distinct from queryArchive:
-// no filters, no pagination — just the current top-of-inbox view for the
-// composed /state response.
+// Ordered by a freshly recomputed score (high first) then recency. Distinct
+// from queryArchive: no filters, no pagination — just the current
+// top-of-inbox view for the composed /state response.
+//
+// LB-03 fix (2026-07-22): this used to ORDER BY the stored `attention`
+// column, which is an ingest-time snapshot that freezes the moment an item
+// drops out of its RSS feed (see the INSERT comment in pollAndArchive). A
+// stale item scored "high" weeks ago would then pin the top of the inbox
+// forever, and its persisted scoring_explanation would go on claiming
+// "Published today" indefinitely. Fixed by widening the candidate fetch to a
+// recency-only window, rescoring every candidate against the current
+// instant, and sorting by that fresh score instead.
 
 export interface TopSignalRow {
   guid: string;
@@ -775,16 +843,62 @@ export interface TopSignalRow {
   scoring_explanation: string | null;
 }
 
+interface TopSignalCandidate {
+  guid: string;
+  title: string;
+  link: string;
+  pub_date: string | null;
+  feed_label: string;
+  source_group: string;
+  kind: string;
+  first_seen_at: string;
+}
+
 export async function queryTopSignals(env: Env, limit = 30): Promise<TopSignalRow[]> {
+  // Candidate window: select by RECENCY only, never by the stored `attention`
+  // column (that is half of LB-03 -- ordering by a frozen value is what let a
+  // stale item pin the top of the inbox). Widen past `limit` so items that
+  // will actually score highest once rescored are not excluded from the pool
+  // before we ever look at them.
+  const candidateLimit = Math.min(limit * 8, 300);
   const res = await env.ARCHIVE.prepare(
-    `SELECT guid, title, link, pub_date, feed_label, source_group, kind,
-            attention, confidence, scoring_explanation
+    `SELECT guid, title, link, pub_date, feed_label, source_group, kind, first_seen_at
        FROM signals
-       ORDER BY CASE attention WHEN 'high' THEN 0 WHEN 'med' THEN 1 ELSE 2 END,
-                COALESCE(pub_date, first_seen_at) DESC
+       ORDER BY COALESCE(pub_date, first_seen_at) DESC
        LIMIT ?`,
-  ).bind(limit).all<TopSignalRow>();
-  return res.results ?? [];
+  ).bind(candidateLimit).all<TopSignalCandidate>();
+  const candidates = res.results ?? [];
+
+  // One `now` for the whole batch so every candidate is scored against the
+  // same instant. Captured here, after the D1 query above has already forced
+  // the isolate to perform I/O, so it cannot read back the frozen epoch
+  // clock (do not hoist this above the query or to module scope).
+  const now = new Date();
+
+  const rescored = candidates.map((row) => {
+    const scored = scoreForArchive(row.title, row.kind, row.pub_date, now);
+    return { row, overallPct: scored.overallPct, attention: scored.attention, confidence: scored.confidence, explanation: scored.explanation };
+  });
+
+  rescored.sort((a, b) => {
+    if (b.overallPct !== a.overallPct) return b.overallPct - a.overallPct;
+    const aKey = a.row.pub_date ?? a.row.first_seen_at;
+    const bKey = b.row.pub_date ?? b.row.first_seen_at;
+    return bKey.localeCompare(aKey); // ISO-8601 strings sort correctly lexically
+  });
+
+  return rescored.slice(0, limit).map(({ row, attention, confidence, explanation }): TopSignalRow => ({
+    guid: row.guid,
+    title: row.title,
+    link: row.link,
+    pub_date: row.pub_date,
+    feed_label: row.feed_label,
+    source_group: row.source_group,
+    kind: row.kind,
+    attention,
+    confidence,
+    scoring_explanation: explanation,
+  }));
 }
 
 // ---- Watchlist 7-day trend --------------------------------------------------

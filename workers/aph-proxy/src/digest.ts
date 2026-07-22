@@ -11,6 +11,7 @@
 // be collected before the email integration is wired.
 
 import type { Env } from "./archive";
+import { scoreForArchive } from "./workerScoring";
 
 interface EnvWithSecrets extends Env {
   RESEND_API_KEY?: string;
@@ -57,10 +58,23 @@ export async function sendDailyDigest(env: EnvWithSecrets): Promise<{
   )
     .bind(since)
     .all<SignalRow>();
-  const newItems = items.results ?? [];
-  if (newItems.length === 0) {
+  const rawItems = items.results ?? [];
+  if (rawItems.length === 0) {
     return { delivered: 0, skipped: 0, reason: "no new items in last 24h" };
   }
+
+  // Recompute attention at send time rather than trusting the stored,
+  // ingest-time value: this digest can fire hours after an item's
+  // first_seen_at, and the email is a live communication (not a historical
+  // record), so the attention level that decides what a subscriber receives
+  // must reflect the current instant, per the same LB-03 reasoning as
+  // queryTopSignals in archive.ts. `now` is captured after the D1 query above
+  // has already awaited, so it is safe from the frozen module-scope clock.
+  const now = new Date();
+  const newItems: SignalRow[] = rawItems.map((row) => ({
+    ...row,
+    attention: scoreForArchive(row.title, row.kind, row.pub_date, now).attention,
+  }));
 
   const subs = await env.ARCHIVE.prepare(
     `SELECT email, watchlists, attention_min, active FROM digest_subscribers WHERE active = 1`,

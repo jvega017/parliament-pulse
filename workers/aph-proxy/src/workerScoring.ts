@@ -125,6 +125,12 @@ export function scoreForArchive(
 
   const entities = extractEntities(title);
   const attWord = attention === "high" ? "High" : attention === "med" ? "Medium" : "Low";
+  // This relative-age phrase is only true at the instant `now` is captured. It
+  // is prose, not a stored fact -- if this function's result is persisted (as
+  // pollAndArchive does, for history) the phrase goes stale the moment real
+  // time moves past `now`. Callers that serve a score to a user must call this
+  // function again with a fresh `now` at read time rather than reusing a
+  // persisted explanation string. See the INSERT comment in archive.ts.
   const ageStr  = h < 1 ? "within 1h" : h < 4 ? "within 4h" : h < 24 ? "today"
     : h < 48 ? "yesterday" : `${Math.round(h / 24)}d ago`;
   const momStr  = mom > 0 ? ` Momentum ${Math.round(mom * 100)}/100 (kind frequency trend).` : "";
