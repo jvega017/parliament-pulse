@@ -164,19 +164,26 @@ const DIVISIONS = [];
 // invented. Both are nulled/emptied; consumers compute the real match count from
 // watchlistMatches() against the live signal stream (0 while it is disconnected)
 // and show an honest "no trend history" state rather than a fabricated spark line.
+// `keywords` is null on every row and MUST stay null. It previously carried
+// hardcoded counts (24, 18, 21, 14...) that were invented: the real keyword
+// lists in store.jsx WATCHLIST_KEYWORDS hold four to six terms each, so every
+// displayed count overstated reality by roughly a factor of four. The desk now
+// derives the count from the real list (pages.jsx, watchlistKeywords(w).length).
+// Do not reintroduce a literal here: a number that does not come from the list
+// it describes is a fabricated statistic.
 const WATCHLISTS = [
-  { name: "Digital government", keywords: 24, matches: null, trend: [] },
-  { name: "AI & automation", keywords: 18, matches: null, trend: [] },
-  { name: "Cyber security", keywords: 21, matches: null, trend: [] },
-  { name: "Digital identity", keywords: 14, matches: null, trend: [] },
-  { name: "Data sharing & privacy", keywords: 19, matches: null, trend: [] },
-  { name: "Procurement", keywords: 16, matches: null, trend: [] },
-  { name: "Service delivery", keywords: 17, matches: null, trend: [] },
-  { name: "Infrastructure & connectivity", keywords: 15, matches: null, trend: [] },
-  { name: "Health digital systems", keywords: 12, matches: null, trend: [] },
-  { name: "Parliamentary scrutiny", keywords: 22, matches: null, trend: [] },
-  { name: "Estimates preparation", keywords: 11, matches: null, trend: [] },
-  { name: "Queensland federal signals", keywords: 13, matches: null, trend: [] },
+  { name: "Digital government", keywords: null, matches: null, trend: [] },
+  { name: "AI & automation", keywords: null, matches: null, trend: [] },
+  { name: "Cyber security", keywords: null, matches: null, trend: [] },
+  { name: "Digital identity", keywords: null, matches: null, trend: [] },
+  { name: "Data sharing & privacy", keywords: null, matches: null, trend: [] },
+  { name: "Procurement", keywords: null, matches: null, trend: [] },
+  { name: "Service delivery", keywords: null, matches: null, trend: [] },
+  { name: "Infrastructure & connectivity", keywords: null, matches: null, trend: [] },
+  { name: "Health digital systems", keywords: null, matches: null, trend: [] },
+  { name: "Parliamentary scrutiny", keywords: null, matches: null, trend: [] },
+  { name: "Estimates preparation", keywords: null, matches: null, trend: [] },
+  { name: "Queensland federal signals", keywords: null, matches: null, trend: [] },
 ];
 
 // RADAR emptied: every issue named a specific cluster of invented parliamentary

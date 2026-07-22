@@ -127,18 +127,18 @@ const COMMITTEE_ITEMS = [];
 const BILLS = [];
 const DIVISIONS = [];
 const WATCHLISTS = [
-  { name: "Digital government", keywords: 24, matches: null, trend: [] },
-  { name: "AI & automation", keywords: 18, matches: null, trend: [] },
-  { name: "Cyber security", keywords: 21, matches: null, trend: [] },
-  { name: "Digital identity", keywords: 14, matches: null, trend: [] },
-  { name: "Data sharing & privacy", keywords: 19, matches: null, trend: [] },
-  { name: "Procurement", keywords: 16, matches: null, trend: [] },
-  { name: "Service delivery", keywords: 17, matches: null, trend: [] },
-  { name: "Infrastructure & connectivity", keywords: 15, matches: null, trend: [] },
-  { name: "Health digital systems", keywords: 12, matches: null, trend: [] },
-  { name: "Parliamentary scrutiny", keywords: 22, matches: null, trend: [] },
-  { name: "Estimates preparation", keywords: 11, matches: null, trend: [] },
-  { name: "Queensland federal signals", keywords: 13, matches: null, trend: [] }
+  { name: "Digital government", keywords: null, matches: null, trend: [] },
+  { name: "AI & automation", keywords: null, matches: null, trend: [] },
+  { name: "Cyber security", keywords: null, matches: null, trend: [] },
+  { name: "Digital identity", keywords: null, matches: null, trend: [] },
+  { name: "Data sharing & privacy", keywords: null, matches: null, trend: [] },
+  { name: "Procurement", keywords: null, matches: null, trend: [] },
+  { name: "Service delivery", keywords: null, matches: null, trend: [] },
+  { name: "Infrastructure & connectivity", keywords: null, matches: null, trend: [] },
+  { name: "Health digital systems", keywords: null, matches: null, trend: [] },
+  { name: "Parliamentary scrutiny", keywords: null, matches: null, trend: [] },
+  { name: "Estimates preparation", keywords: null, matches: null, trend: [] },
+  { name: "Queensland federal signals", keywords: null, matches: null, trend: [] }
 ];
 const RADAR = [];
 const QON_PATTERN = {

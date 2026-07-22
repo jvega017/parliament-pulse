@@ -102,16 +102,27 @@ function watchlistKeywords(w) {
   if (Array.isArray(w.keywordList) && w.keywordList.length) return w.keywordList;
   return w.name.toLowerCase().split(/\s+|&/).map((t) => t.trim()).filter((t) => t.length > 2);
 }
+const WATCHLIST_TERM_RE = /* @__PURE__ */ new Map();
+function watchlistTermRegex(term) {
+  const key = term.toLowerCase();
+  let re = WATCHLIST_TERM_RE.get(key);
+  if (!re) {
+    const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    re = new RegExp("(^|[^a-z0-9])" + escaped + "([^a-z0-9]|$)", "i");
+    WATCHLIST_TERM_RE.set(key, re);
+  }
+  return re;
+}
 function watchlistMatches(w, signals = typeof SIGNALS !== "undefined" ? SIGNALS : []) {
   const terms = watchlistKeywords(w);
   if (!Array.isArray(signals)) return [];
   return signals.filter((s) => {
-    const title = (s.title || "").toLowerCase();
+    const title = s.title || "";
     const tagHit = (s.tags || []).some((t) => {
-      const label = (t.l || "").toLowerCase();
-      return terms.some((term) => label.includes(term.toLowerCase()));
+      const label = t.l || "";
+      return terms.some((term) => watchlistTermRegex(term).test(label));
     });
-    const titleHit = terms.some((term) => title.includes(term.toLowerCase()));
+    const titleHit = terms.some((term) => watchlistTermRegex(term).test(title));
     return tagHit || titleHit;
   });
 }

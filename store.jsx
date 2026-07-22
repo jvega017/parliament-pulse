@@ -117,16 +117,38 @@ function watchlistKeywords(w) {
 // stream; the default preserves every existing caller (matches against SIGNALS).
 // Live items carry only the `kind` tag, so title matching is what makes a live
 // match real (section 2.4 of the live-wiring spec).
+// Word-boundary matcher, cached per term. Substring matching (the previous
+// implementation used String.includes) silently inflated every count: the term
+// "ai" matched "said", "Australia", "chair" and "Chairman"; "state" matched
+// "statement"; "data" matched "update". A match count produced by collision is
+// a fabricated statistic, produced by a bug instead of by hand, and this product
+// does not ship fabricated numbers. Multi-word terms ("digital id", "machine
+// learning") phrase-match, still anchored at both ends.
+const WATCHLIST_TERM_RE = new Map();
+function watchlistTermRegex(term) {
+  const key = term.toLowerCase();
+  let re = WATCHLIST_TERM_RE.get(key);
+  if (!re) {
+    // Escape regex metacharacters so a term is always matched literally.
+    const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    // \b is unreliable next to a non-word character, so anchor on a
+    // non-word-or-start / non-word-or-end boundary instead.
+    re = new RegExp("(^|[^a-z0-9])" + escaped + "([^a-z0-9]|$)", "i");
+    WATCHLIST_TERM_RE.set(key, re);
+  }
+  return re;
+}
+
 function watchlistMatches(w, signals = (typeof SIGNALS !== "undefined" ? SIGNALS : [])) {
   const terms = watchlistKeywords(w);
   if (!Array.isArray(signals)) return [];
   return signals.filter(s => {
-    const title = (s.title || "").toLowerCase();
+    const title = s.title || "";
     const tagHit = (s.tags || []).some(t => {
-      const label = (t.l || "").toLowerCase();
-      return terms.some(term => label.includes(term.toLowerCase()));
+      const label = t.l || "";
+      return terms.some(term => watchlistTermRegex(term).test(label));
     });
-    const titleHit = terms.some(term => title.includes(term.toLowerCase()));
+    const titleHit = terms.some(term => watchlistTermRegex(term).test(title));
     return tagHit || titleHit;
   });
 }
