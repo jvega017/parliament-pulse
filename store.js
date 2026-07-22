@@ -241,6 +241,16 @@ function useLiveState(blockName) {
     displayProvenance: items ? block.provenance : block && block.provenance !== "live" && block.provenance !== "derived" ? block.provenance : "fixture"
   };
 }
+function useLiveBills() {
+  const { liveBills } = useStore();
+  return {
+    status: liveBills.status,
+    items: liveBills.items,
+    // null (nothing has ever loaded) or an array (maybe empty) once live
+    fetchedAt: liveBills.fetchedAt,
+    isRefreshing: liveBills.isRefreshing
+  };
+}
 function StoreProvider({ children, navigate = () => {
 } }) {
   const [state, setState] = React.useState(() => {
@@ -373,6 +383,67 @@ function StoreProvider({ children, navigate = () => {
     window.refreshLiveState = refreshLiveState;
     window.__pulseLiveState = liveState;
   }, [refreshLiveState, liveState]);
+  const [liveBills, setLiveBills] = React.useState({
+    status: "idle",
+    // idle | loading | ready | error
+    items: null,
+    // null = nothing has ever loaded; array (maybe empty) once one lands
+    fetchedAt: null,
+    isRefreshing: false,
+    lastError: null
+  });
+  const billsInFlightRef = React.useRef(false);
+  const billsMountedRef = React.useRef(true);
+  const billsFetchedAtRef = React.useRef(null);
+  const doFetchBills = React.useCallback(async () => {
+    if (location.protocol === "file:") return;
+    if (billsInFlightRef.current) return;
+    billsInFlightRef.current = true;
+    setLiveBills((s) => ({ ...s, status: s.fetchedAt == null ? "loading" : "ready", isRefreshing: true }));
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 8e3);
+    try {
+      const res = await fetch(`${WORKER_BASE_URL}/bills?limit=50`, { signal: ctrl.signal });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const payload = await res.json();
+      const rows = Array.isArray(payload == null ? void 0 : payload.rows) ? payload.rows : [];
+      const now = Date.now();
+      billsFetchedAtRef.current = now;
+      if (billsMountedRef.current) {
+        setLiveBills((s) => ({ ...s, status: "ready", isRefreshing: false, fetchedAt: now, lastError: null, items: rows }));
+      }
+    } catch (e) {
+      if (billsMountedRef.current) {
+        setLiveBills((s) => ({ ...s, status: s.fetchedAt != null ? "ready" : "error", isRefreshing: false, lastError: Date.now() }));
+      }
+    } finally {
+      clearTimeout(timer);
+      billsInFlightRef.current = false;
+    }
+  }, []);
+  const refreshLiveBills = React.useCallback(() => doFetchBills(), [doFetchBills]);
+  React.useEffect(() => {
+    if (location.protocol === "file:") return;
+    billsMountedRef.current = true;
+    doFetchBills().catch(() => {
+    });
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") doFetchBills().catch(() => {
+      });
+    }, 5 * 60 * 1e3);
+    const onVisibility = () => {
+      if (document.visibilityState !== "visible") return;
+      const last = billsFetchedAtRef.current;
+      if (last == null || Date.now() - last > 5 * 60 * 1e3) doFetchBills().catch(() => {
+      });
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      billsMountedRef.current = false;
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [doFetchBills]);
   React.useEffect(() => {
     const prev = document.body.style.overflow;
     if (modal || signalId) document.body.style.overflow = "hidden";
@@ -440,7 +511,7 @@ function StoreProvider({ children, navigate = () => {
       keywordList,
       keywords: keywordList.length,
       matches,
-      trend: [0, 0, 0, 0, 0, 0, matches],
+      trend: [],
       created: true
     };
     setState((s) => ({ ...s, watchlistCreated: [...s.watchlistCreated, entry] }));
@@ -476,6 +547,8 @@ function StoreProvider({ children, navigate = () => {
     consumeLiveRefresh,
     refreshLiveState,
     liveStateDegradation,
+    liveBills,
+    refreshLiveBills,
     navigate,
     assignOwner,
     saveFeedback,
@@ -504,6 +577,8 @@ function StoreProvider({ children, navigate = () => {
     requestLiveRefresh,
     consumeLiveRefresh,
     refreshLiveState,
+    liveBills,
+    refreshLiveBills,
     navigate,
     assignOwner,
     saveFeedback,
@@ -773,9 +848,7 @@ function WatchlistDetail({ id, titleId, closeButtonRef }) {
   const matchingAll = watchlistMatches(w, matchSource);
   const matchingSignals = matchingAll.slice(0, 3);
   const keywordList = watchlistKeywords(w);
-  const trend = Array.isArray(w.trend) ? w.trend : [];
-  const max = Math.max(...trend, 1);
-  return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(ModalHead, { kicker: w.created ? "Watchlist \xB7 New" : "Watchlist", title: w.name, representative: !!w.representative, titleId, closeButtonRef }), /* @__PURE__ */ React.createElement("div", { className: "modal-body" }, w.created && /* @__PURE__ */ React.createElement("div", { className: "empty", style: { marginBottom: 14 } }, "Created watchlist. Keyword matching runs against the current signal stream. Trend builds as new signals arrive."), /* @__PURE__ */ React.createElement("div", { className: "grid g-3", style: { gap: 12 } }, /* @__PURE__ */ React.createElement("div", { className: "panel stat" }, /* @__PURE__ */ React.createElement("div", { className: "stat-label" }, "Matches"), /* @__PURE__ */ React.createElement("div", { className: "stat-value", style: { fontSize: 26 } }, matchingAll.length)), /* @__PURE__ */ React.createElement("div", { className: "panel stat" }, /* @__PURE__ */ React.createElement("div", { className: "stat-label" }, "Keywords"), /* @__PURE__ */ React.createElement("div", { className: "stat-value", style: { fontSize: 26 } }, keywordList.length)), /* @__PURE__ */ React.createElement("div", { className: "panel stat" }, /* @__PURE__ */ React.createElement("div", { className: "stat-label" }, "7-day trend"), trend.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "mono", style: { marginTop: 8, color: "var(--ink-4)", fontSize: 11 } }, "\u2014 no trend history") : /* @__PURE__ */ React.createElement("div", { className: "spark", style: { marginTop: 8 } }, trend.map((v, i) => /* @__PURE__ */ React.createElement("span", { key: i, style: { height: v / max * 24 + 3 + "px" } }))))), /* @__PURE__ */ React.createElement("h3", { className: "mono", style: { fontSize: 10, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: ".16em", marginTop: 18, marginBottom: 6 } }, "Matching signals"), matchingSignals.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "empty" }, "No matching signals in the current stream."), matchingSignals.map((s) => /* @__PURE__ */ React.createElement("div", { key: s.id, style: { padding: "8px 12px", border: "1px solid var(--line-2)", borderRadius: 8, marginBottom: 6 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12.5, fontWeight: 500 } }, s.title), /* @__PURE__ */ React.createElement("div", { className: "mono", style: { fontSize: 10.5, color: "var(--ink-4)", marginTop: 2 } }, s.id, " \xB7 ", s.source)))), /* @__PURE__ */ React.createElement("div", { className: "modal-foot" }, /* @__PURE__ */ React.createElement("button", { className: "btn ghost", onClick: () => {
+  return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(ModalHead, { kicker: w.created ? "Watchlist \xB7 New" : "Watchlist", title: w.name, representative: !!w.representative, titleId, closeButtonRef }), /* @__PURE__ */ React.createElement("div", { className: "modal-body" }, w.created && /* @__PURE__ */ React.createElement("div", { className: "empty", style: { marginBottom: 14 } }, "Created watchlist. Keyword matching runs against the current signal stream. Trend builds as new signals arrive."), /* @__PURE__ */ React.createElement("div", { className: "grid g-3", style: { gap: 12 } }, /* @__PURE__ */ React.createElement("div", { className: "panel stat" }, /* @__PURE__ */ React.createElement("div", { className: "stat-label" }, "Matches"), /* @__PURE__ */ React.createElement("div", { className: "stat-value", style: { fontSize: 26 } }, matchingAll.length)), /* @__PURE__ */ React.createElement("div", { className: "panel stat" }, /* @__PURE__ */ React.createElement("div", { className: "stat-label" }, "Keywords"), /* @__PURE__ */ React.createElement("div", { className: "stat-value", style: { fontSize: 26 } }, keywordList.length)), /* @__PURE__ */ React.createElement("div", { className: "panel stat" }, /* @__PURE__ */ React.createElement("div", { className: "stat-label" }, "Trend history"), /* @__PURE__ */ React.createElement("div", { className: "mono", style: { marginTop: 8, color: "var(--ink-4)", fontSize: 11 } }, "Not held \u2014 Parliament Pulse does not yet track watchlist matches over time."))), /* @__PURE__ */ React.createElement("h3", { className: "mono", style: { fontSize: 10, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: ".16em", marginTop: 18, marginBottom: 6 } }, "Matching signals"), matchingSignals.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "empty" }, "No matching signals in the current stream."), matchingSignals.map((s) => /* @__PURE__ */ React.createElement("div", { key: s.id, style: { padding: "8px 12px", border: "1px solid var(--line-2)", borderRadius: 8, marginBottom: 6 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12.5, fontWeight: 500 } }, s.title), /* @__PURE__ */ React.createElement("div", { className: "mono", style: { fontSize: 10.5, color: "var(--ink-4)", marginTop: 2 } }, s.id, " \xB7 ", s.source)))), /* @__PURE__ */ React.createElement("div", { className: "modal-foot" }, /* @__PURE__ */ React.createElement("button", { className: "btn ghost", onClick: () => {
     copyModalText(`# Watchlist digest
 Watchlist: ${w.name}
 Matches: ${matchingAll.length}
@@ -803,4 +876,4 @@ Suggested actions:
     closeModal();
   } }, /* @__PURE__ */ React.createElement(Icon, { name: "brief", size: 13 }), " Draft issue brief")));
 }
-Object.assign(window, { StoreProvider, useStore, DetailModal, watchlistKeywords, watchlistMatches, useLiveState, liveStateDegradation, mapWorkerSignalToCard, mapLiveBlocks, fmtFetchedAt });
+Object.assign(window, { StoreProvider, useStore, DetailModal, watchlistKeywords, watchlistMatches, useLiveState, useLiveBills, liveStateDegradation, mapWorkerSignalToCard, mapLiveBlocks, fmtFetchedAt });

@@ -123,64 +123,17 @@ window.ENTITIES = {
     },
   },
 
-  // Bill ref and title are real, publicly identifiable Commonwealth bill citations
-  // and are kept as identifiers, along with the product's own portfolio/watchlist
-  // tags. stage, stageHistory, digest, owner, att and purpose were all invented
-  // specific claims (a legislative stage, fabricated dated stage events including
-  // the literal string "Today", a fabricated internal "owner", and an invented
-  // description of the bill's scope) and are nulled/emptied. provisions were
-  // invented specific legislative text and are emptied.
-  bills: {
-    "BILL-2026-048": {
-      ref: "BILL-2026-048",
-      title: "Digital ID Amendment (Assurance) Bill 2026",
-      stage: null,
-      stageHistory: [],
-      portfolio: "Digital identity",
-      minister: "digital",
-      digest: null,
-      owner: null,
-      att: null,
-      purpose: null,
-      provisions: [],
-      watchlists: ["Digital identity", "Data sharing & privacy"],
-    },
-    "BILL-2026-041": {
-      ref: "BILL-2026-041",
-      title: "Cyber Security Legislation Amendment Bill 2026",
-      stage: null,
-      stageHistory: [],
-      portfolio: "Cyber security", minister: "cyber", digest: null,
-      owner: null, att: null,
-      purpose: null,
-      provisions: [],
-      watchlists: ["Cyber security"],
-    },
-    "BILL-2026-037": {
-      ref: "BILL-2026-037",
-      title: "Consumer Data Right Expansion Bill 2026",
-      stage: null,
-      stageHistory: [],
-      portfolio: "Data & privacy", minister: null, digest: null, owner: null, att: null,
-      purpose: null, provisions: [], watchlists: ["Data sharing & privacy"],
-    },
-    "BILL-2026-031": {
-      ref: "BILL-2026-031",
-      title: "Telecommunications (Regional Connectivity) Amendment Bill",
-      stage: null,
-      stageHistory: [], portfolio: "Infrastructure", minister: null,
-      digest: null, owner: null, att: null,
-      purpose: null, provisions: [], watchlists: ["Infrastructure & connectivity"],
-    },
-    "BILL-2026-024": {
-      ref: "BILL-2026-024",
-      title: "Social Services Digital Delivery Amendment Bill",
-      stage: null,
-      stageHistory: [], portfolio: "Service delivery", minister: null,
-      digest: null, owner: null, att: null,
-      purpose: null, provisions: [], watchlists: ["Service delivery"],
-    },
-  },
+  // bills emptied: this object previously claimed the ref and title of every entry
+  // were "real, publicly identifiable Commonwealth bill citations". That claim was
+  // never verified and is probably wrong: the reference format ("BILL-2026-048") does
+  // not match APH bill numbering, and none of the five titles appears among the 25
+  // genuine bills the Worker's live /bills endpoint returns (confirmed this session,
+  // same finding as the BILLS fixture in data.jsx). A bill title that cannot be
+  // verified must not render on a provenance-first public product, so every entry is
+  // removed. The binding stays an empty object: BillDetail (pages.jsx) already renders
+  // an honest "Not found" state for any id with no match, and the Bills desk is being
+  // wired to the live /bills endpoint instead of this fixture.
+  bills: {},
 };
 
 // Live Parliament YouTube channel IDs — @AUSParliamentLive

@@ -124,13 +124,7 @@ function sourceCounts() {
 }
 const SIGNALS = [];
 const COMMITTEE_ITEMS = [];
-const BILLS = [
-  { ref: "BILL-2026-048", title: "Digital ID Amendment (Assurance) Bill 2026", stage: null, portfolio: "Digital identity", digest: null, owner: null, att: null },
-  { ref: "BILL-2026-041", title: "Cyber Security Legislation Amendment Bill 2026", stage: null, portfolio: "Cyber security", digest: null, owner: null, att: null },
-  { ref: "BILL-2026-037", title: "Consumer Data Right Expansion Bill 2026", stage: null, portfolio: "Data & privacy", digest: null, owner: null, att: null },
-  { ref: "BILL-2026-031", title: "Telecommunications (Regional Connectivity) Amendment Bill", stage: null, portfolio: "Infrastructure", digest: null, owner: null, att: null },
-  { ref: "BILL-2026-024", title: "Social Services Digital Delivery Amendment Bill", stage: null, portfolio: "Service delivery", digest: null, owner: null, att: null }
-];
+const BILLS = [];
 const DIVISIONS = [];
 const WATCHLISTS = [
   { name: "Digital government", keywords: 24, matches: null, trend: [] },
@@ -162,7 +156,7 @@ const DATASET_FLAGS = {
   SOURCE_REGISTRY: { representative: false, note: "Verified APH feeds, polled live via the Worker proxy." },
   SIGNALS: { representative: true, note: "Empty: every fixture signal was an invented parliamentary event with a fabricated source and evidence link. No enrichment pipeline (attention, scoring, provenance, NER) is built. The desks read the live /state signal stream instead; with no live connection they show an honest outage state, never invented signals." },
   COMMITTEE_ITEMS: { representative: true, note: "Empty: no live committee-schedule feed is wired. Hearing times, topics and attention ratings were invented and have been removed. See https://www.aph.gov.au/Parliamentary_Business/Committees." },
-  BILLS: { representative: true, note: "Bill ref and title are real. Stage, digest, owner and attention were invented and are held null pending scraping or PDF extraction." },
+  BILLS: { representative: true, note: "Empty: the fixture ref and title in every row could not be verified against the live bills data (none of the five titles appears among the 25 genuine bills the Worker's /bills endpoint returns) and have been removed. The Bills desk reads the live /bills endpoint instead." },
   DIVISIONS: { representative: true, note: "Empty: no verified division-result feed is wired. Vote tallies were invented and have been removed. See https://www.aph.gov.au/house/rss/divisions." },
   WATCHLISTS: { representative: true, note: "Name and keyword list are real product configuration and are kept. matches and trend were invented counts of live activity: no keyword matcher over the signal stream is built, so both are nulled/emptied and consumers compute the real (currently zero) match count live." },
   RADAR: { representative: true, note: "Empty: every issue named an invented cluster of parliamentary activity (fabricated inquiries, QON references, hearings) with an invented momentum/confidence score. No clustering layer over real signals is built; rows only render once the live signal stream is grouped (derived mode)." },

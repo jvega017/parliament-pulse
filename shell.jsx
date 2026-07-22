@@ -26,7 +26,7 @@ function BetaNotice() {
   return (
     <div className="design-banner" role="status">
       <Icon name="signal" size={14} stroke="var(--gold)" />
-      <span><strong>Live beta.</strong> Official APH feeds poll on the Live page. Enriched signals, radar and workflow queues are representative until the enrichment pipeline is connected. </span>
+      <span><strong>Live beta.</strong> Signals, feed health and bills are live from official APH feeds, and every item links to its source on aph.gov.au. Thread clustering is Parliament Pulse's own derived analysis; sitting-day surfaces such as divisions and the daily program are empty until Parliament returns on 11 August 2026. </span>
       <button aria-label="Dismiss notice" onClick={() => { safeSetLocalStorage(key, "1"); setVisible(false); }}>×</button>
     </div>
   );
@@ -129,6 +129,10 @@ function Sidebar({ page, onNavigate, mobileOpen }) {
   // desk with no live block keeps its fixture-derived count (invariant 5).
   const signalsLive = useLiveState("signals");
   const threadsLive = useLiveState("threads");
+  // The Bills desk reads the Worker's /bills endpoint directly, so the nav badge
+  // must read the same source. It previously counted the BILLS fixture, which is
+  // now empty, so the sidebar advertised 0 while the desk rendered 25 live bills.
+  const billsLive = useLiveBills();
   // Same real health signal the topbar's LIVE DATA UNAVAILABLE chip reads (see
   // Topbar's noLiveCache, shell.jsx ~496): the /state fetch errored and nothing
   // has ever loaded, so every desk shows its honest empty state. Driving this
@@ -144,7 +148,7 @@ function Sidebar({ page, onNavigate, mobileOpen }) {
       radar:    active.filter(s => s.attention === "high" || s.attention === "med").length,
       signals:  active.length,
       committees: COMMITTEE_ITEMS.length,
-      bills: BILLS.length,
+      bills: billsLive.items ? billsLive.items.length : BILLS.length,
       parliament: DIVISIONS.length,
       patterns: threadsLive.items ? threadsLive.items.length : QON_PATTERN.items.length,
       briefings: BRIEFING_QUEUE.length + Object.keys(state.briefsGenerated || {}).length,
@@ -152,7 +156,7 @@ function Sidebar({ page, onNavigate, mobileOpen }) {
       sources: null,  /* "6" was ambiguous (feeds? errors?); the Sources page states it plainly */
       about: null,  /* reference material, not a live count */
     };
-  }, [state.archived, state.briefsGenerated, state.watchlistCreated, state.feeds, signalsLive.items, threadsLive.items]);
+  }, [state.archived, state.briefsGenerated, state.watchlistCreated, state.feeds, signalsLive.items, threadsLive.items, billsLive.items]);
   const groups = [...new Set(NAV.map(n => n.group))];
   // Streak: consecutive days the tool has been opened — reflection of practice, not gamification.
   // Compute the display value without side effects so the lazy initialiser is pure if dev StrictMode is added.
@@ -241,7 +245,6 @@ function Sidebar({ page, onNavigate, mobileOpen }) {
             <div>Official RSS proxy configured; runtime health appears on Live</div>
           </>
         )}
-        <div className="mono">Status: local beta</div>
       </div>
       <div className="side-foot">
         <div className="avatar">JV</div>
@@ -910,8 +913,19 @@ function Drawer() {
                   <div style={{color:"var(--ink-2)", fontSize:13, marginTop:4}}>{s.actionReason || "—"}</div>
                 </div>
               </div>
-              <div className="drawer-section"><h3>Summary</h3><p>{s.summary || "—"}</p></div>
-              <div className="drawer-section"><h3>Why it matters</h3><p>{s.attentionReason || "—"}</p></div>
+              {/* A live item's summary and attentionReason both come from the Worker's single
+                  scoring_explanation field (store.jsx mapWorkerSignalToCard). Showing the same
+                  sentence twice under two different headings would read as two independent
+                  facts when it is one, so a live item with identical text collapses to a
+                  single honestly-labelled section instead of duplicating it. */}
+              {isLive && s.summary && s.summary === s.attentionReason ? (
+                <div className="drawer-section"><h3>Scoring explanation</h3><p>{s.summary || "—"}</p></div>
+              ) : (
+                <>
+                  <div className="drawer-section"><h3>Summary</h3><p>{s.summary || "—"}</p></div>
+                  <div className="drawer-section"><h3>Why it matters</h3><p>{s.attentionReason || "—"}</p></div>
+                </>
+              )}
               <div className="drawer-section">
                 <h3>Signal metadata</h3>
                 <dl className="kv">

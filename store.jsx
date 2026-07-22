@@ -319,6 +319,22 @@ function useLiveState(blockName) {
   };
 }
 
+// Selector over the store's independent /bills cache (see the liveBills state
+// block in StoreProvider below). Bills carries no frontend fixture at all, so a
+// null `items` means literally nothing has ever loaded (first load, or every
+// attempt so far has failed) rather than "show the representative fallback" —
+// the desk must render an honest empty/error state in that case, never a
+// "Fixture" chip implying representative content is on screen.
+function useLiveBills() {
+  const { liveBills } = useStore();
+  return {
+    status: liveBills.status,
+    items: liveBills.items,        // null (nothing has ever loaded) or an array (maybe empty) once live
+    fetchedAt: liveBills.fetchedAt,
+    isRefreshing: liveBills.isRefreshing,
+  };
+}
+
 function StoreProvider({ children, navigate = () => {} }) {
   // Owners assigned to signals/bills, feedback given, watchlist additions, toasts
   const [state, setState] = React.useState(() => {
@@ -495,6 +511,78 @@ function StoreProvider({ children, navigate = () => {} }) {
     window.__pulseLiveState = liveState;
   }, [refreshLiveState, liveState]);
 
+  // ---- Live bills (GET /bills) ----
+  // Independent SWR cache alongside the /state cache above: Bills is served from a
+  // separate Worker endpoint with its own shape (GET /bills?limit=N -> {rows,total}),
+  // so it cannot ride the /state poller. Mirrors doFetch's guards (file:// early
+  // return, 8s abort timeout, in-flight dedupe) and its degradation contract: a
+  // failed revalidation keeps the last-good rows rather than blanking the desk, and
+  // only the very first load ever shows "loading". Bills carries no frontend
+  // fixture, so `items` stays null until a fetch has genuinely succeeded at least
+  // once — there is nothing else honest to fall back to.
+  const [liveBills, setLiveBills] = React.useState({
+    status: "idle",       // idle | loading | ready | error
+    items: null,           // null = nothing has ever loaded; array (maybe empty) once one lands
+    fetchedAt: null,
+    isRefreshing: false,
+    lastError: null,
+  });
+  const billsInFlightRef = React.useRef(false);
+  const billsMountedRef = React.useRef(true);
+  const billsFetchedAtRef = React.useRef(null);
+
+  const doFetchBills = React.useCallback(async () => {
+    if (location.protocol === "file:") return;
+    if (billsInFlightRef.current) return;
+    billsInFlightRef.current = true;
+    setLiveBills(s => ({ ...s, status: s.fetchedAt == null ? "loading" : "ready", isRefreshing: true }));
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 8000);
+    try {
+      const res = await fetch(`${WORKER_BASE_URL}/bills?limit=50`, { signal: ctrl.signal });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const payload = await res.json();
+      const rows = Array.isArray(payload?.rows) ? payload.rows : [];
+      const now = Date.now();
+      billsFetchedAtRef.current = now;
+      if (billsMountedRef.current) {
+        setLiveBills(s => ({ ...s, status: "ready", isRefreshing: false, fetchedAt: now, lastError: null, items: rows }));
+      }
+    } catch (e) {
+      // A failed revalidation leaves the cached rows untouched; status only
+      // degrades to "error" when nothing has ever loaded (spec: keep last-good
+      // data on a failed revalidation rather than blanking the desk).
+      if (billsMountedRef.current) {
+        setLiveBills(s => ({ ...s, status: s.fetchedAt != null ? "ready" : "error", isRefreshing: false, lastError: Date.now() }));
+      }
+    } finally {
+      clearTimeout(timer);
+      billsInFlightRef.current = false;
+    }
+  }, []);
+
+  const refreshLiveBills = React.useCallback(() => doFetchBills(), [doFetchBills]);
+
+  React.useEffect(() => {
+    if (location.protocol === "file:") return;
+    billsMountedRef.current = true;
+    doFetchBills().catch(() => {});
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") doFetchBills().catch(() => {});
+    }, 5 * 60 * 1000);
+    const onVisibility = () => {
+      if (document.visibilityState !== "visible") return;
+      const last = billsFetchedAtRef.current;
+      if (last == null || Date.now() - last > 5 * 60 * 1000) doFetchBills().catch(() => {});
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      billsMountedRef.current = false;
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [doFetchBills]);
+
   React.useEffect(() => {
     const prev = document.body.style.overflow;
     if (modal || signalId) document.body.style.overflow = "hidden";
@@ -560,8 +648,11 @@ function StoreProvider({ children, navigate = () => {} }) {
     // Seed sensibly: derive keyword terms from the name and compute real match
     // counts against whichever signal stream is actually on screen (live items
     // when connected, otherwise the now-empty SIGNALS fixture, which honestly
-    // yields 0 rather than a fabricated seed). trend is left flat and the entry
-    // is flagged new for the UI.
+    // yields 0 rather than a fabricated seed). trend stays empty — Parliament
+    // Pulse holds no real history of a brand-new watchlist's matches over time,
+    // so seeding six invented zero-days plus today's real count (the previous
+    // behaviour) would still be presenting an invented history, just with one
+    // true data point buried in it. The entry is flagged new for the UI.
     const keywordList = name.toLowerCase().split(/\s+|&/).map(t => t.trim()).filter(t => t.length > 2);
     const currentSignals = liveState.blocks?.signals?.items || SIGNALS;
     const matches = watchlistMatches({ name, keywordList }, currentSignals).length;
@@ -570,7 +661,7 @@ function StoreProvider({ children, navigate = () => {} }) {
       keywordList,
       keywords: keywordList.length,
       matches,
-      trend: [0, 0, 0, 0, 0, 0, matches],
+      trend: [],
       created: true,
     };
     setState(s => ({ ...s, watchlistCreated: [...s.watchlistCreated, entry] }));
@@ -596,6 +687,7 @@ function StoreProvider({ children, navigate = () => {} }) {
       liveState,
       requestLiveRefresh, consumeLiveRefresh,
       refreshLiveState, liveStateDegradation,
+      liveBills, refreshLiveBills,
       navigate,
       assignOwner, saveFeedback, archive, unarchive,
       addWatchlist, removeWatchlist, isWatched, createWatchlist, generateBrief, addFeed, saveNote,
@@ -606,6 +698,7 @@ function StoreProvider({ children, navigate = () => {} }) {
     visibleSignalOrder, signalSearchQuery,
     liveState,
     requestLiveRefresh, consumeLiveRefresh, refreshLiveState,
+    liveBills, refreshLiveBills,
     navigate, assignOwner, saveFeedback, archive, unarchive,
     addWatchlist, removeWatchlist, isWatched, createWatchlist, generateBrief, addFeed, saveNote,
   ]);
@@ -1046,9 +1139,6 @@ function WatchlistDetail({ id, titleId, closeButtonRef }) {
   const matchingAll = watchlistMatches(w, matchSource);
   const matchingSignals = matchingAll.slice(0, 3);
   const keywordList = watchlistKeywords(w);
-  // F2: guard the spark divisor so an all-zero trend cannot divide by zero.
-  const trend = Array.isArray(w.trend) ? w.trend : [];
-  const max = Math.max(...trend, 1);
   return (
     <>
       <ModalHead kicker={w.created ? "Watchlist · New" : "Watchlist"} title={w.name} representative={!!w.representative} titleId={titleId} closeButtonRef={closeButtonRef} />
@@ -1059,10 +1149,8 @@ function WatchlistDetail({ id, titleId, closeButtonRef }) {
         <div className="grid g-3" style={{gap:12}}>
           <div className="panel stat"><div className="stat-label">Matches</div><div className="stat-value" style={{fontSize:26}}>{matchingAll.length}</div></div>
           <div className="panel stat"><div className="stat-label">Keywords</div><div className="stat-value" style={{fontSize:26}}>{keywordList.length}</div></div>
-          <div className="panel stat"><div className="stat-label">7-day trend</div>
-            {trend.length === 0
-              ? <div className="mono" style={{marginTop:8, color:"var(--ink-4)", fontSize:11}}>— no trend history</div>
-              : <div className="spark" style={{marginTop:8}}>{trend.map((v,i) => <span key={i} style={{height:(v/max*24+3)+"px"}}/>)}</div>}
+          <div className="panel stat"><div className="stat-label">Trend history</div>
+            <div className="mono" style={{marginTop:8, color:"var(--ink-4)", fontSize:11}}>Not held — Parliament Pulse does not yet track watchlist matches over time.</div>
           </div>
         </div>
         <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:6}}>Matching signals</h3>
@@ -1116,4 +1204,4 @@ function RadarDetail({ id, titleId, closeButtonRef }) {
   );
 }
 
-Object.assign(window, { StoreProvider, useStore, DetailModal, watchlistKeywords, watchlistMatches, useLiveState, liveStateDegradation, mapWorkerSignalToCard, mapLiveBlocks, fmtFetchedAt });
+Object.assign(window, { StoreProvider, useStore, DetailModal, watchlistKeywords, watchlistMatches, useLiveState, useLiveBills, liveStateDegradation, mapWorkerSignalToCard, mapLiveBlocks, fmtFetchedAt });
