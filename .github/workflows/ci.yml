@@ -31,14 +31,14 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Lint
-        run: pnpm -r lint
+      # apps/web retired 2026-07-23 (frozen 2026-05-30, build broken: main.tsx
+      # cannot resolve ./App; active frontend is the standalone parliament-pulse
+      # repo). CI is scoped to the canonical worker; the dead web build is removed.
+      - name: Lint (worker)
+        run: pnpm --filter aph-proxy lint
 
-      - name: Typecheck
-        run: pnpm -r typecheck
-
-      - name: Build web
-        run: pnpm --filter web build
+      - name: Typecheck (worker)
+        run: pnpm --filter aph-proxy typecheck
 
       - name: Worker dry-run deploy
         run: pnpm --filter aph-proxy exec wrangler deploy --dry-run --outdir=dist
