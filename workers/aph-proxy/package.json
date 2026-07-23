@@ -12,7 +12,7 @@
     "test": "node --experimental-strip-types tests/threads.test.mjs && node --experimental-strip-types tests/archive.test.mjs"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "4.20260424.1",
+    "@cloudflare/workers-types": "5.20260723.1",
     "typescript": "5.7.2",
     "wrangler": "4.84.1"
   }
