@@ -594,6 +594,41 @@ function PageOverview() {
 // Home for the beta evidence ledger, coverage matrix and provenance panels: reference
 // material about what this product currently proves, moved off the landing page so
 // the overview reads as a working product rather than a beta explainer.
+// LB-05 (2026-07-23): the legal surface. Privacy, non-affiliation, disclaimer and
+// terms, written to match what the product actually does: no accounts, no email
+// collected through the site, no analytics, local-only preferences, and links to
+// official sources rather than republishing them. Placed on the About page so it
+// travels with the honest account of coverage.
+const legalH = { fontSize: 12.5, fontWeight: 600, color: "var(--ink-1)", margin: "14px 0 4px" };
+const legalP = { margin: "0 0 6px" };
+function LegalNoticePanel() {
+  return (
+    <div className="panel" style={{ marginTop: "var(--gap-section)" }}>
+      <div className="panel-head">
+        <h2 className="panel-title">Privacy, terms and disclaimer</h2>
+        <span className="panel-kicker">What this is, and what it does with your data</span>
+      </div>
+      <div className="panel-body" style={{ fontSize: 13, lineHeight: 1.65, color: "var(--ink-2)", maxWidth: 820 }}>
+        <h3 style={legalH}>Independent, not affiliated</h3>
+        <p style={legalP}>Parliament Pulse is an independent project by Prometheus Policy Lab. It is not affiliated with, endorsed by, or an official product of the Parliament of Australia, the Department of Parliamentary Services, or any government body. It reads publicly available RSS feeds published at aph.gov.au and links every item back to its official source.</p>
+
+        <h3 style={legalH}>Your privacy</h3>
+        <p style={legalP}>No account, login, or email is required or collected through this site. Preferences such as your reading streak and interface settings are stored only in your own browser and are never sent to us. We run no third-party analytics, advertising, or tracking. Live parliamentary data is polled from official feeds for display and is not stored on your device.</p>
+
+        <h3 style={legalH}>Not advice</h3>
+        <p style={legalP}>Parliament Pulse is derived intelligence over public sources, provided for information only. It is not legal, parliamentary, or professional advice. Scoring, clustering and watchlist matching are the product's own analysis and can contain errors. Verify against the linked official source at aph.gov.au before relying on any item.</p>
+
+        <h3 style={legalH}>Use and content</h3>
+        <p style={legalP}>The service is free and provided as-is, without warranty. Material published by the Australian Parliament remains subject to the Parliament's own copyright and terms of use; Parliament Pulse links to official sources rather than republishing them, and reproduces only brief factual descriptors with attribution. Coverage and content may change without notice.</p>
+
+        <h3 style={legalH}>Contact and corrections</h3>
+        <p style={legalP}>To report a correction or ask a question, contact Prometheus Policy Lab.{/* [CONFIRM] set the exact public contact channel (email or form) before launch. */}</p>
+
+        <p className="mono" style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 14 }}>Last updated 23 July 2026.</p>
+      </div>
+    </div>
+  );
+}
 function PageAbout() {
   const { navigate, toast } = useStore();
   const goto = navigate;
@@ -640,6 +675,8 @@ function PageAbout() {
       <ProvenanceStackPanel navigate={goto} />
 
       <ProvenanceMetricsBand navigate={goto} />
+
+      <LegalNoticePanel />
     </div>
   );
 }
@@ -2064,6 +2101,11 @@ function AlertRulesPanel() {
   const [kind, setKind] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const matched = useLiveState("alerts");
+  // LB-04 (2026-07-23): the Worker's server-side alert writes are locked pending
+  // decision D2 (client-local vs token-gated). Until then this panel is read-only:
+  // it lists any live rules but offers no creation or deletion, and it never claims
+  // a capability the product does not currently have. Flip to true when D2 lands.
+  const ALERTS_WRITABLE = false;
 
   const loadRules = React.useCallback(() => {
     fetch(`${WORKER_BASE_URL}/alerts`)
@@ -2074,6 +2116,7 @@ function AlertRulesPanel() {
   React.useEffect(() => { loadRules(); }, [loadRules]);
 
   const createRule = () => {
+    if (!ALERTS_WRITABLE) { toast("Rule creation is closed in this release.", "error"); return; }
     const termList = terms.split(",").map(t => t.trim()).filter(Boolean);
     if (!name.trim() || termList.length === 0) { toast("Name and at least one term are required", "error"); return; }
     setSubmitting(true);
@@ -2104,15 +2147,17 @@ function AlertRulesPanel() {
       <div className="panel-head">
         <h2 className="panel-title">Alert rules</h2>
         <span className="panel-kicker">{rules ? `${rules.length} rule${rules.length !== 1 ? "s" : ""} configured` : "Loading…"}</span>
-        <ProvenanceChip provenance="live" title="Rules are read from and written to the Worker's /alerts endpoint" />
+        <ProvenanceChip provenance="live" title="Rules are read from the Worker's /alerts endpoint" />
       </div>
       <div className="panel-body">
         <p style={{margin:"0 0 14px", fontSize:12.5, color:"var(--ink-3)", lineHeight:1.6}}>
-          The alerts engine evaluates every rule below against each 30-minute feed poll, whether or not
+          The alerts engine evaluates each configured rule against every 30-minute feed poll, whether or not
           this tab is open. A rule matches on its keyword terms, and can optionally require a minimum
           attention level, a source group, or a signal kind.
+          {!ALERTS_WRITABLE && " Creating and removing rules from the browser is closed in this release: the server-side write endpoint requires authentication that is not yet in place."}
         </p>
 
+        {ALERTS_WRITABLE && (
         <div style={{display:"grid", gap:8, marginBottom:16}}>
           <div style={{display:"flex", gap:8, flexWrap:"wrap"}}>
             <div style={{flex:"1 1 200px"}}>
@@ -2145,6 +2190,7 @@ function AlertRulesPanel() {
             <button className="btn primary" disabled={submitting} onClick={createRule}><Icon name="plus" size={13}/> {submitting ? "Creating…" : "Create rule"}</button>
           </div>
         </div>
+        )}
 
         {rules === null ? (
           loadFailed ? (
@@ -2170,7 +2216,7 @@ function AlertRulesPanel() {
                     {r.kind && <> · {r.kind}</>}
                   </div>
                 </div>
-                <button className="btn ghost sm" aria-label={`Remove alert rule ${r.name}`} onClick={() => deleteRule(r.id, r.name)}><Icon name="close" size={13}/></button>
+                {ALERTS_WRITABLE && <button className="btn ghost sm" aria-label={`Remove alert rule ${r.name}`} onClick={() => deleteRule(r.id, r.name)}><Icon name="close" size={13}/></button>}
               </div>
             ))}
           </div>
