@@ -35,3 +35,9 @@ pnpm-debug.log*
 .cache/
 coverage/
 *.tsbuildinfo
+
+# Evaluation framework (generated results)
+eval/calibrate_results.json
+eval/bench_results.json
+eval/__pycache__/
+eval/*.pyc
