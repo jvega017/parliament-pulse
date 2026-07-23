@@ -1,12 +1,12 @@
 name: E2E Smoke
 
-# Runs the Playwright smoke suite against production after every push to main.
-# Catches regressions like the Wave 10 [Sample] strip without requiring a
-# full local install.
+# RETIRED 2026-07-23: this suite targets the apps/web frontend, frozen 2026-05-30.
+# Active frontend development moved to the standalone parliament-pulse repo
+# (03_Projects/parliament-pulse), which ships its own release-gate + production-probe.
+# This smoke asserted apps/web's UI against production and failed wholesale because
+# production serves the other build. Manual-dispatch only until repointed or removed.
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 jobs:

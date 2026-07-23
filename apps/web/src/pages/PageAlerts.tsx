@@ -61,7 +61,6 @@ export function PageAlerts(): JSX.Element {
     loadRules(ctrl.signal);
     loadEvents(ctrl.signal);
     return () => ctrl.abort();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function handleCreate(): Promise<void> {

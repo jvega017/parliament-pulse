@@ -1,13 +1,11 @@
 name: Deploy web
 
+# RETIRED 2026-07-23: apps/web was frozen 2026-05-30 and is no longer the deployed
+# frontend (active development moved to the standalone parliament-pulse repo). This
+# would publish the stale apps/web (which still carries pre-sweep fabrications in
+# src/store/Modals.tsx) over the live site. Manual-dispatch only until repointed.
 on:
-  push:
-    branches: [main]
-    paths:
-      - "apps/web/**"
-      - ".github/workflows/deploy-web.yml"
-      - "pnpm-lock.yaml"
-      - "pnpm-workspace.yaml"
+  workflow_dispatch:
 
 concurrency:
   group: deploy-web-${{ github.ref }}
