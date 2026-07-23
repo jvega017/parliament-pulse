@@ -182,6 +182,16 @@ export default {
     }
 
     if (url.pathname === "/digest/subscribe" && req.method === "POST") {
+      // LB-05 (2026-07-23): this endpoint writes an email address to D1 with no
+      // double opt-in and no unsubscribe path, and no UI in the shipped frontend
+      // calls it. Collecting personal data for a product that cannot yet honour an
+      // unsubscribe or deletion request is a privacy liability, so it is disabled
+      // until a compliant double-opt-in flow exists. Flip DIGEST_SUBSCRIBE_ENABLED
+      // to re-enable once that lands.
+      const DIGEST_SUBSCRIBE_ENABLED = false;
+      if (!DIGEST_SUBSCRIBE_ENABLED) {
+        return jsonResponse({ error: "email digests are not open in this release", code: "digest_closed_lb05" }, 403, cors);
+      }
       // Simple per-IP rate limit: max 3 subscribe attempts per minute via KV.
       const ip = req.headers.get("cf-connecting-ip") ?? "unknown";
       const rlKey = `ratelimit:sub:${ip}`;
@@ -232,6 +242,16 @@ export default {
         }
       }
       if (req.method === "POST") {
+        // LB-04 interim lockdown (2026-07-23). /alerts is a shared, unauthenticated,
+        // unmetered write surface with no per-user ownership: anyone could create
+        // unlimited rules. Wave 3 put UI over it, so shipping the honest frontend would
+        // take public writes live. Until the alerts model is resolved (decision D2:
+        // client-local or token-gated), the server-side write is disabled here. GET
+        // stays read-only. Flip ALERTS_WRITE_ENABLED to re-enable once D2 lands.
+        const ALERTS_WRITE_ENABLED = false;
+        if (!ALERTS_WRITE_ENABLED) {
+          return jsonResponse({ error: "alert rules are read-only pending authentication", code: "alerts_locked_lb04" }, 403, cors);
+        }
         try {
           const body = (await req.json()) as { name?: string; terms?: string; attention_min?: string; source_group?: string; kind?: string };
           if (!body.name?.trim()) return jsonResponse({ error: "name required" }, 400, cors);
@@ -247,6 +267,12 @@ export default {
     if (/^\/alerts\/(\d+)$/.test(url.pathname)) {
       const id = parseInt(url.pathname.split("/")[2] ?? "0", 10);
       if (req.method === "DELETE") {
+        // LB-04 interim lockdown (2026-07-23): unauthenticated delete let anyone remove
+        // any rule by id. Disabled with the write path above until decision D2 lands.
+        const ALERTS_WRITE_ENABLED = false;
+        if (!ALERTS_WRITE_ENABLED) {
+          return jsonResponse({ error: "alert rules are read-only pending authentication", code: "alerts_locked_lb04" }, 403, cors);
+        }
         try {
           await deleteAlertRule(env, id);
           return jsonResponse({ ok: true }, 200, cors);
