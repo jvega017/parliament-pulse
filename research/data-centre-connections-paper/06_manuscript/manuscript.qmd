@@ -1,0 +1,63 @@
+---
+title: "The Option Value of a Grid Connection: Data Centres, Demand Uncertainty and Efficient Capacity Reservation"
+author: "[Author], personal capacity. Views do not represent the Queensland Government or any employer."
+date: last-modified
+format:
+  pdf: default
+  docx: default
+bibliography: references.bib
+---
+
+<!-- Single source of truth. Word and PDF outputs are generated; never hand-edit them. -->
+<!-- Style: 00_governance/style_sheet.md. Word budgets: plan v2.0 section 2. -->
+<!-- Every material claim carries a Claim ID comment: <-- CLM-XXXX tier N --> -->
+
+# Abstract
+
+<!-- 150 to 200 words. Written last. Every number here is Tier 1 (dual-verified). -->
+
+# Introduction
+
+<!-- 900 to 1,100 words. Puzzle; the Australian funnel (44 / 7.9 / 6 / 2.8 GW, CLM-0001 to CLM-0004, scenario-dependent, conflict attributed); contribution against the five closest works; findings; limits. -->
+
+# Australian institutional setting
+
+<!-- 900 to 1,200 words. Both connection levels; Package 2 correctly characterised (CLM-0008); DISR Expectations as incumbent screen (CLM-0018); the allocation vacuum. -->
+
+# International mechanism benchmarks
+
+<!-- 600 to 800 words. From 03_institutions/mechanism_benchmarks.md; institutional facts feeding the model, not a survey. -->
+
+# Literature and contribution
+
+<!-- 900 to 1,100 words. Anchored on the five closest works (01_literature/novelty_map.md). -->
+
+# Economic framework
+
+<!-- 1,400 to 1,800 words. From the frozen model specification. -->
+
+# Method and calibration
+
+<!-- 800 to 1,000 words. Calibration targets PAR-0001 to PAR-0005; scenario dependence stated. -->
+
+# Results
+
+<!-- 1,100 to 1,500 words. Only Gate H4 accepted results. -->
+
+# Robustness and sensitivity
+
+<!-- 600 to 900 words. Per the locked sensitivity grid. -->
+
+# Institutional feasibility and distributional effects
+
+<!-- 700 to 1,000 words. From 03_institutions/mechanism_feasibility.md. -->
+
+# Discussion and limitations
+
+<!-- 500 to 800 words. Includes regulatory-currency scope notes (AEMC final determination; Batch Zero outcomes). -->
+
+# Conclusion
+
+<!-- 300 to 450 words. -->
+
+# References

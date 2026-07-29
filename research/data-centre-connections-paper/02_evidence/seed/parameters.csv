@@ -1,0 +1,20 @@
+param_id,definition,units,central_value,plausible_range,source_id,scenario_dependent,status,notes
+PAR-0001,"Gross NEM data centre connection requests, 2025 IASR",GW,44,,SRC-OXF-2025-PHANTOM,no,calibration_target,
+PAR-0002,"Prospective projects after likelihood and duplication filtering",GW,7.9,,SRC-OXF-2025-PHANTOM,yes,calibration_target,
+PAR-0003,"Prospective capacity required under Step Change",GW,6,,SRC-OXF-2025-PHANTOM,yes,calibration_target,
+PAR-0004,"Coincident grid draw of proceeding projects at maturity",GW,2.8,,SRC-OXF-2025-PHANTOM,yes,calibration_target,
+PAR-0005,"Share of phantom demand from non-proceeding projects",share,0.9,,SRC-OXF-2025-PHANTOM,yes,calibration_target,"Approximate (nearly 90 per cent)"
+PAR-0006,"Data centre consumption FY25 baseline",TWh,3.9,,SRC-OXF-2025-DCED,no,pending_promotion,
+PAR-0007,"Step Change data centre consumption FY30",TWh,12.0,,SRC-OXF-2025-DCED,yes,pending_promotion,
+PAR-0008,"Step Change data centre consumption FY50",TWh,34.5,,SRC-OXF-2025-DCED,yes,pending_promotion,
+PAR-0009,"Share of data centre consumption distribution-connected",share,0.98,">0.98",SRC-OXF-2025-DCED,no,pending_promotion,
+PAR-0010,"Transmission pipeline maximum demand, Q1 2026",GW,5.4,,SRC-CS-2026-QED,no,unconfirmed_source,"Confirm against AEMO QED primary"
+PAR-0011,"Application-to-energisation timeframe, large transmission connections",years,2,,SRC-CS-2026-QED,no,unconfirmed_source,
+PAR-0012,"Assumed data centre ramp-up period",years,7.5,"5-10",SRC-CS-2026-QED,no,unconfirmed_source,
+PAR-0013,"Texas non-refundable interconnection fee",USD_per_MW,50000,,SRC-GT-2026-TX,no,pending_promotion,"Mechanism calibration anchor (draft rule)"
+PAR-0014,"Texas site-control horizon beyond contracted peak-demand date",years,5,,SRC-GT-2026-TX,no,pending_promotion,
+PAR-0015,"Ireland renewables additionality obligation",share_of_annual_demand,0.8,,SRC-CRU-2025-236,no,pending_promotion,"6-year glide path; 1 MVA threshold"
+PAR-0016,"DNSP expected-capacity discount vs pipeline (United Energy)",share,0.44,,SRC-AER-2025-UE,no,pending_promotion,"Confirm by direct document access"
+PAR-0017,"DNSP customer contribution rate for data centre connections",share,0.85,,SRC-AER-2025-UE,no,pending_promotion,
+PAR-0018,"Value of flexibility for 24/7 CFE matching",EUR_per_MWh_per_pp,1.29,"+/-0.07",SRC-RZB-2025-STLS,no,pending_promotion,
+PAR-0019,"US integrable load at 0.5 per cent curtailment",GW,98,"76-126 across 0.25-1.0 per cent",SRC-DUKE-2025-RLG,no,pending_promotion,

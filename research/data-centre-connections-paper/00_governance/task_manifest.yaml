@@ -1,0 +1,59 @@
+# Active tasks. Controller updates at each run. Schema per plan v2.0 section 6.2.
+
+- task_id: PH0-GOV-001
+  phase: charter
+  owner_role: human_research_director
+  objective: "Sign Gate H0 checklist in research_charter.md"
+  authorised_inputs:
+    - 00_governance/research_charter.md
+    - docs/research/data-centre-grid-connections/01-critical-review.md
+  required_outputs:
+    - signed H0 checklist, decisions.md ratifications
+  acceptance_tests:
+    - all five checklist items signed or amended
+  budget_tokens_or_hours: "2 hours"
+  verification_tier_of_outputs: 1
+  status: open
+
+- task_id: PH1-EVD-001
+  phase: novelty
+  owner_role: evidence_agent
+  objective: "Promote the 13 single-extraction claims in the evidence store to verified status"
+  authorised_inputs:
+    - 02_evidence/evidence.db
+    - docs/research/data-centre-grid-connections/03-evidence-annex.md
+  required_outputs:
+    - updated verification fields in claims table
+  acceptance_tests:
+    - every Tier 1 claim has two independent verifications
+  budget_tokens_or_hours: "1 day"
+  verification_tier_of_outputs: 1
+  status: blocked   # resume attempt 2026-07-16 hit weekly usage limit; retry after 2026-07-20 23:00 UTC
+
+- task_id: PH1-EVD-002
+  phase: novelty
+  owner_role: evidence_agent
+  objective: "Confirm AEMO 2026 ISP publication status and ENTSO-E data centres publication; resolve AEMO QED Q1 2026 statistics against the primary document"
+  authorised_inputs:
+    - 01_literature/search_protocol.md
+  required_outputs:
+    - source register updates or removals
+  acceptance_tests:
+    - no TO BE CONFIRMED source cited anywhere downstream
+  budget_tokens_or_hours: "0.5 day"
+  verification_tier_of_outputs: 2
+  status: open
+
+- task_id: PH1-WATCH-000
+  phase: standing
+  owner_role: evidence_agent
+  objective: "Weekly regulatory watch per 01_literature/regulatory_watch.md"
+  authorised_inputs:
+    - 01_literature/regulatory_watch.md
+  required_outputs:
+    - dated bulletin appended weekly; tripwires escalated within the week
+  acceptance_tests:
+    - no unactioned tripwire older than 7 days
+  budget_tokens_or_hours: "30 minutes weekly"
+  verification_tier_of_outputs: 3
+  status: open   # automation routine pending Director approval

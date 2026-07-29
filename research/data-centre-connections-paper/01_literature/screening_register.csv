@@ -1,0 +1,23 @@
+date,source_id,title_or_url,decision,reason_code,notes
+2026-07-16,SRC-AEMC-2026-P2,AEMC Improving the NEM access standards Package 2 (rule change page),A,accepted,"Institutional; security standards not allocation"
+2026-07-16,SRC-AEMC-2026-MR,AEMC media release: grid standards for data centre connections,A,accepted,
+2026-07-16,SRC-AEMC-2026-KORTE,Korte speech Data|Power 28 Apr 2026,A,accepted,"Speech, not Commission report"
+2026-07-16,SRC-OXF-2025-DCED,Oxford Economics Data Centre Energy Demand Final Report Jul 2025 (AEMO-hosted),A,accepted,"AEMO-commissioned; calibration set"
+2026-07-16,SRC-OXF-2025-PHANTOM,Oxford Economics phantom demand briefing Nov 2025,A,accepted,"CONFLICT: AWS-commissioned"
+2026-07-16,SRC-OXF-2026-WEB,Oxford Economics phantom demand resource page,A,accepted,corroboration
+2026-07-16,SRC-AER-2025-UE,United Energy Dec 2025 data centre connections business case (AER),A,accepted,"Quotes via search index; confirm by direct access"
+2026-07-16,SRC-DISR-2026-EXP,DISR Expectations of data centres and AI infrastructure developers,A,accepted,
+2026-07-16,SRC-FERC-2026-SC,FERC news release: six show cause orders 18 Jun 2026,A,accepted,
+2026-07-16,SRC-GT-2026-TX,Greenberg Traurig alert on PUCT 16 TAC 25.194,A,accepted,"Secondary (law firm)"
+2026-07-16,SRC-UD-2026-ERCOT,Utility Dive on ERCOT Batch Zero,A,accepted,"Secondary (trade press)"
+2026-07-16,SRC-NRF-2025-TMO4,Norton Rose Fulbright on GB TMO4+,A,accepted,"Secondary; partially pre-dates Ofgem approval"
+2026-07-16,SRC-CRU-2025-236,CRU decision news: Large Energy Users Connection Policy,A,accepted,
+2026-07-16,SRC-NBER-2023-31946,Johnston Liu Yang NBER WP 31946,A,accepted,"Closest paper 1"
+2026-07-16,SRC-DUKE-2025-RLG,Norris et al Rethinking Load Growth (Duke),A,accepted,"Closest paper 2"
+2026-07-16,SRC-MIT-2025-FDC,Knittel Senga Wang CEEPR WP 2025-14,A,accepted,"Closest paper 3"
+2026-07-16,SRC-FED-2026-2606,Kay Reaser Taylor Dallas Fed WP 2606,A,accepted,"Closest paper 4"
+2026-07-16,SRC-RZB-2025-STLS,Riepin Zavala Brown Advances in Applied Energy 17,A,accepted,"Closest paper 5"
+2026-07-16,SRC-CS-2026-QED,certifiedstrategic.com AEMO QED pipeline summary,A,accepted,"Blog; discovery only; confirm vs AEMO QED primary"
+2026-07-16,SRC-NESO-XXXX,neso.energy connections reform page,R4,fetch_failed,"Re-attempt in Phase 1"
+2026-07-16,SRC-AEMO-2026-ISP,AEMO 2026 ISP (assumed PDF URL),R4,fetch_failed,"TO BE CONFIRMED; re-attempt in Phase 1"
+2026-07-16,SRC-AEMO-XXXX-NEWS,AEMO newsroom digital demand page,R4,fetch_failed,

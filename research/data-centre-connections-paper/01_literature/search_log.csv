@@ -1,0 +1,6 @@
+date,engine_or_db,query_or_angle,filters,result_count,notes
+2026-07-16,web_search_multi,"Angle: Australian regulatory state of play (AEMC/AEMO/AER large-load connections 2025-2026)",none,6,"Deep-research run wf_901965ed-0f1"
+2026-07-16,web_search_multi,"Angle: International queue reforms (FERC, ERCOT SB6, PJM, NESO TMO4+, CRU Ireland)",none,6,"Deep-research run wf_901965ed-0f1"
+2026-07-16,web_search_multi,"Angle: Academic/working-paper literature to beat (queues, real options, DC flexibility, mechanism design)",none,6,"5 novel after dedup"
+2026-07-16,web_search_multi,"Angle: Skeptical/phantom demand evidence (Australia and US)",none,6,"3 novel after dedup"
+2026-07-16,web_search_multi,"Angle: Australian calibration data and seed-source verification",none,6,"2 novel after dedup"
