@@ -1,2 +1,5 @@
 {"date":"2026-07-16","event":"pack_scaffolded","detail":"Operating pack v2.0 implemented; evidence store seeded from deep-research run (22 sources, 95 claims, 12 adversarially confirmed, 13 single-extraction pending promotion)","phase":"charter"}
 {"date":"2026-07-16","event":"verification_resume","detail":"Deep-research workflow wf_901965ed-0f1 resumed to complete rate-limited verification votes and synthesis","phase":"novelty"}
+{"date":"2026-07-29","event":"gate_h0_passed","detail":"Director approval via session; phase advanced to 1 (novelty)","phase":"charter"}
+{"date":"2026-07-29","event":"watch_automated","detail":"Weekly Routine trig_013S7aoTZ7FYLAStGwfXBbfy created, Sundays 23:00 UTC","phase":"standing"}
+{"date":"2026-07-29","event":"verification_retry","detail":"Deep-research workflow wf_901965ed-0f1 resumed after usage-limit reset to promote 13 single-extraction claims","phase":"novelty"}

@@ -35,12 +35,15 @@ Australian economics or energy-policy working paper first. Journal class, refere
 
 ## Gate H0 checklist (Director signs each line)
 
-- [ ] Question and audience approved
-- [ ] Personal capacity and conflict disclosures settled
-- [ ] No confidential data in scope
-- [ ] Toolchain locked (git, Python, SQLite, Zotero/BibTeX, Quarto, make)
-- [ ] Working-paper and target-journal ambitions recorded
+- [x] Question and audience approved
+- [x] Personal capacity and conflict disclosures settled
+- [x] No confidential data in scope
+- [x] Toolchain locked (git, Python, SQLite, Zotero/BibTeX, Quarto, make)
+- [x] Working-paper and target-journal ambitions recorded (venue class locked at H1)
 
 **Stop condition:** any part of the argument depends on non-public information that cannot lawfully be disclosed.
 
-Signed: ______________________ Date: ____________
+Signed: Human Research Director, approval given via project session ("Approve"). Date: 2026-07-29.
+Note: recorded on the Director's chat approval; amend or revoke any line by editing this file and logging the change in decisions.md.
+
+**Gate H0 status: PASSED. Current phase: 1 (novelty confirmation and institutional scan).**

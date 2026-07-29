@@ -13,7 +13,7 @@
     - all five checklist items signed or amended
   budget_tokens_or_hours: "2 hours"
   verification_tier_of_outputs: 1
-  status: open
+  status: done   # H0 passed 2026-07-29, Director approval via session
 
 - task_id: PH1-EVD-001
   phase: novelty
@@ -28,7 +28,7 @@
     - every Tier 1 claim has two independent verifications
   budget_tokens_or_hours: "1 day"
   verification_tier_of_outputs: 1
-  status: blocked   # resume attempt 2026-07-16 hit weekly usage limit; retry after 2026-07-20 23:00 UTC
+  status: in_progress   # workflow resumed 2026-07-29 after usage-limit reset
 
 - task_id: PH1-EVD-002
   phase: novelty
@@ -56,4 +56,4 @@
     - no unactioned tripwire older than 7 days
   budget_tokens_or_hours: "30 minutes weekly"
   verification_tier_of_outputs: 3
-  status: open   # automation routine pending Director approval
+  status: live   # Routine trig_013S7aoTZ7FYLAStGwfXBbfy, Sundays 23:00 UTC (Mondays 09:00 Brisbane)
