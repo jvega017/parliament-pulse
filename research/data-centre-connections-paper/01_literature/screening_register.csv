@@ -21,3 +21,7 @@ date,source_id,title_or_url,decision,reason_code,notes
 2026-07-16,SRC-NESO-XXXX,neso.energy connections reform page,R4,fetch_failed,"Re-attempt in Phase 1"
 2026-07-16,SRC-AEMO-2026-ISP,AEMO 2026 ISP (assumed PDF URL),R4,fetch_failed,"TO BE CONFIRMED; re-attempt in Phase 1"
 2026-07-16,SRC-AEMO-XXXX-NEWS,AEMO newsroom digital demand page,R4,fetch_failed,
+2026-07-29,SRC-AEMC-2026-DCPATH,AEMC advice on data centre regulatory pathways - Detailed Policy Assessment (Jul 2026 PDF),A,accepted,"TRIPWIRE source; primary; extract in Phase 1"
+2026-07-29,SRC-ECMC-2026-JUL,ECMC 28 Jul 2026 outcome: mandate DC demand offset via new renewables (REGO),A,accepted,"Via esdnews/pv-tech coverage; obtain ECMC communique primary"
+2026-07-29,SRC-NSW-2026-POWERS,NSW minister REZ-style powers over large-load grid access,A,accepted,"Via pv-tech coverage; obtain primary instrument"
+2026-07-29,SRC-ERCOT-2026-BZ,ERCOT Batch Zero market notices M-B062326-01/-04 and trending topic PDF,A,accepted,"Batch Zero effective 11 Jul 2026; ~205 GW eligible 28 Jul"
