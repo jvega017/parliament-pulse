@@ -25,3 +25,6 @@ date,source_id,title_or_url,decision,reason_code,notes
 2026-07-29,SRC-ECMC-2026-JUL,ECMC 28 Jul 2026 outcome: mandate DC demand offset via new renewables (REGO),A,accepted,"Via esdnews/pv-tech coverage; obtain ECMC communique primary"
 2026-07-29,SRC-NSW-2026-POWERS,NSW minister REZ-style powers over large-load grid access,A,accepted,"Via pv-tech coverage; obtain primary instrument"
 2026-07-29,SRC-ERCOT-2026-BZ,ERCOT Batch Zero market notices M-B062326-01/-04 and trending topic PDF,A,accepted,"Batch Zero effective 11 Jul 2026; ~205 GW eligible 28 Jul"
+2026-08-20,SRC-AEMC-2026-DCMR,AEMC media release 5 Aug 2026: data centres to bring clean firm energy and pay their way,A,accepted,"Primary for the energy obligation advice"
+2026-08-20,SRC-ERCOT-2026-ABBOTT,ERCOT notice M-A080326-01 and coverage of 3 Aug Abbott directive on Batch Zero,A,accepted,"326 projects ~205 GW; classification paused for verification; cure by 31 Aug"
+2026-08-20,SRC-RTO-2026-FILINGS,Six RTO/ISO large-load tariff responses filed 17 Aug 2026 (FERC dockets),A,accepted,"Extract per-RTO mechanism proposals in Phase 1"
