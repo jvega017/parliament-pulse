@@ -28,3 +28,7 @@ date,source_id,title_or_url,decision,reason_code,notes
 2026-08-20,SRC-AEMC-2026-DCMR,AEMC media release 5 Aug 2026: data centres to bring clean firm energy and pay their way,A,accepted,"Primary for the energy obligation advice"
 2026-08-20,SRC-ERCOT-2026-ABBOTT,ERCOT notice M-A080326-01 and coverage of 3 Aug Abbott directive on Batch Zero,A,accepted,"326 projects ~205 GW; classification paused for verification; cure by 31 Aug"
 2026-08-20,SRC-RTO-2026-FILINGS,Six RTO/ISO large-load tariff responses filed 17 Aug 2026 (FERC dockets),A,accepted,"Extract per-RTO mechanism proposals in Phase 1"
+2026-08-24,SRC-AEMO-2026-ESOO,AEMO 2026 Electricity Statement of Opportunities (66.9 GW DC connection requests as of Jun 2026),A,accepted,"TRIPWIRE: calibration anchor; obtain primary before H2"
+2026-08-24,SRC-AEMO-2026-IBLVIS,AEMO rule change request 21 Jul 2026: operational integration and visibility of large IBLs,A,accepted,"New AEMC workstream; fourth Korte plank"
+2026-08-24,SRC-TX-2026-AUDIT,ERCOT/PUCT data centre verification audit (Abbott directive) coverage incl. 14 Aug open meeting,A,accepted,"Audit <9 months, target Dec 2026; new DC approvals paused"
+2026-08-24,SRC-FERC-2026-DEF,FERC proposed large-load definition (>=50 MW, >=69 kV, non-co-located) per filings coverage,A,accepted,"Comments on RTO filings due ~mid-Sep"
