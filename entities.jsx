@@ -20,7 +20,7 @@ window.ENTITIES = {
       bio: null,
       hearings: [],
       inquiries: [],
-      url: "aph.gov.au/Parliamentary_Business/Committees/Senate/Legal_and_Constitutional_Affairs",
+      url: "www.aph.gov.au/Parliamentary_Business/Committees/Senate/Legal_and_Constitutional_Affairs",
     },
     "finpa": {
       id: "finpa",
@@ -34,7 +34,7 @@ window.ENTITIES = {
       bio: null,
       hearings: [],
       inquiries: [],
-      url: "aph.gov.au/Parliamentary_Business/Committees/Senate/Finance_and_Public_Administration",
+      url: "www.aph.gov.au/Parliamentary_Business/Committees/Senate/Finance_and_Public_Administration",
     },
     "econ": {
       id: "econ", name: "Economics Legislation Committee", chamber: "Senate",
@@ -43,7 +43,7 @@ window.ENTITIES = {
       bio: null,
       hearings: [],
       inquiries: [],
-      url: "aph.gov.au/Parliamentary_Business/Committees/Senate/Economics",
+      url: "www.aph.gov.au/Parliamentary_Business/Committees/Senate/Economics",
     },
     "rra": {
       id: "rra", name: "Rural & Regional Affairs Committee", chamber: "Senate",
@@ -52,7 +52,7 @@ window.ENTITIES = {
       bio: null,
       hearings: [],
       inquiries: [],
-      url: "aph.gov.au/Parliamentary_Business/Committees/Senate/Rural_and_Regional_Affairs_and_Transport",
+      url: "www.aph.gov.au/Parliamentary_Business/Committees/Senate/Rural_and_Regional_Affairs_and_Transport",
     },
     "jcle": {
       id: "jcle", name: "Joint Committee on Law Enforcement", chamber: "Joint",
@@ -61,7 +61,7 @@ window.ENTITIES = {
       bio: null,
       hearings: [],
       inquiries: [],
-      url: "aph.gov.au/Parliamentary_Business/Committees/Joint/Law_Enforcement",
+      url: "www.aph.gov.au/Parliamentary_Business/Committees/Joint/Law_Enforcement",
     },
     "envcomms": {
       id: "envcomms", name: "Environment & Communications References", chamber: "Senate",
@@ -70,7 +70,7 @@ window.ENTITIES = {
       bio: null,
       hearings: [],
       inquiries: [],
-      url: "aph.gov.au/Parliamentary_Business/Committees/Senate/Environment_and_Communications",
+      url: "www.aph.gov.au/Parliamentary_Business/Committees/Senate/Environment_and_Communications",
     },
     "jcpaa": {
       id: "jcpaa", name: "Joint Committee on Public Accounts & Audit", chamber: "Joint",
@@ -79,7 +79,7 @@ window.ENTITIES = {
       bio: null,
       hearings: [],
       inquiries: [],
-      url: "aph.gov.au/Parliamentary_Business/Committees/Joint/Public_Accounts_and_Audit",
+      url: "www.aph.gov.au/Parliamentary_Business/Committees/Joint/Public_Accounts_and_Audit",
     },
   },
 
