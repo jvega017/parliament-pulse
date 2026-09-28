@@ -46,25 +46,36 @@ Worker bound to the production KV namespace and D1 database.
 
 ## Deploy
 
-First time only:
+Production deploys run only through GitHub Actions: `Deploy worker` runs
+after the `CI` workflow (typecheck, tests, dry-run deploy) succeeds on a push
+to `main`, and deploys the exact commit CI tested. Do not deploy by hand from
+a working copy; that is how production drifted from git (ARCH-02).
+
+First-time setup of a new account (owner-run):
 
 ```bash
 wrangler kv namespace create CACHE
 # Paste the returned id into wrangler.toml under [[kv_namespaces]]
+wrangler d1 create parliament-pulse-archive
+# Paste the returned id into both ARCHIVE [[d1_databases]] blocks
+wrangler d1 migrations apply parliament-pulse-archive --remote
 ```
 
-Then:
+## Backup and restore
 
-```bash
-pnpm --filter aph-proxy deploy
-```
+`RESTORE.md` is the runbook: D1 Time Travel first, then exports
+(`pnpm backup:export`, `pnpm backup:export:local`, or the manual `D1 backup`
+workflow), restore into a new D1, the manifest count check
+(`pnpm backup:verify`), repointing `database_id`, re-applying migrations,
+and the dated drill log.
 
 ## Config
 
 `wrangler.toml` holds the non-secret config.
 
-- `ALLOWED_ORIGINS` — comma-separated list of origins permitted for CORS. Update after the first Pages deploy to include the `pages.dev` URL and any custom domain.
-- KV binding `CACHE` — RSS payload cache with 5-minute TTL.
+- `ALLOWED_ORIGINS`: comma-separated list of origins permitted for CORS. Production allows only the Pages origin and the custom domain; dev origins live in `[env.dev.vars]`.
+- KV binding `CACHE`: RSS payload cache with 5-minute TTL.
+- D1 binding `ARCHIVE`: database `parliament-pulse-archive`, schema in `migrations/`. Backups and restores: `RESTORE.md`.
 
 ## Security
 

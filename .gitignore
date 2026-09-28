@@ -12,6 +12,9 @@ build/
 .dev.vars
 .miniflare/
 
+# D1 exports (WK-07): a dump can hold personal data; never commit one
+workers/aph-proxy/backups/
+
 # Environment
 .env
 .env.local

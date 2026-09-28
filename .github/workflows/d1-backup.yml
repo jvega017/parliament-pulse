@@ -1,0 +1,87 @@
+name: D1 backup
+
+# WK-07 (ARCH-07). Owner-run export of the parliament-pulse-archive D1 database
+# to a workflow artefact kept for 30 days. Manual only: there is deliberately no
+# schedule, because a schedule would export production on its own and the
+# storage target is still an owner decision (see RESTORE.md).
+#
+# Personal data: this repository is public, and downloading an artefact needs
+# only read access to the repository. The export therefore drops the rows of
+# digest_subscribers (email addresses) and keeps its schema. A full export,
+# subscribers included, is owner-local only:
+#   pnpm --filter aph-proxy backup:export
+#
+# Read-only against Cloudflare: `wrangler d1 export` reads the database. It
+# blocks other requests to the database while it runs (Cloudflare D1 import
+# and export docs), so run it outside a poll window (the poll runs at :00 and
+# :30).
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: d1-backup
+  cancel-in-progress: false
+
+jobs:
+  export:
+    name: Export D1 and upload the dump
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Require Cloudflare secrets
+        run: |
+          missing=""
+          [ -n "$CLOUDFLARE_API_TOKEN" ] || missing="$missing CLOUDFLARE_API_TOKEN"
+          [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || missing="$missing CLOUDFLARE_ACCOUNT_ID"
+          if [ -n "$missing" ]; then
+            echo "::error title=D1 backup cannot run::Missing repository secret(s):$missing. Add them under Settings > Secrets and variables > Actions. The token needs D1 read access on the account that owns parliament-pulse-archive."
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Export D1 (subscriber rows excluded)
+        working-directory: workers/aph-proxy
+        run: node scripts/d1-export.mjs --remote --yes --exclude-table digest_subscribers --out-dir backups
+
+      - name: Upload dump and manifest
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: d1-archive-${{ github.run_id }}
+          path: |
+            workers/aph-proxy/backups/*.sql
+            workers/aph-proxy/backups/*.manifest.json
+          retention-days: 30
+          if-no-files-found: error
+
+      # OWNER DECISION (ARCH-07, review 29 Sep 2026): off-GitHub storage. The
+      # artefact above expires after 30 days. For longer retention, create a
+      # private R2 bucket, give CLOUDFLARE_API_TOKEN R2 write on that bucket
+      # only, set D1_BACKUP_BUCKET as a repository variable, then uncomment:
+      #
+      # - name: Upload dump to R2
+      #   working-directory: workers/aph-proxy
+      #   run: |
+      #     for f in backups/*.sql backups/*.manifest.json; do
+      #       node node_modules/wrangler/bin/wrangler.js r2 object put \
+      #         "${{ vars.D1_BACKUP_BUCKET }}/$(basename "$f")" --file "$f" --remote
+      #     done
