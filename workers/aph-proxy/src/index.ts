@@ -1,6 +1,6 @@
 // APH RSS proxy + archive Worker.
 // Endpoints:
-//   GET /rss?u=<absolute-aph-url>      proxied RSS with KV cache
+//   GET /rss?u=<configured-feed-url>   proxied RSS with KV cache (exact-URL allowlist)
 //   GET /healthz                        liveness probe
 //   GET /healthz/connectors             last connector-check rollup
 //   GET /archive?from=&to=&kind=&q=&source_group=&limit=&offset=
@@ -12,7 +12,17 @@
 //   */30 * * * *   poll APH feeds and upsert into D1
 //   0 0 */14 * *   re-verify the 12 connector URLs every 14 days
 
-import { APH_CONNECTORS, APH_ALLOWED_HOSTS, APH_BROWSER_HEADERS } from "./feeds";
+import { APH_CONNECTORS, APH_ALLOWED_HOSTS, APH_BROWSER_HEADERS, APH_FEEDS } from "./feeds";
+import { checkRateLimit, clientIp } from "./rateLimit";
+import {
+  buildFeedAllowlist,
+  canonicalFeedUrl,
+  rssCacheKey,
+  isXmlContentType,
+  readCappedText,
+  BodyTooLargeError,
+  RSS_MAX_BYTES,
+} from "./rssProxy";
 import {
   checkConnectors,
   pollAndArchive,
@@ -29,6 +39,8 @@ import {
   queryMembers,
   ingestMembers,
   backfillThreads,
+  AnalyticsInputError,
+  MAX_ANALYTICS_TERMS,
   type Env,
 } from "./archive";
 import { ingestQons } from "./hansard";
@@ -38,9 +50,46 @@ import { buildState, freshnessOrDegraded } from "./state";
 const TTL_SECONDS = 300; // 5 minutes
 // APH's edge WAF 403s non-browser user-agents, so the proxy presents the
 // shared browser header profile (jurisdictions.json via ./feeds). The proxy
-// is allowlisted to APH feed hosts only (ALLOWED_HOSTS), so this is not an
-// open relay.
+// serves only the exact feed URLs configured in APH_FEEDS (FEED_ALLOWLIST);
+// ALLOWED_HOSTS is used only to re-check redirect targets. Not an open relay.
 const ALLOWED_HOSTS = new Set<string>(APH_ALLOWED_HOSTS);
+const FEED_ALLOWLIST = buildFeedAllowlist(APH_FEEDS.map((f) => f.url));
+
+// Per-minute budgets for read endpoints limited centrally at the top of fetch.
+// /archive, /bills, /qons, /members and /state keep their own inline limits.
+const READ_LIMITS: Record<string, [string, number]> = {
+  "/rss": ["rss", 60],
+  "/archive/analytics": ["analytics", 30],
+  "/archive/timeline": ["timeline", 60],
+  "/archive/watchlist-trend": ["trend", 60],
+  "/alerts": ["alerts", 60],
+  "/alerts/events": ["alert_events", 60],
+  "/healthz/connectors": ["connectors", 30],
+};
+
+// KV cache helpers that fail open: a KV outage degrades to a cache miss and a
+// skipped write, never to a 5xx on a read endpoint.
+async function kvGetSafe(kv: KVNamespace, key: string): Promise<string | null> {
+  try {
+    return await kv.get(key);
+  } catch (err) {
+    console.warn({ event: "kv.get_failed", key, error: err instanceof Error ? err.message : String(err) });
+    return null;
+  }
+}
+
+function kvPutLater(ctx: ExecutionContext, kv: KVNamespace, key: string, value: string, ttl: number): void {
+  const write = Promise.resolve()
+    .then(() => kv.put(key, value, { expirationTtl: ttl }))
+    .catch((err) => {
+      console.warn({ event: "kv.put_failed", key, error: err instanceof Error ? err.message : String(err) });
+    });
+  try {
+    ctx.waitUntil(write);
+  } catch {
+    // waitUntil unavailable (tests, or a torn-down context): the write still runs.
+  }
+}
 
 function corsHeaders(origin: string, allowed: string): HeadersInit {
   const list = allowed
@@ -73,27 +122,6 @@ function jsonResponse(body: unknown, status: number, extra: HeadersInit): Respon
   });
 }
 
-// KV-backed fixed-window rate limiter. Returns true when the request is
-// allowed; false when the per-IP window budget has been exhausted.
-// Key format: rl:{endpoint}:{ip}:{window_bucket}
-// Race condition (GET then PUT) is intentional — over-counting is harmless
-// and under-counting would be worse for a policy audience.
-async function checkRateLimit(
-  kv: KVNamespace,
-  ip: string,
-  endpoint: string,
-  maxPerWindow: number,
-  windowSec: number,
-): Promise<boolean> {
-  const bucket = Math.floor(Date.now() / 1000 / windowSec);
-  const key = `rl:${endpoint}:${ip}:${bucket}`;
-  const raw = await kv.get(key);
-  const count = raw ? parseInt(raw, 10) : 0;
-  if (count >= maxPerWindow) return false;
-  await kv.put(key, String(count + 1), { expirationTtl: windowSec * 2 });
-  return true;
-}
-
 export default {
   async fetch(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(req.url);
@@ -101,6 +129,16 @@ export default {
     const cors = corsHeaders(origin, env.ALLOWED_ORIGINS);
 
     if (req.method === "OPTIONS") return new Response(null, { headers: cors });
+
+    // WK-02 (ARCH-08, PERF-01): per-IP limits on the read endpoints that had
+    // none. checkRateLimit fails open, so this block cannot throw or 500.
+    const limit = READ_LIMITS[url.pathname];
+    if (limit && (url.pathname !== "/alerts" || req.method === "GET")) {
+      const [bucket, max] = limit;
+      if (!(await checkRateLimit(env.CACHE, clientIp(req), bucket, max, 60, ctx))) {
+        return jsonResponse({ error: `rate limit exceeded, max ${max}/min` }, 429, cors);
+      }
+    }
 
     if (url.pathname === "/healthz") {
       // ok stays true for liveness (the Worker answered). Freshness is
@@ -136,8 +174,8 @@ export default {
 
     if (url.pathname === "/archive") {
       // Rate limit: 120 requests per minute per IP.
-      const ip = req.headers.get("cf-connecting-ip") ?? "unknown";
-      if (!(await checkRateLimit(env.CACHE, ip, "archive", 120, 60))) {
+      const ip = clientIp(req);
+      if (!(await checkRateLimit(env.CACHE, ip, "archive", 120, 60, ctx))) {
         return jsonResponse({ error: "rate limit exceeded — max 120/min" }, 429, cors);
       }
       // Optional Cloudflare Access gate. Enable by setting REQUIRE_ACCESS = "true"
@@ -160,6 +198,9 @@ export default {
         const result = await watchlistAnalytics(env, url.searchParams);
         return jsonResponse(result, 200, cors);
       } catch (err) {
+        if (err instanceof AnalyticsInputError) {
+          return jsonResponse({ error: err.message, code: "analytics_too_many_terms", max_terms: MAX_ANALYTICS_TERMS }, 400, cors);
+        }
         console.error({ endpoint: "/archive/analytics", error: err instanceof Error ? err.message : err, ts: new Date().toISOString() });
         return jsonResponse({ error: "analytics temporarily unavailable" }, 503, cors);
       }
@@ -197,7 +238,7 @@ export default {
         return jsonResponse({ error: "email digests are not open in this release", code: "digest_closed_lb05" }, 403, cors);
       }
       // Simple per-IP rate limit: max 3 subscribe attempts per minute via KV.
-      const ip = req.headers.get("cf-connecting-ip") ?? "unknown";
+      const ip = clientIp(req);
       const rlKey = `ratelimit:sub:${ip}`;
       const rlRaw = await env.CACHE.get(rlKey);
       const rlCount = rlRaw ? parseInt(rlRaw, 10) : 0;
@@ -289,8 +330,8 @@ export default {
 
     // Bills (archive view — kind=digest) ----------------------------------------
     if (url.pathname === "/bills") {
-      const ip = req.headers.get("cf-connecting-ip") ?? "unknown";
-      if (!(await checkRateLimit(env.CACHE, ip, "bills", 60, 60))) {
+      const ip = clientIp(req);
+      if (!(await checkRateLimit(env.CACHE, ip, "bills", 60, 60, ctx))) {
         return jsonResponse({ error: "rate limit exceeded — max 60/min" }, 429, cors);
       }
       try {
@@ -304,8 +345,8 @@ export default {
 
     // QONs -----------------------------------------------------------------------
     if (url.pathname === "/qons") {
-      const ip = req.headers.get("cf-connecting-ip") ?? "unknown";
-      if (!(await checkRateLimit(env.CACHE, ip, "qons", 30, 60))) {
+      const ip = clientIp(req);
+      if (!(await checkRateLimit(env.CACHE, ip, "qons", 30, 60, ctx))) {
         return jsonResponse({ error: "rate limit exceeded — max 30/min" }, 429, cors);
       }
       try {
@@ -319,8 +360,8 @@ export default {
 
     // Members --------------------------------------------------------------------
     if (url.pathname === "/members") {
-      const ip = req.headers.get("cf-connecting-ip") ?? "unknown";
-      if (!(await checkRateLimit(env.CACHE, ip, "members", 30, 60))) {
+      const ip = clientIp(req);
+      if (!(await checkRateLimit(env.CACHE, ip, "members", 30, 60, ctx))) {
         return jsonResponse({ error: "rate limit exceeded — max 30/min" }, 429, cors);
       }
       try {
@@ -380,12 +421,12 @@ export default {
     // Composed state view (signals + connectors + alerts + qons), provenance-as-schema.
     if (url.pathname === "/state") {
       if (req.method !== "GET") return jsonResponse({ error: "method not allowed" }, 405, cors);
-      const ip = req.headers.get("cf-connecting-ip") ?? "unknown";
-      if (!(await checkRateLimit(env.CACHE, ip, "state", 60, 60))) {
+      const ip = clientIp(req);
+      if (!(await checkRateLimit(env.CACHE, ip, "state", 60, 60, ctx))) {
         return jsonResponse({ error: "rate limit exceeded — max 60/min" }, 429, cors);
       }
       const cacheKey = "state:v1";
-      const cached = await env.CACHE.get(cacheKey);
+      const cached = await kvGetSafe(env.CACHE, cacheKey);
       if (cached) {
         return new Response(cached, {
           headers: {
@@ -400,7 +441,7 @@ export default {
       try {
         const state = await buildState(env);
         const body = JSON.stringify(state);
-        ctx.waitUntil(env.CACHE.put(cacheKey, body, { expirationTtl: TTL_SECONDS }));
+        kvPutLater(ctx, env.CACHE, cacheKey, body, TTL_SECONDS);
         return new Response(body, {
           headers: {
             ...SECURITY_HEADERS,
@@ -429,19 +470,19 @@ export default {
       return jsonResponse({ error: "missing required query param: u" }, 400, cors);
     }
 
-    let parsed: URL;
-    try {
-      parsed = new URL(target);
-    } catch {
+    // SEC-01: exact-URL allowlist. Only the feed URLs configured in
+    // jurisdictions.json are served; any other path on an APH host, any extra
+    // query string, and any non-APH host is refused.
+    const canonical = canonicalFeedUrl(target);
+    if (!canonical) {
       return jsonResponse({ error: "invalid url" }, 400, cors);
     }
-
-    if (parsed.protocol !== "https:" || !ALLOWED_HOSTS.has(parsed.hostname)) {
-      return jsonResponse({ error: "host not allowed", host: parsed.hostname }, 403, cors);
+    if (!FEED_ALLOWLIST.has(canonical)) {
+      return jsonResponse({ error: "feed not allowed" }, 403, cors);
     }
 
-    const cacheKey = `rss:${parsed.toString()}`;
-    const cached = await env.CACHE.get(cacheKey);
+    const cacheKey = rssCacheKey(canonical);
+    const cached = await kvGetSafe(env.CACHE, cacheKey);
     if (cached) {
       return new Response(cached, {
         headers: {
@@ -456,46 +497,61 @@ export default {
 
     let upstream: Response;
     try {
-      upstream = await fetch(parsed.toString(), {
+      upstream = await fetch(canonical, {
         headers: APH_BROWSER_HEADERS,
         redirect: "manual",
         cf: { cacheTtl: TTL_SECONDS, cacheEverything: true },
       });
 
       let redirectCount = 0;
+      let current = canonical;
       while (upstream.status >= 300 && upstream.status < 400) {
         const location = upstream.headers.get("Location");
         if (!location) {
           return jsonResponse({ error: "upstream redirect missing location" }, 502, cors);
         }
-        const redirected = new URL(location, upstream.url || parsed.toString());
+        const redirected = new URL(location, current);
         if (redirected.protocol !== "https:" || !ALLOWED_HOSTS.has(redirected.hostname)) {
-          return jsonResponse({ error: "upstream redirect not allowed", host: redirected.hostname }, 502, cors);
+          return jsonResponse({ error: "upstream redirect not allowed" }, 502, cors);
         }
         redirectCount += 1;
         if (redirectCount > 5) {
           return jsonResponse({ error: "upstream redirect limit exceeded" }, 502, cors);
         }
-        upstream = await fetch(redirected.toString(), {
+        current = redirected.toString();
+        upstream = await fetch(current, {
           headers: APH_BROWSER_HEADERS,
           redirect: "manual",
           cf: { cacheTtl: TTL_SECONDS, cacheEverything: true },
         });
       }
     } catch (err) {
-      return jsonResponse(
-        { error: "upstream fetch failed", reason: err instanceof Error ? err.message : "unknown" },
-        502,
-        cors,
-      );
+      console.error({ endpoint: "/rss", error: err instanceof Error ? err.message : String(err) });
+      return jsonResponse({ error: "upstream fetch failed" }, 502, cors);
     }
 
     if (!upstream.ok) {
       return jsonResponse({ error: "upstream status", status: upstream.status }, 502, cors);
     }
 
-    const body = await upstream.text();
-    ctx.waitUntil(env.CACHE.put(cacheKey, body, { expirationTtl: TTL_SECONDS }));
+    // SEC-03: serve only feed-shaped responses.
+    if (!isXmlContentType(upstream.headers.get("content-type"))) {
+      try { await upstream.body?.cancel(); } catch { /* ignore */ }
+      return jsonResponse({ error: "upstream returned an unexpected response" }, 502, cors);
+    }
+
+    // PERF-01: stream with a hard cap rather than buffering an unbounded body.
+    let body: string;
+    try {
+      body = await readCappedText(upstream, RSS_MAX_BYTES);
+    } catch (err) {
+      if (err instanceof BodyTooLargeError) {
+        return jsonResponse({ error: "upstream feed too large", max_bytes: RSS_MAX_BYTES }, 413, cors);
+      }
+      console.error({ endpoint: "/rss", error: err instanceof Error ? err.message : String(err) });
+      return jsonResponse({ error: "upstream fetch failed" }, 502, cors);
+    }
+    kvPutLater(ctx, env.CACHE, cacheKey, body, TTL_SECONDS);
 
     return new Response(body, {
       headers: {

@@ -497,6 +497,13 @@ export async function queryArchive(env: Env, params: URLSearchParams): Promise<{
   return { rows, total, has_more: total > offset + limit };
 }
 
+// WK-02 (SEC-02, PERF-01): analytics used to run one D1 query per term with no
+// cap on the number of terms, so a single request could fan out into an
+// unbounded number of queries. Terms are now capped and folded into ONE query.
+export const MAX_ANALYTICS_TERMS = 10;
+
+export class AnalyticsInputError extends Error {}
+
 export async function watchlistAnalytics(env: Env, params: URLSearchParams): Promise<{
   series: Array<{ term: string; count: number; last_seen: string | null }>;
 }> {
@@ -507,19 +514,32 @@ export async function watchlistAnalytics(env: Env, params: URLSearchParams): Pro
   if (terms.length === 0) return { series: [] };
 
   const uniqueTerms = [...new Set(terms)];
-  const series: Array<{ term: string; count: number; last_seen: string | null }> = [];
-  for (const term of uniqueTerms) {
-    const where: string[] = ["LOWER(title) LIKE ? ESCAPE '\\'"];
-    const binds: unknown[] = [`%${escapeLike(term)}%`];
-    if (from) { where.push("pub_date >= ?"); binds.push(from); }
-    if (to) { where.push("pub_date <= ?"); binds.push(to); }
-    const r = await env.ARCHIVE.prepare(
-      `SELECT COUNT(*) AS n, MAX(pub_date) AS last_seen FROM signals WHERE ${where.join(" AND ")}`,
-    )
-      .bind(...binds)
-      .first<{ n: number; last_seen: string | null }>();
-    series.push({ term, count: r?.n ?? 0, last_seen: r?.last_seen ?? null });
+  if (uniqueTerms.length > MAX_ANALYTICS_TERMS) {
+    throw new AnalyticsInputError(
+      `too many terms: ${uniqueTerms.length} supplied, at most ${MAX_ANALYTICS_TERMS} allowed`,
+    );
   }
+
+  const cols: string[] = [];
+  const binds: unknown[] = [];
+  uniqueTerms.forEach((term, i) => {
+    const pattern = `%${escapeLike(term)}%`;
+    cols.push(`SUM(CASE WHEN LOWER(title) LIKE ? ESCAPE '\\' THEN 1 ELSE 0 END) AS n${i}`);
+    cols.push(`MAX(CASE WHEN LOWER(title) LIKE ? ESCAPE '\\' THEN pub_date END) AS l${i}`);
+    binds.push(pattern, pattern);
+  });
+  const where: string[] = [];
+  if (from) { where.push("pub_date >= ?"); binds.push(from); }
+  if (to) { where.push("pub_date <= ?"); binds.push(to); }
+  const whereSql = where.length ? ` WHERE ${where.join(" AND ")}` : "";
+  const r = await env.ARCHIVE.prepare(`SELECT ${cols.join(", ")} FROM signals${whereSql}`)
+    .bind(...binds)
+    .first<Record<string, number | string | null>>();
+  const series = uniqueTerms.map((term, i) => ({
+    term,
+    count: Number(r?.[`n${i}`] ?? 0) || 0,
+    last_seen: (r?.[`l${i}`] as string | null | undefined) ?? null,
+  }));
   return { series };
 }
 

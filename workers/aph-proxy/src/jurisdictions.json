@@ -6,8 +6,7 @@
       "www.aph.gov.au",
       "aph.gov.au",
       "parlinfo.aph.gov.au",
-      "parlwork.aph.gov.au",
-      "www.youtube.com"
+      "parlwork.aph.gov.au"
     ],
     "parlinfoSearchBase": "https://parlinfo.aph.gov.au/parlInfo/search/search.w3p",
     "browserHeaders": {
