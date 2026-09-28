@@ -68,6 +68,7 @@ function App() {
           <Topbar mobileNavOpen={mobileNavOpen} setMobileNavOpen={setMobileNavOpen} />
           <BetaNotice />
           <main className="content" id="pp-content" tabIndex={-1}><ErrorBoundary>{renderPage()}</ErrorBoundary></main>
+          <SiteFooter />
         </div>
         <ErrorBoundary><Drawer /></ErrorBoundary>
         <ErrorBoundary><DetailModal /></ErrorBoundary>

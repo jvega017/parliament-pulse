@@ -4,7 +4,7 @@
 // fetches. It replaces the old duplication between data.jsx APH_FEEDS and the
 // pages.jsx APH_FEED_URLS list. WP-C reads window.SOURCE_REGISTRY using exactly the
 // field names below, so do not rename or remove any of them:
-//   id, label, url, authority, fpr, confidence, module,
+//   id, label, url, authority, confidence, module,
 //   lastStatusCode, errorDetail, lastItemCount
 //
 // Only the SIX APH RSS feeds verified live this session are included. The parlinfo
@@ -12,7 +12,7 @@
 // challenge and returns 403 even through a stealth proxy, so it is not usable.
 //
 // Live-health fields (lastStatusCode, errorDetail, lastItemCount) start null and are
-// populated at runtime by the poller. Static config (authority, fpr, confidence) is
+// populated at runtime by the poller. Static config (authority, confidence) is
 // held constant. Legacy display fields (name, group, status, last, today, modules,
 // parser) are kept so existing consumers in shell.jsx, store.jsx and pages.jsx that
 // read APH_FEEDS continue to work unchanged; APH_FEEDS is a const alias of the
@@ -23,13 +23,25 @@
 // place instead of re-hardcoding the Worker hostname per call site.
 const WORKER_BASE_URL = "https://aph-proxy.jvega019.workers.dev";
 
+// Licence attribution (LEG-03). APH web content is published under CC BY-NC-ND 4.0.
+// This exact text is shown in the persistent site footer (shell.jsx SiteFooter)
+// and appended to every CSV and brief export. tests/attribution-check.mjs fails
+// the release gate if it goes missing from the footer or an export template.
+const APH_LICENCE_URL = "https://creativecommons.org/licenses/by-nc-nd/4.0/";
+const APH_ATTRIBUTION = "Source material: Parliament of Australia website, licensed under CC BY-NC-ND 4.0 (" + APH_LICENCE_URL + "). Titles reproduced unmodified; scores and summaries are Parliament Pulse analysis.";
+
+// A false-positive rate is a measured quantity. The registry previously carried a
+// static per-feed "fpr" grade that nothing had measured; it is deleted. Surfaces
+// that show the column render a dash with this note until 30 days of triage
+// feedback exist to compute it.
+const FPR_PENDING_NOTE = "Measured after 30 days";
+
 const SOURCE_REGISTRY = [
   {
     id: "h-media",
     label: "House Media Releases",
     url: "https://www.aph.gov.au/house/rss/media_releases",
     authority: "Official",
-    fpr: "Med",
     confidence: "High",
     module: "Media",
     lastStatusCode: null,
@@ -43,7 +55,6 @@ const SOURCE_REGISTRY = [
     label: "Senate Committee Reports Tabled",
     url: "https://www.aph.gov.au/senate/rss/reports",
     authority: "Official",
-    fpr: "Low",
     confidence: "High",
     module: "Committees",
     lastStatusCode: null,
@@ -56,7 +67,6 @@ const SOURCE_REGISTRY = [
     label: "Senate New Inquiries",
     url: "https://www.aph.gov.au/senate/rss/new_inquiries",
     authority: "Official",
-    fpr: "Low",
     confidence: "High",
     module: "Committees",
     lastStatusCode: null,
@@ -69,7 +79,6 @@ const SOURCE_REGISTRY = [
     label: "Senate Upcoming Hearings",
     url: "https://www.aph.gov.au/senate/rss/upcoming_hearings",
     authority: "Official",
-    fpr: "Low",
     confidence: "High",
     module: "What's On",
     lastStatusCode: null,
@@ -82,7 +91,6 @@ const SOURCE_REGISTRY = [
     label: "House Divisions",
     url: "https://www.aph.gov.au/house/rss/divisions",
     authority: "Official",
-    fpr: "Low",
     confidence: "High",
     module: "Divisions",
     lastStatusCode: null,
@@ -95,7 +103,6 @@ const SOURCE_REGISTRY = [
     label: "House Daily Program",
     url: "https://www.aph.gov.au/house/rss/daily_program",
     authority: "Official",
-    fpr: "Low",
     confidence: "High",
     module: "Parliament",
     lastStatusCode: null,
@@ -260,6 +267,6 @@ const DATASET_FLAGS = {
 QON_PATTERN.representative = true;
 
 Object.assign(window, {
-  WORKER_BASE_URL, SOURCE_REGISTRY, sourceCounts, DATASET_FLAGS, APH_FEEDS,
+  WORKER_BASE_URL, APH_ATTRIBUTION, APH_LICENCE_URL, FPR_PENDING_NOTE, SOURCE_REGISTRY, sourceCounts, DATASET_FLAGS, APH_FEEDS,
   SIGNALS, COMMITTEE_ITEMS, BILLS, DIVISIONS, WATCHLISTS, RADAR, QON_PATTERN, BRIEFING_QUEUE
 });

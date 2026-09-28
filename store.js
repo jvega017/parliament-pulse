@@ -200,8 +200,62 @@ function mapLiveBlocks(blocks) {
     connectors: mapOneBlock(b.connectors, "checks", mapConnectorCheck),
     threads: mapOneBlock(b.threads, "items", mapThreadItem),
     alerts: mapOneBlock(b.alerts, "events", (x) => x),
-    qons: mapOneBlock(b.qons, "items", (x) => x)
+    qons: mapOneBlock(b.qons, "items", (x) => x),
+    // Dedicated desk blocks the Worker does not serve yet (state-v1 carries none).
+    // Mapped when present so a later Worker release lights the counts up with no
+    // frontend change; absent, they map to items:null and the counts fall back to
+    // the signals-derived subset below.
+    committees: mapOneBlock(b.committees, "items", (x) => x),
+    reports: mapOneBlock(b.reports, "items", (x) => x),
+    divisions: mapOneBlock(b.divisions, "items", (x) => x)
   };
+}
+const COMMITTEE_STRIP_LABELS = /* @__PURE__ */ new Set([
+  "Senate reports tabled",
+  "New Senate inquiries",
+  "Upcoming Senate hearings",
+  "House committee inquiries",
+  "Joint committee inquiries"
+]);
+const REPORT_LABELS = /* @__PURE__ */ new Set(["Senate reports tabled"]);
+const DIVISION_LABELS = /* @__PURE__ */ new Set(["House divisions"]);
+function selectCounts(blocks, liveBills) {
+  const b = blocks || {};
+  const signals = b.signals && Array.isArray(b.signals.items) ? b.signals.items : null;
+  const own = (blk) => blk && Array.isArray(blk.items) ? blk.items.length : null;
+  const fromSignals = (labels) => signals ? signals.filter((s) => labels.has(s.source)).length : null;
+  const prov = (blk) => blk && Array.isArray(blk.items) ? blk.provenance : null;
+  const billsItems = liveBills && Array.isArray(liveBills.items) ? liveBills.items : null;
+  const pick = (blk, labels) => {
+    var _a;
+    return (_a = own(blk)) != null ? _a : fromSignals(labels);
+  };
+  const pickProv = (blk) => prov(blk) || (signals ? prov(b.signals) : null);
+  return {
+    signals: signals ? signals.length : null,
+    committees: pick(b.committees, COMMITTEE_STRIP_LABELS),
+    reports: pick(b.reports, REPORT_LABELS),
+    divisions: pick(b.divisions, DIVISION_LABELS),
+    threads: own(b.threads),
+    qons: own(b.qons),
+    connectors: own(b.connectors),
+    bills: billsItems ? billsItems.length : null,
+    // Provenance of whatever produced each count: "live" | "derived" | null.
+    provenance: {
+      signals: prov(b.signals),
+      committees: pickProv(b.committees),
+      reports: pickProv(b.reports),
+      divisions: pickProv(b.divisions),
+      threads: prov(b.threads),
+      qons: prov(b.qons),
+      connectors: prov(b.connectors),
+      bills: billsItems ? "live" : null
+    }
+  };
+}
+function useCounts() {
+  const { liveState, liveBills } = useStore();
+  return React.useMemo(() => selectCounts(liveState && liveState.blocks, liveBills), [liveState && liveState.blocks, liveBills]);
 }
 function mergeLiveBlocks(prev, next) {
   if (!prev) return next;
@@ -832,7 +886,7 @@ function FeedDetail({ id, titleId, closeButtonRef }) {
   const status = f.lastStatusCode != null ? f.lastStatusCode >= 200 && f.lastStatusCode < 300 ? "Live" : "Error" : "\u2014";
   const parser = f.parser || "\u2014";
   const last = f.last || "\u2014";
-  return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(ModalHead, { kicker: `Source \xB7 ${f.group}`, title: f.name, titleId, closeButtonRef }), /* @__PURE__ */ React.createElement("div", { className: "modal-body" }, /* @__PURE__ */ React.createElement("dl", { className: "kv" }, /* @__PURE__ */ React.createElement("dt", null, "URL"), /* @__PURE__ */ React.createElement("dd", { className: "mono", style: { fontSize: 11, color: "var(--ink-3)", wordBreak: "break-all" } }, f.url), /* @__PURE__ */ React.createElement("dt", null, "Status"), /* @__PURE__ */ React.createElement("dd", null, status), /* @__PURE__ */ React.createElement("dt", null, "Authority"), /* @__PURE__ */ React.createElement("dd", null, f.authority), /* @__PURE__ */ React.createElement("dt", null, "Confidence"), /* @__PURE__ */ React.createElement("dd", null, f.confidence), /* @__PURE__ */ React.createElement("dt", null, "Parser"), /* @__PURE__ */ React.createElement("dd", null, parser), /* @__PURE__ */ React.createElement("dt", null, "Last refresh"), /* @__PURE__ */ React.createElement("dd", { className: "mono" }, last), /* @__PURE__ */ React.createElement("dt", null, "Items today"), /* @__PURE__ */ React.createElement("dd", { className: "mono" }, (_a = f.today) != null ? _a : "\u2014"), /* @__PURE__ */ React.createElement("dt", null, "False positive"), /* @__PURE__ */ React.createElement("dd", null, f.fpr), /* @__PURE__ */ React.createElement("dt", null, "Modules"), /* @__PURE__ */ React.createElement("dd", null, f.modules.join(", "))), /* @__PURE__ */ React.createElement("h3", { className: "mono", style: { fontSize: 10, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: ".16em", marginTop: 16, marginBottom: 8 } }, "Recent items"), /* @__PURE__ */ React.createElement("div", { className: "empty" }, "\u2014")), /* @__PURE__ */ React.createElement("div", { className: "modal-foot" }, /* @__PURE__ */ React.createElement("button", { className: "btn primary", onClick: () => {
+  return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(ModalHead, { kicker: `Source \xB7 ${f.group}`, title: f.name, titleId, closeButtonRef }), /* @__PURE__ */ React.createElement("div", { className: "modal-body" }, /* @__PURE__ */ React.createElement("dl", { className: "kv" }, /* @__PURE__ */ React.createElement("dt", null, "URL"), /* @__PURE__ */ React.createElement("dd", { className: "mono", style: { fontSize: 11, color: "var(--ink-3)", wordBreak: "break-all" } }, f.url), /* @__PURE__ */ React.createElement("dt", null, "Status"), /* @__PURE__ */ React.createElement("dd", null, status), /* @__PURE__ */ React.createElement("dt", null, "Authority"), /* @__PURE__ */ React.createElement("dd", null, f.authority), /* @__PURE__ */ React.createElement("dt", null, "Confidence"), /* @__PURE__ */ React.createElement("dd", null, f.confidence), /* @__PURE__ */ React.createElement("dt", null, "Parser"), /* @__PURE__ */ React.createElement("dd", null, parser), /* @__PURE__ */ React.createElement("dt", null, "Last refresh"), /* @__PURE__ */ React.createElement("dd", { className: "mono" }, last), /* @__PURE__ */ React.createElement("dt", null, "Items today"), /* @__PURE__ */ React.createElement("dd", { className: "mono" }, (_a = f.today) != null ? _a : "\u2014"), /* @__PURE__ */ React.createElement("dt", null, "False positive"), /* @__PURE__ */ React.createElement("dd", { title: FPR_PENDING_NOTE }, "\u2014 ", /* @__PURE__ */ React.createElement("span", { style: { color: "var(--ink-4)" } }, FPR_PENDING_NOTE)), /* @__PURE__ */ React.createElement("dt", null, "Modules"), /* @__PURE__ */ React.createElement("dd", null, f.modules.join(", "))), /* @__PURE__ */ React.createElement("h3", { className: "mono", style: { fontSize: 10, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: ".16em", marginTop: 16, marginBottom: 8 } }, "Recent items"), /* @__PURE__ */ React.createElement("div", { className: "empty" }, "\u2014")), /* @__PURE__ */ React.createElement("div", { className: "modal-foot" }, /* @__PURE__ */ React.createElement("button", { className: "btn primary", onClick: () => {
     if (typeof window.__refreshLiveFeeds === "function") {
       window.__refreshLiveFeeds();
       toast(`${f.name} refresh requested`, "brass");
@@ -887,4 +941,4 @@ Suggested actions:
     closeModal();
   } }, /* @__PURE__ */ React.createElement(Icon, { name: "brief", size: 13 }), " Draft issue brief")));
 }
-Object.assign(window, { StoreProvider, useStore, DetailModal, watchlistKeywords, watchlistMatches, useLiveState, useLiveBills, liveStateDegradation, mapWorkerSignalToCard, mapLiveBlocks, fmtFetchedAt });
+Object.assign(window, { StoreProvider, useStore, DetailModal, watchlistKeywords, watchlistMatches, useLiveState, useLiveBills, selectCounts, useCounts, COMMITTEE_STRIP_LABELS, liveStateDegradation, mapWorkerSignalToCard, mapLiveBlocks, fmtFetchedAt });

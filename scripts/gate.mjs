@@ -13,6 +13,7 @@ const GATES = [
   "tests/beta-contract.test.mjs",
   "tests/matching.test.mjs",
   "tests/state-contract.test.mjs",
+  "tests/honest-surfaces.test.mjs",
 ];
 
 for (const g of GATES) {

@@ -101,19 +101,22 @@ function fmtDataAge(fetchedAt) {
   return Math.floor(mins / 60) + "h";
 }
 
+// NAV carries no count literals (UX-02): every badge is computed in Sidebar from
+// selectCounts() over the /state cache, and a desk with no live or derived block
+// shows no badge at all.
 const NAV = [
-  { id: "overview", label: "Overview", group: "Today", count: null },
-  { id: "live", label: "Live parliament", group: "Today", count: null, live: true },
-  { id: "signals", label: "Signal inbox", group: "Today", count: 6 },
-  { id: "radar", label: "Attention radar", group: "Today", count: 6 },
-  { id: "committees", label: "Committees", group: "Workspace", count: 7 },
-  { id: "bills", label: "Bills intelligence", group: "Workspace", count: 5 },
-  { id: "parliament", label: "Daily program", group: "Workspace", count: 3 },
-  { id: "patterns", label: "QON patterns", group: "Workspace", count: 1 },
-  { id: "briefings", label: "Briefings", group: "Workspace", count: 4 },
-  { id: "watchlists", label: "Watchlists", group: "Workspace", count: 12 },
-  { id: "sources", label: "Sources", group: "Workspace", count: null },
-  { id: "about", label: "About the data", group: "Workspace", count: null },
+  { id: "overview", label: "Overview", group: "Today" },
+  { id: "live", label: "Live parliament", group: "Today", live: true },
+  { id: "signals", label: "Signal inbox", group: "Today" },
+  { id: "radar", label: "Attention radar", group: "Today" },
+  { id: "committees", label: "Committees", group: "Workspace" },
+  { id: "bills", label: "Bills intelligence", group: "Workspace" },
+  { id: "parliament", label: "Daily program", group: "Workspace" },
+  { id: "patterns", label: "Threads", group: "Workspace" },
+  { id: "briefings", label: "Briefings", group: "Workspace" },
+  { id: "watchlists", label: "Watchlists", group: "Workspace" },
+  { id: "sources", label: "Sources", group: "Workspace" },
+  { id: "about", label: "About the data", group: "Workspace" },
 ];
 
 const ICONS = {
@@ -125,38 +128,35 @@ const ICONS = {
 
 function Sidebar({ page, onNavigate, mobileOpen }) {
   const { state, liveState } = useStore();
-  // Live counts derive from the shared /state cache where a live block exists; a
-  // desk with no live block keeps its fixture-derived count (invariant 5).
-  const signalsLive = useLiveState("signals");
-  const threadsLive = useLiveState("threads");
-  // The Bills desk reads the Worker's /bills endpoint directly, so the nav badge
-  // must read the same source. It previously counted the BILLS fixture, which is
-  // now empty, so the sidebar advertised 0 while the desk rendered 25 live bills.
-  const billsLive = useLiveBills();
+  // Every badge reads the shared selectCounts() (store.jsx), the same source the
+  // Overview tiles and the About ledger use. null means the desk has no live or
+  // derived block with rows, and renders no badge (UX-02).
+  const counts = useCounts();
   // Same real health signal the topbar's LIVE DATA UNAVAILABLE chip reads (see
-  // Topbar's noLiveCache, shell.jsx ~496): the /state fetch errored and nothing
-  // has ever loaded, so every desk shows its honest empty state. Driving this
-  // block from that shared signal means it can never show "configured" while
-  // the topbar is simultaneously showing an outage.
+  // Topbar's noLiveCache): the /state fetch errored and nothing has ever loaded,
+  // so every desk shows its honest empty state. Driving this block from that
+  // shared signal means it can never show "configured" while the topbar is
+  // simultaneously showing an outage.
   const noLiveCache = !!(liveState && liveState.status === "error" && !liveState.blocks);
   const navCount = React.useMemo(() => {
-    const signalSource = signalsLive.items || SIGNALS;
-    const active = signalSource.filter(s => !state.archived[s.id]);
+    const signalItems = (liveState && liveState.blocks && liveState.blocks.signals && liveState.blocks.signals.items) || null;
+    const active = signalItems ? signalItems.filter(s => !state.archived[s.id]) : null;
     return {
-      overview: null,  /* a dashboard has no unambiguous count; omit (the hero KPI carries the priority number) */
+      overview: null,  /* a dashboard has no unambiguous count; the hero KPI carries the priority number */
       live: null,
-      radar:    active.filter(s => s.attention === "high" || s.attention === "med").length,
-      signals:  active.length,
-      committees: COMMITTEE_ITEMS.length,
-      bills: billsLive.items ? billsLive.items.length : BILLS.length,
-      parliament: DIVISIONS.length,
-      patterns: threadsLive.items ? threadsLive.items.length : QON_PATTERN.items.length,
+      signals: active ? active.length : null,
+      radar: active ? active.filter(s => s.attention === "high" || s.attention === "med").length : null,
+      committees: counts.committees,
+      bills: counts.bills,
+      parliament: counts.divisions,
+      patterns: counts.threads,
+      // The user's own briefs and watchlist configuration are real local counts.
       briefings: BRIEFING_QUEUE.length + Object.keys(state.briefsGenerated || {}).length,
       watchlists: WATCHLISTS.length + (state.watchlistCreated || []).length,
-      sources: null,  /* "6" was ambiguous (feeds? errors?); the Sources page states it plainly */
-      about: null,  /* reference material, not a live count */
+      sources: null,  /* the Sources page states feed health plainly */
+      about: null,    /* reference material, not a live count */
     };
-  }, [state.archived, state.briefsGenerated, state.watchlistCreated, state.feeds, signalsLive.items, threadsLive.items, billsLive.items]);
+  }, [counts, liveState, state.archived, state.briefsGenerated, state.watchlistCreated]);
   const groups = [...new Set(NAV.map(n => n.group))];
   // Streak: consecutive days the tool has been opened — reflection of practice, not gamification.
   // Compute the display value without side effects so the lazy initialiser is pure if dev StrictMode is added.
@@ -221,7 +221,7 @@ function Sidebar({ page, onNavigate, mobileOpen }) {
                 <Icon name={ICONS[n.id]} size={15} className="ico" />
                 <span>{n.label}</span>
                 {n.live && <span className="count nav-live">LIVE</span>}
-                {!n.live && navCount[n.id] !== null && <span className="count">{navCount[n.id]}</span>}
+                {!n.live && typeof navCount[n.id] === "number" && navCount[n.id] > 0 && <span className="count" data-nav-count={n.id}>{navCount[n.id]}</span>}
               </div>
             ))}
           </div>
@@ -247,10 +247,8 @@ function Sidebar({ page, onNavigate, mobileOpen }) {
         )}
       </div>
       <div className="side-foot">
-        <div className="avatar">JV</div>
         <div style={{lineHeight:1.2}}>
-          <div style={{fontSize:12.5, fontWeight:500}}>Juan Vega</div>
-          <div style={{fontFamily:"var(--mono)", fontSize:"var(--t-micro)", color:"var(--ink-4)"}}>Prometheus Policy Lab · live beta</div>
+          <div style={{fontFamily:"var(--mono)", fontSize:"var(--t-micro)", color:"var(--ink-4)"}}>Prometheus Policy Lab · free beta</div>
         </div>
       </div>
     </aside>
@@ -719,6 +717,9 @@ function generateBriefMarkdown(s, isLive = false) {
     `## Provenance`,
     brief.provenance,
     `Generated: ${new Date().toISOString()}`,
+    ``,
+    `---`,
+    APH_ATTRIBUTION,
   ].join("\n");
 }
 
@@ -1060,4 +1061,20 @@ function Drawer() {
   );
 }
 
-Object.assign(window, { Sidebar, Topbar, TopClock, SignalCard, Drawer, Att, Conf, ProvenanceChip, BetaNotice, EmptyState, SkeletonRow, SkeletonCard, SkeletonTable, fmtDataAge, buildBriefSections });
+// Persistent licence attribution (LEG-03), rendered on every page below the
+// content. The sentence is written out literally here (not only via the
+// APH_ATTRIBUTION constant) so the release gate can prove the shell carries it;
+// tests/attribution-check.mjs fails the build if it goes missing.
+function SiteFooter() {
+  return (
+    <footer className="site-foot" role="contentinfo">
+      <p>
+        Source material: Parliament of Australia website, licensed under{" "}
+        <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank" rel="noopener noreferrer license">CC BY-NC-ND 4.0</a>.
+        {" "}Titles reproduced unmodified; scores and summaries are Parliament Pulse analysis.
+      </p>
+    </footer>
+  );
+}
+
+Object.assign(window, { Sidebar, Topbar, TopClock, SignalCard, Drawer, Att, Conf, ProvenanceChip, BetaNotice, EmptyState, SkeletonRow, SkeletonCard, SkeletonTable, fmtDataAge, buildBriefSections, SiteFooter, generateBriefMarkdown });

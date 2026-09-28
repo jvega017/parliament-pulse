@@ -1,11 +1,13 @@
 const WORKER_BASE_URL = "https://aph-proxy.jvega019.workers.dev";
+const APH_LICENCE_URL = "https://creativecommons.org/licenses/by-nc-nd/4.0/";
+const APH_ATTRIBUTION = "Source material: Parliament of Australia website, licensed under CC BY-NC-ND 4.0 (" + APH_LICENCE_URL + "). Titles reproduced unmodified; scores and summaries are Parliament Pulse analysis.";
+const FPR_PENDING_NOTE = "Measured after 30 days";
 const SOURCE_REGISTRY = [
   {
     id: "h-media",
     label: "House Media Releases",
     url: "https://www.aph.gov.au/house/rss/media_releases",
     authority: "Official",
-    fpr: "Med",
     confidence: "High",
     module: "Media",
     lastStatusCode: null,
@@ -25,7 +27,6 @@ const SOURCE_REGISTRY = [
     label: "Senate Committee Reports Tabled",
     url: "https://www.aph.gov.au/senate/rss/reports",
     authority: "Official",
-    fpr: "Low",
     confidence: "High",
     module: "Committees",
     lastStatusCode: null,
@@ -44,7 +45,6 @@ const SOURCE_REGISTRY = [
     label: "Senate New Inquiries",
     url: "https://www.aph.gov.au/senate/rss/new_inquiries",
     authority: "Official",
-    fpr: "Low",
     confidence: "High",
     module: "Committees",
     lastStatusCode: null,
@@ -63,7 +63,6 @@ const SOURCE_REGISTRY = [
     label: "Senate Upcoming Hearings",
     url: "https://www.aph.gov.au/senate/rss/upcoming_hearings",
     authority: "Official",
-    fpr: "Low",
     confidence: "High",
     module: "What's On",
     lastStatusCode: null,
@@ -82,7 +81,6 @@ const SOURCE_REGISTRY = [
     label: "House Divisions",
     url: "https://www.aph.gov.au/house/rss/divisions",
     authority: "Official",
-    fpr: "Low",
     confidence: "High",
     module: "Divisions",
     lastStatusCode: null,
@@ -101,7 +99,6 @@ const SOURCE_REGISTRY = [
     label: "House Daily Program",
     url: "https://www.aph.gov.au/house/rss/daily_program",
     authority: "Official",
-    fpr: "Low",
     confidence: "High",
     module: "Parliament",
     lastStatusCode: null,
@@ -171,6 +168,9 @@ const DATASET_FLAGS = {
 QON_PATTERN.representative = true;
 Object.assign(window, {
   WORKER_BASE_URL,
+  APH_ATTRIBUTION,
+  APH_LICENCE_URL,
+  FPR_PENDING_NOTE,
   SOURCE_REGISTRY,
   sourceCounts,
   DATASET_FLAGS,

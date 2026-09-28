@@ -255,7 +255,68 @@ function mapLiveBlocks(blocks) {
     threads: mapOneBlock(b.threads, "items", mapThreadItem),
     alerts: mapOneBlock(b.alerts, "events", x => x),
     qons: mapOneBlock(b.qons, "items", x => x),
+    // Dedicated desk blocks the Worker does not serve yet (state-v1 carries none).
+    // Mapped when present so a later Worker release lights the counts up with no
+    // frontend change; absent, they map to items:null and the counts fall back to
+    // the signals-derived subset below.
+    committees: mapOneBlock(b.committees, "items", x => x),
+    reports: mapOneBlock(b.reports, "items", x => x),
+    divisions: mapOneBlock(b.divisions, "items", x => x),
   };
+}
+
+// ---- Single-source counts (UX-02) ----
+// Every count the product shows (nav badges, Overview tiles, the About ledger,
+// the activation matrix) is read from selectCounts() over the /state cache, so no
+// two surfaces can disagree and no literal default can survive a data change.
+// A count is null when its desk has no live or derived block with rows: callers
+// render no badge (or a dash) for null, never a remembered number.
+//
+// Real Worker feed_label values (workers/aph-proxy/src/jurisdictions.json,
+// verified against a live /state probe 2026-07-22).
+const COMMITTEE_STRIP_LABELS = new Set([
+  "Senate reports tabled", "New Senate inquiries", "Upcoming Senate hearings",
+  "House committee inquiries", "Joint committee inquiries",
+]);
+const REPORT_LABELS = new Set(["Senate reports tabled"]);
+const DIVISION_LABELS = new Set(["House divisions"]);
+
+function selectCounts(blocks, liveBills) {
+  const b = blocks || {};
+  const signals = (b.signals && Array.isArray(b.signals.items)) ? b.signals.items : null;
+  const own = (blk) => (blk && Array.isArray(blk.items)) ? blk.items.length : null;
+  const fromSignals = (labels) => signals ? signals.filter(s => labels.has(s.source)).length : null;
+  const prov = (blk) => (blk && Array.isArray(blk.items)) ? blk.provenance : null;
+  const billsItems = liveBills && Array.isArray(liveBills.items) ? liveBills.items : null;
+  // A dedicated block wins; otherwise the subset is derived from live signals.
+  const pick = (blk, labels) => own(blk) ?? fromSignals(labels);
+  const pickProv = (blk) => prov(blk) || (signals ? prov(b.signals) : null);
+  return {
+    signals: signals ? signals.length : null,
+    committees: pick(b.committees, COMMITTEE_STRIP_LABELS),
+    reports: pick(b.reports, REPORT_LABELS),
+    divisions: pick(b.divisions, DIVISION_LABELS),
+    threads: own(b.threads),
+    qons: own(b.qons),
+    connectors: own(b.connectors),
+    bills: billsItems ? billsItems.length : null,
+    // Provenance of whatever produced each count: "live" | "derived" | null.
+    provenance: {
+      signals: prov(b.signals),
+      committees: pickProv(b.committees),
+      reports: pickProv(b.reports),
+      divisions: pickProv(b.divisions),
+      threads: prov(b.threads),
+      qons: prov(b.qons),
+      connectors: prov(b.connectors),
+      bills: billsItems ? "live" : null,
+    },
+  };
+}
+
+function useCounts() {
+  const { liveState, liveBills } = useStore();
+  return React.useMemo(() => selectCounts(liveState && liveState.blocks, liveBills), [liveState && liveState.blocks, liveBills]);
 }
 
 // Merge a freshly-mapped block set over the cached one, per block. A fresh block
@@ -1125,7 +1186,7 @@ function FeedDetail({ id, titleId, closeButtonRef }) {
           <dt>Parser</dt><dd>{parser}</dd>
           <dt>Last refresh</dt><dd className="mono">{last}</dd>
           <dt>Items today</dt><dd className="mono">{f.today ?? "—"}</dd>
-          <dt>False positive</dt><dd>{f.fpr}</dd>
+          <dt>False positive</dt><dd title={FPR_PENDING_NOTE}>— <span style={{color:"var(--ink-4)"}}>{FPR_PENDING_NOTE}</span></dd>
           <dt>Modules</dt><dd>{f.modules.join(", ")}</dd>
         </dl>
         <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:16, marginBottom:8}}>Recent items</h3>
@@ -1226,4 +1287,4 @@ function RadarDetail({ id, titleId, closeButtonRef }) {
   );
 }
 
-Object.assign(window, { StoreProvider, useStore, DetailModal, watchlistKeywords, watchlistMatches, useLiveState, useLiveBills, liveStateDegradation, mapWorkerSignalToCard, mapLiveBlocks, fmtFetchedAt });
+Object.assign(window, { StoreProvider, useStore, DetailModal, watchlistKeywords, watchlistMatches, useLiveState, useLiveBills, selectCounts, useCounts, COMMITTEE_STRIP_LABELS, liveStateDegradation, mapWorkerSignalToCard, mapLiveBlocks, fmtFetchedAt });

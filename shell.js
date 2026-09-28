@@ -42,18 +42,18 @@ function fmtDataAge(fetchedAt) {
   return Math.floor(mins / 60) + "h";
 }
 const NAV = [
-  { id: "overview", label: "Overview", group: "Today", count: null },
-  { id: "live", label: "Live parliament", group: "Today", count: null, live: true },
-  { id: "signals", label: "Signal inbox", group: "Today", count: 6 },
-  { id: "radar", label: "Attention radar", group: "Today", count: 6 },
-  { id: "committees", label: "Committees", group: "Workspace", count: 7 },
-  { id: "bills", label: "Bills intelligence", group: "Workspace", count: 5 },
-  { id: "parliament", label: "Daily program", group: "Workspace", count: 3 },
-  { id: "patterns", label: "QON patterns", group: "Workspace", count: 1 },
-  { id: "briefings", label: "Briefings", group: "Workspace", count: 4 },
-  { id: "watchlists", label: "Watchlists", group: "Workspace", count: 12 },
-  { id: "sources", label: "Sources", group: "Workspace", count: null },
-  { id: "about", label: "About the data", group: "Workspace", count: null }
+  { id: "overview", label: "Overview", group: "Today" },
+  { id: "live", label: "Live parliament", group: "Today", live: true },
+  { id: "signals", label: "Signal inbox", group: "Today" },
+  { id: "radar", label: "Attention radar", group: "Today" },
+  { id: "committees", label: "Committees", group: "Workspace" },
+  { id: "bills", label: "Bills intelligence", group: "Workspace" },
+  { id: "parliament", label: "Daily program", group: "Workspace" },
+  { id: "patterns", label: "Threads", group: "Workspace" },
+  { id: "briefings", label: "Briefings", group: "Workspace" },
+  { id: "watchlists", label: "Watchlists", group: "Workspace" },
+  { id: "sources", label: "Sources", group: "Workspace" },
+  { id: "about", label: "About the data", group: "Workspace" }
 ];
 const ICONS = {
   overview: "overview",
@@ -71,31 +71,30 @@ const ICONS = {
 };
 function Sidebar({ page, onNavigate, mobileOpen }) {
   const { state, liveState } = useStore();
-  const signalsLive = useLiveState("signals");
-  const threadsLive = useLiveState("threads");
-  const billsLive = useLiveBills();
+  const counts = useCounts();
   const noLiveCache = !!(liveState && liveState.status === "error" && !liveState.blocks);
   const navCount = React.useMemo(() => {
-    const signalSource = signalsLive.items || SIGNALS;
-    const active = signalSource.filter((s) => !state.archived[s.id]);
+    const signalItems = liveState && liveState.blocks && liveState.blocks.signals && liveState.blocks.signals.items || null;
+    const active = signalItems ? signalItems.filter((s) => !state.archived[s.id]) : null;
     return {
       overview: null,
-      /* a dashboard has no unambiguous count; omit (the hero KPI carries the priority number) */
+      /* a dashboard has no unambiguous count; the hero KPI carries the priority number */
       live: null,
-      radar: active.filter((s) => s.attention === "high" || s.attention === "med").length,
-      signals: active.length,
-      committees: COMMITTEE_ITEMS.length,
-      bills: billsLive.items ? billsLive.items.length : BILLS.length,
-      parliament: DIVISIONS.length,
-      patterns: threadsLive.items ? threadsLive.items.length : QON_PATTERN.items.length,
+      signals: active ? active.length : null,
+      radar: active ? active.filter((s) => s.attention === "high" || s.attention === "med").length : null,
+      committees: counts.committees,
+      bills: counts.bills,
+      parliament: counts.divisions,
+      patterns: counts.threads,
+      // The user's own briefs and watchlist configuration are real local counts.
       briefings: BRIEFING_QUEUE.length + Object.keys(state.briefsGenerated || {}).length,
       watchlists: WATCHLISTS.length + (state.watchlistCreated || []).length,
       sources: null,
-      /* "6" was ambiguous (feeds? errors?); the Sources page states it plainly */
+      /* the Sources page states feed health plainly */
       about: null
       /* reference material, not a live count */
     };
-  }, [state.archived, state.briefsGenerated, state.watchlistCreated, state.feeds, signalsLive.items, threadsLive.items, billsLive.items]);
+  }, [counts, liveState, state.archived, state.briefsGenerated, state.watchlistCreated]);
   const groups = [...new Set(NAV.map((n) => n.group))];
   const [streak, setStreak] = React.useState(() => {
     const today = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
@@ -138,8 +137,8 @@ function Sidebar({ page, onNavigate, mobileOpen }) {
     /* @__PURE__ */ React.createElement(Icon, { name: ICONS[n.id], size: 15, className: "ico" }),
     /* @__PURE__ */ React.createElement("span", null, n.label),
     n.live && /* @__PURE__ */ React.createElement("span", { className: "count nav-live" }, "LIVE"),
-    !n.live && navCount[n.id] !== null && /* @__PURE__ */ React.createElement("span", { className: "count" }, navCount[n.id])
-  ))))), /* @__PURE__ */ React.createElement("div", { className: "side-status", "aria-label": "System status" }, noLiveCache ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "side-status-head" }, /* @__PURE__ */ React.createElement("span", { className: "dot", style: { background: "var(--caution)", boxShadow: "none" } }), /* @__PURE__ */ React.createElement("span", null, "Live data unavailable")), /* @__PURE__ */ React.createElement("div", null, "Official RSS proxy did not respond at the last check; desks show an honest empty state rather than invented data. See Live for feed health.")) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "side-status-head" }, /* @__PURE__ */ React.createElement("span", { className: "dot", style: { background: "var(--ok)", boxShadow: "none" } }), /* @__PURE__ */ React.createElement("span", null, "Feeds configured")), /* @__PURE__ */ React.createElement("div", null, "Official RSS proxy configured; runtime health appears on Live"))), /* @__PURE__ */ React.createElement("div", { className: "side-foot" }, /* @__PURE__ */ React.createElement("div", { className: "avatar" }, "JV"), /* @__PURE__ */ React.createElement("div", { style: { lineHeight: 1.2 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12.5, fontWeight: 500 } }, "Juan Vega"), /* @__PURE__ */ React.createElement("div", { style: { fontFamily: "var(--mono)", fontSize: "var(--t-micro)", color: "var(--ink-4)" } }, "Prometheus Policy Lab \xB7 live beta"))));
+    !n.live && typeof navCount[n.id] === "number" && navCount[n.id] > 0 && /* @__PURE__ */ React.createElement("span", { className: "count", "data-nav-count": n.id }, navCount[n.id])
+  ))))), /* @__PURE__ */ React.createElement("div", { className: "side-status", "aria-label": "System status" }, noLiveCache ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "side-status-head" }, /* @__PURE__ */ React.createElement("span", { className: "dot", style: { background: "var(--caution)", boxShadow: "none" } }), /* @__PURE__ */ React.createElement("span", null, "Live data unavailable")), /* @__PURE__ */ React.createElement("div", null, "Official RSS proxy did not respond at the last check; desks show an honest empty state rather than invented data. See Live for feed health.")) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "side-status-head" }, /* @__PURE__ */ React.createElement("span", { className: "dot", style: { background: "var(--ok)", boxShadow: "none" } }), /* @__PURE__ */ React.createElement("span", null, "Feeds configured")), /* @__PURE__ */ React.createElement("div", null, "Official RSS proxy configured; runtime health appears on Live"))), /* @__PURE__ */ React.createElement("div", { className: "side-foot" }, /* @__PURE__ */ React.createElement("div", { style: { lineHeight: 1.2 } }, /* @__PURE__ */ React.createElement("div", { style: { fontFamily: "var(--mono)", fontSize: "var(--t-micro)", color: "var(--ink-4)" } }, "Prometheus Policy Lab \xB7 free beta"))));
 }
 function ShortcutHelp() {
   const [open, setOpen] = React.useState(false);
@@ -576,7 +575,10 @@ function generateBriefMarkdown(s, isLive = false) {
     ``,
     `## Provenance`,
     brief.provenance,
-    `Generated: ${(/* @__PURE__ */ new Date()).toISOString()}`
+    `Generated: ${(/* @__PURE__ */ new Date()).toISOString()}`,
+    ``,
+    `---`,
+    APH_ATTRIBUTION
   ].join("\n");
 }
 function Drawer() {
@@ -782,4 +784,7 @@ function Drawer() {
     else closeSignal();
   } }, "Archive"), /* @__PURE__ */ React.createElement("button", { className: "btn ghost", style: { marginLeft: "auto" }, onClick: closeWithFlush }, "Close")))));
 }
-Object.assign(window, { Sidebar, Topbar, TopClock, SignalCard, Drawer, Att, Conf, ProvenanceChip, BetaNotice, EmptyState, SkeletonRow, SkeletonCard, SkeletonTable, fmtDataAge, buildBriefSections });
+function SiteFooter() {
+  return /* @__PURE__ */ React.createElement("footer", { className: "site-foot", role: "contentinfo" }, /* @__PURE__ */ React.createElement("p", null, "Source material: Parliament of Australia website, licensed under", " ", /* @__PURE__ */ React.createElement("a", { href: "https://creativecommons.org/licenses/by-nc-nd/4.0/", target: "_blank", rel: "noopener noreferrer license" }, "CC BY-NC-ND 4.0"), ".", " ", "Titles reproduced unmodified; scores and summaries are Parliament Pulse analysis."));
+}
+Object.assign(window, { Sidebar, Topbar, TopClock, SignalCard, Drawer, Att, Conf, ProvenanceChip, BetaNotice, EmptyState, SkeletonRow, SkeletonCard, SkeletonTable, fmtDataAge, buildBriefSections, SiteFooter, generateBriefMarkdown });

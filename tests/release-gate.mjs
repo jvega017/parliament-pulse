@@ -21,6 +21,7 @@ import { fileURLToPath } from "node:url";
 import os from "node:os";
 import { BANNED, scan } from "./fabrication-patterns.mjs";
 import { JSX_FILES, compile } from "../scripts/build-config.mjs";
+import { ATTRIBUTION_CANARIES, checkAttribution } from "./attribution-check.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -132,6 +133,38 @@ try {
   fs.rmSync(tmp, { recursive: true, force: true });
 }
 console.log(`Sync check: ${JSX_FILES.length} .jsx files rebuilt with the pinned esbuild and byte-compared with the committed .js.`);
+
+// ---------------------------------------------------------------------------
+// LICENCE ATTRIBUTION (LEG-03). Canary first: every seeded removal must be
+// caught and the unmodified bundle must pass, or the check is inadmissible.
+// ---------------------------------------------------------------------------
+{
+  const read = f => (fs.existsSync(path.join(root, f)) ? fs.readFileSync(path.join(root, f), "utf8") : "");
+  const sets = ["jsx", "js"].map(ext => ({
+    ext,
+    files: { data: read(`data.${ext}`), shell: read(`shell.${ext}`), pages: read(`pages.${ext}`), app: read(`app.${ext}`) },
+  }));
+  let attrCanaryFail = 0;
+  for (const { ext, files } of sets) {
+    for (const c of ATTRIBUTION_CANARIES) {
+      if (checkAttribution(c.mutate(files), ext).length === 0) {
+        console.error(`ATTRIBUTION CANARY MISS [${ext}]: the check did not catch "${c.why}".`);
+        attrCanaryFail++;
+      }
+    }
+  }
+  if (attrCanaryFail > 0) {
+    console.error("ATTRIBUTION CHECK: instrument self-test failed; its clean result is inadmissible.");
+    findings += attrCanaryFail;
+  }
+  for (const { ext, files } of sets) {
+    for (const msg of checkAttribution(files, ext)) {
+      console.error(`ATTRIBUTION MISSING  ${msg}`);
+      findings++;
+    }
+  }
+  console.log(`Attribution check: ${ATTRIBUTION_CANARIES.length} seeded removals caught in .jsx and .js; footer, CSV and brief templates carry the CC BY-NC-ND 4.0 attribution.`);
+}
 
 if (findings > 0) {
   console.error(`\nRELEASE GATE: FAIL. ${findings} finding(s).`);

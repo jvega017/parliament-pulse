@@ -23,8 +23,14 @@ function exportSignalsCSV(signals) {
 }
 
 // Reused by the Bills register export (F4): generic array-to-CSV download with no blob leak.
+// Every CSV ends with a blank row and the APH licence attribution (LEG-03), a
+// single-cell row so spreadsheet tools still parse the table above it.
+function buildCSV(headers, rows) {
+  return [headers, ...rows, [], [APH_ATTRIBUTION]].map(r => r.map(csvEscape).join(",")).join("\n");
+}
+
 function exportRowsCSV(headers, rows, filename) {
-  const csv = [headers, ...rows].map(r => r.map(csvEscape).join(",")).join("\n");
+  const csv = buildCSV(headers, rows);
   let url = "";
   try {
     const blob = new Blob([csv], { type: "text/csv" });
@@ -135,64 +141,92 @@ const PROVENANCE_STACK = [
   },
 ];
 
+// Module coverage rows. `source` names the selectCounts() key whose provenance
+// sets the status, so the matrix is generated from the same fields the nav
+// badges and the ledger read (UX-02) and a module turns Live the moment its
+// block does. `derivedFrom` marks modules that are the product's own analysis
+// over a live block (Derived, never Live). `fallback` is the status with no
+// usable block; nothing here is a hand-set "Live".
 const COVERAGE_MATRIX = [
   {
     module: "Live parliament",
-    state: "Configured",
+    source: "signals",
+    fallback: "Configured",
     evidence: "Six official APH RSS feeds plus chamber program and broadcast links.",
-    activation: "Keep runtime feed health in Live page; add sitting-status check before claiming current chamber activity.",
+    activation: "Add a sitting-status check before claiming current chamber activity.",
     page: "live",
   },
   {
     module: "Sources",
-    state: "Configured",
-    evidence: "Official source register and constrained proxy route.",
-    activation: "Connect custom-feed validation to backend parser instead of timeout simulation.",
+    source: "connectors",
+    fallback: "Configured",
+    evidence: "Official source register; the Worker health-checks each endpoint.",
+    activation: "Connect custom-feed validation to a backend parser.",
     page: "sources",
   },
   {
     module: "Overview signals",
-    state: "Representative",
-    evidence: "Representative signal set with direct source links.",
-    activation: "Wire production scoring, entity extraction and watchlist matching.",
+    source: "signals",
+    fallback: "Unavailable",
+    evidence: "Signals from the Worker's /state archive, each linked to its APH source.",
+    activation: "Add entity extraction; keep scores labelled as Parliament Pulse analysis.",
     page: "signals",
   },
   {
     module: "Committees",
-    state: "Partial live",
-    evidence: "Committee RSS coverage where official feeds expose reports, inquiries and hearings.",
-    activation: "Add committee profile scraper or curated registry for chairs, dates and hearing status.",
+    source: "committees",
+    fallback: "Unavailable",
+    evidence: "Items from the Senate, House and joint committee feeds.",
+    activation: "Add a curated registry for chairs, dates and hearing status.",
     page: "committees",
   },
   {
     module: "Bills intelligence",
-    state: "Representative",
-    evidence: "Bill source links and representative digest workflow.",
-    activation: "Connect bills register, amendment tracking and portfolio routing.",
+    source: "bills",
+    fallback: "Unavailable",
+    evidence: "Bills register served by the Worker's /bills endpoint.",
+    activation: "Add amendment tracking and portfolio routing.",
     page: "bills",
   },
   {
     module: "Briefings",
-    state: "Local beta",
+    source: null,
+    fallback: "Local beta",
     evidence: "Clipboard export, CSV export and browser-local queue state.",
     activation: "Add shared persistence, reviewer assignment and approval workflow.",
     page: "briefings",
   },
   {
-    module: "QON patterns",
-    state: "Representative",
-    evidence: "Modelled pattern-detection workflow.",
-    activation: "Add Hansard/QON extraction, NLP clustering and source-level audit trace.",
+    module: "Threads",
+    source: "threads",
+    fallback: "Unavailable",
+    evidence: "The Worker's own clustering of live signals into threads.",
+    activation: "Add Hansard and Questions on Notice extraction once a feed can be reached.",
     page: "patterns",
   },
   {
     module: "Watchlists/radar",
-    state: "Representative",
-    evidence: "Keyword and cluster target model.",
-    activation: "Connect live enrichment pipeline and alert delivery rules.",
+    source: "signals",
+    derivedFrom: true,
+    fallback: "Unavailable",
+    evidence: "Word-boundary keyword matching over the live signal stream.",
+    activation: "Alert delivery needs sign-in before rules run server-side.",
     page: "watchlists",
   },
 ];
+
+// Status for one row from the shared counts: a live block reads Live, the
+// Worker's own analysis reads Derived, no usable block reads the row fallback.
+function coverageState(row, counts) {
+  const prov = row.source && counts && counts.provenance ? counts.provenance[row.source] : null;
+  if (prov === "live") return row.derivedFrom ? "Derived" : "Live";
+  if (prov === "derived") return "Derived";
+  return row.fallback;
+}
+
+function coverageRows(counts) {
+  return COVERAGE_MATRIX.map(row => ({ ...row, state: coverageState(row, counts) }));
+}
 
 function BetaReadinessPanel({ navigate }) {
   return (
@@ -248,10 +282,14 @@ function ProvenanceStackPanel({ navigate }) {
 }
 
 function ProvenanceMetricsBand({ navigate }) {
+  // Counts come from the shared selectCounts() (UX-02), the same source as the nav
+  // badges; a dash means the block is not live, never a remembered number.
+  const counts = useCounts();
+  const dash = v => (typeof v === "number" ? v : "—");
   const metrics = [
-    { label: "Official feeds", value: sourceCounts().total, detail: "Configured APH sources", icon: "rss" },
-    { label: "Signals", value: SIGNALS.length, detail: "Current beta signal set", icon: "signal" },
-    { label: "Source links", value: "Present", detail: "Representative items include source links", icon: "link" },
+    { label: "Official feeds", value: sourceCounts().total, detail: "Configured APH sources", icon: "rss", page: "sources" },
+    { label: "Signals", value: dash(counts.signals), detail: counts.signals == null ? "Live signal stream unavailable" : "Live signals in the current /state cache", icon: "signal", page: "signals" },
+    { label: "Committee items", value: dash(counts.committees), detail: "From the live committee feeds", icon: "committee", page: "committees" },
     { label: "Human review", value: "On", detail: "Verify before publication", icon: "check" },
   ];
   return (
@@ -259,7 +297,7 @@ function ProvenanceMetricsBand({ navigate }) {
       <div className="panel-section-title">Provenance at a glance</div>
       <div className="prov-metric-grid">
         {metrics.map(m => (
-          <button key={m.label} className="prov-metric" onClick={() => navigate(m.label === "Official feeds" ? "sources" : "signals")}>
+          <button key={m.label} className="prov-metric" data-metric={m.label} onClick={() => navigate(m.page || "signals")}>
             <Icon name={m.icon} size={14}/>
             <strong>{m.value}</strong>
             <span>{m.label}</span>
@@ -272,6 +310,7 @@ function ProvenanceMetricsBand({ navigate }) {
 }
 
 function CoverageActivationMatrix({ navigate, copyPlan }) {
+  const rows = coverageRows(useCounts());
   return (
     <div className="coverage-matrix" aria-label="Module coverage and activation matrix">
       <div className="coverage-head">
@@ -285,8 +324,8 @@ function CoverageActivationMatrix({ navigate, copyPlan }) {
         <div className="coverage-row coverage-labels" aria-hidden="true">
           <span>Module</span><span>Status</span><span>Evidence basis</span><span>Activation needed</span><span>Open</span>
         </div>
-        {COVERAGE_MATRIX.map(row => (
-          <div key={row.module} className="coverage-row">
+        {rows.map(row => (
+          <div key={row.module} className="coverage-row" data-module={row.module}>
             <strong>{row.module}</strong>
             <span className={"coverage-state state-" + row.state.toLowerCase().replace(/\s+/g, "-")}>{row.state}</span>
             <span>{row.evidence}</span>
@@ -367,6 +406,7 @@ function PageOverview() {
   // moves when the data moves and never drifts out of sync with what the
   // Committees page actually shows (spec: no placeholder wearing a number's
   // clothes). Renders 0/0/0/0 honestly while the live block is unavailable.
+  const counts = useCounts();
   const committeeItemsLive = live.items ? live.items.filter(s => COMMITTEE_STRIP_LABELS.has(s.source)) : [];
   const committeeHearingCount = committeeItemsLive.filter(i => (i.tags?.[0]?.l) === "hearing").length;
   const committeeInquiryCount = committeeItemsLive.filter(i => (i.tags?.[0]?.l) === "inquiry").length;
@@ -409,6 +449,9 @@ function PageOverview() {
       ...prioritySections,
       `## All other signals`,
       ...restSections,
+      ``,
+      `---`,
+      APH_ATTRIBUTION,
     ].join("\n");
     copyText(lines, toast, "Daily brief copied to clipboard");
   };
@@ -466,7 +509,7 @@ function PageOverview() {
         </div>
         <div className="cs-secondary" title="Counted from the live Senate, House and joint committee feeds">
           <div className="cs-stat-label" style={{display:"flex", alignItems:"center", gap:8}}>Committee activity {live.items && <ProvenanceChip provenance="live" title="Counted from the live committee feeds" />}</div>
-          <div className="cs-stat">{committeeItemsLive.length}<span className="unit">items</span></div>
+          <div className="cs-stat">{counts.committees == null ? "—" : counts.committees}<span className="unit">items</span></div>
           <div className="stat-meta">{committeeHearingCount} hearing{committeeHearingCount !== 1 ? "s" : ""} · {committeeInquiryCount} inquir{committeeInquiryCount !== 1 ? "ies" : "y"} · {committeeReportCount} report{committeeReportCount !== 1 ? "s" : ""}</div>
         </div>
         <div className="cs-secondary">
@@ -619,7 +662,7 @@ function LegalNoticePanel() {
         <p style={legalP}>Parliament Pulse is derived intelligence over public sources, provided for information only. It is not legal, parliamentary, or professional advice. Scoring, clustering and watchlist matching are the product's own analysis and can contain errors. Verify against the linked official source at aph.gov.au before relying on any item.</p>
 
         <h3 style={legalH}>Use and content</h3>
-        <p style={legalP}>The service is free and provided as-is, without warranty. Material published by the Australian Parliament remains subject to the Parliament's own copyright and terms of use; Parliament Pulse links to official sources rather than republishing them, and reproduces only brief factual descriptors with attribution. Coverage and content may change without notice.</p>
+        <p style={legalP}>The service is free and provided as-is, without warranty. Material published by the Australian Parliament remains subject to the Parliament's own copyright and terms of use; Parliament Pulse reproduces item titles unmodified, with attribution and a link to the official source, under the Parliament's CC BY-NC-ND 4.0 licence; scores, summaries and clustering are Parliament Pulse's own analysis. Coverage and content may change without notice.</p>
 
         <h3 style={legalH}>Contact and corrections</h3>
         <p style={legalP}>To report a correction or ask a question, contact Prometheus Policy Lab.{/* [CONFIRM] set the exact public contact channel (email or form) before launch. */}</p>
@@ -632,8 +675,9 @@ function LegalNoticePanel() {
 function PageAbout() {
   const { navigate, toast } = useStore();
   const goto = navigate;
+  const counts = useCounts();
   const copyActivationPlan = () => {
-    const table = COVERAGE_MATRIX.map(row => `| ${row.module} | ${row.state} | ${row.evidence} | ${row.activation} |`).join("\n");
+    const table = coverageRows(counts).map(row => `| ${row.module} | ${row.state} | ${row.evidence} | ${row.activation} |`).join("\n");
     const plan = [
       "# Parliament Pulse activation plan",
       `Generated: ${new Date().toISOString()}`,
@@ -1217,7 +1261,7 @@ function PageSources() {
   // only SOURCE_REGISTRY, so a feed saved here never fetches. "Not polled" replaces
   // any invented "just now" freshness claim so the row cannot be mistaken for a
   // monitored feed.
-  const allFeeds = [...APH_FEEDS, ...state.feeds.map(f => ({ ...f, last:"Not polled", today:0, fpr:"—", modules:["Custom"], parser:"Needs validation", authority:"Custom", confidence:"—" }))];
+  const allFeeds = [...APH_FEEDS, ...state.feeds.map(f => ({ ...f, last:"Not polled", today:0, modules:["Custom"], parser:"Needs validation", authority:"Custom", confidence:"—" }))];
 
   // Feed-health from the Worker's connector checks, joined to the registry by url.
   const checkByUrl = new Map((health.items || []).map(c => [c.url, c]));
@@ -1272,7 +1316,7 @@ function PageSources() {
           <table className="ds">
             <thead><tr>
               <th>Source</th><th>Group</th><th>Status</th><th>Last</th>
-              <th className="num">Today</th><th>FPR</th><th>Parser</th>
+              <th className="num">Today</th><th title="False-positive rate">FPR <span style={{fontWeight:400, textTransform:"none", letterSpacing:0}}>· {FPR_PENDING_NOTE.toLowerCase()}</span></th><th>Parser</th>
             </tr></thead>
             <tbody>
               {allFeeds.map(f => {
@@ -1293,7 +1337,7 @@ function PageSources() {
                   </td>
                   <td className="mono" style={{fontSize:11.5, color:"var(--ink-3)"}}>{c ? fmtFetchedAt(c.checkedAt) : (f.last || "—")}</td>
                   <td className="num">{f.lastItemCount ?? "—"}</td>
-                  <td><span className="tag">{f.fpr}</span></td>
+                  <td title={FPR_PENDING_NOTE} style={{color:"var(--ink-4)"}}>—</td>
                   <td>{f.parser || "—"}</td>
                 </tr>
                 );
@@ -1522,10 +1566,8 @@ function TodaysHearingsPanel() {
 // silently rendered nothing every poll despite the Senate feeds carrying real
 // items throughout. House and joint committee inquiries were never added at
 // all, despite being live in the signals block the whole time.
-const COMMITTEE_STRIP_LABELS = new Set([
-  "Senate reports tabled", "New Senate inquiries", "Upcoming Senate hearings",
-  "House committee inquiries", "Joint committee inquiries",
-]);
+// COMMITTEE_STRIP_LABELS now lives in store.jsx beside selectCounts(), so the nav
+// badge, the Overview tile and this page all count from one definition (UX-02).
 const COMMITTEE_RECENT_LABELS = new Set([
   "Senate reports tabled", "New Senate inquiries", "House committee inquiries", "Joint committee inquiries",
 ]);
@@ -1833,8 +1875,8 @@ function PagePatterns() {
       <div className="page-head">
         <div>
           <div className="page-kicker">Parliament · Scrutiny</div>
-          <h1 className="page-title">QON pattern engine</h1>
-          <div className="page-sub">Detects clustered scrutiny across members, topics and targets. Click any member to open their profile.</div>
+          <h1 className="page-title">Threads</h1>
+          <div className="page-sub">Related live signals grouped into threads by the Worker's clustering. Questions on Notice join these threads once a QON feed can be connected.</div>
         </div>
       </div>
 
@@ -1878,7 +1920,7 @@ function PagePatterns() {
         </div>
 
         <div style={{borderTop:"1px dashed var(--line-2)", paddingTop:14}}>
-          <div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", marginBottom:8}}>Evidence · click member for profile</div>
+          <div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", marginBottom:8}}>Evidence</div>
           {qonItems.map((q,i) => {
             const mid = q.memberId;
             const canOpen = !!(mid && ENTITIES.members[mid]);
@@ -1912,28 +1954,6 @@ function PagePatterns() {
       </div>
       )}
 
-      <div className="panel" style={{marginTop:16}}>
-        <div className="panel-head"><h2 className="panel-title">How patterns are detected</h2><span className="panel-kicker">Indicator logic</span></div>
-        <div className="panel-body">
-          <div className="grid g-2">
-            {[
-              ["Multiple members","Three or more MPs or senators asking related questions"],
-              ["Short timeframe","Within 24 to 72 hours"],
-              ["Shared topic","Topic similarity above 0.78 on embedding cluster"],
-              ["Shared target","Same minister, department or program"],
-              ["Similar phrasing","Repeated structure or near-identical wording"],
-              ["Related external trigger","Audit report, media article, or committee referral"],
-              ["Cross-source reinforcement","QON + Hansard + committee or inquiry overlap"],
-              ["Human override","Analyst must confirm any 'coordinated' label"],
-            ].map(([k,v])=>(
-              <div key={k} style={{padding:"10px 12px", border:"1px solid var(--line-2)", borderRadius:8}}>
-                <div style={{fontSize:13, fontWeight:500}}>{k}</div>
-                <div style={{fontSize:12, color:"var(--ink-3)", marginTop:2}}>{v}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
@@ -2145,7 +2165,7 @@ function AlertRulesPanel() {
       <div className="panel-head">
         <h2 className="panel-title">Alert rules</h2>
         <span className="panel-kicker">{rules ? `${rules.length} rule${rules.length !== 1 ? "s" : ""} configured` : "Loading…"}</span>
-        <ProvenanceChip provenance="live" title="Rules are read from the Worker's /alerts endpoint" />
+        {rules && rules.length > 0 && <ProvenanceChip provenance="live" title="Rules are read from the Worker's /alerts endpoint" />}
       </div>
       <div className="panel-body">
         <p style={{margin:"0 0 14px", fontSize:12.5, color:"var(--ink-3)", lineHeight:1.6}}>
@@ -2260,7 +2280,7 @@ function PageWatchlists() {
         <div>
           <div className="page-kicker">Workflow</div>
           <h1 className="page-title">Watchlists</h1>
-          <div className="page-sub">The relevance engine. Click any watchlist for matches and configuration. Alert rules below run server-side, so matches land even when this tab is closed.</div>
+          <div className="page-sub">The relevance engine. Click any watchlist for matches and configuration. Alert rules will run server-side once sign-in ships.</div>
         </div>
         <div style={{display:"flex", gap:8, alignItems:"center"}}>
           <ProvenanceChip provenance={derived ? "derived" : "fixture"}
