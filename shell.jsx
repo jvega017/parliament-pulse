@@ -576,7 +576,9 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
 // Reuses .chip-fixture (the existing Representative-data chip) as its base
 // shape; live/derived only add a colour modifier.
 function ProvenanceChip({ provenance, title }) {
-  const LABELS = { live: "Live", derived: "Derived", fixture: "Fixture" };
+  // FE-04: no fixture content ships any more, so a block with no usable rows is
+  // labelled for what the viewer actually sees: no live data.
+  const LABELS = { live: "Live", derived: "Derived", fixture: "No live data" };
   const key = LABELS[provenance] ? provenance : "fixture";
   const cls = "chip-fixture" + (key === "live" ? " chip-live" : key === "derived" ? " chip-derived" : "");
   return <span className={cls} title={title}>{LABELS[key]}</span>;
@@ -611,7 +613,9 @@ function buildBriefSections(s, isLive = false) {
     `${confidenceLabel}: ${s.confidence ?? "—"}/5`,
   ];
   if (s.humanReview) provParts.push(`Review status: ${s.humanReview}`);
-  provParts.push("Representative workflow trace; not a production processing log.");
+  // Only a non-live example carries a workflow-trace disclaimer; a live item's
+  // provenance line states only what is true of it.
+  if (!isLive) provParts.push("Example workflow trace; not a production processing log.");
   return {
     title: s.title,
     // link and isLive travel with the brief model so every downstream render and
@@ -885,7 +889,7 @@ function Drawer() {
                 <div className="mono" style={{fontSize:"var(--t-label)", color:"var(--ink-4)", letterSpacing:".16em", textTransform:"uppercase", display:"flex", alignItems:"center", gap:8}}>
                   <span>{s.id} · {s.date}</span>
                   <ProvenanceChip provenance={itemProvenance}
-                    title={isLive ? "This item is from the Worker's live /state endpoint (D1 archive)" : "This item is representative fixture data"} />
+                    title={isLive ? "This item is from the Worker's live /state endpoint (D1 archive)" : "This item has no live source"} />
                 </div>
                 {/* Licence rule: a live APH title renders only inside an anchor to its
                     APH link; a live row with no link shows the source label. Fixture
@@ -938,9 +942,11 @@ function Drawer() {
                   <dt>Human review</dt><dd>{s.humanReview ? `Review status: ${s.humanReview === "Required" ? "Not reviewed · policy officer must verify source links before use" : "Optional for internal triage; required before external distribution"}` : "—"}</dd>
                 </dl>
               </div>
-              {!isLive && s.score && (
+              {/* FE-04: unsourced surface. Only an example signal carries a score
+                  breakdown, and it renders only behind the unsourced-surfaces flag. */}
+              {SITE_CONFIG.showUnsourcedSurfaces && !isLive && s.score && (
                 <div className="drawer-section">
-                  <h3>Attention score breakdown <span className="chip-fixture" style={{verticalAlign:"middle", marginLeft:6}}>Representative data</span></h3>
+                  <h3>Attention score breakdown <span className="chip-fixture" style={{verticalAlign:"middle", marginLeft:6}}>Sample data</span></h3>
                   <div style={{color:"var(--ink-4)", fontSize:12, marginBottom:6}}>Illustrative five-factor breakdown for an example signal, not a computed score.</div>
                   {Object.entries(s.score).map(([k,v]) => {
                     const lab = {authority:"Source authority", portfolio:"Portfolio relevance", novelty:"Novelty", momentum:"Momentum", time:"Time sensitivity", scrutiny:"Scrutiny relevance", ops:"Operational impact"};
@@ -970,6 +976,9 @@ function Drawer() {
                 )) : <div style={{color:"var(--ink-4)", fontSize:13}}>— No source link recorded for this item.</div>}
               </div>
 
+              {/* FE-04: unsourced surface. Parliament Pulse records no per-signal
+                  processing log, so the section renders only behind the flag. */}
+              {SITE_CONFIG.showUnsourcedSurfaces && (
               <div className="drawer-section">
                 <h3>Processing log</h3>
                 {s.provenance && s.provenance.length > 0 ? (
@@ -993,6 +1002,7 @@ function Drawer() {
                   </EmptyState>
                 )}
               </div>
+              )}
 
               {s.updates && s.updates.length > 0 && (
                 <div className="drawer-section">

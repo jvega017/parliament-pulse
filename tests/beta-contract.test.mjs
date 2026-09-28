@@ -44,7 +44,9 @@ const builtPages = fs.readFileSync(path.join(root, "pages.js"), "utf8");
 assert.match(pages, /copyLiveActionNote/, "Live controls should copy concrete action notes");
 assert.match(pages, /downloadBriefingQueue/, "Briefings queue should export local queue state");
 assert.match(pages, /BetaReadinessPanel/, "Overview should explain beta evidence status");
-assert.match(pages, /What is live, what is representative, and what activates next/, "Overview should include explicit live vs representative content");
+// FE-04: no representative content ships, so the ledger states the live, derived
+// and not-yet-available split instead.
+assert.match(pages, /What is live, what is derived, and what is not yet available/, "Overview should include an explicit live vs derived vs unavailable split");
 assert.match(pages, /ProvenanceStackPanel/, "Overview should include source-to-decision provenance content");
 assert.match(pages, /ProvenanceMetricsBand/, "Overview should include provenance metrics content");
 assert.match(pages, /CoverageActivationMatrix/, "Overview should include module coverage and activation content");

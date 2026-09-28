@@ -898,6 +898,9 @@ function DetailModal() {
   );
 }
 
+// Shown for an entity field Parliament Pulse does not hold, so a detail row is never blank.
+const NOT_HELD = "Not held here · see APH";
+
 function ModalHead({ kicker, title, right, onClose, representative = false, titleId, closeButtonRef }) {
   const { closeModal } = useStore();
   return (
@@ -905,7 +908,10 @@ function ModalHead({ kicker, title, right, onClose, representative = false, titl
       <div style={{flex:1}}>
         <div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", display:"flex", alignItems:"center", gap:8, flexWrap:"wrap"}}>
           <span>{kicker}</span>
-          {representative && <span className="chip-fixture">Representative data</span>}
+          {/* FE-04: a sample-data chip can only appear behind the unsourced-surfaces
+              flag, which is false in every public build. Entities that remain in the
+              public build hold only public facts (names, chambers, APH URLs). */}
+          {representative && SITE_CONFIG.showUnsourcedSurfaces && <span className="chip-fixture">Sample data</span>}
         </div>
         <h2 id={titleId} className="serif" style={{fontSize:22, margin:"4px 0 0", fontWeight:500, lineHeight:1.25}}>{title}</h2>
       </div>
@@ -931,13 +937,13 @@ function CommitteeDetail({ id, titleId, closeButtonRef }) {
     <>
       <ModalHead kicker={`Committee · ${c.chamber}`} title={c.name} representative={!!c.representative} titleId={titleId} closeButtonRef={closeButtonRef} />
       <div className="modal-body">
-        <p style={{color:"var(--ink-2)", marginTop:0}}>{c.bio}</p>
+        {c.bio && <p style={{color:"var(--ink-2)", marginTop:0}}>{c.bio}</p>}
         <dl className="kv" style={{marginTop:14}}>
           <dt>Chair</dt><dd>{c.chair || (c.url ? <a href={"https://www." + c.url.replace(/^https?:\/\/(www\.)?/, "")} target="_blank" rel="noopener noreferrer">See current membership at APH →</a> : "See APH for current membership")}</dd>
-          <dt>Members</dt><dd>{c.members}</dd>
-          <dt>Portfolio</dt><dd>{c.portfolio}</dd>
-          <dt>Active inquiries</dt><dd>{c.active}</dd>
-          <dt>Reports (30d)</dt><dd>{c.recentReports}</dd>
+          <dt>Members</dt><dd>{c.members ?? NOT_HELD}</dd>
+          <dt>Portfolio</dt><dd>{c.portfolio ?? NOT_HELD}</dd>
+          <dt>Active inquiries</dt><dd>{c.active ?? NOT_HELD}</dd>
+          <dt>Reports (30d)</dt><dd>{c.recentReports ?? NOT_HELD}</dd>
           <dt>Source</dt><dd className="mono" style={{fontSize:11, color:"var(--ink-3)"}}>{c.url}</dd>
         </dl>
 
@@ -948,11 +954,17 @@ function CommitteeDetail({ id, titleId, closeButtonRef }) {
         </div>
 
         <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:22, marginBottom:8}}>Open inquiries</h3>
-        <div style={{display:"flex", flexWrap:"wrap", gap:6}}>
-          {c.inquiries.map((q, i) => (
-            <span key={i} className="tag clk" onClick={() => openModal("inquiry", q)}>{q}</span>
-          ))}
-        </div>
+        {c.inquiries.length > 0 ? (
+          <div style={{display:"flex", flexWrap:"wrap", gap:6}}>
+            {c.inquiries.map((q, i) => (
+              <span key={i} className="tag clk" onClick={() => openModal("inquiry", q)}>{q}</span>
+            ))}
+          </div>
+        ) : (
+          <div className="empty">
+            Parliament Pulse holds no verified inquiry list for this committee. See the committee's own page on aph.gov.au for its current inquiries.
+          </div>
+        )}
       </div>
       <div className="modal-foot">
         <button className="btn primary" onClick={() => {
@@ -1088,33 +1100,23 @@ function BillDetail({ id, titleId, closeButtonRef }) {
   );
 }
 
+// FE-04 (DATA-10): no live source of member records is connected, so
+// ENTITIES.members is empty and every member id lands on this honest empty state.
+// The previous body rendered invented question and Hansard counts; it is removed
+// rather than kept for a data source that does not exist.
 function MemberDetail({ id, titleId, closeButtonRef }) {
-  const m = ENTITIES.members[id];
-  const { closeModal, addWatchlist, isWatched } = useStore();
-  if (!m) return <ModalHead kicker="Member" title="Not found" titleId={titleId} closeButtonRef={closeButtonRef} />;
-  const watchKey = `member:${id}`;
-  const watched = isWatched(watchKey);
+  const { closeModal } = useStore();
   return (
     <>
-      <ModalHead kicker={`${m.party} · ${m.state}`} title={m.name} representative={!!m.representative} titleId={titleId} closeButtonRef={closeButtonRef} />
+      <ModalHead kicker="Member" title="No member profile held" titleId={titleId} closeButtonRef={closeButtonRef} />
       <div className="modal-body">
-        <p style={{color:"var(--ink-2)", marginTop:0}}>{m.bio}</p>
-        <div style={{display:"flex", gap:6, flexWrap:"wrap", marginTop:4}}>
-          {m.roles.map((r,i) => <span key={i} className="tag">{r}</span>)}
-        </div>
-        <div className="grid g-3" style={{marginTop:16, gap:12}}>
-          <div className="panel stat"><div className="stat-label">QONs (30d)</div><div className="stat-value" style={{fontSize:26}}>{m.qons}</div></div>
-          <div className="panel stat"><div className="stat-label">Hansard mentions</div><div className="stat-value" style={{fontSize:26}}>{m.hansard}</div></div>
-          <div className="panel stat"><div className="stat-label">Committees</div><div className="stat-value" style={{fontSize:26}}>{m.committees.length}</div></div>
-        </div>
-        <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:8}}>Recent activity</h3>
         <div className="empty">
-          Parliament Pulse holds no verified activity log for this member, because Hansard and Questions on Notice records are not yet wired to a live feed. See Hansard search at{" "}
-          <a href="https://www.aph.gov.au/Parliamentary_Business/Hansard" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>aph.gov.au/Parliamentary_Business/Hansard <Icon name="ext" size={11} style={{verticalAlign:"-1px"}}/></a>.
+          Parliament Pulse holds no senator or member profiles, because no live source of member records is connected. Look up current senators and members at{" "}
+          <a href="https://www.aph.gov.au/Senators_and_Members" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>aph.gov.au/Senators_and_Members <Icon name="ext" size={11} style={{verticalAlign:"-1px"}}/></a>.
         </div>
       </div>
       <div className="modal-foot">
-        <button className="btn primary" onClick={() => { addWatchlist(watchKey); closeModal(); }} style={watched ? {borderColor:"var(--brass)", color:"var(--brass)"} : undefined}>{watched ? "Tracking member" : "Track member"}</button>
+        <button className="btn ghost" style={{marginLeft:"auto"}} onClick={closeModal}>Close</button>
       </div>
     </>
   );

@@ -99,16 +99,16 @@ const BETA_READINESS_ROWS = [
     page: "live",
   },
   {
-    state: "Representative",
-    title: "Enriched policy signals",
-    detail: "Priority, confidence, provenance, radar clusters and watchlist matches are modelled from the target workflow until the enrichment pipeline is connected.",
+    state: "Derived",
+    title: "Parliament Pulse analysis",
+    detail: "Attention and confidence come from the Worker's deterministic scoring; threads, radar groups and watchlist matches are computed over the live signal stream. All of it is Parliament Pulse's own analysis, labelled as such.",
     action: "Review signals",
     page: "signals",
   },
   {
     state: "Next",
-    title: "Activation path",
-    detail: "Production hardening needs authenticated division/member data, Hansard and QON extraction, shared briefing persistence and a publication approval lane.",
+    title: "Not yet available",
+    detail: "Questions on notice, Hansard, member profiles, alert delivery and parliamentary lines have no live source. They are listed below with the official APH page to use instead.",
     action: "View sources",
     page: "sources",
   },
@@ -129,9 +129,9 @@ const PROVENANCE_STACK = [
   },
   {
     label: "Enrichment",
-    title: "Priority scoring and policy routing",
-    detail: "The target scoring model is represented in the UI, but enrichment needs the production signal pipeline before public claims.",
-    state: "Representative",
+    title: "Attention and confidence scoring",
+    detail: "The Worker scores each live item with a deterministic rule set. Scores are Parliament Pulse's analysis, not APH content, and each item keeps its official source link.",
+    state: "Derived",
   },
   {
     label: "Analyst action",
@@ -234,7 +234,7 @@ function BetaReadinessPanel({ navigate }) {
       <div className="beta-ledger-head">
         <div>
           <div className="panel-section-title">Beta evidence ledger</div>
-          <h2>What is live, what is representative, and what activates next</h2>
+          <h2>What is live, what is derived, and what is not yet available</h2>
         </div>
         <span className="chip-fixture">Official-first beta</span>
       </div>
@@ -316,7 +316,7 @@ function CoverageActivationMatrix({ navigate, copyPlan }) {
       <div className="coverage-head">
         <div>
           <div className="panel-section-title">Module coverage and activation matrix</div>
-          <h2>What is operational, what is representative, and what needs wiring next</h2>
+          <h2>What is operational, what is derived, and what needs wiring next</h2>
         </div>
         <button className="btn ghost sm" onClick={copyPlan}><Icon name="brief" size={12}/> Copy activation plan</button>
       </div>
@@ -643,7 +643,59 @@ function PageOverview() {
 // official sources rather than republishing them. Placed on the About page so it
 // travels with the honest account of coverage.
 const legalH = { fontSize: 12.5, fontWeight: 600, color: "var(--ink-1)", margin: "14px 0 4px" };
+
+// FE-04 (LEG-10): every localStorage key the code reads or writes, so the privacy
+// text states exactly what is held. tests/unsourced-surfaces.test.mjs fails if a
+// key used in the built bundle is missing from this list.
+const LOCAL_STORAGE_KEYS = [
+  { key: "cs-state-v1", holds: "your analyst notes, feedback, archived and tracked items, generated brief markers, created watchlists and added feeds" },
+  { key: "pp-theme", holds: "your light or dark theme choice" },
+  { key: "pp-nav-open", holds: "whether the mobile navigation was left open" },
+  { key: "pp-beta-ack", holds: "that you dismissed the beta notice" },
+  { key: "pp-onboarded", holds: "that you dismissed the How it works guide" },
+  { key: "pp-last-open-date", holds: "the date you last opened the app" },
+  { key: "pp-streak-count", holds: "a count of consecutive days you opened the app (not displayed)" },
+];
+
+// FE-04 (PR-07, LEG-04): the contact channel is read from SITE_CONFIG only. An
+// email address renders as a mailto: link and an https URL as a link; while it is
+// unset the text says so and points the reader at the official source.
+function ContactLine() {
+  const c = SITE_CONFIG.contact;
+  if (typeof c === "string" && /^https:\/\//i.test(c)) {
+    return <>To report a correction or ask a privacy question, contact Prometheus Policy Lab at <a href={c} target="_blank" rel="noopener noreferrer" style={{ color: "var(--teal)" }}>{c.replace(/^https:\/\//i, "")}</a>.</>;
+  }
+  if (typeof c === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c)) {
+    return <>To report a correction or ask a privacy question, email Prometheus Policy Lab at <a href={"mailto:" + c} style={{ color: "var(--teal)" }}>{c}</a>.</>;
+  }
+  return <>A public corrections address is being set up. Until it is published, check any item against the linked official APH source.</>;
+}
 const legalP = { margin: "0 0 6px" };
+// FE-04 (PR-06, DATA-09): coverage Parliament Pulse does not hold, rendered from
+// SITE_CONFIG.unavailable so the list, its reasons and its APH links have one source.
+function NotYetAvailablePanel() {
+  const items = (SITE_CONFIG && Array.isArray(SITE_CONFIG.unavailable)) ? SITE_CONFIG.unavailable : [];
+  return (
+    <div className="panel" style={{ marginTop: "var(--gap-section)" }} data-section="not-yet-available">
+      <div className="panel-head">
+        <h2 className="panel-title">Not yet available</h2>
+        <span className="panel-kicker">No live source, so not shown here</span>
+      </div>
+      <div className="panel-body">
+        {items.map((u, i) => (
+          <div key={u.id} data-unavailable={u.id} style={{ padding: "10px 0", borderBottom: i < items.length - 1 ? "1px solid var(--line)" : 0, display: "grid", gap: 4 }}>
+            <strong style={{ fontSize: 13.5, color: "var(--ink)" }}>{u.name}</strong>
+            <span style={{ fontSize: 13, color: "var(--ink-2)", lineHeight: 1.5 }}>{u.reason}</span>
+            <a href={u.aphUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12.5, color: "var(--teal)", display: "inline-flex", alignItems: "center", gap: 6 }}>
+              Use the official page on aph.gov.au <Icon name="ext" size={11} />
+            </a>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function LegalNoticePanel() {
   return (
     <div className="panel" style={{ marginTop: "var(--gap-section)" }}>
@@ -656,7 +708,15 @@ function LegalNoticePanel() {
         <p style={legalP}>Parliament Pulse is an independent project by Prometheus Policy Lab. It is not affiliated with, endorsed by, or an official product of the Parliament of Australia, the Department of Parliamentary Services, or any government body. It reads publicly available RSS feeds published at aph.gov.au and links every item back to its official source.</p>
 
         <h3 style={legalH}>Your privacy</h3>
-        <p style={legalP}>No account, login, or email is required or collected through this site. Preferences such as your reading streak and interface settings are stored only in your own browser and are never sent to us. We run no third-party analytics, advertising, or tracking. Live parliamentary data is polled from official feeds for display and is not stored on your device.</p>
+        <p style={legalP}>No account, login, or email is required or collected through this site. We run no third-party analytics, advertising or tracking, and the site sets no cookies. Live parliamentary data is fetched from official APH feeds through the Parliament Pulse proxy for display and is not saved on your device.</p>
+        <p style={legalP}>Your browser's local storage holds only the following, on this device, and none of it is sent to us:</p>
+        <ul style={{ margin: "0 0 6px", paddingLeft: 18 }}>
+          {LOCAL_STORAGE_KEYS.map(k => (
+            <li key={k.key}><code className="mono" style={{ fontSize: 11.5 }}>{k.key}</code>: {k.holds}</li>
+          ))}
+        </ul>
+        <p style={legalP}>Clearing this site's data in your browser removes all of it.</p>
+        <p style={legalP}>The Live parliament page opens on a branded card, not a video player. Your browser contacts YouTube (youtube-nocookie.com) only after you press "Load live stream"; from then on YouTube's own privacy policy applies to that player.</p>
 
         <h3 style={legalH}>Not advice</h3>
         <p style={legalP}>Parliament Pulse is derived intelligence over public sources, provided for information only. It is not legal, parliamentary, or professional advice. Scoring, clustering and watchlist matching are the product's own analysis and can contain errors. Verify against the linked official source at aph.gov.au before relying on any item.</p>
@@ -665,7 +725,7 @@ function LegalNoticePanel() {
         <p style={legalP}>The service is free and provided as-is, without warranty. Material published by the Australian Parliament remains subject to the Parliament's own copyright and terms of use; Parliament Pulse reproduces item titles unmodified, with attribution and a link to the official source, under the Parliament's CC BY-NC-ND 4.0 licence; scores, summaries and clustering are Parliament Pulse's own analysis. Coverage and content may change without notice.</p>
 
         <h3 style={legalH}>Contact and corrections</h3>
-        <p style={legalP}>To report a correction or ask a question, contact Prometheus Policy Lab.{/* [CONFIRM] set the exact public contact channel (email or form) before launch. */}</p>
+        <p style={legalP}><ContactLine /></p>
 
         <p className="mono" style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 14 }}>Last updated 23 July 2026.</p>
       </div>
@@ -690,7 +750,7 @@ function PageAbout() {
       "1. Keep official feed polling visible in Live and avoid current-sitting claims until verified.",
       "2. Connect backend validation for custom feeds before routing them as production sources.",
       "3. Wire production enrichment for scoring, entity extraction, watchlist matching, Hansard/QON extraction and briefing persistence.",
-      "4. Keep representative labels until each module has verified item-level evidence.",
+      "4. Keep every module without a live source off the public build until it has verified item-level evidence.",
     ].join("\n");
     copyText(plan, toast, "Activation plan copied");
   };
@@ -700,16 +760,16 @@ function PageAbout() {
         <div>
           <div className="page-kicker">Reference</div>
           <h1 className="page-title">About the data</h1>
-          <div className="page-sub">What is live, what is representative, and what activates next. Every module below states its evidence basis and links to the page that carries it.</div>
+          <div className="page-sub">What is live, what is derived, and what is not yet available. Every module below states its evidence basis and links to the page that carries it.</div>
         </div>
       </div>
 
       <p style={{color:"var(--ink-2)", fontSize:13.5, lineHeight:1.6, maxWidth:760, marginBottom:"var(--gap-section)"}}>
-        Parliament Pulse is a live beta. Six official APH RSS feeds poll on the Live page, and every
-        live item links back to its source at aph.gov.au. Signal scoring, radar clustering, watchlist
-        matching, QON pattern detection and the briefing queue are representative until the
-        enrichment pipeline connects. This page is the honest account of that split: what you can
-        already trust, and what still needs wiring.
+        Parliament Pulse is a live beta. Official APH feeds poll through the Parliament Pulse proxy,
+        and every live item links back to its source at aph.gov.au. Signal scoring, thread and radar
+        grouping and watchlist matching are Parliament Pulse's own analysis over those live items.
+        No sample content is shown anywhere: a desk with nothing to show says so and links to the
+        official source. This page is the honest account of that split.
       </p>
 
       <BetaReadinessPanel navigate={goto} />
@@ -719,6 +779,8 @@ function PageAbout() {
       <ProvenanceStackPanel navigate={goto} />
 
       <ProvenanceMetricsBand navigate={goto} />
+
+      <NotYetAvailablePanel />
 
       <LegalNoticePanel />
     </div>
@@ -1308,7 +1370,7 @@ function PageSources() {
           {health.status === "error" && !health.items && (
             <div className="panel-body">
               <EmptyState icon="sources" kicker="Feed status unavailable" variant="error">
-                The status service did not respond. Direct links to each official APH feed remain available below.
+                The status service did not respond, so no feed health is shown. The official feed addresses are listed below, and APH publishes every feed on its <a href="https://www.aph.gov.au/Help/Rss_feeds" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>RSS feeds page</a>.
               </EmptyState>
             </div>
           )}
@@ -1777,7 +1839,9 @@ function PageParliament() {
 
       <TodaysHearingsPanel />
 
-      <div className="grid g-2" style={{marginTop:16}}>
+      {/* FE-04: the Parliamentary lines panel has no live source, so it renders only
+          behind the unsourced-surfaces flag; House news then takes the full width. */}
+      <div className={SITE_CONFIG.showUnsourcedSurfaces ? "grid g-2" : undefined} style={{marginTop:16}}>
         <div className="panel">
           <div className="panel-head"><h2 className="panel-title">House news & media</h2></div>
           <div className="panel-body">
@@ -1789,8 +1853,9 @@ function PageParliament() {
             />
           </div>
         </div>
+        {SITE_CONFIG.showUnsourcedSurfaces && (
         <div className="panel">
-          <div className="panel-head"><h2 className="panel-title">Parliamentary lines</h2><span className="chip-fixture" style={{marginLeft:"auto"}}>Representative data</span></div>
+          <div className="panel-head"><h2 className="panel-title">Parliamentary lines</h2><span className="chip-fixture" style={{marginLeft:"auto"}}>Sample data</span></div>
           <div className="panel-body">
             <div style={{padding:12, border:"1px dashed var(--line-2)", borderRadius:8, fontSize:13, color:"var(--ink-3)", lineHeight:1.6, fontStyle:"italic"}}>
               <div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", marginBottom:8, fontStyle:"normal"}}>No lines drafted yet</div>
@@ -1798,6 +1863,7 @@ function PageParliament() {
             </div>
           </div>
         </div>
+        )}
       </div>
     </div>
   );
@@ -1880,6 +1946,17 @@ function PagePatterns() {
         </div>
       </div>
 
+      {!threads.items && (
+        <div className="panel" style={{marginBottom:16}}>
+          <div className="panel-head"><h2 className="panel-title">Signal threads · cluster analysis</h2></div>
+          <div className="panel-body">
+            <EmptyState icon="pattern" kicker="No threads held">
+              Parliament Pulse holds no signal threads right now, because the live archive returned none or could not be reached. Threads group live APH items; the items themselves are published through the <a href="https://www.aph.gov.au/Help/Rss_feeds" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>APH RSS feeds</a>.
+            </EmptyState>
+          </div>
+        </div>
+      )}
+
       {threads.items && (
         <div className="panel" style={{marginBottom:16}}>
           <div className="panel-head">
@@ -1899,10 +1976,12 @@ function PagePatterns() {
 
       <div style={{padding:"10px 14px", background:"var(--panel-hi)", border:"1px solid var(--line-bright)", borderRadius:8, marginBottom:16, display:"flex", gap:10, alignItems:"center", color:"var(--ink-2)", fontSize:12.5}}>
         <Icon name="flag" size={14} stroke="var(--info)"/>
-        <span><strong>QON feed not connected</strong>: the ParlInfo search endpoint returns 403 to automated access. {threads.items ? "Thread clustering above is live from the archive. " : ""}{qonItems.length > 0 ? "The scrutiny pattern below uses representative sample data." : "No scrutiny pattern is held below until the feed connects."}</span>
+        <span><strong>Questions on notice not connected</strong>: ParlInfo's search refuses automated access, so no questions on notice are held. {threads.items ? "Thread clustering above is live from the archive. " : ""}<a href="https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/Senate_chamber_documents/qon" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>Search questions on notice on aph.gov.au</a>.</span>
       </div>
 
-      {qonItems.length > 0 ? (
+      {/* FE-04: the QON_PATTERN block (and its Draft Estimates monitor note button)
+          has no live source, so it renders only behind the unsourced-surfaces flag. */}
+      {SITE_CONFIG.showUnsourcedSurfaces && qonItems.length > 0 ? (
       <div className="pattern">
         <div className="ribbon">Clustered pattern · moderate confidence</div>
         <div className="serif" style={{fontSize:22, fontWeight:500, marginBottom:6, paddingRight:200}}>Clustered scrutiny pattern{QON_PATTERN.topic ? ` on ${QON_PATTERN.topic}` : ""}</div>
@@ -1947,8 +2026,8 @@ function PagePatterns() {
       <div className="panel">
         <div className="panel-head"><h2 className="panel-title">Clustered scrutiny pattern</h2></div>
         <div className="panel-body">
-          <EmptyState icon="pattern" kicker="No verified scrutiny cluster held">
-            Parliament Pulse holds no verified Questions on Notice to detect a scrutiny cluster from, because the ParlInfo search endpoint returns 403 to automated access. <a href="https://www.aph.gov.au/Parliamentary_Business/Senate_estimates" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>Open Senate Estimates on aph.gov.au</a> to look them up directly.
+          <EmptyState icon="pattern" kicker="No questions on notice held">
+            Parliament Pulse holds no questions on notice to find a scrutiny pattern in, because ParlInfo's search refuses automated access. <a href="https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/Senate_chamber_documents/qon" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>Search questions on notice on aph.gov.au</a>, or <a href="https://www.aph.gov.au/Parliamentary_Business/Senate_estimates" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>open Senate Estimates</a>.
           </EmptyState>
         </div>
       </div>
@@ -2280,7 +2359,7 @@ function PageWatchlists() {
         <div>
           <div className="page-kicker">Workflow</div>
           <h1 className="page-title">Watchlists</h1>
-          <div className="page-sub">The relevance engine. Click any watchlist for matches and configuration. Alert rules will run server-side once sign-in ships.</div>
+          <div className="page-sub">Keyword matching over the live signal stream, run in your browser. Click any watchlist for its matches and keywords. Alert rules and email digests are not yet available.</div>
         </div>
         <div style={{display:"flex", gap:8, alignItems:"center"}}>
           <ProvenanceChip provenance={derived ? "derived" : "fixture"}
@@ -2293,7 +2372,7 @@ function PageWatchlists() {
       {all.length === 0 ? (
         <EmptyState icon="watch" kicker="No watchlists yet"
           action={<button className="btn sm primary" onClick={() => document.getElementById("new-wl-name")?.focus()}>New watchlist</button>}>
-          Create a watchlist to get matched signals and a daily digest of what moved.
+          Create a watchlist to match its keywords against the live signal stream in this browser.
         </EmptyState>
       ) : (
       <div className="grid g-3">
@@ -2318,7 +2397,10 @@ function PageWatchlists() {
       </div>
       )}
 
-      <AlertRulesPanel />
+      {/* FE-04 (UX-11): alert rules need sign-in, which is not built, so the panel
+          renders only behind the unsourced-surfaces flag. The About page lists alert
+          rules and email digests under "Not yet available". */}
+      {SITE_CONFIG.showUnsourcedSurfaces && <AlertRulesPanel />}
 
       <div className="panel" style={{marginTop:18}}>
         <div className="panel-head">
@@ -2344,7 +2426,7 @@ function PageWatchlists() {
         <div className="panel-head">
           <h2 className="panel-title">{selectedWl?.name || "Digital government"} · configuration</h2>
           <span className="panel-kicker">Selected watchlist</span>
-          <span className="chip-fixture" style={{marginLeft:8}}>Fixture</span>
+          <span className="chip-fixture" style={{marginLeft:8}} title="These keywords are your watchlist configuration">Your keywords</span>
         </div>
         <div className="panel-body">
           <div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", marginBottom:6}}>Keywords</div>

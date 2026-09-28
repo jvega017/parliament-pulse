@@ -36,6 +36,56 @@ const APH_ATTRIBUTION = "Source material: Parliament of Australia website, licen
 // feedback exist to compute it.
 const FPR_PENDING_NOTE = "Measured after 30 days";
 
+// ---------- Site configuration (FE-04) ----------
+// The single source for three release rules:
+//   showUnsourcedSurfaces: every surface with no live source (sample panels,
+//     illustrative breakdowns, unwired workflows) renders only when this is true.
+//     It stays false in every public build; tests/unsourced-surfaces.test.mjs
+//     fails the gate if a surface of that kind renders while it is false.
+//   contact: the public corrections and privacy address, as an email address or an
+//     https URL. SITE_CONFIG.contact is the only place a contact channel may be
+//     written; LegalNoticePanel (pages.jsx) renders it, or an honest interim
+//     sentence while it is null.
+//   unavailable: coverage Parliament Pulse does not hold, listed on the About page
+//     with the reason and the official APH page to use instead. Every aphUrl was
+//     checked to return HTTP 200 to a Chrome user-agent on 29 September 2026.
+const SITE_CONFIG = {
+  showUnsourcedSurfaces: false,
+  contact: null /* [OWNER] set the monitored public corrections and privacy address before launch */,
+  unavailable: [
+    {
+      id: "qon",
+      name: "Questions on notice",
+      reason: "ParlInfo's questions on notice search refuses automated access, so no machine-readable feed can be fetched.",
+      aphUrl: "https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/Senate_chamber_documents/qon",
+    },
+    {
+      id: "hansard",
+      name: "Hansard",
+      reason: "No Hansard transcript feed is connected, so speeches and debate are not searchable here.",
+      aphUrl: "https://www.aph.gov.au/Parliamentary_Business/Hansard",
+    },
+    {
+      id: "members",
+      name: "Member profiles",
+      reason: "No live source of senator and member records is connected, so no profiles or activity counts are shown.",
+      aphUrl: "https://www.aph.gov.au/Senators_and_Members",
+    },
+    {
+      id: "alerts",
+      name: "Alert rules and email digests",
+      reason: "Delivering alerts needs sign-in, which is not built. Watchlist matching runs in your browser only.",
+      aphUrl: "https://www.aph.gov.au/Help/Rss_feeds",
+    },
+    {
+      id: "lines",
+      name: "Parliamentary lines",
+      reason: "Drafting lines needs an analyst workflow that is not built. Briefs you generate from a signal stay in your browser.",
+      aphUrl: "https://www.aph.gov.au/Parliamentary_Business/Chamber_documents",
+    },
+  ],
+};
+
 const SOURCE_REGISTRY = [
   {
     id: "h-media",
@@ -209,7 +259,7 @@ const RADAR = [];
 // substitute: ParlInfo's Questions on Notice search returns 403 to automated access,
 // so no machine-readable QON feed can currently be fetched. The QON page should
 // render an honest empty state naming that reason and linking to
-// https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/Questions_on_Notice
+// https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/Senate_chamber_documents/qon
 // (or the ParlInfo QON search) so a user can look it up manually.
 const QON_PATTERN = {
   topic: null,
@@ -254,7 +304,7 @@ const DATASET_FLAGS = {
   DIVISIONS:       { representative: true,  note: "Empty: no verified division-result feed is wired. Vote tallies were invented and have been removed. See https://www.aph.gov.au/house/rss/divisions." },
   WATCHLISTS:      { representative: true,  note: "Name and keyword list are real product configuration and are kept. matches and trend were invented counts of live activity: no keyword matcher over the signal stream is built, so both are nulled/emptied and consumers compute the real (currently zero) match count live." },
   RADAR:           { representative: true,  note: "Empty: every issue named an invented cluster of parliamentary activity (fabricated inquiries, QON references, hearings) with an invented momentum/confidence score. No clustering layer over real signals is built; rows only render once the live signal stream is grouped (derived mode)." },
-  QON_PATTERN:     { representative: true,  note: "Empty: ParlInfo Questions on Notice search returns 403 to automated access, so no live QON feed can be fetched. No representative fixture is held either. See https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/Questions_on_Notice." },
+  QON_PATTERN:     { representative: true,  note: "Empty: ParlInfo Questions on Notice search returns 403 to automated access, so no live QON feed can be fetched. No representative fixture is held either. See https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/Senate_chamber_documents/qon." },
   BRIEFING_QUEUE:  { representative: true,  note: "Empty: every row invented a piece of parliamentary business already sitting in a named policy team's queue. A shared briefings queue needs a backend that does not exist; the desks read the user's own generated briefs (state.briefsGenerated) as the real source instead." },
 };
 
@@ -267,6 +317,6 @@ const DATASET_FLAGS = {
 QON_PATTERN.representative = true;
 
 Object.assign(window, {
-  WORKER_BASE_URL, APH_ATTRIBUTION, APH_LICENCE_URL, FPR_PENDING_NOTE, SOURCE_REGISTRY, sourceCounts, DATASET_FLAGS, APH_FEEDS,
+  WORKER_BASE_URL, APH_ATTRIBUTION, APH_LICENCE_URL, FPR_PENDING_NOTE, SITE_CONFIG, SOURCE_REGISTRY, sourceCounts, DATASET_FLAGS, APH_FEEDS,
   SIGNALS, COMMITTEE_ITEMS, BILLS, DIVISIONS, WATCHLISTS, RADAR, QON_PATTERN, BRIEFING_QUEUE
 });

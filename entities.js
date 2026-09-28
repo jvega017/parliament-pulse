@@ -106,41 +106,13 @@ window.ENTITIES = {
       url: "www.aph.gov.au/Parliamentary_Business/Committees/Joint/Public_Accounts_and_Audit"
     }
   },
-  members: {
-    "hollis": {
-      id: "hollis",
-      name: "Opposition Senator (representative)",
-      party: "Opposition",
-      state: "QLD",
-      roles: ["Shadow Assistant Minister for Digital Services", "Economics Committee"],
-      bio: "Representative Opposition senator profile. No real parliamentarian is depicted; wire live APH member data before relying on this.",
-      qons: 14,
-      hansard: 28,
-      committees: ["Economics", "Finance & PA"]
-    },
-    "quirke": {
-      id: "quirke",
-      name: "Crossbench Senator (representative)",
-      party: "Crossbench",
-      state: "TAS",
-      roles: ["Independent senator"],
-      bio: "Representative crossbench senator profile. No real parliamentarian is depicted; wire live APH member data before relying on this.",
-      qons: 9,
-      hansard: 17,
-      committees: ["Finance & PA"]
-    },
-    "rafferty": {
-      id: "rafferty",
-      name: "Opposition Member (representative)",
-      party: "Opposition",
-      state: "VIC",
-      roles: ["Shadow Minister for Government Services"],
-      bio: "Representative Opposition member profile. No real parliamentarian is depicted; wire live APH member data before relying on this.",
-      qons: 22,
-      hansard: 41,
-      committees: ["PAA"]
-    }
-  },
+  // members emptied (FE-04, DATA-10): the three records here were invented
+  // "representative" profiles with invented question and Hansard counts, and the
+  // search palette surfaced them as if they were real parliamentarians. No live
+  // source of member records is connected, so the object stays empty: MemberDetail
+  // (store.jsx) renders an honest empty state linking to the APH Senators and
+  // Members page, and the search palette's member group finds nothing.
+  members: {},
   // Ministers hold generic role titles only (no real minister is named). The "recent"
   // activity lists below were invented specific actions with invented dates and carry
   // no disclosure chip, so they are emptied. bio/portfolio/role are generic,
