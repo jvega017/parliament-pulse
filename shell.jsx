@@ -26,7 +26,7 @@ function BetaNotice() {
   return (
     <div className="design-banner" role="status">
       <Icon name="signal" size={14} stroke="var(--gold)" />
-      <span><strong>Live beta.</strong> Signals, feed health and bills are live from official APH feeds, and every item links to its source on aph.gov.au. Thread clustering is Parliament Pulse's own derived analysis; sitting-day surfaces such as divisions and the daily program are empty until Parliament returns on 11 August 2026. </span>
+      <span><strong>Live beta.</strong> Signals, feed health and bills use official APH feeds, with source links on aph.gov.au. Thread clustering is Parliament Pulse's own derived analysis. Empty sitting-day panels mean this app has no records to display; check the linked APH source for current proceedings. </span>
       <button aria-label="Dismiss notice" onClick={() => { safeSetLocalStorage(key, "1"); setVisible(false); }}>×</button>
     </div>
   );

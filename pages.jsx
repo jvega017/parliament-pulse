@@ -1424,7 +1424,6 @@ function LiveFeedStrip({ title, items, fetchedAt, emptyText }) {
 // 17-20 August 2026. Every sitting-day desk below (daily program, divisions,
 // hearings) shares this one return date so it can never drift out of sync
 // across panels.
-const NEXT_SITTING_DATE = "11 August 2026";
 
 // Shared honest-empty copy for a sitting-day feed that has returned zero items.
 // `chamber` reads naturally into "{chamber} is not sitting."; `feedNoun` reads
@@ -1432,7 +1431,7 @@ const NEXT_SITTING_DATE = "11 August 2026";
 function recessEmptyText(chamber, feedNoun, url, linkLabel) {
   return (
     <>
-      {chamber} is not sitting. {feedNoun} resume when Parliament returns on {NEXT_SITTING_DATE}.{" "}
+      No {feedNoun.toLowerCase()} records are available in this app for {chamber}. This does not establish whether the chamber is sitting. Check the official source for current proceedings.{" "}
       <a href={url} target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>{linkLabel} <Icon name="ext" size={11} style={{verticalAlign:"-1px"}}/></a>.
     </>
   );

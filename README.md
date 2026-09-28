@@ -2,6 +2,13 @@
 
 High-fidelity interactive prototype built from the Claude Design handoff bundle (`parliament-pulse.tar.gz`, file `Civic Signal.html`). Rebranded to **Parliament Pulse** during design iteration.
 
+Operational note, 5 September 2026: the audited working public entry is
+https://parliament-pulse.pages.dev/. The documented custom domain
+https://pulse.prometheuspolicylab.com/ did not resolve in the audit and remains
+pending an owner-approved DNS repair. Use the pages.dev entry while that decision is open.
+The separate `C:/Users/jvega/parliament-pulse` checkout has a different architecture;
+confirm the deployed source identity before choosing a build or deployment command.
+
 ## What it is
 
 A browser-only policy-intelligence dashboard for Australian Parliament. Single-page React app (loaded via CDN Babel). No backend.
