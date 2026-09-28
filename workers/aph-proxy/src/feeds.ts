@@ -1,5 +1,12 @@
 // Canonical APH feed list shared by the proxy, the archival cron, and the
-// connector health cron. Mirrors apps/web/src/lib/aphFeed.APH_FEED_URLS.
+// connector health cron.
+//
+// Single source (WK-08, ARCH-13): src/jurisdictions.json. The README and
+// STATUS feed tables are generated from it by scripts/feeds-table.mjs and
+// tests/feeds-table.test.mjs fails when they disagree. The retired apps/web
+// SPA still carries its own older feed literals (apps/web/src/lib/aphFeed.ts,
+// apps/web/src/data/fixtures.ts); that copy is not built or deployed and is
+// not a source for anything here.
 //
 // Data lives in jurisdictions.json, keyed by jurisdiction id (portability
 // refactor, 2026-07-10). This module is the single accessor every other file

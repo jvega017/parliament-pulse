@@ -53,7 +53,7 @@ import {
 import { ingestQons } from "./hansard";
 import { sendDailyDigest, DIGEST_SUBSCRIBE_ENABLED } from "./digest";
 import { adminAuthorised } from "./adminAuth";
-import { buildState, freshnessOrDegraded } from "./state";
+import { buildState, freshnessOrDegraded, tableProvenance } from "./state";
 import { recordJobRun, pruneJobRuns, deepHealth, outcomeFromFailures, type JobSummary } from "./jobs";
 
 const TTL_SECONDS = 300; // 5 minutes
@@ -395,7 +395,8 @@ export default {
       }
       try {
         const result = await queryQons(env, url.searchParams);
-        return jsonResponse(result, 200, cors);
+        // DATA-09: additive provenance + note, so an empty pipeline says why.
+        return jsonResponse({ ...result, ...(await tableProvenance(env, "qons", result.total)) }, 200, cors);
       } catch (err) {
         console.error({ endpoint: "/qons", error: err instanceof Error ? err.message : err });
         return jsonResponse({ error: "qons temporarily unavailable" }, 503, cors);
@@ -410,7 +411,7 @@ export default {
       }
       try {
         const result = await queryMembers(env, url.searchParams);
-        return jsonResponse(result, 200, cors);
+        return jsonResponse({ ...result, ...(await tableProvenance(env, "members", result.total)) }, 200, cors);
       } catch (err) {
         console.error({ endpoint: "/members", error: err instanceof Error ? err.message : err });
         return jsonResponse({ error: "members temporarily unavailable" }, 503, cors);

@@ -31,6 +31,41 @@ function degradedNote(err: unknown): string {
   return "query failed";
 }
 
+// DATA-09 (WK-08, 29 Sep 2026): the plain reason each empty pipeline is empty,
+// served wherever that pipeline is exposed (the /state qons block, /qons and
+// /members). The task asked for provenance 'unavailable', but the state-v1
+// Provenance union (stateContract.ts) is closed at live | derived | fixture and
+// the frontend treats every non-live value as empty, so these surfaces keep
+// 'fixture' and carry the reason in `note` instead of widening the contract.
+// The crons keep running; their zero-row outcomes are recorded in job_runs.
+export const QONS_UNAVAILABLE_NOTE =
+  "Questions on notice are unavailable: ParlInfo does not return search results to automated requests, so the daily ingest stores zero rows.";
+export const MEMBERS_UNAVAILABLE_NOTE =
+  "The member roster is unavailable: the APH Senators' details feed carries no senator profile entries, so the roster ingest stores zero rows.";
+
+type EmptyableTable = "qons" | "members";
+const UNAVAILABLE_NOTES: Record<EmptyableTable, string> = {
+  qons: QONS_UNAVAILABLE_NOTE,
+  members: MEMBERS_UNAVAILABLE_NOTE,
+};
+
+/**
+ * Provenance for a direct-read endpoint (/qons, /members). A filtered query
+ * that matches nothing over a populated table is still 'live'; only an empty
+ * table is 'fixture' with the unavailable note, so a search miss is never
+ * misreported as a dead pipeline.
+ */
+export async function tableProvenance(
+  env: Env,
+  table: EmptyableTable,
+  total: number,
+): Promise<{ provenance: "live" | "fixture"; note?: string }> {
+  if (total > 0) return { provenance: "live" };
+  const row = await env.ARCHIVE.prepare(`SELECT COUNT(*) AS n FROM ${table}`).first<{ n: number }>();
+  if ((row?.n ?? 0) > 0) return { provenance: "live" };
+  return { provenance: "fixture", note: UNAVAILABLE_NOTES[table] };
+}
+
 // Per-feed quotas (WK-04, DATA-05): every configured feed contributes up to
 // PER_FEED_QUOTA rows, capped at STATE_SIGNAL_CAP in total. signal_counts is
 // returned beside the block and lands in meta.signal_counts. It is omitted
@@ -82,7 +117,7 @@ async function buildQonsBlock(env: Env, now: string): Promise<QonsBlock> {
   try {
     const { rows } = await queryQons(env, new URLSearchParams({ limit: "20" }));
     if (rows.length === 0) {
-      return { provenance: "fixture", fetched_at: now, origin: ORIGIN, items: [], note: "qons table returned no rows" };
+      return { provenance: "fixture", fetched_at: now, origin: ORIGIN, items: [], note: QONS_UNAVAILABLE_NOTE };
     }
     return { provenance: "live", fetched_at: now, origin: ORIGIN, items: rows };
   } catch (err) {
