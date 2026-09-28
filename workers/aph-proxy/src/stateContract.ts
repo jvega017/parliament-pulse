@@ -55,12 +55,22 @@ export interface SignalItem {
   scoring_explanation: string | null;
 }
 
+// One row per configured RSS feed, derived from the 30-minute poll
+// (feed_health table). url/checked_at/ok/status/error keep the original
+// shape the frontend maps; the rest is the feed-level detail. checked_at and
+// status are null for a configured feed that has not been polled yet.
 export interface ConnectorCheck {
   url: string;
-  checked_at: string;
+  feed_label: string;
+  kind: string;
+  checked_at: string | null;
   ok: number;
-  status: number;
+  status: number | null;
   error: string | null;
+  last_http_status: number | null;
+  items_parsed: number | null;
+  parse_error: string | null;
+  last_success_at: string | null;
 }
 
 export interface AlertEventItem {
@@ -90,6 +100,8 @@ export interface SignalsBlock extends StateBlockBase {
 
 export interface ConnectorsBlock extends StateBlockBase {
   checks: ConnectorCheck[];
+  // Reference landing pages. Plain URLs, never an ok/fail health claim.
+  reference_links: string[];
 }
 
 export interface AlertsBlock extends StateBlockBase {

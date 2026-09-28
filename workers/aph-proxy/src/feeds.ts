@@ -15,8 +15,11 @@ export type FeedMeta = JurisdictionFeedMeta;
 
 export const APH_FEEDS: FeedMeta[] = APH.feeds;
 
-// Canonical 12 connector URLs; cron pings these fortnightly for liveness.
-export const APH_CONNECTORS: string[] = APH.connectors;
+// Reference landing pages (formerly "connectors"). Served as a plain list in
+// /state and /healthz/connectors under reference_links; never reported as
+// ok/fail. The daily cron still pings them into connector_checks as an
+// internal link-rot log for the maintainer, which is not served as health.
+export const APH_REFERENCE_LINKS: string[] = APH.referenceLinks;
 
 // Browser UA + accept headers that satisfy the APH edge WAF, which 403s
 // bot-identifying User-Agent strings (confirmed via the working /rss proxy

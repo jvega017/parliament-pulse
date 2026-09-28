@@ -8,7 +8,8 @@
 // never fabricates content to look live.
 
 import type { Env } from "./archive";
-import { queryTopSignals, listAlertEvents, queryQons } from "./archive";
+import { queryTopSignals, listAlertEvents, queryQons, queryFeedHealth } from "./archive";
+import { APH_REFERENCE_LINKS } from "./feeds";
 import { queryFreshness, type Freshness } from "./freshness";
 import type {
   StateResponse,
@@ -39,21 +40,21 @@ async function buildSignalsBlock(env: Env, now: string): Promise<SignalsBlock> {
   }
 }
 
+// Connector health is feed-derived (DATA-08): one check per configured feed,
+// written by the 30-minute poll into feed_health. Landing pages ride along as
+// reference_links, a plain URL list that never carries ok/fail. The block is
+// 'live' only once at least one feed has actually been polled; before that
+// every row would be "not yet polled", which is not live health.
 async function buildConnectorsBlock(env: Env, now: string): Promise<ConnectorsBlock> {
+  const reference_links = [...APH_REFERENCE_LINKS];
   try {
-    const res = await env.ARCHIVE.prepare(
-      `SELECT url, MAX(checked_at) AS checked_at, ok, status, error
-         FROM connector_checks
-         GROUP BY url
-         ORDER BY url`,
-    ).all<{ url: string; checked_at: string; ok: number; status: number; error: string | null }>();
-    const checks = res.results ?? [];
-    if (checks.length === 0) {
-      return { provenance: "fixture", fetched_at: now, origin: ORIGIN, checks: [], note: "connector_checks table returned no rows" };
+    const checks = await queryFeedHealth(env);
+    if (!checks.some((c) => c.checked_at !== null)) {
+      return { provenance: "fixture", fetched_at: now, origin: ORIGIN, checks: [], reference_links, note: "feed_health table returned no rows" };
     }
-    return { provenance: "live", fetched_at: now, origin: ORIGIN, checks };
+    return { provenance: "live", fetched_at: now, origin: ORIGIN, checks, reference_links };
   } catch (err) {
-    return { provenance: "fixture", fetched_at: now, origin: ORIGIN, checks: [], note: degradedNote(err) };
+    return { provenance: "fixture", fetched_at: now, origin: ORIGIN, checks: [], reference_links, note: degradedNote(err) };
   }
 }
 
@@ -82,15 +83,21 @@ async function buildQonsBlock(env: Env, now: string): Promise<QonsBlock> {
 }
 
 // Top N threads by item_count (most repeat coverage first), then recency.
+// item_count is served as COUNT(*) over signal_threads, never the stored
+// threads.item_count column, which was inflated before 29 Sep 2026 (DATA-06)
+// and is only repaired by the unapplied 0007 backfill. The served count and
+// the served signal_guids are therefore always the same set.
 // Each row's member signal ids come from a small per-thread follow-up query
 // (thread counts are low, so this is cheap); provenance is 'derived' because
 // the block is composed from two tables, not a single direct row read.
 async function buildThreadsBlock(env: Env, now: string): Promise<ThreadsBlock> {
   try {
     const res = await env.ARCHIVE.prepare(
-      `SELECT thread_id, title, item_count, first_seen_at, last_seen_at
-         FROM threads
-        ORDER BY item_count DESC, last_seen_at DESC
+      `SELECT t.thread_id, t.title, COUNT(st.signal_guid) AS item_count, t.first_seen_at, t.last_seen_at
+         FROM threads t
+         LEFT JOIN signal_threads st ON st.thread_id = t.thread_id
+        GROUP BY t.thread_id
+        ORDER BY item_count DESC, t.last_seen_at DESC
         LIMIT 15`,
     ).all<{ thread_id: string; title: string; item_count: number; first_seen_at: string; last_seen_at: string }>();
     const rows = res.results ?? [];

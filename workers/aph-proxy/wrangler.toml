@@ -42,7 +42,9 @@ enabled = true
 
 # Cron triggers.
 #   */30 * * * *   poll APH RSS every 30 minutes and upsert into D1; re-derive member roster
-#   0 5 * * *      re-verify the 12 APH connector URLs daily. Was every 14 days,
+#   0 5 * * *      ping the 12 APH reference links daily into connector_checks, an
+#                  internal link-rot log only: since 29 Sep 2026 served health is
+#                  feed-derived (feed_health, written by the 30-minute poll). Was every 14 days,
 #                  which meant the public Sources desk displayed feed health up
 #                  to a fortnight old beside a Live chip (observed 2026-07-21:
 #                  checks stamped 15 July). Feed health has to be current to

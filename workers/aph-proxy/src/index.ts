@@ -2,7 +2,7 @@
 // Endpoints:
 //   GET /rss?u=<configured-feed-url>   proxied RSS with KV cache (exact-URL allowlist)
 //   GET /healthz                        liveness probe
-//   GET /healthz/connectors             last connector-check rollup
+//   GET /healthz/connectors             feed-derived health, one row per configured feed, plus reference_links
 //   GET /archive?from=&to=&kind=&q=&source_group=&limit=&offset=
 //   GET /archive/analytics?terms=ai,cyber&from=&to=
 //   GET /state                          composed signals+connectors+alerts+qons, provenance-as-schema
@@ -10,9 +10,9 @@
 //
 // Cron triggers (configured in wrangler.toml):
 //   */30 * * * *   poll APH feeds and upsert into D1
-//   0 0 */14 * *   re-verify the 12 connector URLs every 14 days
+//   0 5 * * *      ping the 12 reference links into connector_checks (internal link-rot log, not served as health)
 
-import { APH_CONNECTORS, APH_ALLOWED_HOSTS, APH_BROWSER_HEADERS, APH_FEEDS } from "./feeds";
+import { APH_REFERENCE_LINKS, APH_ALLOWED_HOSTS, APH_BROWSER_HEADERS, APH_FEEDS } from "./feeds";
 import { checkRateLimit, clientIp } from "./rateLimit";
 import {
   buildFeedAllowlist,
@@ -25,6 +25,7 @@ import {
 } from "./rssProxy";
 import {
   checkConnectors,
+  queryFeedHealth,
   pollAndArchive,
   queryArchive,
   watchlistAnalytics,
@@ -156,13 +157,10 @@ export default {
 
     if (url.pathname === "/healthz/connectors") {
       try {
-        const rows = await env.ARCHIVE.prepare(
-          `SELECT url, MAX(checked_at) AS checked_at, ok, status, error
-             FROM connector_checks
-             GROUP BY url
-             ORDER BY url`,
-        ).all();
-        return jsonResponse({ ok: true, connectors: rows.results ?? [] }, 200, cors);
+        // Feed-derived health (DATA-08): one row per configured feed, from
+        // the 30-minute poll. Landing pages are reference_links, never health.
+        const connectors = await queryFeedHealth(env);
+        return jsonResponse({ ok: true, connectors, reference_links: APH_REFERENCE_LINKS }, 200, cors);
       } catch (err) {
         return jsonResponse(
           { ok: false, reason: err instanceof Error ? err.message : "d1 unavailable" },
@@ -585,7 +583,7 @@ export default {
     // updated, leaving connector health frozen at 15 July. If you change the
     // schedule, change it in both places and verify MAX(checked_at) in D1 moves.
     if (event.cron === "0 5 * * *") {
-      ctx.waitUntil(checkConnectors(env, APH_CONNECTORS).then((r) => {
+      ctx.waitUntil(checkConnectors(env, APH_REFERENCE_LINKS).then((r) => {
         console.log("connector check", JSON.stringify(r));
       }));
       return;

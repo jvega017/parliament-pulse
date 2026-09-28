@@ -111,23 +111,33 @@ async function persistThreadAssignment(
   now: string,
 ): Promise<void> {
   const fingerprintCsv = assignment.fingerprint.join(",");
+  // item_count is never incremented. It is recomputed from signal_threads
+  // after the mapping row is written, so a re-seen or re-threaded signal
+  // (signal_threads is keyed on signal_guid and INSERT OR IGNORE) cannot
+  // inflate it. DATA-06, 29 Sep 2026: the old `item_count + 1` fired on
+  // every poll that re-saw an item, because the new-row test below it was
+  // unreliable, so a thread with one signal could claim dozens of updates.
   if (assignment.created) {
     await env.ARCHIVE.prepare(
       `INSERT INTO threads (thread_id, fingerprint, title, first_seen_at, last_seen_at, item_count)
-       VALUES (?, ?, ?, ?, ?, 1)
+       VALUES (?, ?, ?, ?, ?, 0)
        ON CONFLICT(thread_id) DO UPDATE SET
          fingerprint  = excluded.fingerprint,
-         last_seen_at = excluded.last_seen_at,
-         item_count   = threads.item_count + 1`,
+         last_seen_at = excluded.last_seen_at`,
     ).bind(assignment.thread_id, fingerprintCsv, title, now, now).run();
   } else {
     await env.ARCHIVE.prepare(
-      `UPDATE threads SET fingerprint = ?, last_seen_at = ?, item_count = item_count + 1 WHERE thread_id = ?`,
+      `UPDATE threads SET fingerprint = ?, last_seen_at = ? WHERE thread_id = ?`,
     ).bind(fingerprintCsv, now, assignment.thread_id).run();
   }
   await env.ARCHIVE.prepare(
     `INSERT OR IGNORE INTO signal_threads (signal_guid, thread_id) VALUES (?, ?)`,
   ).bind(guid, assignment.thread_id).run();
+  await env.ARCHIVE.prepare(
+    `UPDATE threads
+        SET item_count = (SELECT COUNT(*) FROM signal_threads st WHERE st.thread_id = threads.thread_id)
+      WHERE thread_id = ?`,
+  ).bind(assignment.thread_id).run();
 }
 
 // Assigns one item and keeps the in-memory candidate list in sync so later
@@ -187,6 +197,100 @@ export async function backfillThreads(env: Env, limit = 500): Promise<{
   return { processed: rows.length, threadsCreated, threadsJoined };
 }
 
+// ---- Feed health (DATA-08) ---------------------------------------------------
+// Connector health is derived from the feeds the poller actually reads, on
+// every 30-minute poll, so a reported "ok" means "this feed returned 200 and
+// parsed", not "a landing page answered". One row per feed_url, upserted.
+// last_success_at only moves on a successful poll, so a failing feed keeps
+// the time it last worked. Never throws: a health write must not break ingest.
+async function recordFeedHealth(
+  env: Env,
+  feed: FeedMeta,
+  httpStatus: number,
+  itemsParsed: number | null,
+  parseError: string | null,
+  now: string,
+  success: boolean,
+): Promise<void> {
+  try {
+    await env.ARCHIVE.prepare(
+      `INSERT INTO feed_health
+         (feed_url, feed_label, kind, last_http_status, items_parsed, parse_error, last_polled_at, last_success_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(feed_url) DO UPDATE SET
+         feed_label       = excluded.feed_label,
+         kind             = excluded.kind,
+         last_http_status = excluded.last_http_status,
+         items_parsed     = excluded.items_parsed,
+         parse_error      = excluded.parse_error,
+         last_polled_at   = excluded.last_polled_at,
+         last_success_at  = COALESCE(excluded.last_success_at, feed_health.last_success_at)`,
+    ).bind(
+      feed.url, feed.label, feed.kind, httpStatus, itemsParsed, parseError, now, success ? now : null,
+    ).run();
+  } catch (err) {
+    console.warn("feed health write failed", feed.url, err instanceof Error ? err.message : err);
+  }
+}
+
+export interface FeedHealthRow {
+  feed_url: string;
+  feed_label: string;
+  kind: string | null;
+  last_http_status: number | null;
+  items_parsed: number | null;
+  parse_error: string | null;
+  last_polled_at: string;
+  last_success_at: string | null;
+}
+
+export interface FeedHealthCheck {
+  url: string;
+  feed_label: string;
+  kind: string;
+  checked_at: string | null;
+  ok: number;
+  status: number | null;
+  error: string | null;
+  last_http_status: number | null;
+  items_parsed: number | null;
+  parse_error: string | null;
+  last_success_at: string | null;
+}
+
+export const FEED_HEALTH_SQL =
+  `SELECT feed_url, feed_label, kind, last_http_status, items_parsed, parse_error, last_polled_at, last_success_at
+     FROM feed_health`;
+
+// Serves one row per CONFIGURED feed, in jurisdictions.json order, labelled
+// with the configured feed_label. A configured feed with no health row yet is
+// reported as never polled (ok 0, status null) rather than omitted, and a
+// health row for a feed no longer configured is dropped. The ok/status/
+// checked_at/error fields keep the ConnectorCheck shape the frontend already
+// maps, so this is a drop-in replacement for the old connector_checks rollup.
+export async function queryFeedHealth(env: Env): Promise<FeedHealthCheck[]> {
+  const res = await env.ARCHIVE.prepare(FEED_HEALTH_SQL).all<FeedHealthRow>();
+  const byUrl = new Map((res.results ?? []).map((r) => [r.feed_url, r]));
+  return APH_FEEDS.map((feed) => {
+    const r = byUrl.get(feed.url);
+    const status = r?.last_http_status ?? null;
+    const ok = r != null && status !== null && status >= 200 && status < 300 && !r.parse_error;
+    return {
+      url: feed.url,
+      feed_label: feed.label,
+      kind: feed.kind,
+      checked_at: r?.last_polled_at ?? null,
+      ok: ok ? 1 : 0,
+      status,
+      error: r ? (r.parse_error ?? null) : "not yet polled",
+      last_http_status: status,
+      items_parsed: r?.items_parsed ?? null,
+      parse_error: r?.parse_error ?? null,
+      last_success_at: r?.last_success_at ?? null,
+    };
+  });
+}
+
 export async function pollAndArchive(env: Env): Promise<{
   perFeed: Array<{ feed: string; ok: boolean; new: number; seen: number; dedup: number; error?: string }>;
 }> {
@@ -197,8 +301,8 @@ export async function pollAndArchive(env: Env): Promise<{
   // a slow upstream from blocking the entire cron. Results are collected and
   // inserted into D1 after all fetches complete.
   const FETCH_TIMEOUT_MS = 8_000;
-  type FetchOk = { ok: true; meta: FeedMeta; xml: string };
-  type FetchErr = { ok: false; feedUrl: string; new: 0; seen: 0; dedup: 0; error: string };
+  type FetchOk = { ok: true; meta: FeedMeta; xml: string; status: number };
+  type FetchErr = { ok: false; meta: FeedMeta; status: number; error: string };
   const feedResults = await Promise.all(
     APH_FEEDS.map(async (feedMeta): Promise<FetchOk | FetchErr> => {
       try {
@@ -212,16 +316,16 @@ export async function pollAndArchive(env: Env): Promise<{
         if (res.status === 429) {
           const retryAfter = res.headers.get("retry-after");
           console.warn("APH returned 429", { feed: feedMeta.url, retryAfter });
-          return { ok: false, feedUrl: feedMeta.url, new: 0, seen: 0, dedup: 0, error: "HTTP 429 Too Many Requests" };
+          return { ok: false, meta: feedMeta, status: 429, error: "HTTP 429 Too Many Requests" };
         }
         if (!res.ok) {
-          return { ok: false, feedUrl: feedMeta.url, new: 0, seen: 0, dedup: 0, error: `HTTP ${res.status}` };
+          return { ok: false, meta: feedMeta, status: res.status, error: `HTTP ${res.status}` };
         }
         const xml = await res.text();
-        return { ok: true, meta: feedMeta, xml };
+        return { ok: true, meta: feedMeta, xml, status: res.status };
       } catch (err) {
         return {
-          ok: false, feedUrl: feedMeta.url, new: 0, seen: 0, dedup: 0,
+          ok: false, meta: feedMeta, status: 0,
           error: err instanceof Error ? err.message : "unknown",
         };
       }
@@ -274,7 +378,8 @@ export async function pollAndArchive(env: Env): Promise<{
 
   for (const feedResult of feedResults) {
     if (!feedResult.ok) {
-      perFeed.push({ feed: feedResult.feedUrl, ok: false, new: 0, seen: 0, dedup: 0, error: feedResult.error });
+      perFeed.push({ feed: feedResult.meta.url, ok: false, new: 0, seen: 0, dedup: 0, error: feedResult.error });
+      await recordFeedHealth(env, feedResult.meta, feedResult.status, null, feedResult.error, now, false);
       continue;
     }
     const { meta: feed, xml } = feedResult;
@@ -295,7 +400,7 @@ export async function pollAndArchive(env: Env): Promise<{
         // INGEST-TIME SNAPSHOT only. scoring_explanation in particular embeds a
         // relative-age phrase ("today", "3d ago") that is true only at `now`
         // above -- it is never true again after this row is written. Once an
-        // item drops out of its RSS feed, the ON CONFLICT branch below stops
+        // item drops out of its RSS feed, the re-seen UPDATE branch below stops
         // firing for its guid, so these three columns freeze permanently.
         // Every read path that SERVES a score to a user (queryTopSignals,
         // queryArchive, queryBills, the /state signals block, the digest
@@ -304,21 +409,20 @@ export async function pollAndArchive(env: Env): Promise<{
         // These columns exist for historical analysis only (e.g. the
         // /archive/timeline day-by-day volume chart, which is deliberately an
         // ingest-time record of what was assessed on each day).
-        const r = await env.ARCHIVE.prepare(
+        // New-row detection (DATA-06). The previous upsert inferred "new" from
+        // meta.last_row_id, but SQLite's last_insert_rowid() keeps the value
+        // of the previous successful INSERT on the connection, so a re-seen
+        // item whose ON CONFLICT branch fired still looked new and was
+        // re-threaded on every poll. RETURNING on DO NOTHING yields a row
+        // only when this statement actually inserted one.
+        const inserted = await env.ARCHIVE.prepare(
           `INSERT INTO signals
              (guid, title, link, pub_date, feed_url, feed_label, source_group, kind,
               first_seen_at, last_seen_at,
               attention, confidence, score_json, entities_json, scoring_explanation, description)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-           ON CONFLICT(guid) DO UPDATE SET
-             last_seen_at        = excluded.last_seen_at,
-             title               = excluded.title,
-             description         = excluded.description,
-             attention           = excluded.attention,
-             confidence          = excluded.confidence,
-             score_json          = excluded.score_json,
-             entities_json       = excluded.entities_json,
-             scoring_explanation = excluded.scoring_explanation`,
+           ON CONFLICT(guid) DO NOTHING
+           RETURNING guid`,
         )
           .bind(
             item.guid, item.title, item.link, item.pubDate,
@@ -328,26 +432,45 @@ export async function pollAndArchive(env: Env): Promise<{
             scored.scoreJson, scored.entitiesJson, scored.explanation,
             item.description,
           )
-          .run();
-        if (r.meta?.changes && r.meta.changes > 0) {
-          if (r.meta.last_row_id && r.meta.last_row_id > 0) {
-            added += 1;
-            // Thread only genuinely new rows -- a re-seen item already has a
-            // signal_threads row from when it first arrived.
-            try {
-              await threadItem(env, threadCandidates, item.guid, item.title, item.description, now);
-            } catch (threadErr) {
-              console.warn("thread assignment failed", item.guid, threadErr instanceof Error ? threadErr.message : threadErr);
-            }
-          } else updated += 1;
+          .all<{ guid: string }>();
+        if ((inserted.results ?? []).length > 0) {
+          added += 1;
+          // Thread only genuinely new rows -- a re-seen item already has a
+          // signal_threads row from when it first arrived.
+          try {
+            await threadItem(env, threadCandidates, item.guid, item.title, item.description, now);
+          } catch (threadErr) {
+            console.warn("thread assignment failed", item.guid, threadErr instanceof Error ? threadErr.message : threadErr);
+          }
+        } else {
+          await env.ARCHIVE.prepare(
+            `UPDATE signals SET
+               last_seen_at        = ?,
+               title               = ?,
+               description         = ?,
+               attention           = ?,
+               confidence          = ?,
+               score_json          = ?,
+               entities_json       = ?,
+               scoring_explanation = ?
+             WHERE guid = ?`,
+          )
+            .bind(
+              now, item.title, item.description,
+              scored.attention, scored.confidence,
+              scored.scoreJson, scored.entitiesJson, scored.explanation,
+              item.guid,
+            )
+            .run();
+          updated += 1;
         }
       }
       perFeed.push({ feed: feed.url, ok: true, new: added, seen: items.length, dedup: dedupSkipped });
+      await recordFeedHealth(env, feed, feedResult.status, items.length, null, now, true);
     } catch (err) {
-      perFeed.push({
-        feed: feed.url, ok: false, new: 0, seen: 0, dedup: 0,
-        error: err instanceof Error ? err.message : "unknown",
-      });
+      const msg = err instanceof Error ? err.message : "unknown";
+      perFeed.push({ feed: feed.url, ok: false, new: 0, seen: 0, dedup: 0, error: msg });
+      await recordFeedHealth(env, feed, feedResult.status, null, msg, now, false);
     }
   }
 

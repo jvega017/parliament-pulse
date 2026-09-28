@@ -33,7 +33,7 @@
       { "url": "https://www.aph.gov.au/senate/rss/red", "label": "Today's Senate hearings", "kind": "hearing" },
       { "url": "https://www.aph.gov.au/house/rss/house_news", "label": "House news", "kind": "signal" }
     ],
-    "connectors": [
+    "referenceLinks": [
       "https://www.aph.gov.au/Help/RSS_feeds",
       "https://www.aph.gov.au/Parliamentary_Business/Hansard",
       "https://parlinfo.aph.gov.au/",

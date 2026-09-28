@@ -34,7 +34,10 @@ export interface JurisdictionConfig {
   parlinfoSearchBase: string;
   browserHeaders: Record<string, string>;
   feeds: JurisdictionFeedMeta[];
-  connectors: string[];
+  // Landing pages a reader can follow for context. Reference only: these are
+  // never polled for content and never reported as ok/fail health. Feed
+  // health comes from the feeds themselves (archive.ts, feed_health table).
+  referenceLinks: string[];
   sourceGroupRules: SourceGroupRule[];
   defaultSourceGroup: string;
 }

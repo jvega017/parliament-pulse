@@ -6,24 +6,27 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   build:
-    name: Lint, typecheck, build
+    name: Typecheck, test, build
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version-file: .node-version
           cache: pnpm
@@ -34,9 +37,11 @@ jobs:
       # apps/web retired 2026-07-23 (frozen 2026-05-30, build broken: main.tsx
       # cannot resolve ./App; active frontend is the standalone parliament-pulse
       # repo). CI is scoped to the canonical worker; the dead web build is removed.
-      - name: Lint (worker)
-        run: pnpm --filter aph-proxy lint
-
+      # No lint step: the worker had only an `echo 'no lint configured'`
+      # placeholder, which reported a pass for code nobody linted. Removed
+      # 29 Sep 2026 (ARCH-04) rather than kept as a false green. tsc strict
+      # typecheck and the unit tests below are the real gates. Add ESLint
+      # with a config before reintroducing a lint step.
       - name: Typecheck (worker)
         run: pnpm --filter aph-proxy typecheck
 
