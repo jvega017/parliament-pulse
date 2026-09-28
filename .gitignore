@@ -1,7 +1,10 @@
-# Generated single-file bundles
-parliament-pulse.html
-parliament-pulse-updated.html
-parliament-pulse-beta.html
+# Generated single-file bundles: never in the repo root. The stale snapshots
+# live, tracked, under archive/ (archive/parliament-pulse-beta.html is the
+# production probe's canary specimen and must exist in a clean clone).
+/parliament-pulse*.html
+
+# Deployable output of build-dist.ps1 (rebuilt from scratch on every run)
+dist/
 
 # Temp/utility scripts
 cf-list.ps1

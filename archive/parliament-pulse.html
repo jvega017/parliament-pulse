@@ -1,0 +1,3198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Parliament Pulse — Prometheus Policy Lab</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    /* Parliament Pulse — restrained institutional palette */
+    /* One ink, one elevation, two accents. Everything else is a tint of those. */
+
+    --bg:           #0a1017;
+    --bg-2:         #0e1620;
+    --panel:        #141d28;
+    --panel-2:      #1a2431;
+    --panel-hi:     #22304260;
+    --line:         #ffffff08;
+    --line-2:       #ffffff12;
+    --line-bright:  #ffffff20;
+
+    --ink:          #eef0ea;
+    --ink-2:        #c2cad4;
+    --ink-3:        #8794a5;
+    --ink-4:        #5a6778;
+
+    /* PRIMARY ACCENT — Prometheus ember. Used for brand, priority, live signals. */
+    --brass:        #e09359;
+    --brass-2:      #f0ab75;
+    --brass-soft:   #8a5430;
+    --brass-ink:    #1a0e05;
+
+    /* SECONDARY ACCENT — verified/connected/healthy data. */
+    --teal:         #4eaea2;
+    --teal-soft:    #2e7068;
+
+    /* Functional status (used sparingly, only where required) */
+    --info:         #7ba0d4;
+    --caution:      #d9a94a;
+    --escalate:     #d06a5e;
+    --ok:           #6fb085;
+
+    --r-sm: 4px;
+    --r:    8px;
+    --r-lg: 14px;
+
+    --shadow: 0 1px 0 #00000050, 0 24px 60px -24px #00000080;
+
+    --sans: "Inter", system-ui, sans-serif;
+    --serif: "Fraunces", Georgia, serif;
+    --mono: "JetBrains Mono", ui-monospace, monospace;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; }
+  body {
+    background:
+      radial-gradient(1600px 900px at 10% -5%, #14202e 0%, transparent 50%),
+      radial-gradient(1000px 700px at 95% 110%, #1d1712 0%, transparent 50%),
+      var(--bg);
+    background-attachment: fixed;
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 13.5px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    font-feature-settings: "cv11", "ss01";
+    letter-spacing: -0.005em;
+  }
+
+  .mono { font-family: var(--mono); font-feature-settings: "tnum"; letter-spacing: .01em; }
+  .serif { font-family: var(--serif); }
+
+  /* ---------- Layout ---------- */
+  .app {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    min-height: 100vh;
+  }
+
+  /* ---------- Sidebar ---------- */
+  .side {
+    background: linear-gradient(180deg, #101925 0%, #0c141d 100%);
+    border-right: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+  }
+  .brand {
+    padding: 18px 18px 14px;
+    border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .brand-mark {
+    width: 30px; height: 30px; border-radius: 7px;
+    background: radial-gradient(circle at 35% 30%, #2a1f14 0%, #0d0806 80%);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: inset 0 0 0 1px #d4894a30, 0 0 20px -6px #d4894a50;
+  }
+  .brand-name { font-family: var(--serif); font-weight: 600; font-size: 18px; letter-spacing: -0.01em; font-variation-settings: "opsz" 144; }
+  .brand-sub  { font-family: var(--mono); color: var(--ink-4); font-size: 10px; text-transform: uppercase; letter-spacing: .16em; margin-top: 2px; }
+
+  .nav {
+    padding: 10px 8px;
+    overflow-y: auto;
+    flex: 1;
+  }
+  .nav-group {
+    font-family: var(--mono); font-size: 10px; text-transform: uppercase;
+    letter-spacing: .16em; color: var(--ink-4);
+    padding: 14px 12px 6px;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 12px; border-radius: 6px;
+    color: var(--ink-2); cursor: pointer;
+    font-size: 13px;
+    user-select: none;
+    position: relative;
+  }
+  .nav-item:hover { background: #ffffff06; color: var(--ink); }
+  .nav-item.active {
+    background: linear-gradient(90deg, #c9a36a18, #c9a36a04);
+    color: var(--ink);
+  }
+  .nav-item.active::before{
+    content:""; position:absolute; left:0; top:6px; bottom:6px; width:2px;
+    background: var(--brass); border-radius: 0 2px 2px 0;
+  }
+  .nav-item .ico { width:16px; height:16px; opacity:.85; flex:none; }
+  .nav-item .count {
+    margin-left: auto; font-family: var(--mono); font-size: 10px; color: var(--ink-4);
+    background: #ffffff0a; padding: 1px 6px; border-radius: 10px;
+  }
+  .nav-item.active .count { color: var(--brass); background: #c9a36a14; }
+
+  .side-foot {
+    border-top: 1px solid var(--line);
+    padding: 12px 14px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .avatar {
+    width: 30px; height: 30px; border-radius: 50%;
+    background: linear-gradient(135deg, #2a7570, #3fa39a);
+    display: grid; place-items: center;
+    font-family: var(--mono); font-size: 11px; color: #0e1620; font-weight: 600;
+  }
+
+  /* ---------- Top bar ---------- */
+  .main { min-width: 0; display: flex; flex-direction: column; }
+  .topbar {
+    display: flex; align-items: center; gap: 14px;
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--line);
+    background: #0e1620cc;
+    backdrop-filter: blur(8px);
+    position: sticky; top: 0; z-index: 20;
+  }
+  .search {
+    flex: 1; max-width: 560px;
+    display: flex; align-items: center; gap: 8px;
+    background: var(--panel);
+    border: 1px solid var(--line-2);
+    border-radius: 8px;
+    padding: 7px 10px;
+  }
+  .search input {
+    background: transparent; border: 0; outline: 0;
+    color: var(--ink); font-family: var(--sans); font-size: 13px; width: 100%;
+  }
+  .kbd {
+    font-family: var(--mono); font-size: 10px; color: var(--ink-3);
+    padding: 2px 6px; border: 1px solid var(--line-2); border-radius: 4px;
+    background: #ffffff04;
+  }
+  .top-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+  .chip {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase;
+    padding: 4px 9px; border-radius: 999px;
+    border: 1px solid var(--line-2); color: var(--ink-3); background: #ffffff03;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .chip .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 3px #6aa57a22; }
+  .chip.warn .dot { background: var(--caution); box-shadow: 0 0 0 3px #d4a24a22;}
+  .chip.bad .dot { background: var(--escalate); box-shadow: 0 0 0 3px #c2686522;}
+  .btn {
+    font-family: var(--sans); font-size: 12.5px;
+    padding: 6px 12px; border-radius: 6px; cursor: pointer;
+    border: 1px solid var(--line-2); background: var(--panel); color: var(--ink-2);
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn:hover { background: var(--panel-2); color: var(--ink); }
+  .btn.primary {
+    background: linear-gradient(180deg, #d7b079, #b28a4f);
+    color: var(--brass-ink); border: 1px solid #8f7648;
+    font-weight: 600;
+  }
+  .btn.primary:hover { filter: brightness(1.05); }
+  .btn.ghost { background: transparent; }
+  .btn.sm { padding: 4px 9px; font-size: 12px; }
+
+  /* ---------- Content ---------- */
+  .content {
+    padding: 24px;
+    max-width: 1500px;
+    width: 100%;
+  }
+  .page-head {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    margin-bottom: 22px; gap: 24px;
+  }
+  .page-title {
+    font-family: var(--serif); font-weight: 500; font-size: 28px; letter-spacing: -.01em; margin: 0;
+  }
+  .page-kicker {
+    font-family: var(--mono); font-size: 10.5px; color: var(--ink-4);
+    text-transform: uppercase; letter-spacing: .18em; margin-bottom: 6px;
+  }
+  .page-sub { color: var(--ink-3); font-size: 13.5px; margin-top: 6px; max-width: 620px; }
+
+  .grid { display: grid; gap: 16px; }
+  .g-2 { grid-template-columns: repeat(2, 1fr); }
+  .g-3 { grid-template-columns: repeat(3, 1fr); }
+  .g-4 { grid-template-columns: repeat(4, 1fr); }
+  .g-overview { grid-template-columns: 2fr 1fr; }
+
+  /* ---------- Panel ---------- */
+  .panel {
+    background: linear-gradient(180deg, var(--panel) 0%, var(--panel-2) 100%);
+    border: 1px solid var(--line-2);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow);
+  }
+  .panel-head {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--line);
+  }
+  .panel-title { font-weight: 500; font-size: 13.5px; margin: 0; color: var(--ink); letter-spacing: .01em; }
+  .panel-kicker { font-family: var(--mono); font-size: 10px; color: var(--ink-4); text-transform: uppercase; letter-spacing: .16em; }
+  .panel-body { padding: 14px 16px; }
+  .panel-foot { padding: 10px 16px; border-top: 1px solid var(--line); display:flex; align-items:center; gap:10px; }
+
+  /* ---------- Stat block ---------- */
+  .stat {
+    padding: 16px;
+  }
+  .stat-label { font-family: var(--mono); font-size: 10px; color: var(--ink-4); text-transform: uppercase; letter-spacing: .16em; }
+  .stat-value { font-family: var(--serif); font-size: 34px; font-weight: 500; margin-top: 4px; letter-spacing: -.01em; }
+  .stat-value .unit { font-size: 14px; color: var(--ink-3); margin-left: 6px; font-family: var(--mono); }
+  .stat-meta { margin-top: 6px; font-size: 12px; color: var(--ink-3); display:flex; align-items:center; gap: 8px; }
+
+  /* ---------- Signal Card ---------- */
+  .signal {
+    border: 1px solid var(--line-2);
+    border-radius: var(--r-lg);
+    background: linear-gradient(180deg, #1a2432 0%, #18222f 100%);
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: border-color .15s, transform .15s;
+    position: relative;
+  }
+  .signal:hover { border-color: var(--line-bright); }
+  .signal + .signal { margin-top: 10px; }
+
+  .sig-head { display:flex; align-items:center; gap:10px; margin-bottom: 6px; }
+  .sig-id { font-family: var(--mono); font-size: 10.5px; color: var(--ink-4); letter-spacing: .05em; }
+  .sig-source { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); }
+  .sig-time { font-family: var(--mono); font-size: 10.5px; color: var(--ink-4); margin-left: auto; }
+
+  .sig-title {
+    font-family: var(--serif); font-size: 17px; font-weight: 500; line-height: 1.3;
+    color: var(--ink); margin: 2px 0 6px;
+  }
+  .sig-sum { color: var(--ink-2); font-size: 13px; }
+
+  .sig-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .tag {
+    font-family: var(--mono); font-size: 10.5px;
+    padding: 3px 8px; border-radius: 4px;
+    background: #ffffff06; border: 1px solid var(--line-2); color: var(--ink-3);
+    text-transform: none;
+  }
+  .tag.brass { color: var(--brass); border-color: #c9a36a33; background: #c9a36a0f; }
+  .tag.teal  { color: var(--teal);  border-color: #3fa39a33; background: #3fa39a0f; }
+  .tag.amber { color: var(--caution); border-color: #d4a24a33; background: #d4a24a0f; }
+  .tag.red   { color: var(--escalate); border-color: #c2686533; background: #c268650f; }
+  .tag.info  { color: var(--info); border-color: #6b8ec933; background: #6b8ec90f; }
+
+  .sig-action {
+    margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--line-2);
+    display: grid; grid-template-columns: auto 1fr auto; gap: 10px 14px; align-items: center;
+  }
+  .sig-action-label {
+    font-family: var(--mono); font-size: 10px; color: var(--ink-4);
+    text-transform: uppercase; letter-spacing: .16em;
+  }
+  .sig-action-value { font-size: 13px; color: var(--ink); font-weight: 500; }
+  .sig-action-reason { grid-column: 1 / -1; color: var(--ink-3); font-size: 12.5px; font-style: italic; }
+
+  /* attention pill */
+  .att {
+    font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: .14em;
+    padding: 3px 8px; border-radius: 4px;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .att::before { content:""; width:6px; height:6px; border-radius:50%; }
+  .att.high { color: var(--escalate); background: #c268651a; border: 1px solid #c2686540; }
+  .att.high::before { background: var(--escalate); }
+  .att.med { color: var(--caution); background: #d4a24a1a; border: 1px solid #d4a24a40; }
+  .att.med::before { background: var(--caution); }
+  .att.low { color: var(--info); background: #6b8ec91a; border: 1px solid #6b8ec940; }
+  .att.low::before { background: var(--info); }
+
+  /* confidence bar */
+  .conf {
+    display: inline-flex; align-items: center; gap: 2px;
+  }
+  .conf span { width: 6px; height: 10px; background: var(--line-2); border-radius: 1px; }
+  .conf span.on { background: var(--brass); }
+
+  /* ---------- Table ---------- */
+  table.ds { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.ds th, table.ds td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--line); }
+  table.ds th {
+    font-family: var(--mono); font-size: 10px; color: var(--ink-4);
+    text-transform: uppercase; letter-spacing: .16em; font-weight: 500;
+    background: #ffffff03;
+  }
+  table.ds tbody tr { cursor: pointer; }
+  table.ds tbody tr:hover { background: #ffffff04; }
+  table.ds td.num { text-align: right; font-family: var(--mono); }
+
+  /* ---------- Timeline ---------- */
+  .timeline { position: relative; padding-left: 18px; }
+  .timeline::before {
+    content:""; position:absolute; left: 5px; top: 4px; bottom: 4px; width: 1px; background: var(--line-2);
+  }
+  .tl-item { position: relative; padding: 4px 0 12px; }
+  .tl-item::before {
+    content:""; position:absolute; left: -18px; top: 8px; width: 11px; height: 11px; border-radius: 50%;
+    background: var(--panel); border: 2px solid var(--brass);
+  }
+  .tl-item.teal::before { border-color: var(--teal); }
+  .tl-item.info::before { border-color: var(--info); }
+  .tl-time { font-family: var(--mono); font-size: 10px; color: var(--ink-4); text-transform: uppercase; letter-spacing: .14em; }
+  .tl-body { color: var(--ink-2); font-size: 13px; margin-top: 2px; }
+
+  /* ---------- Drawer ---------- */
+  .drawer-back {
+    position: fixed; inset: 0; background: #000000a0; backdrop-filter: blur(2px);
+    opacity: 0; pointer-events: none; transition: opacity .18s; z-index: 40;
+  }
+  .drawer-back.on { opacity: 1; pointer-events: auto; }
+  .drawer {
+    position: fixed; top: 0; right: 0; bottom: 0; width: 580px; max-width: 95vw;
+    background: linear-gradient(180deg, #131c28, #0f1721);
+    border-left: 1px solid var(--line-2);
+    transform: translateX(100%); transition: transform .22s cubic-bezier(.2,.7,.2,1);
+    z-index: 50; display: flex; flex-direction: column;
+    box-shadow: -20px 0 60px #00000060;
+  }
+  .drawer.on { transform: translateX(0); }
+  .drawer-head { padding: 16px 20px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 12px; }
+  .drawer-body { padding: 18px 20px; overflow-y: auto; flex: 1; }
+  .drawer-foot { padding: 12px 20px; border-top: 1px solid var(--line); display: flex; gap: 10px; background: #0c141d; }
+
+  .drawer-section { margin-bottom: 22px; }
+  .drawer-section h4 {
+    font-family: var(--mono); font-size: 10px; color: var(--ink-4);
+    text-transform: uppercase; letter-spacing: .16em; margin: 0 0 8px;
+  }
+  .drawer-section p { margin: 0; color: var(--ink-2); font-size: 13.5px; line-height: 1.55; }
+  .kv { display: grid; grid-template-columns: 140px 1fr; gap: 6px 14px; font-size: 13px; }
+  .kv dt { font-family: var(--mono); font-size: 10.5px; color: var(--ink-4); text-transform: uppercase; letter-spacing: .1em; padding-top: 2px; }
+  .kv dd { margin: 0; color: var(--ink); }
+
+  .feedback-row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .fb {
+    font-family: var(--sans); font-size: 12px;
+    padding: 5px 10px; border-radius: 6px; cursor: pointer;
+    border: 1px solid var(--line-2); background: #ffffff04; color: var(--ink-2);
+  }
+  .fb:hover { background: #ffffff0a; color: var(--ink); }
+  .fb.on { background: #c9a36a14; border-color: #c9a36a55; color: var(--brass); }
+
+  /* ---------- Radar ---------- */
+  .radar-row { display: grid; grid-template-columns: 1fr 80px 100px 1fr; gap: 14px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .radar-row:last-child { border-bottom: 0; }
+  .bar { height: 4px; background: var(--line-2); border-radius: 2px; overflow: hidden; }
+  .bar .fill { height: 100%; background: linear-gradient(90deg, var(--teal), var(--brass)); }
+  .spark { display: flex; gap: 2px; align-items: end; height: 22px; }
+  .spark span { width: 5px; background: var(--teal-soft); border-radius: 1px; }
+
+  /* ---------- Pattern card ---------- */
+  .pattern {
+    border: 1px solid #c9a36a44;
+    background:
+      radial-gradient(400px 120px at 0% 0%, #c9a36a14, transparent),
+      linear-gradient(180deg, #1b2433, #16202e);
+    border-radius: var(--r-lg);
+    padding: 16px 18px;
+    position: relative;
+  }
+  .pattern .ribbon {
+    position: absolute; top: 12px; right: 12px;
+    font-family: var(--mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--brass); background: #c9a36a14; border: 1px solid #c9a36a55;
+    padding: 3px 8px; border-radius: 4px;
+  }
+
+  /* ---------- Watchlist chip ---------- */
+  .wl {
+    border: 1px solid var(--line-2); border-radius: 10px;
+    padding: 12px 14px; background: #ffffff03;
+    display: flex; flex-direction: column; gap: 6px;
+    cursor: pointer;
+  }
+  .wl:hover { border-color: var(--line-bright); }
+  .wl-name { font-weight: 500; font-size: 13.5px; }
+  .wl-meta { font-size: 11.5px; color: var(--ink-3); display:flex; gap: 10px; font-family: var(--mono); }
+
+  /* Progress ring placeholder */
+  .ring {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: conic-gradient(var(--brass) calc(var(--p,70)*1%), var(--line-2) 0);
+    display: grid; place-items: center;
+  }
+  .ring::after {
+    content: attr(data-p)"%"; color: var(--ink);
+    width: 30px; height: 30px; border-radius: 50%;
+    background: var(--panel); display: grid; place-items: center;
+    font-family: var(--mono); font-size: 10px;
+  }
+
+  /* ---------- Brief preview ---------- */
+  .brief {
+    background: #f4efe4; color: #1a1208;
+    border-radius: 10px; padding: 18px 20px;
+    font-family: var(--serif); font-size: 13.5px; line-height: 1.55;
+    box-shadow: inset 0 0 0 1px #00000014;
+  }
+  .brief h5 { margin: 12px 0 4px; font-family: var(--sans); font-size: 11px; text-transform: uppercase; letter-spacing: .16em; color: #7a5a22; }
+  .brief h3 { margin: 0 0 4px; font-size: 20px; font-weight: 600; }
+  .brief .meta { font-family: var(--mono); font-size: 10.5px; color: #7a5a22; }
+  .brief ul { margin: 4px 0 0; padding-left: 18px; }
+
+  /* source health dot */
+  .hdot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; vertical-align: middle; }
+  .hdot.live { background: var(--ok); }
+  .hdot.delayed { background: var(--caution); }
+  .hdot.broken { background: var(--escalate); }
+  .hdot.stale  { background: var(--ink-4); }
+  .hdot.review { background: var(--info); }
+
+  /* inline SVG icons */
+  .ico { display: inline-block; vertical-align: middle; }
+
+  /* Fade page switches */
+  .page { animation: fadeIn .25s ease both; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px);} to { opacity: 1; transform: none; } }
+
+  /* Modal-ish tester */
+  .feed-test {
+    background: #0c141d; border: 1px solid var(--line-2); border-radius: 10px;
+    padding: 14px; font-family: var(--mono); font-size: 12px; color: var(--ink-2);
+  }
+  .feed-test .ok { color: var(--ok); }
+  .feed-test .warn { color: var(--caution); }
+  .feed-test .err { color: var(--escalate); }
+
+  hr.sep { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
+
+  .empty { color: var(--ink-4); font-style: italic; font-size: 13px; padding: 12px 0; }
+
+  /* Responsive ish */
+  @media (max-width: 1100px) {
+    .g-4 { grid-template-columns: repeat(2, 1fr); }
+    .g-overview { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 780px) {
+    .app { grid-template-columns: 1fr; }
+    .side { position: static; height: auto; }
+    .g-2, .g-3 { grid-template-columns: 1fr; }
+  }
+
+  /* ---- Modal ---- */
+  .modal-back {
+    position: fixed; inset: 0; background: #000000b0; backdrop-filter: blur(3px);
+    z-index: 60; display: grid; place-items: center; padding: 40px;
+    animation: fadeIn .15s ease;
+  }
+  .modal {
+    background: linear-gradient(180deg, var(--panel), var(--panel-2));
+    border: 1px solid var(--line-2); border-radius: 14px;
+    width: 100%; max-width: 860px; max-height: 86vh;
+    display: flex; flex-direction: column; overflow: hidden;
+    box-shadow: 0 40px 80px #00000088;
+  }
+  .modal-head { padding: 18px 22px; border-bottom: 1px solid var(--line); display:flex; align-items:flex-start; gap:14px; }
+  .modal-body { padding: 18px 22px; overflow-y: auto; flex: 1; }
+  .modal-foot { padding: 12px 22px; border-top: 1px solid var(--line); display:flex; gap:10px; background:#0c141d; }
+
+  /* ---- Live video ---- */
+  .live-wrap {
+    position: relative; border-radius: 10px; overflow: hidden;
+    background: #000; aspect-ratio: 16 / 9;
+    border: 1px solid var(--line-2);
+  }
+  .live-wrap iframe { width:100%; height:100%; border:0; display:block; }
+  .live-badge {
+    position: absolute; top: 10px; left: 10px; z-index: 2;
+    font-family: var(--mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase;
+    padding: 4px 9px; border-radius: 4px; color: #fff;
+    background: #c26865; box-shadow: 0 0 0 3px #c2686540;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .live-badge .pulse { width:6px; height:6px; border-radius:50%; background:#fff; animation: pulse 1.4s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
+
+  .src-badge {
+    font-family: var(--mono); font-size: 10px; color: var(--ink-3);
+    display:inline-flex; align-items:center; gap:5px;
+    padding: 2px 7px; border: 1px solid var(--line-2); border-radius: 4px;
+    background: #ffffff03;
+  }
+
+  /* clickable chip */
+  .clk { cursor: pointer; transition: background .12s, border-color .12s; }
+  .clk:hover { background: #ffffff08; border-color: var(--line-bright); }
+
+  /* Toast */
+  .toast-wrap { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 70; display:flex; flex-direction:column; gap:8px; align-items:center; }
+  .toast {
+    background: #18222f; border: 1px solid var(--line-bright);
+    color: var(--ink); padding: 10px 14px; border-radius: 8px;
+    font-size: 13px; box-shadow: 0 10px 30px #00000080;
+    animation: toastIn .2s ease;
+    display: inline-flex; align-items: center; gap: 8px;
+  }
+  @keyframes toastIn { from { opacity: 0; transform: translateY(8px); } }
+  .toast .tok { color: var(--ok); }
+  .toast .tbr { color: var(--brass); }
+
+  /* Global search results */
+  .search-results {
+    position: absolute; top: calc(100% + 6px); left: 0; right: 0;
+    background: #131c28; border: 1px solid var(--line-2); border-radius: 10px;
+    box-shadow: 0 20px 50px #00000080; z-index: 30;
+    max-height: 420px; overflow-y: auto;
+  }
+  .sr-group { font-family: var(--mono); font-size: 10px; color: var(--ink-4); text-transform: uppercase; letter-spacing: .16em; padding: 10px 14px 4px; }
+  .sr-item { padding: 8px 14px; cursor: pointer; border-top: 1px solid var(--line); font-size: 13px; display:flex; gap:10px; align-items:center; }
+  .sr-item:hover { background: #ffffff06; }
+  .sr-item .k { font-family: var(--mono); font-size: 10.5px; color: var(--ink-4); }
+  .search { position: relative; }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: #2a3a51; border-radius: 10px; border: 2px solid transparent; background-clip: padding-box; }
+  ::-webkit-scrollbar-track { background: transparent; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<!-- Pinned React + Babel -->
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" data-module="data.jsx">
+// ---------- Mock data for Civic Signal ----------
+
+const APH_FEEDS = [
+  { id: "s-new-inquiries", group: "Senate", name: "New Senate committee inquiries", url: "https://www.aph.gov.au/senate/rss/new_inquiries", status: "live", last: "08:15", today: 2, fpr: "Low", modules: ["Committees", "Emerging Issues"], parser: "Valid", authority: "Official", confidence: "High" },
+  { id: "s-reports", group: "Senate", name: "Senate committee reports tabled", url: "https://www.aph.gov.au/senate/rss/reports", status: "live", last: "07:42", today: 1, fpr: "Low", modules: ["Committees", "Briefings"], parser: "Valid", authority: "Official", confidence: "High" },
+  { id: "s-today-hearings", group: "Senate", name: "Today's Senate committee hearings", url: "https://www.aph.gov.au/senate/rss/red", status: "live", last: "08:02", today: 4, fpr: "Low", modules: ["Today's Signal", "Committees"], parser: "Valid", authority: "Official", confidence: "High" },
+  { id: "s-upcoming", group: "Senate", name: "Upcoming Senate committee hearings", url: "https://www.aph.gov.au/senate/rss/upcoming_hearings", status: "live", last: "07:58", today: 6, fpr: "Low", modules: ["Committees", "Briefing Queue"], parser: "Valid", authority: "Official", confidence: "High" },
+  { id: "s-senators", group: "Senate", name: "Updates to Senators' details", url: "https://www.aph.gov.au/senate/rss/senators_details", status: "delayed", last: "yesterday", today: 0, fpr: "Low", modules: ["Source archive"], parser: "Warning", authority: "Official", confidence: "Medium" },
+
+  { id: "h-news", group: "House", name: "About the House News", url: "https://www.aph.gov.au/house/rss/house_news", status: "live", last: "08:04", today: 1, fpr: "Med", modules: ["Parliament"], parser: "Valid", authority: "Official", confidence: "Medium" },
+  { id: "h-media", group: "House", name: "House Media Releases", url: "https://www.aph.gov.au/house/rss/media_releases", status: "live", last: "08:11", today: 3, fpr: "Med", modules: ["Today's Signal"], parser: "Valid", authority: "Official", confidence: "Medium" },
+  { id: "h-inquiries", group: "House", name: "House Inquiries", url: "https://www.aph.gov.au/house/rss/house_inquiries", status: "live", last: "07:55", today: 1, fpr: "Low", modules: ["Committees"], parser: "Valid", authority: "Official", confidence: "High" },
+  { id: "h-joint", group: "House", name: "Joint Inquiries", url: "https://www.aph.gov.au/house/rss/joint_inquiries", status: "live", last: "07:51", today: 0, fpr: "Low", modules: ["Committees"], parser: "Valid", authority: "Official", confidence: "High" },
+  { id: "h-program", group: "House", name: "House Daily Program", url: "https://www.aph.gov.au/house/rss/daily_program", status: "live", last: "08:10", today: 1, fpr: "Low", modules: ["Parliament", "Today's Signal"], parser: "Valid", authority: "Official", confidence: "High" },
+  { id: "h-today", group: "House", name: "Today's House hearings", url: "https://www.aph.gov.au/house/rss/todays_hearings", status: "live", last: "08:09", today: 2, fpr: "Low", modules: ["Committees"], parser: "Valid", authority: "Official", confidence: "High" },
+  { id: "h-div", group: "House", name: "House Divisions", url: "https://www.aph.gov.au/house/rss/divisions", status: "live", last: "08:12", today: 0, fpr: "Low", modules: ["Parliament", "Bills"], parser: "Valid", authority: "Official", confidence: "High" },
+
+  { id: "l-bills", group: "Library", name: "Bills Digests", url: "https://parlinfo.aph.gov.au/parlInfo/feeds/rss.w3p;…billsdgs", status: "live", last: "06:30", today: 2, fpr: "Low", modules: ["Bills", "Briefings"], parser: "Valid", authority: "Official", confidence: "High" },
+  { id: "l-pubs", group: "Library", name: "Library Publications", url: "http://parlinfo.aph.gov.au/parlInfo/feeds/rss.w3p;…prspub", status: "live", last: "06:30", today: 1, fpr: "Low", modules: ["Emerging Issues"], parser: "Valid", authority: "Official", confidence: "High" },
+  { id: "l-flag", group: "Library", name: "FlagPost", url: "https://www.aph.gov.au/.../FlagPost/Blog_entries", status: "review", last: "—", today: null, fpr: "—", modules: ["Emerging Issues"], parser: "Needs validation", authority: "Official", confidence: "Medium" },
+];
+
+const SIGNALS = [
+  {
+    id: "CS-0412",
+    time: "08:15",
+    date: "24 Apr 2026",
+    source: "Senate New Inquiries RSS",
+    sourceGroup: "Senate",
+    title: "New Senate inquiry into digital government procurement governance",
+    summary: "The Senate Finance and Public Administration References Committee has opened an inquiry examining procurement governance across large-scale digital programs, with submissions due 19 May.",
+    tags: [{ l: "Digital procurement", c: "brass" }, { l: "Finance & PA Committee", c: "teal" }, { l: "Watchlist match", c: "info" }],
+    attention: "high",
+    attentionReason: "Matches two watchlists (Digital procurement, Procurement). Source authority: Official APH feed. Novelty: new inquiry.",
+    action: "Assign Policy Owner",
+    actionReason: "New inquiry with direct portfolio relevance and submission window open. A named owner reduces the risk of a missed submission date.",
+    confidence: 4,
+    sourceAuthority: "Official",
+    humanReview: "Required",
+    evidence: [
+      { label: "Senate inquiry listing", url: "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Finance_and_Public_Administration" },
+      { label: "Finance & PA Committee page", url: "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Finance_and_Public_Administration/Digital_Procurement" },
+      { label: "Senate New Inquiries RSS", url: "https://www.aph.gov.au/Parliamentary_Business/Committees/RSS_Feeds/new_inquiries" },
+    ],
+    score: { authority: 0.95, portfolio: 0.9, novelty: 0.9, momentum: 0.4, time: 0.6, scrutiny: 0.85, ops: 0.7 },
+    provenance: [
+      { ts: "08:14:02", by: "parser", event: "Fetched item from Senate New Inquiries RSS (200 OK · 2.3kb)" },
+      { ts: "08:14:03", by: "parser", event: "Matched <item> schema v3 · GUID: aph-inq-2026-0412" },
+      { ts: "08:14:04", by: "enrichment", event: "Keyword match: ‘procurement’, ‘digital programs’, ‘$100m’ → watchlists [Digital procurement, Procurement]" },
+      { ts: "08:14:05", by: "scoring", event: "Attention = 0.86 → HIGH (authority 0.95 × portfolio 0.90 × novelty 0.90)" },
+      { ts: "08:15:00", by: "publish", event: "Published as CS-0412 · human review: REQUIRED" },
+    ],
+    updates: [
+      { ts: "08:47", who: "System", what: "Cross-linked to BILL-2026-048 via procurement co-occurrence" },
+      { ts: "09:12", who: "System", what: "Momentum +0.1 — 2nd media release picked up (House Media RSS)" },
+      { ts: "09:30", who: "K. Ngata (analyst)", what: "Confirmed portfolio match · no reclassification" },
+    ],
+    members: ["hollis", "quirke"],
+  },
+  {
+    id: "CS-0411",
+    time: "08:04",
+    date: "24 Apr 2026",
+    source: "House Media Releases RSS",
+    sourceGroup: "House",
+    title: "Speaker announces procedural changes to Wednesday sittings",
+    summary: "The Speaker has confirmed adjusted sitting order for private members' business on Wednesdays, effective next sitting week.",
+    tags: [{ l: "Procedural", c: "" }, { l: "House", c: "" }],
+    attention: "low",
+    attentionReason: "No portfolio keywords, no watchlist match, procedural in nature. Downgraded from Medium after prior feedback on similar items.",
+    action: "No Action Required / Archive",
+    actionReason: "Procedural update with no portfolio or scrutiny implications.",
+    confidence: 5,
+    sourceAuthority: "Official",
+    humanReview: "Optional",
+    evidence: [{ label: "Speaker's media release", url: "https://www.aph.gov.au/About_Parliament/House_of_Representatives/News_and_events/Media_releases" }],
+    score: { authority: 0.95, portfolio: 0.05, novelty: 0.3, momentum: 0.1, time: 0.1, scrutiny: 0.1, ops: 0.05 },
+    provenance: [
+      { ts: "08:03:22", by: "parser", event: "Fetched item from House Media Releases RSS (200 OK)" },
+      { ts: "08:03:23", by: "enrichment", event: "No watchlist match · no portfolio keywords" },
+      { ts: "08:03:24", by: "scoring", event: "Attention = 0.18 → LOW (portfolio 0.05)" },
+      { ts: "08:03:25", by: "learning", event: "Downgrade rule applied: 3 prior 'Too high' votes on procedural items from this source" },
+      { ts: "08:04:00", by: "publish", event: "Published as CS-0411" },
+    ],
+    updates: [],
+    members: [],
+  },
+  {
+    id: "CS-0410",
+    time: "07:48",
+    date: "24 Apr 2026",
+    source: "Bills Digests RSS",
+    sourceGroup: "Library",
+    title: "Bills Digest published: Digital ID Amendment (Assurance) Bill 2026",
+    summary: "Parliamentary Library Bills Digest provides background, purpose and key provisions for the Digital ID Amendment (Assurance) Bill, with notes on scope of accreditation and consumer safeguards.",
+    tags: [{ l: "Digital identity", c: "brass" }, { l: "Bills Digest", c: "teal" }, { l: "Watchlist match", c: "info" }],
+    attention: "high",
+    attentionReason: "Bill touches two watchlists (Digital identity, Data sharing & privacy). Digest explicitly notes accreditation scope changes.",
+    action: "Draft Executive Brief",
+    actionReason: "Material shift in accreditation scope warrants DDG-level awareness ahead of second reading.",
+    confidence: 4,
+    sourceAuthority: "Official",
+    humanReview: "Required",
+    evidence: [
+      { label: "Bills Digest (Parliamentary Library)", url: "https://www.aph.gov.au/Parliamentary_Business/Bills_LEGislation/bd/bd2526a" },
+      { label: "Bill homepage — Digital ID Amendment", url: "https://www.aph.gov.au/Parliamentary_Business/Bills_Legislation/Bills_Search_Results/Result?bId=r6890" },
+      { label: "Bills Digests RSS", url: "https://www.aph.gov.au/About_Parliament/Parliamentary_departments/Parliamentary_Library/pubs/BillsDigests/RSS" },
+    ],
+    score: { authority: 0.95, portfolio: 0.85, novelty: 0.8, momentum: 0.55, time: 0.5, scrutiny: 0.7, ops: 0.7 },
+    provenance: [
+      { ts: "07:46:11", by: "parser", event: "Fetched Bills Digest bd2526a-048 (PDF · 342kb)" },
+      { ts: "07:46:45", by: "extractor", event: "Extracted sections: Purpose, Key provisions, Parliamentary consideration" },
+      { ts: "07:47:02", by: "enrichment", event: "Linked to BILL-2026-048 · 2 watchlists matched" },
+      { ts: "07:47:10", by: "scoring", event: "Attention = 0.78 → HIGH · accreditation scope flagged as novel" },
+      { ts: "07:48:00", by: "publish", event: "Published as CS-0410" },
+    ],
+    updates: [
+      { ts: "08:22", who: "System", what: "Linked to incoming QON cluster (3 references)" },
+    ],
+    members: ["rafferty"],
+  },
+  {
+    id: "CS-0409",
+    time: "07:30",
+    date: "24 Apr 2026",
+    source: "Today's Senate Hearings RSS",
+    sourceGroup: "Senate",
+    title: "Today: Legal & Constitutional — AI assurance in regulated services",
+    summary: "Hearing scheduled 10:00 AEST. Witnesses include Dept. of Industry, OAIC, and two industry peak bodies. Related to ongoing AI assurance inquiry.",
+    tags: [{ l: "AI assurance", c: "brass" }, { l: "Today", c: "amber" }, { l: "Legal & Constitutional", c: "teal" }],
+    attention: "high",
+    attentionReason: "Hearing today, portfolio match, cross-source reinforcement with last week's FlagPost on AI assurance.",
+    action: "Monitor for Estimates",
+    actionReason: "Likely to produce QONs and Hansard references useful for Estimates preparation.",
+    confidence: 4,
+    sourceAuthority: "Official",
+    humanReview: "Required",
+    evidence: [
+      { label: "Today's hearing program", url: "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Legal_and_Constitutional_Affairs/AIAssurance/Public_Hearings" },
+      { label: "Committee home page", url: "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Legal_and_Constitutional_Affairs" },
+    ],
+    score: { authority: 0.95, portfolio: 0.85, novelty: 0.4, momentum: 0.7, time: 0.95, scrutiny: 0.9, ops: 0.6 },
+    provenance: [
+      { ts: "07:28:30", by: "parser", event: "Fetched Today's Senate Hearings RSS" },
+      { ts: "07:28:45", by: "enrichment", event: "Witness list extracted · OAIC flagged (regulator)" },
+      { ts: "07:29:10", by: "scoring", event: "Attention = 0.82 → HIGH · time-sensitive (today)" },
+      { ts: "07:30:00", by: "publish", event: "Published as CS-0409" },
+    ],
+    updates: [
+      { ts: "09:45", who: "System", what: "Hearing commenced — live broadcast link attached" },
+    ],
+    members: [],
+  },
+  {
+    id: "CS-0408",
+    time: "07:10",
+    date: "24 Apr 2026",
+    source: "House Daily Program RSS",
+    sourceGroup: "House",
+    title: "House daily program: Cyber Security Legislation Amendment listed for 2nd reading",
+    summary: "Program shows second reading debate scheduled for Cyber Security Legislation Amendment Bill 2026. Private members' business follows at 4:30pm.",
+    tags: [{ l: "Cyber security", c: "brass" }, { l: "2nd reading", c: "amber" }],
+    attention: "med",
+    attentionReason: "Tracked bill on daily program. Time sensitivity elevated for sitting day.",
+    action: "Prepare Ministerial / Parliamentary Lines",
+    actionReason: "Public debate may surface new scrutiny angles; suggested lines should be ready before 2pm.",
+    confidence: 4,
+    sourceAuthority: "Official",
+    humanReview: "Optional",
+    evidence: [
+      { label: "House daily program — 24 Apr", url: "https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/HoR_chamber_documents/Daily_program" },
+      { label: "Cyber Security Bill 2026", url: "https://www.aph.gov.au/Parliamentary_Business/Bills_Legislation/Bills_Search_Results/Result?bId=r6883" },
+    ],
+    score: { authority: 0.95, portfolio: 0.75, novelty: 0.35, momentum: 0.5, time: 0.85, scrutiny: 0.7, ops: 0.55 },
+    provenance: [
+      { ts: "07:08:15", by: "parser", event: "Fetched House Daily Program RSS" },
+      { ts: "07:08:40", by: "enrichment", event: "Matched BILL-2026-041 · stage change: Listed for 2nd reading" },
+      { ts: "07:09:20", by: "scoring", event: "Attention = 0.64 → MEDIUM · sitting day" },
+      { ts: "07:10:00", by: "publish", event: "Published as CS-0408" },
+    ],
+    updates: [],
+    members: [],
+  },
+  {
+    id: "CS-0407",
+    time: "06:30",
+    date: "24 Apr 2026",
+    source: "Library Publications RSS",
+    sourceGroup: "Library",
+    title: "FlagPost: Trust, automation, and the next phase of Digital ID",
+    summary: "Research commentary on governance frameworks for automated identity assurance and implications for public-sector service delivery.",
+    tags: [{ l: "Digital identity", c: "brass" }, { l: "FlagPost", c: "" }],
+    attention: "med",
+    attentionReason: "Strong contextual source. Reinforces the Digital ID bill signal.",
+    action: "Add to Watchlist",
+    actionReason: "Feeds into emerging issues cluster around Digital ID assurance governance.",
+    confidence: 3,
+    sourceAuthority: "Official",
+    humanReview: "Optional",
+    evidence: [
+      { label: "FlagPost — Trust, automation, and Digital ID", url: "https://www.aph.gov.au/About_Parliament/Parliamentary_departments/Parliamentary_Library/FlagPost" },
+      { label: "Library Publications RSS", url: "https://www.aph.gov.au/About_Parliament/Parliamentary_departments/Parliamentary_Library/Publications_Archive/RSS" },
+    ],
+    score: { authority: 0.8, portfolio: 0.7, novelty: 0.6, momentum: 0.5, time: 0.3, scrutiny: 0.4, ops: 0.3 },
+    provenance: [
+      { ts: "06:28:50", by: "parser", event: "Fetched Library Publications RSS" },
+      { ts: "06:29:10", by: "enrichment", event: "Cluster match: Digital ID (co-occurring with CS-0410)" },
+      { ts: "06:29:30", by: "scoring", event: "Attention = 0.52 → MEDIUM · contextual support" },
+      { ts: "06:30:00", by: "publish", event: "Published as CS-0407" },
+    ],
+    updates: [],
+    members: [],
+  },
+];
+
+const COMMITTEE_ITEMS = [
+  { when: "Today, 10:00", type: "Hearing", name: "Legal & Constitutional Affairs Legislation Committee", topic: "AI assurance in regulated services", portfolio: "Digital government", att: "high" },
+  { when: "Today, 13:30", type: "Hearing", name: "Finance & Public Administration References", topic: "Commonwealth procurement & contract governance", portfolio: "Procurement", att: "high" },
+  { when: "25 Apr, 09:00", type: "Hearing", name: "Economics Legislation Committee", topic: "Consumer Data Right — expansion review", portfolio: "Data & privacy", att: "med" },
+  { when: "26 Apr, 14:00", type: "Hearing", name: "Rural & Regional Affairs Committee", topic: "Regional connectivity outcomes", portfolio: "Infrastructure", att: "med" },
+  { when: "28 Apr, 11:00", type: "Hearing", name: "Joint Committee on Law Enforcement", topic: "Scam activity trends", portfolio: "Cyber security", att: "low" },
+  { when: "Yesterday", type: "Report tabled", name: "Environment & Communications References", topic: "Regional 5G rollout — interim report", portfolio: "Infrastructure", att: "med" },
+  { when: "Yesterday", type: "New inquiry", name: "Joint Committee on Public Accounts & Audit", topic: "Digital transformation program governance", portfolio: "Digital government", att: "high" },
+];
+
+const BILLS = [
+  { ref: "BILL-2026-048", title: "Digital ID Amendment (Assurance) Bill 2026", stage: "House: 2nd reading", portfolio: "Digital identity", digest: "Published", owner: "Policy — Identity", att: "high" },
+  { ref: "BILL-2026-041", title: "Cyber Security Legislation Amendment Bill 2026", stage: "House: 2nd reading today", portfolio: "Cyber security", digest: "Published", owner: "Policy — Cyber", att: "high" },
+  { ref: "BILL-2026-037", title: "Consumer Data Right Expansion Bill 2026", stage: "Senate: committee stage", portfolio: "Data & privacy", digest: "Published", owner: "Policy — Data", att: "med" },
+  { ref: "BILL-2026-031", title: "Telecommunications (Regional Connectivity) Amendment Bill", stage: "House: 3rd reading", portfolio: "Infrastructure", digest: "Pending", owner: "—", att: "med" },
+  { ref: "BILL-2026-024", title: "Social Services Digital Delivery Amendment Bill", stage: "Senate: introduced", portfolio: "Service delivery", digest: "Pending", owner: "—", att: "low" },
+];
+
+const DIVISIONS = [
+  { when: "23 Apr, 16:42", chamber: "House", q: "Question — amendment to Cyber Security Bill, clause 12", result: "Negatived (64–78)", bill: "BILL-2026-041" },
+  { when: "23 Apr, 15:10", chamber: "House", q: "Motion — adjournment of debate on Digital ID Bill", result: "Agreed (77–63)", bill: "BILL-2026-048" },
+  { when: "22 Apr, 12:05", chamber: "House", q: "Second reading — CDR Expansion Bill", result: "Agreed (81–58)", bill: "BILL-2026-037" },
+];
+
+const WATCHLISTS = [
+  { name: "Digital government", keywords: 24, matches: 11, trend: [3, 4, 5, 4, 6, 8, 11] },
+  { name: "AI & automation", keywords: 18, matches: 7, trend: [2, 2, 3, 5, 4, 6, 7] },
+  { name: "Cyber security", keywords: 21, matches: 9, trend: [6, 5, 7, 8, 6, 9, 9] },
+  { name: "Digital identity", keywords: 14, matches: 6, trend: [1, 2, 3, 4, 5, 5, 6] },
+  { name: "Data sharing & privacy", keywords: 19, matches: 5, trend: [3, 3, 4, 4, 5, 5, 5] },
+  { name: "Procurement", keywords: 16, matches: 8, trend: [4, 4, 5, 6, 7, 7, 8] },
+  { name: "Service delivery", keywords: 17, matches: 3, trend: [2, 2, 2, 3, 3, 3, 3] },
+  { name: "Infrastructure & connectivity", keywords: 15, matches: 4, trend: [2, 3, 3, 4, 4, 4, 4] },
+  { name: "Health digital systems", keywords: 12, matches: 2, trend: [1, 1, 2, 2, 2, 2, 2] },
+  { name: "Parliamentary scrutiny", keywords: 22, matches: 10, trend: [6, 7, 8, 9, 9, 10, 10] },
+  { name: "Estimates preparation", keywords: 11, matches: 4, trend: [2, 2, 3, 3, 4, 4, 4] },
+  { name: "Queensland federal signals", keywords: 13, matches: 2, trend: [1, 1, 1, 2, 2, 2, 2] },
+];
+
+const RADAR = [
+  { issue: "Digital procurement governance", att: "high", reason: "New Senate inquiry + 2 media releases + 4 QON references", sources: 7, momentum: 0.82, confidence: 0.82 },
+  { issue: "Digital ID accreditation scope", att: "high", reason: "New Bills Digest + FlagPost + committee hearing", sources: 5, momentum: 0.74, confidence: 0.78 },
+  { issue: "AI assurance in regulated services", att: "med", reason: "Hearing today + library publication + prior FlagPost", sources: 4, momentum: 0.62, confidence: 0.65 },
+  { issue: "Cyber resilience for critical infrastructure", att: "med", reason: "Upcoming hearing + related bill on daily program", sources: 3, momentum: 0.55, confidence: 0.6 },
+  { issue: "Consumer Data Right expansion", att: "med", reason: "Committee stage + QON cluster", sources: 3, momentum: 0.48, confidence: 0.55 },
+  { issue: "Regional connectivity outcomes", att: "low", reason: "Interim report tabled", sources: 2, momentum: 0.3, confidence: 0.5 },
+];
+
+const QON_PATTERN = {
+  topic: "Digital procurement governance",
+  members: ["Sen. A. Hollis", "Sen. M. Quirke", "Hon. P. Rafferty MP"],
+  window: "24 to 72 hours",
+  count: 4,
+  target: "Minister for Digital Services / Department",
+  trigger: "Audit report tabled 22 Apr",
+  confidence: "Moderate",
+  items: [
+    { when: "22 Apr 14:12", who: "Sen. A. Hollis (Opposition)", chamber: "Senate", q: "Details of contract governance framework for digital programs over $100m since FY23–24" },
+    { when: "22 Apr 15:40", who: "Sen. M. Quirke (Crossbench)", chamber: "Senate", q: "Number of variations to digital procurement contracts in the last 24 months, by department" },
+    { when: "23 Apr 11:02", who: "Hon. P. Rafferty MP", chamber: "House", q: "Status of Departmental response to ANAO report on digital program governance" },
+    { when: "23 Apr 16:18", who: "Sen. A. Hollis (Opposition)", chamber: "Senate", q: "Use of limited tender for digital platforms where contract value exceeded $10m" },
+  ],
+};
+
+const BRIEFING_QUEUE = [
+  { type: "Daily Signal Brief", for: "DDG Digital", status: "Drafted", at: "08:20", ready: true },
+  { type: "Committee Brief", for: "Procurement lead", status: "Awaiting review", at: "07:50", ready: false },
+  { type: "Bill Digest Note", for: "Identity policy", status: "Drafted", at: "07:02", ready: true },
+  { type: "Estimates Monitor Note", for: "Estimates pack", status: "In progress", at: "06:44", ready: false },
+];
+
+Object.assign(window, {
+  APH_FEEDS, SIGNALS, COMMITTEE_ITEMS, BILLS, DIVISIONS, WATCHLISTS, RADAR, QON_PATTERN, BRIEFING_QUEUE
+});
+
+</script>
+<script type="text/babel" data-module="entities.jsx">
+// Extended dataset — entities with rich details for click-through
+window.ENTITIES = {
+  committees: {
+    "legcon": {
+      id: "legcon",
+      name: "Legal & Constitutional Affairs Legislation Committee",
+      chamber: "Senate",
+      chair: "Sen. N. Waters",
+      members: 7,
+      portfolio: "Attorney-General, Home Affairs, Digital",
+      active: 3,
+      recentReports: 2,
+      bio: "Senate legislation committee responsible for scrutiny of bills and portfolio estimates relating to the Attorney-General's and Home Affairs portfolios. Also considers matters on automation, identity and digital assurance where referred.",
+      hearings: [
+        { when: "Today, 10:00", topic: "AI assurance in regulated services", room: "Committee Room 2S1" },
+        { when: "25 Apr, 09:00", topic: "Digital ID Amendment Bill — submissions", room: "Committee Room 2S1" },
+        { when: "02 May, 14:00", topic: "Privacy Act review consultation", room: "Committee Room 2R1" },
+      ],
+      inquiries: ["Digital ID Amendment Bill 2026", "AI assurance in regulated services", "Identity-matching services review"],
+      url: "aph.gov.au/Parliamentary_Business/Committees/Senate/Legal_and_Constitutional_Affairs",
+    },
+    "finpa": {
+      id: "finpa",
+      name: "Finance & Public Administration References Committee",
+      chamber: "Senate",
+      chair: "Sen. R. Thorpe",
+      members: 6,
+      portfolio: "Finance, PM&C, Public administration, Procurement",
+      active: 4,
+      recentReports: 1,
+      bio: "Senate references committee examining matters referred by the Senate relating to finance, public administration, procurement and government operations.",
+      hearings: [
+        { when: "Today, 13:30", topic: "Commonwealth procurement & contract governance", room: "Committee Room 2S3" },
+        { when: "01 May, 10:00", topic: "Consultancy expenditure review", room: "Committee Room 2S3" },
+      ],
+      inquiries: ["Commonwealth procurement governance (new)", "Consultancy expenditure", "Digital program governance"],
+      url: "aph.gov.au/Parliamentary_Business/Committees/Senate/Finance_and_Public_Administration",
+    },
+    "econ": {
+      id: "econ", name: "Economics Legislation Committee", chamber: "Senate",
+      chair: "Sen. D. Pocock", members: 6, portfolio: "Treasury, Industry",
+      active: 2, recentReports: 0,
+      bio: "Senate legislation committee for Treasury and Industry portfolios.",
+      hearings: [{ when: "25 Apr, 09:00", topic: "Consumer Data Right — expansion review", room: "Committee Room 2R2" }],
+      inquiries: ["Consumer Data Right expansion", "Competition reforms"],
+      url: "aph.gov.au/…/Economics",
+    },
+    "rra": {
+      id: "rra", name: "Rural & Regional Affairs Committee", chamber: "Senate",
+      chair: "Sen. B. McKenzie", members: 6, portfolio: "Regional, Comms, Infrastructure",
+      active: 3, recentReports: 1,
+      bio: "Committee dealing with rural and regional matters including connectivity and infrastructure.",
+      hearings: [{ when: "26 Apr, 14:00", topic: "Regional connectivity outcomes", room: "CR 2S1" }],
+      inquiries: ["Regional 5G rollout", "Regional banking"],
+      url: "aph.gov.au/…/RRA",
+    },
+    "jcle": {
+      id: "jcle", name: "Joint Committee on Law Enforcement", chamber: "Joint",
+      chair: "Hon. S. Georganas MP", members: 10, portfolio: "AFP, AIC, ACIC",
+      active: 2, recentReports: 1,
+      bio: "Joint committee responsible for oversight of Commonwealth law enforcement.",
+      hearings: [{ when: "28 Apr, 11:00", topic: "Scam activity trends", room: "CR 1R3" }],
+      inquiries: ["Scam activity trends", "AFP capability review"],
+      url: "aph.gov.au/…/Law_Enforcement",
+    },
+    "envcomms": {
+      id: "envcomms", name: "Environment & Communications References", chamber: "Senate",
+      chair: "Sen. P. Hanson-Young", members: 6, portfolio: "Environment, Communications",
+      active: 1, recentReports: 1,
+      bio: "References committee on environment and communications.",
+      hearings: [],
+      inquiries: ["Regional 5G rollout", "Spectrum allocation review"],
+      url: "aph.gov.au/…/Env_Comms",
+    },
+    "jcpaa": {
+      id: "jcpaa", name: "Joint Committee on Public Accounts & Audit", chamber: "Joint",
+      chair: "Hon. J. Hill MP", members: 16, portfolio: "ANAO, cross-portfolio",
+      active: 5, recentReports: 2,
+      bio: "Joint parliamentary committee overseeing the Auditor-General's reports.",
+      hearings: [{ when: "29 Apr, 10:30", topic: "Digital transformation program governance", room: "CR 1R5" }],
+      inquiries: ["Digital transformation governance (new)", "Review of ANAO reports tabled Q1"],
+      url: "aph.gov.au/…/PAA",
+    },
+  },
+
+  members: {
+    "hollis": {
+      id: "hollis", name: "Sen. Arabella Hollis", party: "Opposition", state: "QLD",
+      roles: ["Shadow Assistant Minister for Digital Services", "Economics Committee"],
+      bio: "Senator for Queensland since 2019. Shadow spokesperson on digital services and procurement. Frequent contributor to estimates on ICT matters.",
+      qons: 14, hansard: 28, committees: ["Economics", "Finance & PA"],
+    },
+    "quirke": {
+      id: "quirke", name: "Sen. Marcus Quirke", party: "Crossbench", state: "TAS",
+      roles: ["Independent senator"],
+      bio: "Senator focused on transparency and consultancy reform. Active in procurement-related QONs.",
+      qons: 9, hansard: 17, committees: ["Finance & PA"],
+    },
+    "rafferty": {
+      id: "rafferty", name: "Hon. Priya Rafferty MP", party: "Opposition", state: "VIC",
+      roles: ["Shadow Minister for Government Services"],
+      bio: "Member for Higgins since 2022. Shadow spokesperson on government services and digital delivery.",
+      qons: 22, hansard: 41, committees: ["PAA"],
+    },
+  },
+
+  ministers: {
+    "digital": {
+      id: "digital", name: "Hon. C. Linden MP", role: "Minister for Digital Services",
+      portfolio: "Digital Services",
+      bio: "Minister responsible for digital government, identity, and service delivery.",
+      recent: ["Introduced Digital ID Amendment Bill (18 Apr)", "Speech at AIIA forum (20 Apr)", "Response to ANAO report (22 Apr)"],
+    },
+    "cyber": {
+      id: "cyber", name: "Hon. K. Beaumont MP", role: "Minister for Cyber Security",
+      portfolio: "Cyber Security",
+      bio: "Minister responsible for cyber security policy and co-ordination.",
+      recent: ["2nd reading speech on Cyber Security Bill", "Press conference on critical infrastructure"],
+    },
+  },
+
+  bills: {
+    "BILL-2026-048": {
+      ref: "BILL-2026-048",
+      title: "Digital ID Amendment (Assurance) Bill 2026",
+      stage: "House: 2nd reading",
+      stageHistory: [
+        { when: "18 Apr", event: "Introduced in House" },
+        { when: "19 Apr", event: "1st reading" },
+        { when: "Today", event: "2nd reading — in progress" },
+      ],
+      portfolio: "Digital identity",
+      minister: "digital",
+      digest: "Published",
+      owner: "Policy — Identity",
+      att: "high",
+      purpose: "Amends the Digital ID Act to expand the scope of the accreditation scheme and introduce new consumer assurance provisions, including revised obligations on accredited entities handling biometric attributes.",
+      provisions: [
+        "Part 2: accreditation scope expanded to cover state-level identity exchanges",
+        "Part 4: new reporting obligations on biometric attribute use",
+        "Schedule 1: consequential amendments to Privacy Act s.26",
+      ],
+      watchlists: ["Digital identity", "Data sharing & privacy"],
+    },
+    "BILL-2026-041": {
+      ref: "BILL-2026-041",
+      title: "Cyber Security Legislation Amendment Bill 2026",
+      stage: "House: 2nd reading today",
+      stageHistory: [
+        { when: "02 Apr", event: "Introduced in House" },
+        { when: "03 Apr", event: "1st reading" },
+        { when: "Today", event: "2nd reading — scheduled" },
+      ],
+      portfolio: "Cyber security", minister: "cyber", digest: "Published",
+      owner: "Policy — Cyber", att: "high",
+      purpose: "Extends mandatory incident reporting and critical-infrastructure obligations to a wider range of essential services providers.",
+      provisions: [
+        "Part 1: expanded definition of essential services",
+        "Part 3: revised reporting thresholds (72h → 48h)",
+        "Schedule 2: penalty regime",
+      ],
+      watchlists: ["Cyber security"],
+    },
+    "BILL-2026-037": {
+      ref: "BILL-2026-037",
+      title: "Consumer Data Right Expansion Bill 2026",
+      stage: "Senate: committee stage",
+      stageHistory: [{ when: "12 Mar", event: "Introduced" },{ when: "22 Apr", event: "Referred to Economics" }],
+      portfolio: "Data & privacy", minister: null, digest: "Published", owner: "Policy — Data", att: "med",
+      purpose: "Extends CDR to non-bank lending, telco and energy datasets.", provisions: [], watchlists: ["Data sharing & privacy"],
+    },
+    "BILL-2026-031": {
+      ref: "BILL-2026-031",
+      title: "Telecommunications (Regional Connectivity) Amendment Bill",
+      stage: "House: 3rd reading",
+      stageHistory: [], portfolio: "Infrastructure", minister: null,
+      digest: "Pending", owner: "—", att: "med",
+      purpose: "Adjusts Universal Service Obligation funding for regional connectivity.", provisions: [], watchlists: ["Infrastructure & connectivity"],
+    },
+    "BILL-2026-024": {
+      ref: "BILL-2026-024",
+      title: "Social Services Digital Delivery Amendment Bill",
+      stage: "Senate: introduced",
+      stageHistory: [], portfolio: "Service delivery", minister: null,
+      digest: "Pending", owner: "—", att: "low",
+      purpose: "Updates digital delivery obligations for social services.", provisions: [], watchlists: ["Service delivery"],
+    },
+  },
+};
+
+// Live Parliament YouTube channel IDs — House of Representatives official
+// Using channel live embed; falls back to latest uploads if no live.
+window.PARL_STREAMS = [
+  { id: "house", label: "House of Representatives", channel: "UCvO8Qfr3etT6khGA9Zln8WA", desc: "Official Australian Parliament House channel" },
+  { id: "senate", label: "Senate chamber", channel: "UCvO8Qfr3etT6khGA9Zln8WA", desc: "Senate proceedings (shared APH channel)" },
+];
+
+</script>
+<script type="text/babel" data-module="icons.jsx">
+// Simple, consistent stroke icons
+const Icon = ({ name, size = 16, stroke = "currentColor", ...rest }) => {
+  const props = { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke, strokeWidth: 1.6, strokeLinecap: "round", strokeLinejoin: "round", ...rest };
+  switch (name) {
+    case "overview": return <svg {...props}><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>;
+    case "signal": return <svg {...props}><path d="M4 12h3l3-8 4 16 3-8h3"/></svg>;
+    case "sources": return <svg {...props}><circle cx="6" cy="18" r="2"/><path d="M4 4c8 0 14 6 14 14"/><path d="M4 10c4 0 8 4 8 8"/></svg>;
+    case "committee": return <svg {...props}><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V4h8v3"/><path d="M3 13h18"/></svg>;
+    case "bill": return <svg {...props}><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/><path d="M9 13h7M9 17h7"/></svg>;
+    case "parliament": return <svg {...props}><path d="M3 10l9-6 9 6"/><path d="M5 10v8M9 10v8M13 10v8M17 10v8"/><path d="M3 20h18"/></svg>;
+    case "brief": return <svg {...props}><rect x="3" y="6" width="18" height="14" rx="2"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M8 12h8"/></svg>;
+    case "watch": return <svg {...props}><circle cx="12" cy="12" r="3"/><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/></svg>;
+    case "radar": return <svg {...props}><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/><path d="M12 3v9l6 3"/></svg>;
+    case "pattern": return <svg {...props}><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><path d="M7 7l4 9M17 7l-4 9"/></svg>;
+    case "search": return <svg {...props}><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>;
+    case "close": return <svg {...props}><path d="M6 6l12 12M6 18L18 6"/></svg>;
+    case "link": return <svg {...props}><path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>;
+    case "bell": return <svg {...props}><path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8z"/><path d="M10 21a2 2 0 0 0 4 0"/></svg>;
+    case "check": return <svg {...props}><path d="M5 12l5 5L20 7"/></svg>;
+    case "plus": return <svg {...props}><path d="M12 5v14M5 12h14"/></svg>;
+    case "chevron": return <svg {...props}><path d="M9 6l6 6-6 6"/></svg>;
+    case "filter": return <svg {...props}><path d="M3 5h18M6 12h12M10 19h4"/></svg>;
+    case "refresh": return <svg {...props}><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg>;
+    case "download": return <svg {...props}><path d="M12 3v13"/><path d="M7 12l5 5 5-5"/><path d="M4 21h16"/></svg>;
+    case "ext": return <svg {...props}><path d="M14 4h6v6"/><path d="M20 4L10 14"/><path d="M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/></svg>;
+    case "clock": return <svg {...props}><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>;
+    case "flag": return <svg {...props}><path d="M4 21V4"/><path d="M4 4h13l-2 4 2 4H4"/></svg>;
+    case "book": return <svg {...props}><path d="M4 5a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5"/></svg>;
+    default: return <svg {...props}><circle cx="12" cy="12" r="9"/></svg>;
+  }
+};
+
+Object.assign(window, { Icon });
+
+</script>
+<script type="text/babel" data-module="store.jsx">
+// ---- Global store: persistent state for real interactivity ----
+const StoreCtx = React.createContext(null);
+
+function useStore() { return React.useContext(StoreCtx); }
+
+function StoreProvider({ children }) {
+  // Owners assigned to signals/bills, feedback given, watchlist additions, toasts
+  const [state, setState] = React.useState(() => {
+    try {
+      const raw = localStorage.getItem("cs-state-v1");
+      if (raw) return JSON.parse(raw);
+    } catch(e){}
+    return {
+      owners: {}, // { entityId: ownerName }
+      feedback: {}, // { signalId: { label, reason, ts } }
+      archived: {}, // { signalId: true }
+      briefsGenerated: {}, // { signalId: { ts, type } }
+      watchlistAdds: {}, // { entityKey: true }
+      watchlistCreated: [], // extra watchlists
+      feeds: [], // extra custom feeds
+      notes: {}, // { signalId: "text" }
+    };
+  });
+
+  React.useEffect(() => {
+    try { localStorage.setItem("cs-state-v1", JSON.stringify(state)); } catch(e){}
+  }, [state]);
+
+  const [toasts, setToasts] = React.useState([]);
+  const toast = (msg, kind = "ok") => {
+    const id = Math.random().toString(36).slice(2);
+    setToasts(t => [...t, { id, msg, kind }]);
+    setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 2800);
+  };
+
+  const [modal, setModal] = React.useState(null); // { type, id }
+  const openModal = (type, id) => setModal({ type, id });
+  const closeModal = () => setModal(null);
+
+  const [signalId, setSignalId] = React.useState(null);
+  const openSignal = s => setSignalId(typeof s === "string" ? s : s?.id);
+  const closeSignal = () => setSignalId(null);
+
+  // Expose for places that don't live inside the provider context
+  React.useEffect(() => {
+    window.__openModal = (kind, data) => setModal({ kind, data });
+    window.__openSignal = (id) => setSignalId(id);
+  }, []);
+
+  const assignOwner = (entityId, owner) => {
+    setState(s => ({ ...s, owners: { ...s.owners, [entityId]: owner } }));
+    toast(`Assigned ${owner} as policy owner`);
+  };
+  const saveFeedback = (signalId, label, reason) => {
+    setState(s => ({ ...s, feedback: { ...s.feedback, [signalId]: { label, reason, ts: Date.now() } } }));
+    toast(`Feedback logged: ${label}`, "brass");
+  };
+  const archive = (signalId) => {
+    setState(s => ({ ...s, archived: { ...s.archived, [signalId]: true } }));
+    toast("Signal archived");
+  };
+  const unarchive = (signalId) => {
+    setState(s => { const n = { ...s.archived }; delete n[signalId]; return { ...s, archived: n }; });
+  };
+  const addWatchlist = (key) => {
+    setState(s => ({ ...s, watchlistAdds: { ...s.watchlistAdds, [key]: true } }));
+    toast("Added to watchlist", "brass");
+  };
+  const createWatchlist = (name) => {
+    setState(s => ({ ...s, watchlistCreated: [...s.watchlistCreated, { name, keywords: 0, matches: 0, trend: [0,0,0,0,0,0,0] }] }));
+    toast(`Watchlist "${name}" created`, "brass");
+  };
+  const generateBrief = (signalId, type) => {
+    setState(s => ({ ...s, briefsGenerated: { ...s.briefsGenerated, [signalId]: { ts: Date.now(), type } } }));
+    toast(`${type} generated`, "brass");
+  };
+  const addFeed = (feed) => {
+    setState(s => ({ ...s, feeds: [...s.feeds, feed] }));
+    toast(`Feed added: ${feed.name}`, "brass");
+  };
+  const saveNote = (signalId, text) => {
+    setState(s => ({ ...s, notes: { ...s.notes, [signalId]: text } }));
+  };
+
+  return (
+    <StoreCtx.Provider value={{
+      state, setState, toast, toasts,
+      modal, openModal, closeModal,
+      signalId, openSignal, closeSignal,
+      assignOwner, saveFeedback, archive, unarchive,
+      addWatchlist, createWatchlist, generateBrief, addFeed, saveNote,
+    }}>
+      {children}
+      <div className="toast-wrap">
+        {toasts.map(t => (
+          <div key={t.id} className="toast">
+            <Icon name="check" size={14} stroke={t.kind === "brass" ? "var(--brass)" : "var(--ok)"} />
+            <span>{t.msg}</span>
+          </div>
+        ))}
+      </div>
+    </StoreCtx.Provider>
+  );
+}
+
+// ---- Detail Modal: renders per entity type ----
+function DetailModal() {
+  const { modal, closeModal, openModal, state, assignOwner, addWatchlist, openSignal } = useStore();
+  if (!modal) return null;
+  const { type, id } = modal;
+
+  const render = () => {
+    if (type === "committee") return <CommitteeDetail id={id} />;
+    if (type === "bill") return <BillDetail id={id} />;
+    if (type === "member") return <MemberDetail id={id} />;
+    if (type === "minister") return <MinisterDetail id={id} />;
+    if (type === "division") return <DivisionDetail id={id} />;
+    if (type === "feed") return <FeedDetail id={id} />;
+    if (type === "watchlist") return <WatchlistDetail id={id} />;
+    if (type === "radar") return <RadarDetail id={id} />;
+    if (type === "inquiry") return <InquiryDetail id={id} />;
+    if (type === "hearing") return <HearingDetail data={id} />;
+    return <div>Unknown</div>;
+  };
+
+  return (
+    <div className="modal-back" onClick={closeModal}>
+      <div className="modal" onClick={e => e.stopPropagation()}>
+        {render()}
+      </div>
+    </div>
+  );
+}
+
+function ModalHead({ kicker, title, right, onClose }) {
+  const { closeModal } = useStore();
+  return (
+    <div className="modal-head">
+      <div style={{flex:1}}>
+        <div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em"}}>{kicker}</div>
+        <div className="serif" style={{fontSize:22, marginTop:4, fontWeight:500, lineHeight:1.25}}>{title}</div>
+      </div>
+      {right}
+      <button className="btn ghost sm" onClick={onClose || closeModal} style={{flex:"none"}}><Icon name="close" size={14}/></button>
+    </div>
+  );
+}
+
+function CommitteeDetail({ id }) {
+  const c = ENTITIES.committees[id];
+  const { openModal, closeModal, toast } = useStore();
+  if (!c) return <ModalHead kicker="Committee" title="Not found" />;
+  return (
+    <>
+      <ModalHead kicker={`Committee · ${c.chamber}`} title={c.name} />
+      <div className="modal-body">
+        <p style={{color:"var(--ink-2)", marginTop:0}}>{c.bio}</p>
+        <dl className="kv" style={{marginTop:14}}>
+          <dt>Chair</dt><dd>{c.chair}</dd>
+          <dt>Members</dt><dd>{c.members}</dd>
+          <dt>Portfolio</dt><dd>{c.portfolio}</dd>
+          <dt>Active inquiries</dt><dd>{c.active}</dd>
+          <dt>Reports (30d)</dt><dd>{c.recentReports}</dd>
+          <dt>Source</dt><dd className="mono" style={{fontSize:11, color:"var(--ink-3)"}}>{c.url}</dd>
+        </dl>
+
+        <h4 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:22, marginBottom:8}}>Upcoming & today's hearings</h4>
+        {c.hearings.length === 0 && <div className="empty">No scheduled hearings.</div>}
+        {c.hearings.map((h, i) => (
+          <div key={i} className="clk" onClick={() => openModal("hearing", { ...h, committee: c.name })}
+               style={{display:"grid", gridTemplateColumns:"130px 1fr auto", padding:"10px 12px", border:"1px solid var(--line-2)", borderRadius:8, marginBottom:6, gap:12, alignItems:"center"}}>
+            <div className="mono" style={{fontSize:11.5, color:"var(--ink-2)"}}>{h.when}</div>
+            <div>
+              <div style={{fontSize:13, fontWeight:500}}>{h.topic}</div>
+              <div style={{fontSize:11.5, color:"var(--ink-3)"}}>{h.room}</div>
+            </div>
+            <Icon name="chevron" size={14} stroke="var(--ink-3)" />
+          </div>
+        ))}
+
+        <h4 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:22, marginBottom:8}}>Open inquiries</h4>
+        <div style={{display:"flex", flexWrap:"wrap", gap:6}}>
+          {c.inquiries.map((q, i) => (
+            <span key={i} className="tag clk" onClick={() => openModal("inquiry", q)}>{q}</span>
+          ))}
+        </div>
+      </div>
+      <div className="modal-foot">
+        <button className="btn primary" onClick={() => { toast("Committee prep pack queued", "brass"); closeModal(); }}><Icon name="brief" size={13}/> Prep pack</button>
+        <button className="btn" onClick={() => { toast("Committee added to watchlist", "brass"); }}><Icon name="watch" size={13}/> Watch committee</button>
+        <button className="btn ghost" style={{marginLeft:"auto"}} onClick={closeModal}>Close</button>
+      </div>
+    </>
+  );
+}
+
+function HearingDetail({ data }) {
+  const { closeModal, toast } = useStore();
+  return (
+    <>
+      <ModalHead kicker="Hearing" title={data.topic} />
+      <div className="modal-body">
+        <dl className="kv">
+          <dt>Committee</dt><dd>{data.committee}</dd>
+          <dt>When</dt><dd>{data.when}</dd>
+          <dt>Room</dt><dd>{data.room}</dd>
+          <dt>Broadcast</dt><dd><a href="#" onClick={e=>e.preventDefault()} style={{color:"var(--teal)"}}>aph.gov.au/live/hearing</a></dd>
+        </dl>
+        <h4 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:8}}>Witnesses</h4>
+        <ul style={{margin:0, paddingLeft:18, color:"var(--ink-2)"}}>
+          <li>Department (First Assistant Secretary)</li>
+          <li>OAIC (Privacy Commissioner)</li>
+          <li>Industry peak body</li>
+        </ul>
+        <h4 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:8}}>Likely questions (AI-suggested)</h4>
+        <ol style={{margin:0, paddingLeft:18, color:"var(--ink-2)"}}>
+          <li>How does the department assure AI models against bias in high-risk contexts?</li>
+          <li>Which programs currently use automated decision-making for benefit eligibility?</li>
+          <li>What is the escalation pathway when assurance fails in production?</li>
+        </ol>
+      </div>
+      <div className="modal-foot">
+        <button className="btn primary" onClick={() => { toast("Added to calendar", "brass"); closeModal(); }}>Add to calendar</button>
+        <button className="btn" onClick={() => { toast("Prep note generated", "brass"); }}><Icon name="brief" size={13}/> Generate prep note</button>
+      </div>
+    </>
+  );
+}
+
+function InquiryDetail({ id }) {
+  const { closeModal, toast, state, assignOwner } = useStore();
+  const name = typeof id === "string" ? id : id?.name;
+  const [owner, setOwner] = React.useState(state.owners[name] || "");
+  return (
+    <>
+      <ModalHead kicker="Inquiry" title={name} />
+      <div className="modal-body">
+        <dl className="kv">
+          <dt>Status</dt><dd>Accepting submissions</dd>
+          <dt>Submissions close</dt><dd>19 May 2026</dd>
+          <dt>Reporting</dt><dd>by 30 August 2026</dd>
+          <dt>Scope</dt><dd>Commonwealth procurement and contract governance for digital programs over $100m</dd>
+        </dl>
+        <h4 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:8}}>Terms of reference</h4>
+        <ol style={{margin:0, paddingLeft:18, color:"var(--ink-2)"}}>
+          <li>Adequacy of current governance frameworks</li>
+          <li>Use of limited tender and contract variations</li>
+          <li>Transparency and public reporting</li>
+          <li>Any related matters</li>
+        </ol>
+        <h4 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:8}}>Assign owner</h4>
+        <div style={{display:"flex", gap:8}}>
+          <input value={owner} onChange={e=>setOwner(e.target.value)} placeholder="Owner name" className="search" style={{padding:"7px 10px", flex:1}}/>
+          <button className="btn primary" onClick={() => { if (owner.trim()) { assignOwner(name, owner.trim()); } }}>Assign</button>
+        </div>
+        {state.owners[name] && <div style={{marginTop:8, fontSize:12.5, color:"var(--ok)"}}><Icon name="check" size={13} style={{verticalAlign:"-2px", marginRight:4}}/>Owner: <strong>{state.owners[name]}</strong></div>}
+      </div>
+      <div className="modal-foot">
+        <button className="btn primary" onClick={() => { toast("Submission draft started", "brass"); }}><Icon name="brief" size={13}/> Start submission</button>
+        <button className="btn ghost" style={{marginLeft:"auto"}} onClick={closeModal}>Close</button>
+      </div>
+    </>
+  );
+}
+
+function BillDetail({ id }) {
+  const b = ENTITIES.bills[id];
+  const { closeModal, toast, state, assignOwner, openModal } = useStore();
+  const [owner, setOwner] = React.useState(state.owners[id] || b?.owner === "—" ? "" : b?.owner || "");
+  if (!b) return <ModalHead kicker="Bill" title="Not found" />;
+  return (
+    <>
+      <ModalHead kicker={`Bill · ${b.ref}`} title={b.title} />
+      <div className="modal-body">
+        <div style={{display:"flex", gap:8, marginBottom:14, flexWrap:"wrap"}}>
+          <Att level={b.att}/>
+          <span className="tag">{b.portfolio}</span>
+          <span className="tag teal">{b.stage}</span>
+          {b.digest === "Published" && <span className="tag teal">Digest published</span>}
+        </div>
+        <h4 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginBottom:6}}>Purpose</h4>
+        <p style={{margin:0, color:"var(--ink-2)"}}>{b.purpose}</p>
+
+        {b.provisions.length > 0 && <>
+          <h4 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:6}}>Key provisions</h4>
+          <ul style={{margin:0, paddingLeft:18, color:"var(--ink-2)"}}>{b.provisions.map((p,i) => <li key={i}>{p}</li>)}</ul>
+        </>}
+
+        {b.stageHistory.length > 0 && <>
+          <h4 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:6}}>Timeline</h4>
+          <div className="timeline">
+            {b.stageHistory.map((h,i) => (
+              <div key={i} className="tl-item">
+                <div className="tl-time">{h.when}</div>
+                <div className="tl-body">{h.event}</div>
+              </div>
+            ))}
+          </div>
+        </>}
+
+        {b.minister && <>
+          <h4 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:6}}>Responsible minister</h4>
+          <span className="tag clk brass" onClick={() => openModal("minister", b.minister)}>{ENTITIES.ministers[b.minister].name}</span>
+        </>}
+
+        <h4 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:6}}>Matching watchlists</h4>
+        <div style={{display:"flex", gap:6, flexWrap:"wrap"}}>{b.watchlists.map(w => <span key={w} className="tag brass">{w}</span>)}</div>
+
+        <h4 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:6}}>Assign policy owner</h4>
+        <div style={{display:"flex", gap:8}}>
+          <input value={owner} onChange={e=>setOwner(e.target.value)} placeholder="Owner name" className="search" style={{padding:"7px 10px", flex:1}}/>
+          <button className="btn primary" onClick={() => { if (owner.trim()) assignOwner(id, owner.trim()); }}>Assign</button>
+        </div>
+        {state.owners[id] && <div style={{marginTop:8, fontSize:12.5, color:"var(--ok)"}}><Icon name="check" size={13} style={{verticalAlign:"-2px", marginRight:4}}/>Owner: <strong>{state.owners[id]}</strong></div>}
+      </div>
+      <div className="modal-foot">
+        <button className="btn primary" onClick={() => { toast("Bill brief drafted", "brass"); closeModal(); }}><Icon name="brief" size={13}/> Draft bill brief</button>
+        <button className="btn" onClick={() => { toast("Bill added to watchlist", "brass"); }}><Icon name="watch" size={13}/> Track bill</button>
+      </div>
+    </>
+  );
+}
+
+function MemberDetail({ id }) {
+  const m = ENTITIES.members[id];
+  if (!m) return <ModalHead kicker="Member" title="Not found" />;
+  const { closeModal, toast } = useStore();
+  return (
+    <>
+      <ModalHead kicker={`${m.party} · ${m.state}`} title={m.name} />
+      <div className="modal-body">
+        <p style={{color:"var(--ink-2)", marginTop:0}}>{m.bio}</p>
+        <div style={{display:"flex", gap:6, flexWrap:"wrap", marginTop:4}}>
+          {m.roles.map((r,i) => <span key={i} className="tag">{r}</span>)}
+        </div>
+        <div className="grid g-3" style={{marginTop:16, gap:12}}>
+          <div className="panel stat"><div className="stat-label">QONs (30d)</div><div className="stat-value" style={{fontSize:26}}>{m.qons}</div></div>
+          <div className="panel stat"><div className="stat-label">Hansard mentions</div><div className="stat-value" style={{fontSize:26}}>{m.hansard}</div></div>
+          <div className="panel stat"><div className="stat-label">Committees</div><div className="stat-value" style={{fontSize:26}}>{m.committees.length}</div></div>
+        </div>
+        <h4 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:8}}>Recent activity</h4>
+        <ul style={{margin:0, paddingLeft:18, color:"var(--ink-2)"}}>
+          <li>Lodged QON on digital procurement · 23 Apr</li>
+          <li>Spoke on Cyber Security Bill · 22 Apr</li>
+          <li>Committee questioning at FinPA hearing · 21 Apr</li>
+        </ul>
+      </div>
+      <div className="modal-foot">
+        <button className="btn primary" onClick={() => { toast("Tracking member", "brass"); closeModal(); }}>Track member</button>
+      </div>
+    </>
+  );
+}
+
+function MinisterDetail({ id }) {
+  const m = ENTITIES.ministers[id];
+  if (!m) return <ModalHead kicker="Minister" title="Not found" />;
+  const { closeModal } = useStore();
+  return (
+    <>
+      <ModalHead kicker={m.role} title={m.name} />
+      <div className="modal-body">
+        <p style={{color:"var(--ink-2)", marginTop:0}}>{m.bio}</p>
+        <h4 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:14, marginBottom:6}}>Recent signals</h4>
+        <ul style={{margin:0, paddingLeft:18, color:"var(--ink-2)"}}>{m.recent.map((r,i) => <li key={i}>{r}</li>)}</ul>
+      </div>
+      <div className="modal-foot"><button className="btn ghost" style={{marginLeft:"auto"}} onClick={closeModal}>Close</button></div>
+    </>
+  );
+}
+
+function DivisionDetail({ id }) {
+  const d = DIVISIONS.find(x => x.bill === id?.bill && x.when === id?.when) || id;
+  const { closeModal, openModal } = useStore();
+  return (
+    <>
+      <ModalHead kicker="Division" title={d.q} />
+      <div className="modal-body">
+        <dl className="kv">
+          <dt>When</dt><dd>{d.when}</dd>
+          <dt>Chamber</dt><dd>{d.chamber}</dd>
+          <dt>Result</dt><dd style={{color: d.result.startsWith("Agreed") ? "var(--ok)" : "var(--escalate)"}}>{d.result}</dd>
+          <dt>Related bill</dt><dd><span className="tag clk brass" onClick={() => openModal("bill", d.bill)}>{d.bill}</span></dd>
+        </dl>
+        <h4 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:16, marginBottom:8}}>Vote breakdown</h4>
+        <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:10}}>
+          <div style={{padding:12, border:"1px solid var(--line-2)", borderRadius:8}}>
+            <div className="mono" style={{fontSize:10, color:"var(--ok)"}}>AYES</div>
+            <div style={{fontSize:22, fontFamily:"var(--serif)"}}>{d.result.match(/\d+/)?.[0] || "—"}</div>
+          </div>
+          <div style={{padding:12, border:"1px solid var(--line-2)", borderRadius:8}}>
+            <div className="mono" style={{fontSize:10, color:"var(--escalate)"}}>NOES</div>
+            <div style={{fontSize:22, fontFamily:"var(--serif)"}}>{d.result.match(/\d+/g)?.[1] || "—"}</div>
+          </div>
+        </div>
+      </div>
+      <div className="modal-foot"><button className="btn ghost" style={{marginLeft:"auto"}} onClick={closeModal}>Close</button></div>
+    </>
+  );
+}
+
+function FeedDetail({ id }) {
+  const f = APH_FEEDS.find(x => x.id === id);
+  const { closeModal, toast } = useStore();
+  if (!f) return <ModalHead kicker="Feed" title="Not found" />;
+  const statusColor = f.status === "live" ? "var(--ok)" : f.status === "delayed" ? "var(--caution)" : "var(--info)";
+  return (
+    <>
+      <ModalHead kicker={`Source · ${f.group}`} title={f.name} />
+      <div className="modal-body">
+        <dl className="kv">
+          <dt>URL</dt><dd className="mono" style={{fontSize:11, color:"var(--ink-3)", wordBreak:"break-all"}}>{f.url}</dd>
+          <dt>Status</dt><dd><span style={{color: statusColor}}>●</span> {f.status}</dd>
+          <dt>Authority</dt><dd>{f.authority}</dd>
+          <dt>Confidence</dt><dd>{f.confidence}</dd>
+          <dt>Parser</dt><dd>{f.parser}</dd>
+          <dt>Last refresh</dt><dd className="mono">{f.last}</dd>
+          <dt>Items today</dt><dd className="mono">{f.today ?? "—"}</dd>
+          <dt>False positive</dt><dd>{f.fpr}</dd>
+          <dt>Modules</dt><dd>{f.modules.join(", ")}</dd>
+        </dl>
+        <h4 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:16, marginBottom:8}}>Recent items</h4>
+        <div>
+          {[...Array(5)].map((_,i) => (
+            <div key={i} style={{padding:"8px 0", borderBottom: i<4 ? "1px solid var(--line)" : 0}}>
+              <div style={{fontSize:13}}>Item from {f.name} #{i+1}</div>
+              <div className="mono" style={{fontSize:10.5, color:"var(--ink-4)", marginTop:2}}>{["08:15","07:42","07:10","Yesterday 17:30","Yesterday 14:05"][i]}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="modal-foot">
+        <button className="btn primary" onClick={() => toast(`${f.name} re-fetched`, "brass")}><Icon name="refresh" size={13}/> Re-fetch now</button>
+        <button className="btn" onClick={() => toast("Parser test passed ✓", "brass")}>Test parser</button>
+        <button className="btn ghost" style={{marginLeft:"auto"}} onClick={closeModal}>Close</button>
+      </div>
+    </>
+  );
+}
+
+function WatchlistDetail({ id }) {
+  const w = WATCHLISTS.find(x => x.name === id);
+  const { closeModal, toast } = useStore();
+  if (!w) return <ModalHead kicker="Watchlist" title="Not found" />;
+  const max = Math.max(...w.trend);
+  return (
+    <>
+      <ModalHead kicker="Watchlist" title={w.name} />
+      <div className="modal-body">
+        <div className="grid g-3" style={{gap:12}}>
+          <div className="panel stat"><div className="stat-label">Matches</div><div className="stat-value" style={{fontSize:26}}>{w.matches}</div></div>
+          <div className="panel stat"><div className="stat-label">Keywords</div><div className="stat-value" style={{fontSize:26}}>{w.keywords}</div></div>
+          <div className="panel stat"><div className="stat-label">7-day trend</div>
+            <div className="spark" style={{marginTop:8}}>{w.trend.map((v,i) => <span key={i} style={{height:(v/max*24+3)+"px"}}/>)}</div>
+          </div>
+        </div>
+        <h4 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:6}}>Matching signals</h4>
+        {SIGNALS.filter(s => s.tags.some(t => t.l.toLowerCase().includes(w.name.toLowerCase().split(" ")[0]))).slice(0,3).map(s => (
+          <div key={s.id} style={{padding:"8px 12px", border:"1px solid var(--line-2)", borderRadius:8, marginBottom:6}}>
+            <div style={{fontSize:12.5, fontWeight:500}}>{s.title}</div>
+            <div className="mono" style={{fontSize:10.5, color:"var(--ink-4)", marginTop:2}}>{s.id} · {s.source}</div>
+          </div>
+        ))}
+      </div>
+      <div className="modal-foot">
+        <button className="btn primary" onClick={() => { toast("Watchlist digest sent", "brass"); closeModal(); }}>Send digest</button>
+        <button className="btn" onClick={() => toast("Configuration saved")}>Edit</button>
+      </div>
+    </>
+  );
+}
+
+function RadarDetail({ id }) {
+  const r = RADAR.find(x => x.issue === id);
+  const { closeModal, toast } = useStore();
+  if (!r) return <ModalHead kicker="Issue" title="Not found" />;
+  return (
+    <>
+      <ModalHead kicker="Attention radar issue" title={r.issue} />
+      <div className="modal-body">
+        <div style={{display:"flex", gap:8, marginBottom:12}}><Att level={r.att}/><span className="tag">{r.sources} contributing sources</span></div>
+        <p style={{color:"var(--ink-2)", marginTop:0}}>{r.reason}</p>
+        <h4 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:8}}>Momentum (7 days)</h4>
+        <div className="spark" style={{height:40}}>
+          {[3,4,5,4,6,7,Math.round(r.momentum*10)].map((v,i)=><span key={i} style={{height:(v*3+4)+"px"}}/>)}
+        </div>
+        <h4 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:8}}>Suggested actions</h4>
+        <ul style={{margin:0, paddingLeft:18, color:"var(--ink-2)"}}>
+          <li>Draft Executive Brief for DDG Digital</li>
+          <li>Monitor for Estimates references</li>
+          <li>Coordinate with Procurement lead</li>
+        </ul>
+      </div>
+      <div className="modal-foot">
+        <button className="btn primary" onClick={() => { toast("Issue brief drafted", "brass"); closeModal(); }}><Icon name="brief" size={13}/> Draft issue brief</button>
+      </div>
+    </>
+  );
+}
+
+Object.assign(window, { StoreProvider, useStore, DetailModal });
+
+</script>
+<script type="text/babel" data-module="shell.jsx">
+// Shell: Sidebar, Topbar (with working global search), SignalCard, Drawer
+
+const NAV = [
+  { id: "overview", label: "Overview", group: "Today", count: 12 },
+  { id: "live", label: "Live parliament", group: "Today", count: null, live: true },
+  { id: "radar", label: "Attention radar", group: "Today", count: 6 },
+  { id: "committees", label: "Committees", group: "Parliament", count: 7 },
+  { id: "bills", label: "Bills intelligence", group: "Parliament", count: 5 },
+  { id: "parliament", label: "Parliament", group: "Parliament", count: 3 },
+  { id: "patterns", label: "QON patterns", group: "Parliament", count: 1 },
+  { id: "briefings", label: "Briefings", group: "Workflow", count: 4 },
+  { id: "watchlists", label: "Watchlists", group: "Workflow", count: 12 },
+  { id: "sources", label: "Sources", group: "Admin", count: 15 },
+];
+
+const ICONS = {
+  overview: "overview", radar: "radar", committees: "committee", bills: "bill",
+  parliament: "parliament", patterns: "pattern", briefings: "brief",
+  watchlists: "watch", sources: "sources", live: "signal",
+};
+
+function Sidebar({ page, setPage }) {
+  const groups = [...new Set(NAV.map(n => n.group))];
+  return (
+    <aside className="side">
+      <div className="brand">
+        <div className="brand-mark">
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+            {/* Prometheus flame — stylised, institutional */}
+            <path d="M11 2 C 7 5, 6 9, 8 12 C 5 11, 4 13, 5 15 C 6 17, 9 18, 11 18 C 13 18, 16 17, 17 15 C 18 13, 17 11, 14 12 C 16 9, 15 5, 11 2 Z" fill="url(#flame)" opacity="0.92"/>
+            <path d="M11 6 C 9 8, 9 11, 11 13 C 13 11, 13 8, 11 6 Z" fill="#fff5e8" opacity="0.9"/>
+            <defs>
+              <linearGradient id="flame" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#f5b36a"/>
+                <stop offset="100%" stopColor="#d4894a"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <div>
+          <div className="brand-name">Parliament Pulse</div>
+          <div className="brand-sub">Prometheus Policy Lab</div>
+        </div>
+      </div>
+      <div className="nav">
+        {groups.map(g => (
+          <div key={g}>
+            <div className="nav-group">{g}</div>
+            {NAV.filter(n => n.group === g).map(n => (
+              <div
+                key={n.id}
+                className={"nav-item" + (page === n.id ? " active" : "")}
+                onClick={() => setPage(n.id)}
+              >
+                <Icon name={ICONS[n.id]} size={15} className="ico" />
+                <span>{n.label}</span>
+                {n.live && <span className="count" style={{color:"#fff", background:"#c26865", animation:"pulse 1.8s infinite"}}>LIVE</span>}
+                {!n.live && n.count !== null && <span className="count">{n.count}</span>}
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+      <div className="side-foot">
+        <div className="avatar">EM</div>
+        <div style={{lineHeight:1.2}}>
+          <div style={{fontSize:12.5, fontWeight:500}}>Erin Marlowe</div>
+          <div style={{fontFamily:"var(--mono)", fontSize:10, color:"var(--ink-4)"}}>Senior analyst · Digital</div>
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+function Topbar({ setPage }) {
+  const { openModal, openSignal, toast } = useStore();
+  const [q, setQ] = React.useState("");
+  const [open, setOpen] = React.useState(false);
+  const ref = React.useRef(null);
+
+  React.useEffect(() => {
+    const h = (e) => {
+      if (e.key === "k" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); ref.current?.focus(); }
+      if (e.key === "Escape") { setOpen(false); ref.current?.blur(); }
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, []);
+
+  const results = React.useMemo(() => {
+    if (!q.trim()) return null;
+    const term = q.toLowerCase();
+    const sig = SIGNALS.filter(s =>
+      s.title.toLowerCase().includes(term) || s.summary.toLowerCase().includes(term) || s.id.toLowerCase().includes(term));
+    const bills = Object.values(ENTITIES.bills).filter(b => b.title.toLowerCase().includes(term) || b.ref.toLowerCase().includes(term));
+    const comm = Object.values(ENTITIES.committees).filter(c => c.name.toLowerCase().includes(term));
+    const mem = Object.values(ENTITIES.members).filter(m => m.name.toLowerCase().includes(term));
+    const feeds = APH_FEEDS.filter(f => f.name.toLowerCase().includes(term));
+    return { sig, bills, comm, mem, feeds };
+  }, [q]);
+
+  return (
+    <div className="topbar">
+      <div className="search" onClick={() => setOpen(true)}>
+        <Icon name="search" size={14} stroke="var(--ink-3)" />
+        <input ref={ref} value={q} onChange={e => { setQ(e.target.value); setOpen(true); }}
+          onFocus={() => setOpen(true)}
+          onBlur={() => setTimeout(() => setOpen(false), 200)}
+          placeholder="Search signals, bills, committees, members, feeds…" />
+        <span className="kbd">⌘K</span>
+        {open && results && (
+          <div className="search-results" onMouseDown={e=>e.preventDefault()}>
+            {results.sig.length > 0 && <>
+              <div className="sr-group">Signals</div>
+              {results.sig.slice(0,4).map(s => (
+                <div key={s.id} className="sr-item" onClick={() => { openSignal(s.id); setOpen(false); }}>
+                  <span className="k">{s.id}</span><span>{s.title}</span>
+                </div>
+              ))}
+            </>}
+            {results.bills.length > 0 && <>
+              <div className="sr-group">Bills</div>
+              {results.bills.map(b => (
+                <div key={b.ref} className="sr-item" onClick={() => { openModal("bill", b.ref); setOpen(false); }}>
+                  <span className="k">{b.ref}</span><span>{b.title}</span>
+                </div>
+              ))}
+            </>}
+            {results.comm.length > 0 && <>
+              <div className="sr-group">Committees</div>
+              {results.comm.map(c => (
+                <div key={c.id} className="sr-item" onClick={() => { openModal("committee", c.id); setOpen(false); }}>
+                  <span className="k">{c.chamber}</span><span>{c.name}</span>
+                </div>
+              ))}
+            </>}
+            {results.mem.length > 0 && <>
+              <div className="sr-group">Members</div>
+              {results.mem.map(m => (
+                <div key={m.id} className="sr-item" onClick={() => { openModal("member", m.id); setOpen(false); }}>
+                  <span className="k">{m.party}</span><span>{m.name}</span>
+                </div>
+              ))}
+            </>}
+            {results.feeds.length > 0 && <>
+              <div className="sr-group">Sources</div>
+              {results.feeds.slice(0,4).map(f => (
+                <div key={f.id} className="sr-item" onClick={() => { openModal("feed", f.id); setOpen(false); }}>
+                  <span className="k">{f.group}</span><span>{f.name}</span>
+                </div>
+              ))}
+            </>}
+            {q && !results.sig.length && !results.bills.length && !results.comm.length && !results.mem.length && !results.feeds.length && (
+              <div className="sr-item" style={{color:"var(--ink-4)", cursor:"default"}}>No matches for "{q}"</div>
+            )}
+          </div>
+        )}
+      </div>
+      <div className="top-right">
+        <span className="chip clk" onClick={() => setPage("live")} style={{borderColor:"#c26865", color:"#fff", background:"#c268651a"}}>
+          <span className="dot" style={{background:"#c26865", animation:"pulse 1.4s infinite"}}/> Parliament live
+        </span>
+        <span className="chip"><span className="dot" /> 14/15 sources</span>
+        <button className="btn ghost sm" title="Refresh all feeds" onClick={() => toast("Feeds refreshed")}><Icon name="refresh" size={13} /> Refresh</button>
+        <button className="btn sm" onClick={() => toast("3 new alerts")}><Icon name="bell" size={13} /> Alerts</button>
+        <button className="btn primary sm" onClick={() => toast("Brief generator opened", "brass")}><Icon name="plus" size={13} /> New brief</button>
+      </div>
+    </div>
+  );
+}
+
+function Att({ level }) {
+  const map = { high: "High", med: "Medium", low: "Low" };
+  return <span className={"att " + level}>{map[level]}</span>;
+}
+
+function Conf({ n = 3 }) {
+  return (
+    <span className="conf" title={`Confidence ${n}/5`}>
+      {[1,2,3,4,5].map(i => <span key={i} className={i<=n?"on":""} />)}
+    </span>
+  );
+}
+
+function SignalCard({ s }) {
+  const { openSignal, state } = useStore();
+  const archived = state.archived[s.id];
+  if (archived) return null;
+  return (
+    <div className="signal" onClick={() => openSignal(s.id)}>
+      <div className="sig-head">
+        <span className="sig-id mono">{s.id}</span>
+        <span className="sig-source mono">· {s.source}</span>
+        <Att level={s.attention} />
+        <span className="sig-time mono">{s.time}</span>
+      </div>
+      <div className="sig-title serif">{s.title}</div>
+      <div className="sig-sum">{s.summary}</div>
+      <div className="sig-tags">
+        {s.tags.map((t, i) => <span key={i} className={"tag " + (t.c || "")}>{t.l}</span>)}
+      </div>
+      <div className="sig-action">
+        <span className="sig-action-label">Recommended</span>
+        <span className="sig-action-value">{s.action}</span>
+        <Conf n={s.confidence} />
+        <span className="sig-action-reason">{s.actionReason}</span>
+      </div>
+      {state.feedback[s.id] && (
+        <div style={{marginTop:8, fontSize:11.5, color:"var(--brass)"}}>
+          <Icon name="check" size={12} style={{verticalAlign:"-2px", marginRight:4}}/> Feedback: {state.feedback[s.id].label}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Drawer() {
+  const { signalId, closeSignal, state, saveFeedback, archive, generateBrief, addWatchlist, saveNote, toast } = useStore();
+  const signal = React.useMemo(() => SIGNALS.find(s => s.id === signalId), [signalId]);
+  const [fb, setFb] = React.useState(null);
+  const [note, setNote] = React.useState("");
+  React.useEffect(() => {
+    setFb(state.feedback[signalId]?.label || null);
+    setNote(state.notes[signalId] || "");
+  }, [signalId, state.feedback, state.notes]);
+  const on = !!signal;
+  const s = signal || {};
+  const labels = ["Correct priority","Too high","Too low","Wrong topic","Wrong portfolio","Duplicate","Noise","Needs human review"];
+  return (
+    <>
+      <div className={"drawer-back" + (on ? " on" : "")} onClick={closeSignal} />
+      <aside className={"drawer" + (on ? " on" : "")}>
+        {on && (
+          <>
+            <div className="drawer-head">
+              <div>
+                <div className="mono" style={{fontSize:10, color:"var(--ink-4)", letterSpacing:".16em", textTransform:"uppercase"}}>
+                  {s.id} · {s.date}
+                </div>
+                <div className="serif" style={{fontSize:20, marginTop:4, maxWidth:460, lineHeight:1.25}}>{s.title}</div>
+              </div>
+              <button className="btn ghost sm" style={{marginLeft:"auto"}} onClick={closeSignal}><Icon name="close" size={14} /></button>
+            </div>
+            <div className="drawer-body">
+              <div className="drawer-section"><h4>Summary</h4><p>{s.summary}</p></div>
+              <div className="drawer-section">
+                <h4>Signal metadata</h4>
+                <dl className="kv">
+                  <dt>Source</dt><dd>{s.source}</dd>
+                  <dt>Source group</dt><dd>{s.sourceGroup}</dd>
+                  <dt>Authority</dt><dd>{s.sourceAuthority}</dd>
+                  <dt>Attention</dt><dd><Att level={s.attention} /></dd>
+                  <dt>Confidence</dt><dd><Conf n={s.confidence} /> <span style={{color:"var(--ink-3)", marginLeft:8, fontFamily:"var(--mono)", fontSize:11}}>{s.confidence}/5</span></dd>
+                  <dt>Human review</dt><dd>{s.humanReview}</dd>
+                </dl>
+              </div>
+              <div className="drawer-section"><h4>Why it matters</h4><p>{s.attentionReason}</p></div>
+              <div className="drawer-section">
+                <h4>Recommended action</h4>
+                <div style={{padding:"12px 14px", border:"1px solid #c9a36a44", borderRadius:8, background:"#c9a36a0d"}}>
+                  <div style={{fontWeight:600, color:"var(--brass)"}}>{s.action}</div>
+                  <div style={{color:"var(--ink-2)", fontSize:13, marginTop:4}}>{s.actionReason}</div>
+                </div>
+              </div>
+              {s.score && (
+                <div className="drawer-section">
+                  <h4>Attention score breakdown</h4>
+                  {Object.entries(s.score).map(([k,v]) => {
+                    const lab = {authority:"Source authority", portfolio:"Portfolio relevance", novelty:"Novelty", momentum:"Momentum", time:"Time sensitivity", scrutiny:"Scrutiny relevance", ops:"Operational impact"};
+                    return (
+                      <div key={k} style={{display:"grid", gridTemplateColumns:"160px 1fr 40px", gap:10, alignItems:"center", padding:"4px 0"}}>
+                        <div style={{fontSize:12.5, color:"var(--ink-2)"}}>{lab[k]}</div>
+                        <div className="bar"><div className="fill" style={{width:`${v*100}%`}} /></div>
+                        <div className="mono" style={{fontSize:11, color:"var(--ink-3)", textAlign:"right"}}>{Math.round(v*100)}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              <div className="drawer-section">
+                <h4>Evidence · open the actual source</h4>
+                {s.evidence?.map((e,i) => (
+                  <a key={i} href={e.url} target="_blank" rel="noopener noreferrer" style={{
+                    display:"flex", alignItems:"center", gap:10, padding:"10px 12px",
+                    border:"1px solid var(--line-2)", borderRadius:8, color:"var(--ink)",
+                    textDecoration:"none", marginBottom:6, fontSize:13,
+                  }}>
+                    <Icon name="link" size={14} stroke="var(--teal)" />
+                    <span>{e.label}</span>
+                    <span className="mono" style={{color:"var(--ink-4)", fontSize:11, marginLeft:"auto", maxWidth:240, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>{e.url.replace(/^https?:\/\//,"")}</span>
+                    <Icon name="ext" size={12} stroke="var(--ink-3)" />
+                  </a>
+                ))}
+              </div>
+
+              {s.provenance && s.provenance.length > 0 && (
+                <div className="drawer-section">
+                  <h4>Provenance · how this signal was produced</h4>
+                  <div style={{border:"1px solid var(--line-2)", borderRadius:8, overflow:"hidden"}}>
+                    {s.provenance.map((p,i) => (
+                      <div key={i} style={{display:"grid", gridTemplateColumns:"78px 90px 1fr", gap:10, padding:"8px 12px", fontSize:12, borderBottom: i<s.provenance.length-1 ? "1px solid var(--line)" : 0, background: i%2 ? "#ffffff03" : "transparent"}}>
+                        <div className="mono" style={{color:"var(--ink-4)", fontSize:10.5}}>{p.ts}</div>
+                        <div><span className="tag" style={{fontSize:10, padding:"1px 6px"}}>{p.by}</span></div>
+                        <div style={{color:"var(--ink-2)"}}>{p.event}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {s.updates && s.updates.length > 0 && (
+                <div className="drawer-section">
+                  <h4>Updates to this signal · who / what / when</h4>
+                  {s.updates.map((u,i) => (
+                    <div key={i} style={{display:"grid", gridTemplateColumns:"60px 140px 1fr", gap:10, padding:"8px 0", borderBottom: i<s.updates.length-1 ? "1px solid var(--line)" : 0, fontSize:12.5}}>
+                      <div className="mono" style={{color:"var(--ink-4)", fontSize:11}}>{u.ts}</div>
+                      <div style={{color:"var(--brass)"}}>{u.who}</div>
+                      <div style={{color:"var(--ink-2)"}}>{u.what}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {s.members && s.members.length > 0 && (
+                <div className="drawer-section">
+                  <h4>People referenced</h4>
+                  <div style={{display:"flex", flexWrap:"wrap", gap:6}}>
+                    {s.members.map(mid => {
+                      const m = window.ENTITIES?.members?.[mid];
+                      if (!m) return null;
+                      return <span key={mid} className="tag brass clk" onClick={() => window.__openModal?.("member", mid)}>{m.name}</span>;
+                    })}
+                  </div>
+                </div>
+              )}
+              <div className="drawer-section">
+                <h4>Analyst note</h4>
+                <textarea value={note} onChange={e=>setNote(e.target.value)} onBlur={()=>saveNote(s.id, note)}
+                  placeholder="Private notes (auto-saved)" rows={3}
+                  style={{width:"100%", background:"var(--panel)", border:"1px solid var(--line-2)", borderRadius:8, color:"var(--ink)", padding:"8px 10px", fontFamily:"var(--sans)", fontSize:13, resize:"vertical"}}/>
+              </div>
+              <div className="drawer-section">
+                <h4>Analyst feedback · is this right?</h4>
+                <div className="feedback-row">
+                  {labels.map(l => (
+                    <button key={l} className={"fb" + (fb === l ? " on" : "")} onClick={() => { setFb(l); saveFeedback(s.id, l, ""); }}>
+                      {l === "Correct priority" && <Icon name="check" size={12} style={{marginRight:6, verticalAlign:"-2px"}}/>}
+                      {l}
+                    </button>
+                  ))}
+                </div>
+                {fb && fb !== "Correct priority" && (
+                  <div style={{marginTop:10, padding:"10px 12px", background:"#ffffff04", border:"1px dashed var(--line-2)", borderRadius:8, fontSize:12.5, color:"var(--ink-2)"}}>
+                    <div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em"}}>Learning applied</div>
+                    <div style={{marginTop:4}}>{s.source} · similar items · portfolio mapping adjusted</div>
+                  </div>
+                )}
+                {fb === "Correct priority" && (
+                  <div style={{marginTop:10, color:"var(--ok)", fontSize:12.5}}>
+                    <Icon name="check" size={13} style={{verticalAlign:"-2px", marginRight:4}}/>Logged. Weights retained.
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="drawer-foot">
+              <button className="btn primary" onClick={() => generateBrief(s.id, "Executive brief")}><Icon name="brief" size={13} /> Generate brief</button>
+              <button className="btn" onClick={() => addWatchlist(s.id)}><Icon name="watch" size={13} /> Watchlist</button>
+              <button className="btn" onClick={() => { archive(s.id); closeSignal(); }}>Archive</button>
+              <button className="btn ghost" style={{marginLeft:"auto"}} onClick={closeSignal}>Close</button>
+            </div>
+          </>
+        )}
+      </aside>
+    </>
+  );
+}
+
+Object.assign(window, { Sidebar, Topbar, SignalCard, Drawer, Att, Conf });
+
+</script>
+<script type="text/babel" data-module="pages.jsx">
+// Pages — all entities are clickable; store-wired
+
+const { useState, useMemo } = React;
+
+// ---------- OVERVIEW ----------
+function PageOverview() {
+  const { openModal, state } = useStore();
+  const goto = (p) => window.__setPage && window.__setPage(p);
+  const priority = SIGNALS.filter(s => s.attention === "high" && !state.archived[s.id]);
+  const rest = SIGNALS.filter(s => s.attention !== "high" && !state.archived[s.id]);
+  return (
+    <div className="page">
+      <div className="page-head">
+        <div>
+          <div className="page-kicker">Fri 24 Apr 2026 · Sitting day</div>
+          <h1 className="page-title">Today's signal</h1>
+          <div className="page-sub">12 new official items overnight. 3 classified as priority. No broken sources. Your watchlists matched 19 items this week.</div>
+        </div>
+        <div style={{display:"flex", gap:10}}>
+          <button className="btn"><Icon name="filter" size={13}/> Filter</button>
+          <button className="btn"><Icon name="download" size={13}/> Export</button>
+          <button className="btn primary"><Icon name="brief" size={13}/> Generate daily brief</button>
+        </div>
+      </div>
+
+      {/* LIVE NOW STRIP — dashboard wired to Live parliament */}
+      <div className="live-strip" style={{display:"grid", gridTemplateColumns:"auto 1fr auto auto auto", gap:14, alignItems:"center", padding:"12px 16px", marginBottom:16, background:"linear-gradient(90deg, #160d08 0%, #151f2b 40%, #151f2b 100%)", border:"1px solid var(--line-2)", borderLeft:"3px solid var(--escalate)", borderRadius:10}}>
+        <div style={{display:"flex", alignItems:"center", gap:8}}>
+          <span style={{width:8, height:8, borderRadius:"50%", background:"var(--escalate)", boxShadow:"0 0 12px var(--escalate)", animation:"pulse 1.4s infinite"}}/>
+          <span className="mono" style={{fontSize:10.5, letterSpacing:".16em", color:"var(--escalate)", fontWeight:600}}>LIVE · AEST 12:14</span>
+        </div>
+        <div style={{display:"flex", gap:18, fontSize:12.5, color:"var(--ink-2)", alignItems:"center"}}>
+          <div><strong style={{color:"var(--ink)"}}>House:</strong> Question time · <span style={{color:"var(--ink-3)"}}>Member for Bennelong on floor</span></div>
+          <div style={{width:1, height:16, background:"var(--line-2)"}}/>
+          <div><strong style={{color:"var(--ink)"}}>Senate:</strong> <a href="#" onClick={e=>{e.preventDefault(); openModal("committee","legcon");}} style={{color:"var(--teal)", textDecoration:"none"}}>Legal & Constitutional</a> hearing · AI assurance</div>
+        </div>
+        <a href="https://www.aph.gov.au/Parliamentary_Business/Hansard" target="_blank" rel="noopener noreferrer" className="btn sm ghost" style={{textDecoration:"none"}}><Icon name="ext" size={12}/> Hansard</a>
+        <a href="https://www.youtube.com/@AUSParliamentLive/streams" target="_blank" rel="noopener noreferrer" className="btn sm ghost" style={{textDecoration:"none"}}><Icon name="ext" size={12}/> YouTube</a>
+        <button className="btn sm primary" onClick={()=> goto && goto("live")}><Icon name="signal" size={12}/> Watch live</button>
+      </div>
+
+      <div className="grid g-4" style={{marginBottom:18}}>
+        <div className="panel stat">
+          <div className="stat-label">New signals today</div>
+          <div className="stat-value">12</div>
+          <div className="stat-meta"><span style={{color:"var(--ok)"}}>▲ 3</span> vs yesterday</div>
+        </div>
+        <div className="panel stat">
+          <div className="stat-label">Priority signals</div>
+          <div className="stat-value" style={{color:"var(--brass)"}}>{priority.length}</div>
+          <div className="stat-meta">Watchlist-matched · requires review</div>
+        </div>
+        <div className="panel stat">
+          <div className="stat-label">Committee activity</div>
+          <div className="stat-value">7<span className="unit">items</span></div>
+          <div className="stat-meta">2 hearings · 1 new inquiry · 1 report</div>
+        </div>
+        <div className="panel stat">
+          <div className="stat-label">Source health</div>
+          <div className="stat-value">14/15<span className="unit">live</span></div>
+          <div className="stat-meta"><span style={{color:"var(--caution)"}}>FlagPost</span> needs validation</div>
+        </div>
+      </div>
+
+      <div className="grid g-overview">
+        <div>
+          <div className="panel" style={{marginBottom:16}}>
+            <div className="panel-head">
+              <h3 className="panel-title">Priority signals</h3>
+              <span className="panel-kicker">{priority.length} items · human review required</span>
+              <div style={{marginLeft:"auto", display:"flex", gap:6}}>
+                <button className="btn ghost sm">Group by topic</button>
+                <button className="btn ghost sm">Sort: attention</button>
+              </div>
+            </div>
+            <div className="panel-body">
+              {priority.map(s => <SignalCard key={s.id} s={s} />)}
+              {priority.length === 0 && <div className="empty">All priority signals actioned.</div>}
+            </div>
+          </div>
+
+          <div className="panel">
+            <div className="panel-head">
+              <h3 className="panel-title">All signals · last 24h</h3>
+              <span className="panel-kicker">{rest.length} items</span>
+            </div>
+            <div className="panel-body">
+              {rest.map(s => <SignalCard key={s.id} s={s} />)}
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div className="panel" style={{marginBottom:16}}>
+            <div className="panel-head">
+              <h3 className="panel-title">What changed</h3>
+              <span className="panel-kicker">Since 17:00 yesterday</span>
+            </div>
+            <div className="panel-body">
+              <div className="timeline">
+                <div className="tl-item"><div className="tl-time">08:15 · Senate</div><div className="tl-body">New inquiry opened: <a href="#" onClick={e=>{e.preventDefault(); openModal("inquiry","Commonwealth procurement governance (new)");}} style={{color:"var(--ink)"}}>Digital procurement governance</a></div></div>
+                <div className="tl-item teal"><div className="tl-time">07:48 · Library</div><div className="tl-body">Bills Digest: <a href="#" onClick={e=>{e.preventDefault(); openModal("bill","BILL-2026-048");}} style={{color:"var(--ink)"}}>Digital ID Amendment (Assurance) Bill 2026</a></div></div>
+                <div className="tl-item info"><div className="tl-time">07:30 · Senate</div><div className="tl-body">Today's hearing · <a href="#" onClick={e=>{e.preventDefault(); openModal("committee","legcon");}} style={{color:"var(--ink)"}}>Legal & Constitutional</a> · AI assurance</div></div>
+                <div className="tl-item"><div className="tl-time">07:10 · House</div><div className="tl-body">Daily program: <a href="#" onClick={e=>{e.preventDefault(); openModal("bill","BILL-2026-041");}} style={{color:"var(--ink)"}}>Cyber Security Bill</a> — 2nd reading</div></div>
+                <div className="tl-item info"><div className="tl-time">Yesterday 18:04</div><div className="tl-body"><a href="#" onClick={e=>{e.preventDefault(); openModal("division", DIVISIONS[2]);}} style={{color:"var(--ink)"}}>Division: CDR Expansion Bill — 2nd reading agreed</a></div></div>
+                <div className="tl-item teal"><div className="tl-time">Yesterday 17:20</div><div className="tl-body">Report tabled: Regional 5G rollout — interim</div></div>
+              </div>
+            </div>
+          </div>
+
+          <div className="panel" style={{marginBottom:16}}>
+            <div className="panel-head">
+              <h3 className="panel-title">Briefing queue</h3>
+              <span className="panel-kicker">4 pending</span>
+            </div>
+            <div className="panel-body" style={{paddingTop:6}}>
+              {BRIEFING_QUEUE.map((b,i) => (
+                <div key={i} style={{display:"grid", gridTemplateColumns:"1fr auto", padding:"10px 0", borderBottom: i<BRIEFING_QUEUE.length-1 ? "1px solid var(--line)" : 0, gap:10}}>
+                  <div>
+                    <div style={{fontSize:13, fontWeight:500}}>{b.type}</div>
+                    <div style={{fontSize:11.5, color:"var(--ink-3)"}}>For {b.for} · <span className="mono">{b.at}</span></div>
+                  </div>
+                  <div style={{display:"flex", alignItems:"center", gap:8}}>
+                    <span className="mono" style={{fontSize:10.5, color: b.ready ? "var(--ok)" : "var(--caution)", textTransform:"uppercase", letterSpacing:".12em"}}>{b.status}</span>
+                    <button className="btn sm ghost"><Icon name="chevron" size={13}/></button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="panel">
+            <div className="panel-head">
+              <h3 className="panel-title">Source health</h3>
+              <span className="panel-kicker">14/15 live</span>
+            </div>
+            <div className="panel-body">
+              {APH_FEEDS.slice(0, 6).map(f => (
+                <div key={f.id} onClick={() => openModal("feed", f.id)} className="clk" style={{display:"grid", gridTemplateColumns:"1fr auto auto", padding:"6px 8px", gap:10, fontSize:12.5, alignItems:"center", borderRadius:6}}>
+                  <div><span className={"hdot " + (f.status === "review" ? "review" : f.status === "delayed" ? "delayed" : "live")} />{f.name}</div>
+                  <div className="mono" style={{color:"var(--ink-4)", fontSize:11}}>{f.last}</div>
+                  <div className="mono" style={{color:"var(--ink-3)", fontSize:11, textAlign:"right", width:28}}>{f.today ?? "—"}</div>
+                </div>
+              ))}
+              <div style={{marginTop:8, fontSize:12, color:"var(--ink-3)"}}>
+                <span className="hdot review"/> FlagPost: feed tester flagged HTML endpoint.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------- LIVE PARLIAMENT ----------
+// Real AUSParliamentLive (@UCvO8Qfr3etT6khGA9Zln8WA) YouTube live embed.
+// YouTube's live_stream endpoint auto-resolves to whatever stream is active on that channel.
+// When no stream is live, YouTube shows the channel's upcoming/latest placeholder.
+const APH_YT_CHANNEL = "UCvO8Qfr3etT6khGA9Zln8WA"; // @AUSParliamentLive
+const APH_LIVE = {
+  house:    { label: "House of Representatives", streamId: null, url: `https://www.youtube.com/embed/live_stream?channel=${APH_YT_CHANNEL}&autoplay=1&mute=1` },
+  senate:   { label: "Senate",                    streamId: null, url: `https://www.youtube.com/embed/live_stream?channel=${APH_YT_CHANNEL}&autoplay=1&mute=1` },
+  federation:{label: "Federation Chamber",        streamId: null, url: `https://www.youtube.com/embed/live_stream?channel=${APH_YT_CHANNEL}&autoplay=1&mute=1` },
+};
+
+function LiveBroadcast({ which, toast }) {
+  const cfg = APH_LIVE[which] || APH_LIVE.house;
+  // mode: "embed" = YouTube live_stream iframe ; "offline" = explicit fallback
+  const [mode, setMode] = React.useState("embed");
+  const [nonce, setNonce] = React.useState(0); // bump to force reload
+
+  // When chamber changes, retry embed
+  React.useEffect(() => {
+    setMode("embed");
+  }, [which]);
+
+  return (
+    <div className="live-wrap" style={{background:"#000", aspectRatio:"16/9", position:"relative", overflow:"hidden", borderRadius:10, border:"1px solid var(--line-2)"}}>
+      {mode === "embed" && (
+        <iframe
+          key={which + "-" + nonce}
+          src={cfg.url}
+          title={`AUSParliamentLive — ${cfg.label}`}
+          allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+          allowFullScreen
+          referrerPolicy="strict-origin-when-cross-origin"
+          style={{position:"absolute", inset:0, width:"100%", height:"100%", border:0}}
+        />
+      )}
+
+      {/* LIVE badge (only shown when embed mode is active) */}
+      {mode === "embed" && (
+        <div style={{position:"absolute", top:12, left:12, zIndex:3, display:"flex", alignItems:"center", gap:6, background:"rgba(0,0,0,0.6)", padding:"5px 10px", borderRadius:4, fontFamily:"var(--mono)", fontSize:11, color:"#fff", letterSpacing:".12em", border:"1px solid #d06a5e80"}}>
+          <span style={{width:7, height:7, borderRadius:"50%", background:"#d06a5e", boxShadow:"0 0 10px #d06a5e", animation:"pulse 1.4s infinite"}}/>
+          LIVE · {cfg.label.toUpperCase()}
+        </div>
+      )}
+
+      {/* Manual "No stream?" pill — always available in embed mode because YouTube's
+          offline state renders INSIDE the iframe and we can't detect it from here. */}
+      {mode === "embed" && (
+        <button
+          onClick={() => setMode("offline")}
+          style={{position:"absolute", top:12, right:12, zIndex:3, fontFamily:"var(--mono)", fontSize:10.5, color:"#fff", background:"rgba(0,0,0,0.55)", border:"1px solid #ffffff30", padding:"4px 9px", borderRadius:4, cursor:"pointer", letterSpacing:".08em"}}
+          title="Show alternate sources if no stream is live"
+        >
+          NO STREAM?
+        </button>
+      )}
+
+      {/* Fallback for no-stream / blocked / user-toggled */}
+      {mode === "offline" && (
+        <div style={{position:"absolute", inset:0, background:"linear-gradient(180deg, #0a0f16, #050810)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24, textAlign:"center"}}>
+          <div style={{fontFamily:"var(--serif)", fontSize:22, color:"#d4894a", marginBottom:10}}>Stream unavailable</div>
+          <div style={{color:"var(--ink-2)", fontSize:13, maxWidth:460, lineHeight:1.5, marginBottom:18}}>
+            AUSParliamentLive only broadcasts <strong>{cfg.label}</strong> while the chamber is in session. Try the official APH pages below, or retry the embed.
+          </div>
+          <div style={{display:"flex", gap:8, flexWrap:"wrap", justifyContent:"center"}}>
+            <a href="https://www.youtube.com/@AUSParliamentLive/streams" target="_blank" rel="noopener noreferrer" className="btn primary" style={{textDecoration:"none"}}>YouTube · AUSParliamentLive ↗</a>
+            <a href="https://www.aph.gov.au/News_and_Events/Watch_Read_Listen" target="_blank" rel="noopener noreferrer" className="btn" style={{textDecoration:"none"}}>APH Watch / Read / Listen ↗</a>
+            <a href="https://parlview.aph.gov.au/" target="_blank" rel="noopener noreferrer" className="btn" style={{textDecoration:"none"}}>ParlView archive ↗</a>
+            <button className="btn" onClick={() => { setNonce(n => n + 1); setMode("embed"); }}>Retry embed</button>
+          </div>
+        </div>
+      )}
+
+      <style>{`@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }`}</style>
+    </div>
+  );
+}
+
+function PageLive() {
+  const [which, setWhich] = useState("house");
+  const { toast, openModal } = useStore();
+
+  // --- REAL LIVE RSS POLLER ---
+  // Fetches the official APH RSS feeds listed at https://www.aph.gov.au/Help/Rss_feeds
+  // via allorigins.win (adds CORS headers APH does not send), parses the XML, and
+  // merges items into a single time-sorted signal stream. Refreshes every 2 minutes.
+  const APH_FEED_URLS = [
+    { url: "https://www.aph.gov.au/house/rss/divisions",         label: "House Divisions",              kind: "division" },
+    { url: "https://www.aph.gov.au/house/rss/todays_hearings",   label: "Today's House hearings",       kind: "hearing"  },
+    { url: "https://www.aph.gov.au/house/rss/daily_program",     label: "House Daily Program",          kind: "program"  },
+    { url: "https://www.aph.gov.au/senate/rss/red",              label: "Today's Senate hearings",      kind: "hearing"  },
+    { url: "https://www.aph.gov.au/senate/rss/new_inquiries",    label: "New Senate inquiries",         kind: "inquiry"  },
+    { url: "https://www.aph.gov.au/senate/rss/reports",          label: "Senate reports tabled",        kind: "report"   },
+    { url: "https://www.aph.gov.au/senate/rss/upcoming_hearings",label: "Upcoming Senate hearings",     kind: "hearing"  },
+    { url: "https://www.aph.gov.au/house/rss/house_inquiries",   label: "House inquiries",              kind: "inquiry"  },
+    { url: "https://www.aph.gov.au/house/rss/joint_inquiries",   label: "Joint inquiries",              kind: "inquiry"  },
+    { url: "https://www.aph.gov.au/house/rss/media_releases",    label: "House media releases",         kind: "signal"   },
+    { url: "https://www.aph.gov.au/house/rss/house_news",        label: "About the House News",         kind: "signal"   },
+    { url: "https://parlinfo.aph.gov.au/parlInfo/feeds/rss.w3p;adv=yes;orderBy=date-eFirst;page=0;query=Date%3AthisYear%20Dataset%3Abillsdgs;resCount=100", label: "Bills Digests", kind: "digest" },
+  ];
+  const [events, setEvents] = useState([]);
+  const [feedStatus, setFeedStatus] = useState({}); // url -> {ok, count, error}
+  const [lastPoll, setLastPoll] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  React.useEffect(() => {
+    let cancelled = false;
+
+    // r.jina.ai is a fetch-proxy reachable from sandboxed browsers.
+    // Default output is markdown; we extract item titles + links from it.
+    // Link format in jina markdown: "[Title](url)" or "Title\n   url"
+    const parseJinaMarkdown = (text, feedMeta) => {
+      const out = [];
+      // Strategy 1: markdown links [title](url) — jina's default rendering of RSS items
+      const re = /\[([^\]]{8,240})\]\((https?:\/\/[^\s\)]+)\)/g;
+      let m;
+      const seen = new Set();
+      while ((m = re.exec(text)) !== null) {
+        const title = m[1].trim().replace(/\s+/g, " ");
+        const link = m[2];
+        // Filter out nav/chrome links
+        if (/^(home|menu|skip|log in|contact|rss|search|login|register|top|back to top|feed address)$/i.test(title)) continue;
+        if (/aph\.gov\.au\/(Help|About|Senators_and_Members)\b/i.test(link) && !/rss|feed|inquiry|hearing|bill|division|report/i.test(title)) continue;
+        // Skip entries whose title is just a URL (jina markdown sometimes renders bare links)
+        if (/^https?:\/\//i.test(title)) continue;
+        // Must look like actual content (avoid pure nav)
+        if (title.length < 10) continue;
+        const key = title.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push({
+          title, link,
+          date: null, // jina markdown doesn't reliably include pubDate
+          sourceLabel: feedMeta.label,
+          sourceUrl:   feedMeta.url,
+          kind:        feedMeta.kind,
+          order:       out.length, // preserve feed order as recency proxy
+        });
+        if (out.length >= 6) break;
+      }
+      return out;
+    };
+
+    const fetchOne = async (f) => {
+      // jina re-serves the URL contents. Concatenated, NOT URL-encoded.
+      const proxy = "https://r.jina.ai/" + f.url;
+      const res = await fetch(proxy, {
+        cache: "no-store",
+        headers: { "Accept": "text/plain" },
+      });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const text = await res.text();
+      return parseJinaMarkdown(text, f);
+    };
+
+    const poll = async () => {
+      setLoading(true);
+      const results = await Promise.allSettled(APH_FEED_URLS.map(fetchOne));
+      if (cancelled) return;
+      const all = [];
+      const status = {};
+      results.forEach((r, i) => {
+        const f = APH_FEED_URLS[i];
+        if (r.status === "fulfilled") {
+          status[f.url] = { ok: true, count: r.value.length };
+          all.push(...r.value.map((it, idx) => ({ ...it, feedIdx: i, itemIdx: idx })));
+        } else {
+          status[f.url] = { ok: false, error: String(r.reason).slice(0, 80) };
+        }
+      });
+      // Without dates, sort by feed priority (divisions first, then hearings, etc.) then item order
+      all.sort((a, b) => a.feedIdx - b.feedIdx || a.itemIdx - b.itemIdx);
+      setEvents(all.slice(0, 30));
+      setFeedStatus(status);
+      setLastPoll(new Date());
+      setLoading(false);
+    };
+
+    poll();
+    const id = setInterval(poll, 120000); // 2 min
+    return () => { cancelled = true; clearInterval(id); };
+  }, []);
+
+  const fmtTime = (d) => {
+    if (!d) return "—";
+    const now = new Date();
+    const sameDay = d.toDateString() === now.toDateString();
+    if (sameDay) return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+    return `${d.getDate()} ${d.toLocaleString("en-AU",{month:"short"})}`;
+  };
+  const liveCount = Object.values(feedStatus).filter(s => s.ok).length;
+  const totalFeeds = APH_FEED_URLS.length;
+
+  return (
+    <div className="page">
+      <div className="page-head">
+        <div>
+          <div className="page-kicker">Today · live</div>
+          <h1 className="page-title">Live parliament</h1>
+          <div className="page-sub">Official AUSParliamentLive broadcast (YouTube), ParlView archive, Hansard live-track, and division bells — all wired to the signal engine.</div>
+        </div>
+        <div style={{display:"flex", gap:8}}>
+          <button className={"btn " + (which === "house" ? "primary" : "")} onClick={() => setWhich("house")}>House</button>
+          <button className={"btn " + (which === "senate" ? "primary" : "")} onClick={() => setWhich("senate")}>Senate</button>
+          <button className={"btn " + (which === "federation" ? "primary" : "")} onClick={() => setWhich("federation")}>Federation</button>
+          <button className="btn" onClick={() => toast("Flag captured — linked to current speaker", "brass")}><Icon name="flag" size={13}/> Flag moment</button>
+        </div>
+      </div>
+
+      <div className="grid" style={{gridTemplateColumns:"1.7fr 1fr", gap:16}}>
+        <div>
+          <LiveBroadcast which={which} toast={toast} />
+          <div style={{display:"flex", gap:8, marginTop:12, alignItems:"center", flexWrap:"wrap"}}>
+            <span className="src-badge"><span className="hdot live"/> AUSParliamentLive · YouTube</span>
+            <span className="src-badge"><Icon name="clock" size={11}/> Since 09:30 AEST</span>
+            <a href="https://www.youtube.com/@AUSParliamentLive/streams" target="_blank" rel="noopener noreferrer" className="src-badge" style={{textDecoration:"none", color:"var(--teal)"}}><Icon name="ext" size={11}/> AUSParliamentLive ↗</a>
+            <a href="https://parlview.aph.gov.au/" target="_blank" rel="noopener noreferrer" className="src-badge" style={{textDecoration:"none", color:"var(--teal)"}}><Icon name="ext" size={11}/> ParlView archive ↗</a>
+            <a href="https://www.aph.gov.au/Parliamentary_Business/Hansard" target="_blank" rel="noopener noreferrer" className="src-badge" style={{textDecoration:"none", color:"var(--teal)"}}><Icon name="ext" size={11}/> Hansard ↗</a>
+            <button className="btn sm ghost" style={{marginLeft:"auto"}} onClick={() => toast("Transcript queued from ParlView")}>Request transcript</button>
+            <button className="btn sm" onClick={() => toast("Clip queued for brief", "brass")}><Icon name="brief" size={12}/> Clip to brief</button>
+          </div>
+
+          <div className="panel" style={{marginTop:16}}>
+            <div className="panel-head">
+              <h3 className="panel-title">Currently on program</h3>
+              <span className="panel-kicker">{which === "house" ? "House of Representatives" : which === "senate" ? "Senate" : "Federation Chamber"}</span>
+              <a href={which === "house" ? "https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/HoR_chamber_documents/Daily_program" : "https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/Senate_chamber_documents/Dynamic_Red"} target="_blank" rel="noopener noreferrer" style={{marginLeft:"auto", fontSize:11.5, color:"var(--teal)", textDecoration:"none"}}>Open daily program <Icon name="ext" size={11}/></a>
+            </div>
+            <div className="panel-body">
+              <div className="timeline">
+                <div className="tl-item"><div className="tl-time">12:00</div><div className="tl-body">Question time · <a href="#" onClick={e=>{e.preventDefault(); openModal("bill","BILL-2026-048");}} style={{color:"var(--ink)"}}>Digital ID Amendment</a> expected</div></div>
+                <div className="tl-item teal"><div className="tl-time">14:00</div><div className="tl-body">Government business · 2nd reading <a href="#" onClick={e=>{e.preventDefault(); openModal("bill","BILL-2026-041");}} style={{color:"var(--ink)"}}>Cyber Security Bill</a> <span className="tag brass" style={{marginLeft:6}}>Watchlist · Cyber</span></div></div>
+                <div className="tl-item info"><div className="tl-time">16:30</div><div className="tl-body">Adjournment debate</div></div>
+              </div>
+            </div>
+          </div>
+
+          {/* APH Connectors panel */}
+          <div className="panel" style={{marginTop:16}}>
+            <div className="panel-head">
+              <h3 className="panel-title">APH connectors</h3>
+              <span className="panel-kicker">Live data endpoints · {6} connected</span>
+            </div>
+            <div className="panel-body">
+              <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:8}}>
+                {[
+                  { name: "Hansard live", url: "https://www.aph.gov.au/Parliamentary_Business/Hansard", status: "live", desc: "Daily proofs · every 5 min" },
+                  { name: "ParlInfo Search API", url: "https://parlinfo.aph.gov.au/parlInfo/search/search.w3p", status: "live", desc: "Full-text across bills, Hansard, committees" },
+                  { name: "Bills Search (OpenSearch)", url: "https://www.aph.gov.au/Parliamentary_Business/Bills_Legislation/Bills_Search_Results", status: "live", desc: "Bill stage & status" },
+                  { name: "Senate Dynamic Red", url: "https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/Senate_chamber_documents/Dynamic_Red", status: "live", desc: "Senate program · live" },
+                  { name: "House Daily Program", url: "https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/HoR_chamber_documents/Daily_program", status: "live", desc: "House program · live" },
+                  { name: "Division results feed", url: "https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/HoR_chamber_documents/Division_lists", status: "live", desc: "Votes within 2 min of call" },
+                  { name: "Committee hearings RSS", url: "https://www.aph.gov.au/Parliamentary_Business/Committees/RSS_Feeds", status: "live", desc: "New & upcoming inquiries" },
+                  { name: "Senators & Members", url: "https://www.aph.gov.au/Senators_and_Members", status: "live", desc: "Member roster + portfolios" },
+                ].map((c,i) => (
+                  <a key={i} href={c.url} target="_blank" rel="noopener noreferrer" style={{display:"flex", alignItems:"center", gap:10, padding:"10px 12px", border:"1px solid var(--line-2)", borderRadius:6, textDecoration:"none", color:"var(--ink)", background:"var(--panel-2)"}}>
+                    <span className={"hdot live"} style={{flexShrink:0}}/>
+                    <div style={{flex:1, minWidth:0}}>
+                      <div style={{fontSize:12.5, fontWeight:500}}>{c.name}</div>
+                      <div style={{fontSize:11, color:"var(--ink-3)", marginTop:2}}>{c.desc}</div>
+                    </div>
+                    <Icon name="ext" size={12} stroke="var(--ink-3)"/>
+                  </a>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="panel">
+          <div className="panel-head">
+            <h3 className="panel-title">Signal events · live RSS</h3>
+            <span className="panel-kicker">{loading && events.length === 0 ? "Polling…" : `${events.length} items · ${liveCount}/${totalFeeds} feeds`}</span>
+          </div>
+          <div className="panel-body" style={{maxHeight:720, overflowY:"auto"}}>
+            {loading && events.length === 0 && (
+              <div style={{padding:"20px 8px", color:"var(--ink-3)", fontSize:12.5, textAlign:"center"}}>
+                Fetching live RSS from aph.gov.au via CORS proxy…
+              </div>
+            )}
+            {!loading && events.length === 0 && (
+              <div style={{padding:"14px 8px", fontSize:12.5, color:"var(--ink-3)"}}>
+                <div style={{color:"var(--caution)", fontWeight:500, marginBottom:6}}>⚠ No items returned</div>
+                The CORS proxy (allorigins.win) could not reach the APH RSS endpoints. This can happen if the proxy is rate-limited or APH rejected the request. Links below still open the raw feeds in a new tab.
+              </div>
+            )}
+            {events.map((e, i) => (
+              <a key={i} href={e.link || e.sourceUrl} target="_blank" rel="noopener noreferrer" className="clk" style={{display:"grid", gridTemplateColumns:"56px 16px 1fr", gap:10, padding:"10px 8px", borderBottom: i<events.length-1 ? "1px solid var(--line)" : 0, borderRadius:6, alignItems:"start", textDecoration:"none", color:"inherit"}}>
+                <div className="mono" style={{fontSize:10.5, color:"var(--ink-4)", paddingTop:2}}>{fmtTime(e.date)}</div>
+                <div style={{paddingTop:3}}>
+                  {e.kind === "division" && <Icon name="flag" size={13} stroke="var(--escalate)"/>}
+                  {e.kind === "hearing" && <Icon name="signal" size={13} stroke="var(--teal)"/>}
+                  {e.kind === "inquiry" && <Icon name="pattern" size={13} stroke="var(--brass)"/>}
+                  {e.kind === "digest" && <Icon name="brief" size={13} stroke="var(--brass)"/>}
+                  {e.kind === "program" && <Icon name="clock" size={13} stroke="var(--ink-3)"/>}
+                  {e.kind === "report" && <Icon name="brief" size={13} stroke="var(--teal)"/>}
+                  {e.kind === "signal" && <Icon name="signal" size={13} stroke="var(--ink-3)"/>}
+                </div>
+                <div>
+                  <div style={{fontSize:13, color:"var(--ink)", lineHeight:1.4}}>{e.title}</div>
+                  <div style={{display:"flex", gap:8, marginTop:6, alignItems:"center", flexWrap:"wrap"}}>
+                    <span className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".12em"}}>{e.kind}</span>
+                    <span style={{fontSize:10.5, color:"var(--teal)", fontFamily:"var(--mono)", display:"inline-flex", alignItems:"center", gap:3}}>
+                      <Icon name="ext" size={10}/> {e.sourceLabel}
+                    </span>
+                  </div>
+                </div>
+              </a>
+            ))}
+          </div>
+          <div className="panel-foot" style={{flexDirection:"column", alignItems:"flex-start", gap:4}}>
+            <span className="mono" style={{fontSize:10, color:"var(--ink-3)"}}>Live RSS · aph.gov.au via r.jina.ai CORS proxy · refreshes every 2 min</span>
+            <span className="mono" style={{fontSize:10, color:"var(--ink-4)"}}>Last poll: {lastPoll ? fmtTime(lastPoll) : "—"} · Click any item to open source</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------- SOURCES ----------
+function PageSources() {
+  const { openModal, addFeed, state, toast } = useStore();
+  const [testing, setTesting] = useState(false);
+  const [testState, setTestState] = useState(null);
+  const [newUrl, setNewUrl] = useState("https://www.aph.gov.au/.../FlagPost/Blog_entries");
+  const [newName, setNewName] = useState("FlagPost Blog (HTML)");
+  const startTest = () => {
+    setTesting(true); setTestState(null);
+    setTimeout(() => setTestState({
+      status: "warn",
+      lines: [
+        { t: "ok", s: "URL resolved · 200 OK" },
+        { t: "ok", s: "Content-Type: text/html · not XML" },
+        { t: "warn", s: "No <rss> root detected — attempting HTML parse" },
+        { t: "ok", s: "Found 12 dated entries" },
+        { t: "warn", s: "Latest item date · 5 days old · verify cadence" },
+        { t: "ok", s: "Links extractable · 12/12" },
+        { t: "warn", s: "Recommended: mark as Needs validation before routing to modules" },
+      ],
+    }), 1100);
+  };
+  const saveFeed = () => {
+    if (!newName.trim()) return;
+    addFeed({ id: "custom-"+Date.now(), name: newName.trim(), url: newUrl, status:"review", group:"Custom" });
+    setTestState(null);
+  };
+
+  const allFeeds = [...APH_FEEDS, ...state.feeds.map(f => ({ ...f, last:"just now", today:0, fpr:"—", modules:["Custom"], parser:"Needs validation", authority:"Custom", confidence:"—" }))];
+
+  return (
+    <div className="page">
+      <div className="page-head">
+        <div>
+          <div className="page-kicker">Admin</div>
+          <h1 className="page-title">Sources</h1>
+          <div className="page-sub">Official APH feed bundle plus any custom RSS feeds you've added. Each source is validated, classified and routed to modules.</div>
+        </div>
+        <div style={{display:"flex", gap:10}}>
+          <button className="btn" onClick={() => toast("Feeds refreshed")}><Icon name="refresh" size={13}/> Refresh all</button>
+          <button className="btn primary" onClick={() => document.getElementById("new-feed-url")?.focus()}><Icon name="plus" size={13}/> Add feed</button>
+        </div>
+      </div>
+
+      <div className="grid g-4" style={{marginBottom:18}}>
+        <div className="panel stat"><div className="stat-label">Active feeds</div><div className="stat-value">{allFeeds.length}</div><div className="stat-meta">3 bundles · Senate · House · Library</div></div>
+        <div className="panel stat"><div className="stat-label">Healthy</div><div className="stat-value" style={{color:"var(--ok)"}}>13</div><div className="stat-meta">1 delayed · 1 needs review</div></div>
+        <div className="panel stat"><div className="stat-label">Items ingested · today</div><div className="stat-value">24</div><div className="stat-meta">5 matched a watchlist</div></div>
+        <div className="panel stat"><div className="stat-label">Avg. false positive</div><div className="stat-value">8%</div><div className="stat-meta">Trending down · last 30 days</div></div>
+      </div>
+
+      <div className="grid g-overview">
+        <div className="panel">
+          <div className="panel-head">
+            <h3 className="panel-title">Official APH Feed Bundle</h3>
+            <span className="panel-kicker">{allFeeds.length} feeds · click a row for detail</span>
+          </div>
+          <table className="ds">
+            <thead><tr>
+              <th>Source</th><th>Group</th><th>Status</th><th>Last</th>
+              <th className="num">Today</th><th>FPR</th><th>Parser</th>
+            </tr></thead>
+            <tbody>
+              {allFeeds.map(f => (
+                <tr key={f.id} onClick={() => f.group !== "Custom" && openModal("feed", f.id)}>
+                  <td>
+                    <div style={{fontWeight:500}}>{f.name}</div>
+                    <div className="mono" style={{fontSize:10.5, color:"var(--ink-4)"}}>{f.url.length > 56 ? f.url.slice(0,56)+"…" : f.url}</div>
+                  </td>
+                  <td><span className="tag">{f.group}</span></td>
+                  <td><span className={"hdot " + (f.status === "review" ? "review" : f.status)}/>{f.status[0].toUpperCase()+f.status.slice(1)}</td>
+                  <td className="mono" style={{fontSize:11.5, color:"var(--ink-3)"}}>{f.last}</td>
+                  <td className="num">{f.today ?? "—"}</td>
+                  <td><span className="tag">{f.fpr}</span></td>
+                  <td style={{color: f.parser === "Valid" ? "var(--ok)" : f.parser === "Warning" ? "var(--caution)" : "var(--info)"}}>{f.parser}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div>
+          <div className="panel" style={{marginBottom:16}}>
+            <div className="panel-head">
+              <h3 className="panel-title">Add RSS feed</h3>
+              <span className="panel-kicker">6-step workflow</span>
+            </div>
+            <div className="panel-body">
+              <label className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em"}}>Display name</label>
+              <input value={newName} onChange={e=>setNewName(e.target.value)} className="search" style={{padding:"8px 10px", marginTop:4, marginBottom:8, width:"100%"}}/>
+              <label className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em"}}>Paste RSS URL</label>
+              <div style={{display:"flex", gap:8, marginTop:4}}>
+                <input id="new-feed-url" value={newUrl} onChange={e=>setNewUrl(e.target.value)} className="search" style={{flex:1, padding:"8px 10px"}}/>
+                <button className="btn primary" onClick={startTest}>{testing && !testState ? "Testing…" : "Validate"}</button>
+              </div>
+              <div style={{marginTop:12, display:"grid", gridTemplateColumns:"1fr 1fr", gap:10}}>
+                <div>
+                  <div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", marginBottom:4}}>Source type</div>
+                  <select className="btn" style={{width:"100%", padding:"7px 10px"}}>
+                    <option>Parliamentary Library</option><option>Senate</option><option>House</option><option>Department</option><option>Ministerial</option><option>Regulator</option><option>News</option><option>Think tank</option><option>Industry</option>
+                  </select>
+                </div>
+                <div>
+                  <div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", marginBottom:4}}>Refresh cadence</div>
+                  <select className="btn" style={{width:"100%", padding:"7px 10px"}}>
+                    <option>Hourly</option><option>Every 15 min</option><option>Daily</option>
+                  </select>
+                </div>
+              </div>
+              <div style={{marginTop:12}}>
+                <div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", marginBottom:6}}>Route to modules</div>
+                <div style={{display:"flex", flexWrap:"wrap", gap:6}}>
+                  {["Today's Signal","Committees","Bills","Parliament","Briefings","Emerging Issues","Watchlists","Search"].map(m => (
+                    <label key={m} style={{display:"inline-flex", alignItems:"center", gap:6, padding:"4px 10px", border:"1px solid var(--line-2)", borderRadius:999, fontSize:12, cursor:"pointer"}}>
+                      <input type="checkbox" defaultChecked={["Emerging Issues","Briefings"].includes(m)} style={{accentColor:"var(--brass)"}}/>
+                      {m}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {testState && (
+                <div className="feed-test" style={{marginTop:14}}>
+                  <div style={{marginBottom:6, letterSpacing:".1em"}} className="warn">⚠ Parser: needs validation</div>
+                  {testState.lines.map((l, i) => (
+                    <div key={i} className={l.t}>{l.t === "ok" ? "✓ " : l.t === "warn" ? "⚠ " : "✗ "}{l.s}</div>
+                  ))}
+                  <button className="btn primary sm" style={{marginTop:10}} onClick={saveFeed}>Save feed</button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="panel">
+            <div className="panel-head">
+              <h3 className="panel-title">Not yet connected</h3>
+              <span className="panel-kicker">Needs parser or source</span>
+            </div>
+            <div className="panel-body">
+              {[
+                { name: "Hansard extraction", note: "Needs transcript parser" },
+                { name: "QON tracking", note: "Needs source or parliamentary export" },
+                { name: "Full bill progress", note: "Needs bills database beyond Digest RSS" },
+                { name: "News / media monitoring", note: "Optional bundle — later" },
+                { name: "Internal executive briefings", note: "Governance controls required" },
+              ].map(x => (
+                <div key={x.name} style={{display:"flex", justifyContent:"space-between", padding:"8px 0", borderBottom:"1px dashed var(--line-2)"}}>
+                  <div>
+                    <div style={{fontSize:13}}>{x.name}</div>
+                    <div style={{fontSize:11.5, color:"var(--ink-3)"}}>{x.note}</div>
+                  </div>
+                  <button className="btn ghost sm" onClick={() => toast(`Request logged for ${x.name}`, "brass")}>Request</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------- COMMITTEES ----------
+function PageCommittees() {
+  const { openModal } = useStore();
+  const today = COMMITTEE_ITEMS.filter(i => i.when.startsWith("Today"));
+  const upcoming = COMMITTEE_ITEMS.filter(i => !i.when.startsWith("Today") && !i.when.startsWith("Yesterday"));
+  const recent = COMMITTEE_ITEMS.filter(i => i.when.startsWith("Yesterday"));
+
+  // Match committee name from item.name → id in ENTITIES.committees
+  const matchId = (name) => Object.values(ENTITIES.committees).find(c => name.toLowerCase().includes(c.name.toLowerCase().split(" ")[0]))?.id
+    || Object.keys(ENTITIES.committees)[0];
+
+  const CommitteeTable = ({ rows, compact }) => (
+    <table className="ds">
+      <thead><tr>
+        <th>When</th><th>Type</th><th>Committee</th>
+        {!compact && <th>Topic</th>}
+        <th>Portfolio</th><th>Attention</th>
+      </tr></thead>
+      <tbody>
+        {rows.map((r,i) => (
+          <tr key={i} onClick={() => openModal("committee", matchId(r.name))}>
+            <td className="mono" style={{fontSize:11.5, color:"var(--ink-2)"}}>{r.when}</td>
+            <td><span className="tag">{r.type}</span></td>
+            <td>{r.name}{compact && <div style={{color:"var(--ink-3)", fontSize:12}}>{r.topic}</div>}</td>
+            {!compact && <td>{r.topic}</td>}
+            <td className="mono" style={{fontSize:11.5, color:"var(--ink-3)"}}>{r.portfolio}</td>
+            <td><Att level={r.att} /></td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+
+  return (
+    <div className="page">
+      <div className="page-head">
+        <div>
+          <div className="page-kicker">Parliament</div>
+          <h1 className="page-title">Committees</h1>
+          <div className="page-sub">Powered by Senate and House committee feeds. Click any row to open the committee, hearings, inquiries and prep pack.</div>
+        </div>
+        <div style={{display:"flex", gap:10}}>
+          <button className="btn"><Icon name="filter" size={13}/> Filter</button>
+          <button className="btn primary"><Icon name="brief" size={13}/> Prep pack</button>
+        </div>
+      </div>
+
+      <div className="grid g-3" style={{marginBottom:18}}>
+        <div className="panel stat"><div className="stat-label">Today</div><div className="stat-value">2<span className="unit">hearings</span></div></div>
+        <div className="panel stat"><div className="stat-label">Upcoming · 7 days</div><div className="stat-value">3<span className="unit">hearings</span></div></div>
+        <div className="panel stat"><div className="stat-label">Reports tabled · 30 days</div><div className="stat-value">5</div></div>
+      </div>
+
+      <div className="panel" style={{marginBottom:16}}>
+        <div className="panel-head"><h3 className="panel-title">Today's hearings</h3><span className="panel-kicker">{today.length} items</span></div>
+        <CommitteeTable rows={today} />
+      </div>
+
+      <div className="grid g-2">
+        <div className="panel">
+          <div className="panel-head"><h3 className="panel-title">Upcoming hearings</h3><span className="panel-kicker">Next 7 days</span></div>
+          <CommitteeTable rows={upcoming} compact />
+        </div>
+        <div className="panel">
+          <div className="panel-head"><h3 className="panel-title">Recently tabled / opened</h3><span className="panel-kicker">Last 48h</span></div>
+          <CommitteeTable rows={recent} compact />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------- BILLS ----------
+function PageBills() {
+  const { openModal, state } = useStore();
+  return (
+    <div className="page">
+      <div className="page-head">
+        <div>
+          <div className="page-kicker">Parliament · Bills Intelligence</div>
+          <h1 className="page-title">Bills intelligence</h1>
+          <div className="page-sub">Click a bill for full details, provisions and timeline. Assign a policy owner directly from the bill detail.</div>
+        </div>
+        <div style={{display:"flex", gap:10}}>
+          <button className="btn"><Icon name="download" size={13}/> Export register</button>
+          <button className="btn primary" onClick={() => openModal("bill", "BILL-2026-048")}><Icon name="brief" size={13}/> Draft bill brief</button>
+        </div>
+      </div>
+
+      <div className="grid g-overview">
+        <div className="panel">
+          <div className="panel-head">
+            <h3 className="panel-title">Tracked bills</h3>
+            <span className="panel-kicker">5 of 38 watchlisted</span>
+          </div>
+          <table className="ds">
+            <thead><tr>
+              <th>Ref</th><th>Title</th><th>Stage</th><th>Portfolio</th><th>Digest</th><th>Owner</th><th>Attn</th>
+            </tr></thead>
+            <tbody>
+              {BILLS.map(b => {
+                const owner = state.owners[b.ref] || b.owner;
+                return (
+                  <tr key={b.ref} onClick={() => openModal("bill", b.ref)}>
+                    <td className="mono" style={{fontSize:11, color:"var(--ink-3)"}}>{b.ref}</td>
+                    <td style={{fontWeight:500}}>{b.title}</td>
+                    <td style={{color:"var(--ink-2)"}}>{b.stage}</td>
+                    <td className="mono" style={{fontSize:11.5, color:"var(--ink-3)"}}>{b.portfolio}</td>
+                    <td>{b.digest === "Published" ? <span className="tag teal">Published</span> : <span className="tag">Pending</span>}</td>
+                    <td style={{color: owner !== "—" && owner !== b.owner ? "var(--ok)" : "var(--ink-2)"}}>{owner}</td>
+                    <td><Att level={b.att}/></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="panel">
+          <div className="panel-head"><h3 className="panel-title">Related divisions</h3><span className="panel-kicker">House · last 7 days</span></div>
+          <div className="panel-body">
+            {DIVISIONS.map((d,i) => (
+              <div key={i} className="clk" onClick={() => openModal("division", d)} style={{padding:"10px 8px", borderBottom: i<DIVISIONS.length-1 ? "1px solid var(--line)" : 0, borderRadius:6}}>
+                <div className="mono" style={{fontSize:10.5, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".12em"}}>{d.when} · {d.chamber} · {d.bill}</div>
+                <div style={{fontSize:13, marginTop:2}}>{d.q}</div>
+                <div style={{fontSize:12, color: d.result.startsWith("Agreed") ? "var(--ok)" : "var(--escalate)", marginTop:2}}>{d.result}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="panel" style={{marginTop:16}}>
+        <div className="panel-head">
+          <h3 className="panel-title">Bills Digest · preview</h3>
+          <span className="panel-kicker">Digital ID Amendment (Assurance) Bill 2026</span>
+          <div style={{marginLeft:"auto"}}><button className="btn sm" onClick={() => openModal("bill", "BILL-2026-048")}>Open full</button></div>
+        </div>
+        <div className="panel-body">
+          <div className="grid g-2">
+            <div>
+              <h5 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", margin:"0 0 4px"}}>Purpose</h5>
+              <p style={{margin:0, color:"var(--ink-2)"}}>Amends the Digital ID Act to expand the scope of the accreditation scheme and introduce new consumer assurance provisions, including revised obligations on accredited entities handling biometric attributes.</p>
+              <h5 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", margin:"14px 0 4px"}}>Key provisions</h5>
+              <ul style={{margin:0, paddingLeft:18, color:"var(--ink-2)"}}>
+                <li>Part 2: accreditation scope expanded to cover state-level identity exchanges</li>
+                <li>Part 4: new reporting obligations on biometric attribute use</li>
+                <li>Schedule 1: consequential amendments to Privacy Act s.26</li>
+              </ul>
+            </div>
+            <div>
+              <h5 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", margin:"0 0 4px"}}>Portfolio relevance</h5>
+              <p style={{margin:0, color:"var(--ink-2)"}}>High — matches Digital identity and Data sharing & privacy watchlists.</p>
+              <h5 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", margin:"14px 0 4px"}}>Recommended action</h5>
+              <div style={{padding:"10px 12px", border:"1px solid #c9a36a44", borderRadius:8, background:"#c9a36a0d"}}>
+                <div style={{color:"var(--brass)", fontWeight:600}}>Draft Executive Brief</div>
+                <div style={{fontSize:12, color:"var(--ink-2)", marginTop:4}}>Scope of accreditation warrants DDG-level awareness before 2nd reading.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------- PARLIAMENT ----------
+function PageParliament() {
+  const { openModal } = useStore();
+  return (
+    <div className="page">
+      <div className="page-head">
+        <div>
+          <div className="page-kicker">Parliament</div>
+          <h1 className="page-title">Today in Parliament</h1>
+          <div className="page-sub">Daily program, divisions, and chamber-relevant items from official APH feeds.</div>
+        </div>
+      </div>
+
+      <div className="grid g-overview">
+        <div className="panel">
+          <div className="panel-head"><h3 className="panel-title">House · daily program</h3><span className="panel-kicker">24 Apr 2026</span></div>
+          <div className="panel-body">
+            <div className="timeline">
+              {[
+                ["09:30", "House meets", null],
+                ["10:00", "Government business: 2nd reading — Cyber Security Legislation Amendment Bill 2026", "BILL-2026-041"],
+                ["11:15", "Matter of public importance", null],
+                ["12:00", "Question time", null],
+                ["14:00", "Private members' business", null],
+                ["16:30", "Adjournment debate", null],
+              ].map(([t, b, billRef], i) => (
+                <div key={i} className={"tl-item " + (billRef ? "" : "teal")}>
+                  <div className="tl-time">{t}</div>
+                  <div className="tl-body">
+                    {billRef ? <a href="#" onClick={e=>{e.preventDefault(); openModal("bill", billRef);}} style={{color:"var(--ink)"}}>{b}</a> : b}
+                    {billRef && <span className="tag brass" style={{marginLeft:8}}>Watchlist · Cyber</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="panel">
+          <div className="panel-head"><h3 className="panel-title">Recent divisions</h3><span className="panel-kicker">House</span></div>
+          <div className="panel-body">
+            {DIVISIONS.map((d, i) => (
+              <div key={i} className="clk" onClick={() => openModal("division", d)} style={{padding:"10px 8px", borderBottom: i<DIVISIONS.length-1 ? "1px solid var(--line)" : 0, borderRadius:6}}>
+                <div className="mono" style={{fontSize:10.5, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".12em"}}>{d.when} · {d.bill}</div>
+                <div style={{fontSize:13, marginTop:2}}>{d.q}</div>
+                <div style={{fontSize:12, color: d.result.startsWith("Agreed") ? "var(--ok)" : "var(--escalate)", marginTop:2}}>{d.result}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid g-2" style={{marginTop:16}}>
+        <div className="panel">
+          <div className="panel-head"><h3 className="panel-title">House news & media</h3><span className="panel-kicker">Official feeds</span></div>
+          <div className="panel-body">
+            {[
+              "Speaker announces procedural changes to Wednesday sittings",
+              "Parliamentary Triangle security review complete",
+              "New Select Committee on AI Governance established",
+            ].map((t, i) => (
+              <div key={i} style={{padding:"10px 0", borderBottom: i<2 ? "1px solid var(--line)" : 0}}>
+                <div style={{fontSize:13}}>{t}</div>
+                <div className="mono" style={{fontSize:10.5, color:"var(--ink-4)", marginTop:4}}>{["08:04", "Yesterday 16:12", "22 Apr 11:30"][i]} · House News</div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="panel">
+          <div className="panel-head"><h3 className="panel-title">Parliamentary lines · draft</h3><span className="panel-kicker">For Cyber Security Bill 2nd reading</span></div>
+          <div className="panel-body">
+            <div style={{padding:12, border:"1px dashed var(--line-2)", borderRadius:8, fontSize:13, color:"var(--ink-2)", lineHeight:1.6}}>
+              <div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em"}}>Approved line — draft</div>
+              "The Government continues to implement the layered obligations framework set out in the 2023 strategy. Today's measures extend reporting obligations to essential services providers in line with threshold recommendations from the JCIS review."
+            </div>
+            <div style={{marginTop:12, display:"flex", gap:8}}>
+              <button className="btn sm primary">Submit for review</button>
+              <button className="btn sm">Regenerate</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------- PATTERNS ----------
+function PagePatterns() {
+  const { openModal, toast } = useStore();
+  return (
+    <div className="page">
+      <div className="page-head">
+        <div>
+          <div className="page-kicker">Parliament · Scrutiny</div>
+          <h1 className="page-title">QON pattern engine</h1>
+          <div className="page-sub">Detects clustered scrutiny across members, topics and targets. Click any member to open their profile.</div>
+        </div>
+      </div>
+
+      <div style={{padding:"10px 14px", background:"#6b8ec910", border:"1px solid #6b8ec933", borderRadius:8, marginBottom:16, display:"flex", gap:10, alignItems:"center", color:"var(--ink-2)", fontSize:12.5}}>
+        <Icon name="flag" size={14} stroke="var(--info)"/>
+        <span><strong>Design-state module.</strong> Direct QON feed not yet connected — patterns below use sample scrutiny data. Status visible on Sources page.</span>
+      </div>
+
+      <div className="pattern">
+        <div className="ribbon">Clustered pattern · moderate confidence</div>
+        <div className="serif" style={{fontSize:22, fontWeight:500, marginBottom:6, paddingRight:200}}>Clustered scrutiny pattern on digital procurement governance</div>
+        <div style={{color:"var(--ink-2)", fontSize:13.5, maxWidth:720}}>
+          4 related questions lodged by 3 members within 48 hours, all targeting digital services portfolio. Trigger likely: ANAO report tabled 22 Apr. Cross-source reinforcement with today's Senate inquiry.
+        </div>
+
+        <div className="grid g-4" style={{marginTop:16, marginBottom:18}}>
+          <div><div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em"}}>Members</div><div style={{fontSize:18, marginTop:4}}>3</div></div>
+          <div><div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em"}}>Questions</div><div style={{fontSize:18, marginTop:4}}>4</div></div>
+          <div><div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em"}}>Window</div><div style={{fontSize:18, marginTop:4}}>48h</div></div>
+          <div><div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em"}}>Target</div><div style={{fontSize:13, marginTop:4, lineHeight:1.25}}>Minister for Digital Services / Dept.</div></div>
+        </div>
+
+        <div style={{borderTop:"1px dashed var(--line-2)", paddingTop:14}}>
+          <div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", marginBottom:8}}>Evidence · click member for profile</div>
+          {QON_PATTERN.items.map((q,i) => {
+            const mid = q.who.includes("Hollis") ? "hollis" : q.who.includes("Quirke") ? "quirke" : "rafferty";
+            return (
+              <div key={i} style={{display:"grid", gridTemplateColumns:"130px 200px 1fr 90px", gap:12, padding:"8px 0", borderBottom: i<QON_PATTERN.items.length-1 ? "1px solid var(--line)" : 0, alignItems:"start", fontSize:12.5}}>
+                <div className="mono" style={{color:"var(--ink-3)"}}>{q.when}</div>
+                <div><span className="tag brass clk" onClick={() => openModal("member", mid)}>{q.who}</span></div>
+                <div style={{color:"var(--ink-2)"}}>{q.q}</div>
+                <div style={{textAlign:"right"}}><span className="tag">{q.chamber}</span></div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div style={{display:"flex", gap:10, marginTop:16, flexWrap:"wrap"}}>
+          <button className="btn primary" onClick={() => toast("Estimates monitor note drafted", "brass")}><Icon name="brief" size={13}/> Draft Estimates monitor note</button>
+          <button className="btn" onClick={() => toast("Cluster tracked", "brass")}><Icon name="watch" size={13}/> Track cluster</button>
+          <button className="btn" onClick={() => toast("Cluster confirmed as coordinated", "brass")}><Icon name="check" size={13}/> Confirm as coordinated</button>
+          <button className="btn ghost" onClick={() => toast("Marked as coincidence")}>Mark as coincidence</button>
+        </div>
+      </div>
+
+      <div className="panel" style={{marginTop:16}}>
+        <div className="panel-head"><h3 className="panel-title">How patterns are detected</h3><span className="panel-kicker">Indicator logic</span></div>
+        <div className="panel-body">
+          <div className="grid g-2">
+            {[
+              ["Multiple members","Three or more MPs or senators asking related questions"],
+              ["Short timeframe","Within 24 to 72 hours"],
+              ["Shared topic","Topic similarity above 0.78 on embedding cluster"],
+              ["Shared target","Same minister, department or program"],
+              ["Similar phrasing","Repeated structure or near-identical wording"],
+              ["Related external trigger","Audit report, media article, or committee referral"],
+              ["Cross-source reinforcement","QON + Hansard + committee or inquiry overlap"],
+              ["Human override","Analyst must confirm any 'coordinated' label"],
+            ].map(([k,v])=>(
+              <div key={k} style={{padding:"10px 12px", border:"1px solid var(--line-2)", borderRadius:8}}>
+                <div style={{fontSize:13, fontWeight:500}}>{k}</div>
+                <div style={{fontSize:12, color:"var(--ink-3)", marginTop:2}}>{v}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------- BRIEFINGS ----------
+function PageBriefings() {
+  const [sel, setSel] = useState(0);
+  const { toast } = useStore();
+  const briefs = [
+    { type: "Daily Signal Brief", for: "DDG Digital", status: "Drafted" },
+    { type: "Committee Brief", for: "Procurement lead", status: "Awaiting review" },
+    { type: "Bill Digest Note", for: "Identity policy", status: "Drafted" },
+    { type: "Estimates Monitor Note", for: "Estimates pack", status: "In progress" },
+  ];
+  return (
+    <div className="page">
+      <div className="page-head">
+        <div>
+          <div className="page-kicker">Workflow</div>
+          <h1 className="page-title">Briefings</h1>
+          <div className="page-sub">Every brief follows a required structure: What happened · Source · Why it matters · Recommended action · Evidence · Uncertainty · Human review.</div>
+        </div>
+        <button className="btn primary" onClick={() => toast("New brief opened", "brass")}><Icon name="plus" size={13}/> New brief</button>
+      </div>
+
+      <div className="grid" style={{gridTemplateColumns:"280px 1fr", gap:16}}>
+        <div className="panel">
+          <div className="panel-head"><h3 className="panel-title">Queue</h3><span className="panel-kicker">4 pending</span></div>
+          <div>
+            {briefs.map((b, i) => (
+              <div key={i} onClick={() => setSel(i)} style={{padding:"12px 14px", borderBottom:"1px solid var(--line)", cursor:"pointer", background: sel===i ? "#c9a36a0c" : "transparent", borderLeft: sel===i ? "2px solid var(--brass)" : "2px solid transparent"}}>
+                <div style={{fontSize:13, fontWeight:500}}>{b.type}</div>
+                <div style={{fontSize:11.5, color:"var(--ink-3)"}}>For {b.for}</div>
+                <div className="mono" style={{fontSize:10, marginTop:4, color: b.status === "Drafted" ? "var(--ok)" : b.status === "In progress" ? "var(--caution)" : "var(--info)", textTransform:"uppercase", letterSpacing:".12em"}}>{b.status}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="panel">
+          <div className="panel-head">
+            <h3 className="panel-title">{briefs[sel].type} · preview</h3>
+            <span className="panel-kicker">For {briefs[sel].for}</span>
+            <div style={{marginLeft:"auto", display:"flex", gap:6}}>
+              <button className="btn ghost sm" onClick={() => toast("PDF exported")}><Icon name="download" size={12}/> PDF</button>
+              <button className="btn sm" onClick={() => toast("Brief sent")}>Send</button>
+              <button className="btn primary sm" onClick={() => toast("Brief approved", "brass")}>Approve</button>
+            </div>
+          </div>
+          <div className="panel-body">
+            <div className="brief">
+              <div className="meta">CIVIC SIGNAL · {briefs[sel].type.toUpperCase()} · 24 APR 2026 · 08:20</div>
+              <h3>New Senate inquiry: Digital procurement governance</h3>
+              <h5>What happened</h5>
+              <div>The Finance and Public Administration References Committee has opened an inquiry into Commonwealth procurement and contract governance for digital programs over $100m. Submissions close 19 May.</div>
+              <h5>Source</h5>
+              <div>APH Senate New Inquiries RSS · Official · validated 24 Apr 08:15.</div>
+              <h5>Why it matters</h5>
+              <div>The inquiry directly overlaps two watchlists (Digital procurement, Procurement) and follows last week's ANAO report tabling. Preliminary scrutiny pattern detected on the same topic (4 QONs / 3 members / 48h).</div>
+              <h5>Recommended action</h5>
+              <div><strong>Assign Policy Owner.</strong> Draft submission plan by 02 May. Coordinate with Legal on contract-variation data scope.</div>
+              <h5>Evidence</h5>
+              <ul><li>APH · inquiry listing (primary)</li><li>ANAO · performance audit report 2025–26/41</li><li>Internal · existing procurement governance framework v4.2</li></ul>
+              <h5>Uncertainty</h5>
+              <div>The inquiry's terms of reference may expand during hearings. Confidence: Moderate.</div>
+              <h5>Human review</h5>
+              <div>Required · to be cleared by Director, Digital Strategy.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------- WATCHLISTS ----------
+function PageWatchlists() {
+  const { openModal, createWatchlist, state } = useStore();
+  const [newName, setNewName] = useState("");
+  const all = [...WATCHLISTS, ...state.watchlistCreated];
+  return (
+    <div className="page">
+      <div className="page-head">
+        <div>
+          <div className="page-kicker">Workflow</div>
+          <h1 className="page-title">Watchlists</h1>
+          <div className="page-sub">The relevance engine. Click any watchlist for matches and configuration.</div>
+        </div>
+        <div style={{display:"flex", gap:8}}>
+          <input placeholder="New watchlist name" value={newName} onChange={e=>setNewName(e.target.value)} className="search" style={{padding:"7px 10px"}}/>
+          <button className="btn primary" onClick={() => { if (newName.trim()) { createWatchlist(newName.trim()); setNewName(""); } }}><Icon name="plus" size={13}/> Create</button>
+        </div>
+      </div>
+
+      <div className="grid g-3">
+        {all.map(w => {
+          const max = Math.max(...w.trend, 1);
+          return (
+            <div key={w.name} className="wl" onClick={() => openModal("watchlist", w.name)}>
+              <div style={{display:"flex", alignItems:"center", gap:8}}>
+                <span className="wl-name">{w.name}</span>
+                <span className="mono" style={{fontSize:10.5, color:"var(--brass)", background:"#c9a36a12", border:"1px solid #c9a36a44", padding:"1px 6px", borderRadius:4, marginLeft:"auto"}}>{w.matches} matches</span>
+              </div>
+              <div className="wl-meta"><span>{w.keywords} keywords</span><span>·</span><span>7-day</span></div>
+              <div className="spark" style={{marginTop:2}}>
+                {w.trend.map((v,i) => <span key={i} style={{height: (v/max*20+2)+"px"}}/>)}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="panel" style={{marginTop:18}}>
+        <div className="panel-head">
+          <h3 className="panel-title">Digital government · configuration</h3>
+          <span className="panel-kicker">Selected watchlist</span>
+        </div>
+        <div className="panel-body">
+          <div className="grid g-2">
+            <div>
+              <div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", marginBottom:6}}>Keywords</div>
+              <div style={{display:"flex", flexWrap:"wrap", gap:6}}>
+                {["digital transformation","ICT procurement","MyGov","service delivery","APS digital","digital identity","digital strategy","cloud services","data sharing","Digital Transformation Agency"].map(k => <span key={k} className="tag brass">{k}</span>)}
+              </div>
+              <div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", margin:"14px 0 6px"}}>Linked committees</div>
+              <div style={{display:"flex", flexWrap:"wrap", gap:6}}>
+                <span className="tag teal clk" onClick={() => openModal("committee","jcpaa")}>Joint Committee on Public Accounts & Audit</span>
+                <span className="tag teal clk" onClick={() => openModal("committee","finpa")}>Finance & Public Administration (Sen)</span>
+                <span className="tag teal clk" onClick={() => openModal("committee","econ")}>Economics Legislation (Sen)</span>
+              </div>
+            </div>
+            <div>
+              <div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", marginBottom:6}}>Attention thresholds</div>
+              <div style={{display:"grid", gridTemplateColumns:"1fr auto", gap:8, fontSize:13}}>
+                <div>Source authority weight</div><div className="mono">0.95</div>
+                <div>Portfolio relevance weight</div><div className="mono">0.90</div>
+                <div>Minimum attention score</div><div className="mono">0.55</div>
+                <div>Auto-escalate above</div><div className="mono">0.80</div>
+                <div>Suppress duplicates within</div><div className="mono">24h</div>
+              </div>
+              <div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", margin:"14px 0 6px"}}>Audit — recent corrections</div>
+              <div style={{fontSize:12.5, color:"var(--ink-2)"}}>
+                08:43 · House media releases → downgraded procedural items (weight −0.12)<br/>
+                Yesterday 14:10 · Duplicate suppression added for cross-posted inquiry notices
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------- RADAR ----------
+function PageRadar() {
+  const { openModal } = useStore();
+  return (
+    <div className="page">
+      <div className="page-head">
+        <div>
+          <div className="page-kicker">Today</div>
+          <h1 className="page-title">Attention radar</h1>
+          <div className="page-sub">Transparent categories — no fake precision scores. Click any issue for momentum detail and suggested actions.</div>
+        </div>
+      </div>
+
+      <div className="panel">
+        <div className="panel-head">
+          <h3 className="panel-title">Active issues</h3>
+          <span className="panel-kicker">Last 7 days</span>
+        </div>
+        <div className="panel-body">
+          <div style={{display:"grid", gridTemplateColumns:"1fr 100px 80px 120px 140px", padding:"4px 0 10px", borderBottom:"1px solid var(--line)", alignItems:"center", gap:14}}>
+            <div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em"}}>Issue</div>
+            <div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em"}}>Attention</div>
+            <div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", textAlign:"right"}}>Sources</div>
+            <div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em"}}>Momentum</div>
+            <div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em"}}>Confidence</div>
+          </div>
+          {RADAR.map((r,i) => (
+            <div key={i} className="clk" onClick={() => openModal("radar", r.issue)} style={{display:"grid", gridTemplateColumns:"1fr 100px 80px 120px 140px", padding:"14px 8px", borderBottom: i<RADAR.length-1 ? "1px solid var(--line)" : 0, gap:14, alignItems:"center", borderRadius:6}}>
+              <div>
+                <div style={{fontSize:14, fontWeight:500}}>{r.issue}</div>
+                <div style={{fontSize:12, color:"var(--ink-3)", marginTop:2}}>{r.reason}</div>
+              </div>
+              <div><Att level={r.att}/></div>
+              <div className="mono" style={{textAlign:"right", color:"var(--ink-2)"}}>{r.sources}</div>
+              <div><div className="bar"><div className="fill" style={{width:`${r.momentum*100}%`}}/></div></div>
+              <div style={{display:"flex", alignItems:"center", gap:10}}>
+                <div className="ring" style={{"--p": Math.round(r.confidence*100)}} data-p={Math.round(r.confidence*100)}></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+Object.assign(window, { PageOverview, PageLive, PageSources, PageCommittees, PageBills, PageParliament, PagePatterns, PageBriefings, PageWatchlists, PageRadar });
+
+</script>
+<script type="text/babel" data-module="app.jsx">
+// App root — wires StoreProvider and all pages
+function App() {
+  const [page, setPage] = React.useState("overview");
+  React.useEffect(() => { window.__setPage = setPage; }, []);
+
+  const renderPage = () => {
+    switch (page) {
+      case "overview":   return <PageOverview />;
+      case "live":       return <PageLive />;
+      case "sources":    return <PageSources />;
+      case "committees": return <PageCommittees />;
+      case "bills":      return <PageBills />;
+      case "parliament": return <PageParliament />;
+      case "patterns":   return <PagePatterns />;
+      case "briefings":  return <PageBriefings />;
+      case "watchlists": return <PageWatchlists />;
+      case "radar":      return <PageRadar />;
+      default:           return <PageOverview />;
+    }
+  };
+
+  return (
+    <StoreProvider>
+      <div className="app">
+        <Sidebar page={page} setPage={setPage} />
+        <div className="main">
+          <Topbar setPage={setPage} />
+          <div className="content">{renderPage()}</div>
+        </div>
+        <Drawer />
+        <DetailModal />
+      </div>
+    </StoreProvider>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+
+</script>
+</body>
+</html>

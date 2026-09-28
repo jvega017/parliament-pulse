@@ -71,7 +71,7 @@ Deployment is split across two Cloudflare products:
 - Real YouTube live embed (@AUSParliamentLive) with offline fallback panel
 
 ## Single-file artefacts (NOT served)
-`parliament-pulse-updated.html` and `parliament-pulse-beta.html` are gitignored stale bundles. Cloudflare Pages does not serve them. They embed a localhost-only proxy path and an outdated build. Do not distribute as-is. If a single-file copy is ever needed, rebuild with `python build.py` first.
+The stale single-file bundles live under `archive/` (29 Sep 2026, FE-01). Deploys ship only `dist/` from `build-dist.ps1`, so they are never served once production is redeployed from `dist/`. They embed a localhost-only proxy path and an outdated build. Do not distribute as-is. If a single-file copy is ever needed, rebuild with `python build.py` first.
 
 ## Next milestone
 Production-launch hardening (document only at this stage; defer for soft launch, mandatory for public):

@@ -14,9 +14,11 @@ node tests/state-contract.test.mjs
 node tests/beta-contract.test.mjs
 node tests/asset-manifest.test.mjs
 node tests/a11y.test.mjs
+node tests/deploy-integrity.test.mjs
 ```
 
-All six commands must exit 0 before a deploy ships. The single command below
+`deploy-integrity.test.mjs` runs `build-dist.ps1` itself and inspects `dist/`.
+All seven commands must exit 0 before a deploy ships. The single command below
 runs the same six steps and stops at the first failure (POSIX shells / Git
 Bash; `&&` short-circuits so a broken build never lets a later check paper
 over it):

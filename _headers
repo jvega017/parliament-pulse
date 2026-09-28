@@ -65,6 +65,11 @@
 /app.js
   Cache-Control: public, max-age=0, must-revalidate
 
+# build-info.json (written by build-dist.ps1) is the deploy-provenance
+# manifest tests/production-probe.mjs reads; it must always be current.
+/build-info.json
+  Cache-Control: public, max-age=0, must-revalidate
+
 # Security headers for every HTML response (and all other paths). The MIME
 # rules above already set Content-Type for scripts, so adding these headers to
 # /* does not disturb script delivery.

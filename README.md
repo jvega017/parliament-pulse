@@ -38,7 +38,7 @@ node proxy-server.js
 ```
 In production the Live page calls the Cloudflare Worker instead (see "Production architecture" below). No local proxy is needed once deployed.
 
-**Single-file artefacts are not served and should not be distributed.** `parliament-pulse-updated.html` and `parliament-pulse-beta.html` are gitignored stale bundles. Cloudflare Pages serves the multi-file source, not these files. They embed a localhost-only proxy path and an outdated build. If you ever need a single-file distribution, rebuild it with `python build.py` first, never hand it out as-is.
+**Single-file artefacts are not served and should not be distributed.** The stale single-file bundles now live under `archive/` (`archive/parliament-pulse-beta.html` is the production probe's pre-sweep canary specimen; do not edit or delete it). They embed a localhost-only proxy path and an outdated build. `build-dist.ps1` never copies them into `dist/`. If you ever need a single-file distribution, rebuild it with `python build.py` first, never hand it out as-is.
 
 ## Files
 
@@ -76,11 +76,12 @@ Fix the two blockers before deploying or the Live page stays dark:
 1. Frontend route in `pages.jsx` must be `/rss?u=` (matches the Worker), handled in the frontend package.
 2. Worker `ALLOWED_ORIGINS` in `wrangler.toml` must include the production origins and `localhost:8080` (done).
 
-Frontend (Cloudflare Pages, the multi-file source that actually serves):
+Frontend (Cloudflare Pages). Deploy ONLY the allowlisted `dist/` folder, never the repo root: deploying `.` published internal notes, JSX sources, build scripts and stale bundles (the probe measured 19 such paths live on 29 Sep 2026). From the repo root, on a committed tree, in PowerShell:
 ```
-cd C:\Users\jvega\Claude-Workspace\03_Projects\parliament-pulse
-npx wrangler@4 pages deploy . --project-name=parliament-pulse
+./build-dist.ps1; npx wrangler@4 pages deploy dist --project-name=parliament-pulse --branch=main --commit-hash=<sha>
+node tests/production-probe.mjs
 ```
+`<sha>` is the `git_sha` that `build-dist.ps1` prints and writes to `dist/build-info.json` (the output of `git rev-parse HEAD`). `build-dist.ps1` recompiles the JSX, rebuilds `dist/` from scratch with only the allowlisted files, and adds `404.html`, `robots.txt` and `build-info.json` (git SHA, build time, sha256 per file). The probe then must exit 0: it re-runs the fabrication scan, compares every deployed file's sha256 with the local `dist/build-info.json`, and checks that 19 denylisted internal paths answer 404. Run it straight after the deploy, before any further commit, so the local manifest matches what was deployed.
 
 Worker (separate folder, its own wrangler.toml):
 ```
