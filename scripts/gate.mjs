@@ -15,6 +15,7 @@ const GATES = [
   "tests/state-contract.test.mjs",
   "tests/honest-surfaces.test.mjs",
   "tests/unsourced-surfaces.test.mjs",
+  "tests/freshness.test.mjs",
 ];
 
 for (const g of GATES) {

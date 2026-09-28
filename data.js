@@ -1,4 +1,5 @@
 const WORKER_BASE_URL = "https://aph-proxy.jvega019.workers.dev";
+const APH_LICENCE_NAME = "CC BY-NC-ND 4.0";
 const APH_LICENCE_URL = "https://creativecommons.org/licenses/by-nc-nd/4.0/";
 const APH_ATTRIBUTION = "Source material: Parliament of Australia website, licensed under CC BY-NC-ND 4.0 (" + APH_LICENCE_URL + "). Titles reproduced unmodified; scores and summaries are Parliament Pulse analysis.";
 const FPR_PENDING_NOTE = "Measured after 30 days";
@@ -206,6 +207,7 @@ Object.assign(window, {
   WORKER_BASE_URL,
   APH_ATTRIBUTION,
   APH_LICENCE_URL,
+  APH_LICENCE_NAME,
   FPR_PENDING_NOTE,
   SITE_CONFIG,
   SOURCE_REGISTRY,

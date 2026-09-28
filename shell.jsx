@@ -311,6 +311,13 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
   // "No cache at all": the /state fetch errored and nothing has ever loaded, so
   // every desk is on its representative fixture. This is an honest, visible chip.
   const noLiveCache = live.status === "error" && !live.blocks;
+  // Ingest freshness (FE-05, DATA-07): the Worker's own poll clock. A stalled
+  // cron flips the chip to Stale and raises the ribbon, so a dead poller can
+  // never sit under a Live chip. An older Worker serves no freshness fields and
+  // the topbar then behaves exactly as before.
+  const fresh = useFreshness();
+  const pollStalled = !noLiveCache && fresh.stale;
+  const feedCount = useFeedCount();
 
   const handleLiveRefresh = React.useCallback(() => {
     const ageAtClick = fmtDataAge((liveState || {}).fetchedAt);
@@ -519,10 +526,17 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
           <span className="chip warn" onClick={() => navigate("live")} title="Live APH feeds did not respond. Each desk shows an honest empty state rather than invented data; open Live for feed health." style={{borderColor:"color-mix(in srgb, var(--caution) 55%, transparent)", color:"var(--caution)", background:"transparent", cursor:"pointer"}}>
             <span className="dot" style={{background:"var(--caution)", boxShadow:"none"}}/> LIVE DATA UNAVAILABLE
           </span>
-        ) : (
-          <span className="chip clk" onClick={() => navigate("live")} title="Official feeds configured; live RSS polls on the Live page" style={{borderColor:"color-mix(in srgb, var(--gold) 55%, transparent)", color:"var(--gold)", background:"transparent"}}>
-            <span className="dot" style={{background:"var(--gold)", boxShadow:"none"}}/> Live beta · {sourceCounts().total} feeds
+        ) : pollStalled ? (
+          <span className="chip warn" data-live-chip="stale" onClick={() => navigate("sources")} title={fresh.stallText} style={{borderColor:"color-mix(in srgb, var(--caution) 55%, transparent)", color:"var(--caution)", background:"transparent", cursor:"pointer"}}>
+            <span className="dot" style={{background:"var(--caution)", boxShadow:"none"}}/> Stale · polling stalled
           </span>
+        ) : (
+          <span className="chip clk" data-live-chip="live" onClick={() => navigate("live")} title={feedCount != null ? `${feedCount} official APH feeds polled by the Worker` : "Official APH feeds; live RSS polls on the Live page"} style={{borderColor:"color-mix(in srgb, var(--gold) 55%, transparent)", color:"var(--gold)", background:"transparent"}}>
+            <span className="dot" style={{background:"var(--gold)", boxShadow:"none"}}/> Live beta{feedCount != null ? ` · ${feedCount} feeds` : ""}
+          </span>
+        )}
+        {fresh.known && !noLiveCache && (
+          <span className="mono top-poll" data-poll-line="" title={fresh.stallText || "When the Worker last polled the APH feeds"} style={{fontSize:"var(--t-micro)", color: pollStalled ? "var(--caution)" : "var(--ink-3)", letterSpacing:".04em", whiteSpace:"nowrap"}}>{fresh.pollLine}</span>
         )}
         <button className="btn ghost sm" aria-label="Refresh live data" aria-busy={isRefreshing} title={live.fetchedAt ? `Live data fetched ${dataAge} ago. Refresh now.` : "Refresh live data"} onClick={handleLiveRefresh}>
           <Icon name="refresh" size={14} style={isRefreshing ? {animation:"spin 800ms linear infinite"} : undefined} />
@@ -547,14 +561,14 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
         30 min. Never shows for fresh data, and never when there is no cache (that
         state is carried by the LIVE DATA UNAVAILABLE chip above). Carries the same
         refresh affordance as the topbar plus a route to the Live page. */}
-    {liveStale && (
-      <div className="stale-banner" role="status" style={{
+    {(liveStale || pollStalled) && (
+      <div className="stale-banner" role="status" data-stale-reason={pollStalled ? "poll" : "cache"} style={{
         display:"flex", alignItems:"center", gap:10, padding:"7px 16px",
         fontSize:12.5, color:"var(--ink-2)", background:"var(--panel-2)",
         borderBottom:"1px solid var(--line)", boxShadow:"inset 3px 0 0 var(--caution)"
       }}>
         <Icon name="refresh" size={13} stroke="var(--caution)" />
-        <span>Live data is over 30 minutes old. Refresh, or see the Live page.</span>
+        <span>{pollStalled ? fresh.stallText + ". Items shown may be out of date; check the linked APH source." : "Live data is over 30 minutes old. Refresh, or see the Live page."}</span>
         <div style={{marginLeft:"auto", display:"flex", gap:8, alignItems:"center", flexShrink:0}}>
           <button className="btn ghost sm" aria-label="Refresh live data" aria-busy={isRefreshing}
             title={live.fetchedAt ? `Live data fetched ${dataAge} ago. Refresh now.` : "Refresh live data"}
@@ -660,7 +674,7 @@ const SignalCardView = React.memo(function SignalCardView({ s, archived, feedbac
         <span className="sig-source mono">· {s.source}</span>
         <Att level={s.attention} />
         {watched && <span className="tag brass">Watching</span>}
-        <span className="sig-time mono">{s.time}</span>
+        <span className="sig-time mono" data-sig-when="">{s.when ?? s.time}</span>
       </div>
       {/* Licence rule: a live APH title renders only inside an anchor to its APH link.
           A live row with no valid link shows the source label, never the bare title.

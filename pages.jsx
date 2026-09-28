@@ -285,9 +285,12 @@ function ProvenanceMetricsBand({ navigate }) {
   // Counts come from the shared selectCounts() (UX-02), the same source as the nav
   // badges; a dash means the block is not live, never a remembered number.
   const counts = useCounts();
+  // FE-05 (DATA-16): the feed count is the Worker's configured feeds, never the
+  // frontend registry length.
+  const feedCount = useFeedCount();
   const dash = v => (typeof v === "number" ? v : "—");
   const metrics = [
-    { label: "Official feeds", value: sourceCounts().total, detail: "Configured APH sources", icon: "rss", page: "sources" },
+    { label: "Official feeds", value: dash(feedCount), detail: feedCount == null ? "Appears once the Worker reports its feeds" : "APH feeds polled by the Worker", icon: "rss", page: "sources" },
     { label: "Signals", value: dash(counts.signals), detail: counts.signals == null ? "Live signal stream unavailable" : "Live signals in the current /state cache", icon: "signal", page: "signals" },
     { label: "Committee items", value: dash(counts.committees), detail: "From the live committee feeds", icon: "committee", page: "committees" },
     { label: "Human review", value: "On", detail: "Verify before publication", icon: "check" },
@@ -379,6 +382,9 @@ function PageOverview() {
   // (spec 2.1); the chip below reflects which one is on screen.
   const live = useLiveState("signals");
   const sourceSignals = live.items || SIGNALS;
+  // FE-05: ingest freshness and the configured feed count, both from /state.
+  const fresh = useFreshness();
+  const feedCount = useFeedCount();
   // Local overview controls (F4): real state, not toast-only stubs.
   const [groupByTopic, setGroupByTopic] = useState(false);
   const [sortByAttention, setSortByAttention] = useState(false);
@@ -512,10 +518,14 @@ function PageOverview() {
           <div className="cs-stat">{counts.committees == null ? "—" : counts.committees}<span className="unit">items</span></div>
           <div className="stat-meta">{committeeHearingCount} hearing{committeeHearingCount !== 1 ? "s" : ""} · {committeeInquiryCount} inquir{committeeInquiryCount !== 1 ? "ies" : "y"} · {committeeReportCount} report{committeeReportCount !== 1 ? "s" : ""}</div>
         </div>
-        <div className="cs-secondary">
+        <div className="cs-secondary" data-source-health="">
           <div className="cs-stat-label">Source health</div>
-          <div className="cs-stat">{sourceCounts().total}<span className="unit">feeds</span></div>
-          <div className="stat-meta">Official feeds configured · live poll on Live page</div>
+          <div className="cs-stat">{feedCount == null ? "—" : feedCount}<span className="unit">feeds</span></div>
+          <div className="stat-meta" data-poll-line="" style={fresh.stale ? {color:"var(--caution)"} : undefined}>
+            {fresh.known
+              ? (fresh.stale ? fresh.stallText : fresh.pollLine)
+              : (feedCount == null ? "Feed count appears once the Worker reports its feeds" : "Official feeds polled by the Worker")}
+          </div>
         </div>
       </div>
 
@@ -584,7 +594,7 @@ function PageOverview() {
                 <div className="timeline">
                   {live.items.slice(0, 6).map((s, i) => (
                     <div key={s.id || i} className="tl-item">
-                      <div className="tl-time">{s.time} · {s.source}</div>
+                      <div className="tl-time">{s.when ?? s.time} · {s.source}</div>
                       <div className="tl-body">
                         {s.link
                           ? <a href={s.link} target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)", textDecoration:"none"}} title="Opens the source at aph.gov.au">{s.title}</a>
@@ -722,7 +732,7 @@ function LegalNoticePanel() {
         <p style={legalP}>Parliament Pulse is derived intelligence over public sources, provided for information only. It is not legal, parliamentary, or professional advice. Scoring, clustering and watchlist matching are the product's own analysis and can contain errors. Verify against the linked official source at aph.gov.au before relying on any item.</p>
 
         <h3 style={legalH}>Use and content</h3>
-        <p style={legalP}>The service is free and provided as-is, without warranty. Material published by the Australian Parliament remains subject to the Parliament's own copyright and terms of use; Parliament Pulse reproduces item titles unmodified, with attribution and a link to the official source, under the Parliament's CC BY-NC-ND 4.0 licence; scores, summaries and clustering are Parliament Pulse's own analysis. Coverage and content may change without notice.</p>
+        <p style={legalP}>The service is free and provided as-is, without warranty. Material published by the Australian Parliament remains subject to the Parliament's own copyright and terms of use; Parliament Pulse reproduces item titles unmodified, with attribution and a link to the official source, under the Parliament's {APH_LICENCE_NAME} licence; scores, summaries and clustering are Parliament Pulse's own analysis. Coverage and content may change without notice.</p>
 
         <h3 style={legalH}>Contact and corrections</h3>
         <p style={legalP}><ContactLine /></p>
@@ -1333,6 +1343,20 @@ function PageSources() {
   const workerRows = (health.items || []).filter(c => !registryUrls.has(c.url));
   const healthyCount = (health.items || []).filter(c => c.ok).length;
 
+  // FE-05 (DATA-08, UX-12, DATA-16): a current Worker serves one check per
+  // CONFIGURED feed. The table is then built from those rows alone, one row per
+  // feed, with no registry list and no hardcoded count. A feed never polled reads
+  // "Not yet polled" and is not coloured as failed. An older Worker (landing-page
+  // probes, no feed_label) keeps the previous registry table below.
+  const feedChecks = (health.items || []).filter(c => c.isFeed);
+  const feedShape = feedChecks.length > 0;
+  const feedOk = feedChecks.filter(c => feedHealthState(c) === "ok").length;
+  const feedPending = feedChecks.filter(c => feedHealthState(c) === "pending").length;
+  const feedPolled = feedChecks.length - feedPending;
+  const referenceLinks = health.referenceLinks || [];
+  const registryByUrl = new Map((typeof SOURCE_REGISTRY !== "undefined" && Array.isArray(SOURCE_REGISTRY) ? SOURCE_REGISTRY : []).map(r => [r.url, r]));
+  const customFeeds = state.feeds.map(f => ({ ...f, authority:"Custom" }));
+
   return (
     <div className="page">
       <div className="page-head">
@@ -1348,9 +1372,15 @@ function PageSources() {
       </div>
 
       <div className="grid g-4" style={{marginBottom:18}}>
-        <div className="panel stat"><div className="stat-label">Active feeds</div><div className="stat-value">{sourceCounts().total}</div><div className="stat-meta">{health.items ? "Official feeds configured · " + health.items.length + " endpoints health-checked" : "Official APH feeds configured"}</div></div>
-        <div className="panel stat"><div className="stat-label">Healthy</div>
-          {health.items
+        <div className="panel stat" data-stat="feeds"><div className="stat-label">Active feeds</div>
+          {feedShape
+            ? <><div className="stat-value">{feedChecks.length}</div><div className="stat-meta">APH feeds the Worker is configured to poll</div></>
+            : <><div className="stat-value" style={{fontSize:18, color:"var(--ink-3)"}}>—</div><div className="stat-meta">{health.items ? health.items.length + " endpoints health-checked; feed list appears once the Worker reports it" : "Appears once the Worker reports its feeds"}</div></>}
+        </div>
+        <div className="panel stat" data-stat="healthy"><div className="stat-label">Healthy</div>
+          {feedShape
+            ? <><div className="stat-value">{feedOk}/{feedPolled}</div><div className="stat-meta">polled feeds OK{feedPending ? ` · ${feedPending} not yet polled` : ""} · as at {fmtFetchedAt(health.fetchedAt)} AEST</div></>
+            : health.items
             ? <><div className="stat-value">{healthyCount}/{health.items.length}</div><div className="stat-meta">as at {fmtFetchedAt(health.fetchedAt)} AEST</div></>
             : <><div className="stat-value" style={{fontSize:18, color:"var(--ink-3)"}}>—</div><div className="stat-meta">Available after live poll</div></>}
         </div>
@@ -1363,7 +1393,7 @@ function PageSources() {
         <div className="panel">
           <div className="panel-head">
             <h2 className="panel-title">Official APH Feed Bundle</h2>
-            <span className="panel-kicker">{sourceCounts().total} official feeds configured · click a row for detail</span>
+            <span className="panel-kicker">{feedShape ? `${feedChecks.length} feeds configured · one row per feed` : "Official APH feeds · click a row for detail"}</span>
             <ProvenanceChip provenance={health.displayProvenance}
               title={health.displayProvenance === "live" ? "Feed health from the Worker's connector checks" : "Health appears after the Worker check runs"} />
           </div>
@@ -1374,6 +1404,49 @@ function PageSources() {
               </EmptyState>
             </div>
           )}
+          {feedShape ? (
+          <div className="table-scroll">
+          <table className="ds" data-feed-table="">
+            <thead><tr>
+              <th>Feed</th><th>Group</th><th>Status</th><th className="num">HTTP</th>
+              <th className="num">Items parsed</th><th>Last success</th><th>Parse error</th>
+            </tr></thead>
+            <tbody>
+              {feedChecks.map(c => {
+                const reg = registryByUrl.get(c.url);
+                const st = feedHealthState(c);
+                return (
+                <tr key={c.url} data-feed-row={c.feedLabel} data-feed-state={st} onClick={() => reg && openModal("feed", reg.id)}>
+                  <td>
+                    <div style={{fontWeight:500}}>{c.label}</div>
+                    <div className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)"}}>{c.url.length > 56 ? c.url.slice(0,56)+"…" : c.url}</div>
+                  </td>
+                  <td><span className="tag">{c.group}</span></td>
+                  <td style={st === "failed" ? {color:"var(--escalate)"} : st === "pending" ? {color:"var(--ink-4)", fontStyle:"italic"} : undefined}>
+                    {st === "pending" ? "Not yet polled" : st === "ok" ? "OK" : "Failed"}
+                  </td>
+                  <td className="num mono">{c.lastHttpStatus ?? "—"}</td>
+                  <td className="num">{c.itemsParsed ?? "—"}</td>
+                  <td className="mono" style={{fontSize:11.5, color:"var(--ink-3)"}}>{st === "pending" ? "—" : (fmtPollStamp(c.lastSuccessAt) || "Never")}</td>
+                  <td style={{fontSize:12, color: c.parseError ? "var(--ink-2)" : "var(--ink-4)"}} title={c.parseError || undefined}>{c.parseError ? (c.parseError.length > 60 ? c.parseError.slice(0,60)+"…" : c.parseError) : "—"}</td>
+                </tr>
+                );
+              })}
+              {customFeeds.map(f => (
+                <tr key={f.id}>
+                  <td>
+                    <div style={{fontWeight:500}}>{f.name}</div>
+                    <div className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)"}}>{f.url.length > 56 ? f.url.slice(0,56)+"…" : f.url}</div>
+                  </td>
+                  <td><span className="tag">Custom</span></td>
+                  <td><span style={{color:"var(--ink-4)", fontStyle:"italic"}} title="Saved feeds are not polled">Not polled</span></td>
+                  <td className="num">—</td><td className="num">—</td><td>—</td><td>—</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          </div>
+          ) : (
           <div className="table-scroll">
           <table className="ds">
             <thead><tr>
@@ -1421,10 +1494,28 @@ function PageSources() {
             </tbody>
           </table>
           </div>
+          )}
         </div>
         )}
 
         <div>
+          {referenceLinks.length > 0 && (
+            <div className="panel" style={{marginBottom:16}} data-reference-pages="">
+              <div className="panel-head">
+                <h2 className="panel-title">Reference pages</h2>
+                <span className="panel-kicker">APH pages linked from the app · not health-checked</span>
+              </div>
+              <div className="panel-body">
+                <ul style={{listStyle:"none", margin:0, padding:0}}>
+                  {referenceLinks.map(u => (
+                    <li key={u} data-reference-link="" style={{padding:"6px 0", borderBottom:"1px dashed var(--line-2)", fontSize:12.5, overflowWrap:"anywhere"}}>
+                      <a href={u} target="_blank" rel="noopener noreferrer" style={{color:"var(--ink-2)"}}>{u.replace(/^https?:\/\/(www\.)?/, "")}</a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
           <div className="panel" style={{marginBottom:16}}>
             <div className="panel-head">
               <h2 className="panel-title">Add RSS feed</h2>
@@ -2126,7 +2217,7 @@ function PageBriefings() {
               const brief = buildBriefSections(sig, !!sig.isLive);
               return (
               <div className="brief">
-                <div className="meta">PARLIAMENT PULSE · {b.type.toUpperCase()} · {brief.meta.date} · {brief.meta.time}</div>
+                <div className="meta">PARLIAMENT PULSE · {b.type.toUpperCase()} · {[brief.meta.date, brief.meta.time].filter(Boolean).join(" · ")}</div>
                 {/* Licence rule: a live APH title renders only inside an anchor to
                     its APH link; no link falls back to the source label. */}
                 <h3>{brief.isLive

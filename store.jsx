@@ -159,18 +159,84 @@ function watchlistMatches(w, signals = (typeof SIGNALS !== "undefined" ? SIGNALS
 // field. action/score/provenance-trail/updates stay undefined for live items;
 // existing consumers guard on their presence.
 
+// ---- Honest dates (FE-05, DATA-13, PR-02) ----
+// Every date the product prints is in Brisbane time (AEST, no daylight saving),
+// matching fmtFetchedAt below. Month names are spelt out here rather than taken
+// from toLocaleDateString, whose en-AU output ("Sept") varies by ICU build.
+const PP_TZ = "Australia/Brisbane";
+const PP_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+function ppDateParts(t, timeZone) {
+  const parts = {};
+  for (const p of new Intl.DateTimeFormat("en-AU", { timeZone, year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date(t))) parts[p.type] = p.value;
+  return parts;
+}
+// "29 Sep 2026" for an epoch, in the given zone (Brisbane unless stated).
+function fmtDayMonYear(t, timeZone = PP_TZ) {
+  const p = ppDateParts(t, timeZone);
+  return `${Number(p.day)} ${PP_MONTHS[Number(p.month) - 1]} ${p.year}`;
+}
+function fmtClockHM(t, timeZone = PP_TZ) {
+  const p = ppDateParts(t, timeZone);
+  return `${p.hour}:${p.minute}`;
+}
+
+// Does a pub_date carry a real clock time? A date-only source value must never
+// grow an invented 00:00 (or 10:00 once shifted into AEST). Date-only forms:
+//   "2026-09-29"                          (ISO date)
+//   "Tue, 29 Sep 2026"                    (RFC 822 with no time)
+//   "2026-09-29T00:00:00.000Z"            (the Worker's toISOString of a
+//                                          date-only value: exactly UTC midnight)
+//   "Tue, 29 Sep 2026 00:00:00 GMT"       (RFC 822 at exactly UTC midnight)
+// Exactly-UTC-midnight is read as date-only because that is what a date-only
+// feed value becomes after new Date(...).toISOString(); a genuine 10:00 AEST
+// item is indistinguishable from it, and printing no clock is the honest side.
+function pubDateHasClock(s) {
+  if (!/\d{1,2}:\d{2}/.test(s)) return false;
+  if (/T00:00(:00(\.0+)?)?(Z|[+-]00:?00)$/i.test(s)) return false;
+  if (/\s00:00(:00)?\s*(GMT|UT|UTC|Z|[+-]0000)$/i.test(s)) return false;
+  return true;
+}
+
+// Derive the card's date fields from pub_date and first_seen_at.
+//   dateKind "datetime": time "HH:MM", date "D Mon YYYY" (both Brisbane)
+//   dateKind "date":     time "",      date "D Mon YYYY" (the stated calendar day)
+//   dateKind "none":     time "",      date "Date not supplied, first seen D Mon YYYY"
+// `when` is the compact label a card head shows: the clock, else the date line.
+function signalDateFields(pubDate, firstSeenAt) {
+  const raw = pubDate == null ? "" : String(pubDate).trim();
+  const t = raw ? Date.parse(raw) : NaN;
+  if (!Number.isNaN(t)) {
+    if (pubDateHasClock(raw)) {
+      const time = fmtClockHM(t);
+      return { dateKind: "datetime", time, date: fmtDayMonYear(t), when: time };
+    }
+    // A date-only value names a calendar day; read it in UTC so the day never
+    // shifts across the date line.
+    const date = fmtDayMonYear(t, "UTC");
+    return { dateKind: "date", time: "", date, when: date };
+  }
+  const seen = firstSeenAt ? Date.parse(firstSeenAt) : NaN;
+  const date = Number.isNaN(seen) ? "Date not supplied" : `Date not supplied, first seen ${fmtDayMonYear(seen)}`;
+  return { dateKind: "none", time: "", date, when: date };
+}
+
 // signals.items[] -> signal card shape. Moved from pages.jsx unchanged, then
 // extended with the two new fields (link, isLive) marked NEW in the spec table.
 function mapWorkerSignalToCard(row) {
-  const when = row.pub_date ? new Date(row.pub_date) : null;
+  const dates = signalDateFields(row.pub_date, row.first_seen_at);
   // Validate the APH deep link once (safeHttpUrl enforces an aph.gov.au host) and
   // reuse that single validated value for both the title anchor and the evidence
   // link, so evidence can never keep a raw, unvalidated or non-APH URL.
   const link = safeHttpUrl(row.link);
   return {
     id: row.guid,
-    time: when ? `${String(when.getHours()).padStart(2,"0")}:${String(when.getMinutes()).padStart(2,"0")}` : "—",
-    date: when ? when.toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" }) : "—",
+    time: dates.time,
+    date: dates.date,
+    when: dates.when,
+    dateKind: dates.dateKind,
+    firstSeenAt: row.first_seen_at || null,
+    // DATA-20: the badge is the Worker's own feed_label for this row, never a
+    // label looked up in a static registry.
     source: row.feed_label,
     sourceGroup: row.source_group,
     title: row.title,
@@ -193,19 +259,139 @@ function mapWorkerSignalToCard(row) {
 // connectors.checks[] -> feed-health row. Joins each check to SOURCE_REGISTRY by
 // exact url for its label and group; unmatched checks are real Worker-monitored
 // endpoints the frontend does not poll directly.
+//
+// FE-05 (DATA-08, UX-12, DATA-16, DATA-20): the Worker now serves one check per
+// CONFIGURED feed, carrying feed_label, last_http_status, items_parsed,
+// last_success_at and parse_error. The label is the Worker's feed_label; the
+// registry supplies only the group. An older Worker serves landing-page probes
+// with none of those fields: every new field then maps to null, isFeed is false,
+// and the Sources page keeps its previous table.
+function feedGroupFromLabel(label) {
+  const l = String(label || "").toLowerCase();
+  if (/digest|library|flagpost/.test(l)) return "Library";
+  if (/joint/.test(l)) return "Joint";
+  if (/senate|senator/.test(l)) return "Senate";
+  if (/house/.test(l)) return "House";
+  return "APH";
+}
 function mapConnectorCheck(row) {
   const registry = (typeof SOURCE_REGISTRY !== "undefined" && Array.isArray(SOURCE_REGISTRY)) ? SOURCE_REGISTRY : [];
   const reg = registry.find(r => r.url === row.url);
   const stripped = String(row.url || "").replace(/^https?:\/\/(www\.)?/, "");
+  const feedLabel = typeof row.feed_label === "string" && row.feed_label ? row.feed_label : null;
+  const lastHttpStatus = row.last_http_status ?? row.status ?? null;
   return {
     url: row.url,
-    checkedAt: row.checked_at,
+    checkedAt: row.checked_at ?? null,
     ok: !!row.ok,                                // live sample carries 1; coerce truthy
-    httpStatus: row.status,
-    error: row.error,
-    label: reg?.label || stripped,
-    group: reg?.group || "Worker",
+    httpStatus: row.status ?? null,
+    error: row.error ?? null,
+    label: feedLabel || reg?.label || stripped,
+    group: reg?.group || (feedLabel ? feedGroupFromLabel(feedLabel) : "Worker"),
+    isFeed: !!feedLabel,
+    feedLabel,
+    kind: row.kind ?? null,
+    lastHttpStatus,
+    itemsParsed: row.items_parsed ?? null,
+    lastSuccessAt: row.last_success_at ?? null,
+    parseError: row.parse_error ?? null,
+    // A configured feed with no poll yet: no check time and no HTTP status. It is
+    // reported as "Not yet polled", never coloured as a failure.
+    neverPolled: (row.checked_at == null) && lastHttpStatus == null,
   };
+}
+
+// Health of one mapped feed check: "ok" | "failed" | "pending" (never polled).
+function feedHealthState(c) {
+  if (!c || c.neverPolled) return "pending";
+  return c.ok ? "ok" : "failed";
+}
+
+// ---- Ingest freshness (FE-05, DATA-07) ----
+// meta.last_poll_at is the last poll that re-saw any item, meta.last_new_item_at
+// the last genuinely new item, meta.stale the Worker's own stall verdict (90 min),
+// and meta.feeds[] the per-feed last_seen_at. An older Worker omits them all:
+// known is then false and every surface keeps its previous behaviour.
+const POLL_STALE_AFTER_MS = 90 * 60 * 1000;
+function mapLiveFreshness(meta) {
+  const m = meta && typeof meta === "object" ? meta : {};
+  const has = k => Object.prototype.hasOwnProperty.call(m, k);
+  return {
+    known: has("last_poll_at") || has("stale"),
+    lastPollAt: m.last_poll_at || null,
+    lastNewItemAt: m.last_new_item_at || null,
+    stale: m.stale === true,
+    feeds: Array.isArray(m.feeds)
+      ? m.feeds.filter(f => f && f.feed_label).map(f => ({ feedLabel: f.feed_label, lastSeenAt: f.last_seen_at || null }))
+      : [],
+  };
+}
+
+// True when the poller looks stalled. The Worker's flag decides; a cache that
+// has aged past the same 90-minute window since last_poll_at also counts, so a
+// cached "fresh" verdict cannot outlive the cron it describes.
+function pollIsStale(fr, now = Date.now()) {
+  if (!fr || !fr.known) return false;
+  if (fr.stale) return true;
+  const t = fr.lastPollAt ? Date.parse(fr.lastPollAt) : NaN;
+  if (Number.isNaN(t)) return true;
+  return now - t > POLL_STALE_AFTER_MS;
+}
+
+function fmtPollAgo(iso, now = Date.now()) {
+  const t = iso ? Date.parse(iso) : NaN;
+  if (Number.isNaN(t)) return null;
+  const mins = Math.max(0, Math.floor((now - t) / 60000));
+  if (mins < 1) return "under 1 min ago";
+  if (mins < 60) return `${mins} min ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 48) return `${hours} h ago`;
+  return `${Math.floor(hours / 24)} days ago`;
+}
+
+// "14:05 AEST, 29 Sep 2026", or null.
+function fmtPollStamp(iso) {
+  const t = iso ? Date.parse(iso) : NaN;
+  if (Number.isNaN(t)) return null;
+  return `${fmtClockHM(t)} AEST, ${fmtDayMonYear(t)}`;
+}
+
+// The strings every freshness surface prints, derived in one place.
+//   known:     the Worker served freshness fields at all
+//   stale:     polling looks stalled (the topbar must not read Live)
+//   pollLine:  "Last APH poll 5 min ago" (null when unknown)
+//   stallText: "APH polling appears stalled; last successful poll 14:05 AEST, 29 Sep 2026"
+function freshnessView(fr, now = Date.now()) {
+  if (!fr || !fr.known) return { known: false, stale: false, pollLine: null, stallText: null };
+  const stale = pollIsStale(fr, now);
+  const ago = fmtPollAgo(fr.lastPollAt, now);
+  const stamp = fmtPollStamp(fr.lastPollAt);
+  return {
+    known: true,
+    stale,
+    pollLine: ago ? `Last APH poll ${ago}` : "No APH poll recorded",
+    stallText: stale ? `APH polling appears stalled; last successful poll ${stamp || "not recorded"}` : null,
+  };
+}
+
+function useFreshness() {
+  const { liveState } = useStore();
+  const fr = (liveState && liveState.blocks && liveState.blocks.freshness) || null;
+  return freshnessView(fr);
+}
+
+// Number of feeds the Worker is configured to poll, counted from the feed-shaped
+// connector checks (one row per configured feed). null when the Worker has not
+// served that shape: callers then print no number rather than a registry count.
+function configuredFeedCount(blocks) {
+  const items = blocks && blocks.connectors && Array.isArray(blocks.connectors.items) ? blocks.connectors.items : null;
+  if (!items) return null;
+  const feeds = items.filter(c => c && c.isFeed);
+  return feeds.length ? feeds.length : null;
+}
+function useFeedCount() {
+  const { liveState } = useStore();
+  return configuredFeedCount(liveState && liveState.blocks);
 }
 
 // threads.items[] -> thread row. signalGuids MAY resolve against the mapped
@@ -247,11 +433,20 @@ function mapOneBlock(block, arrayKey, mapFn) {
 // mapLiveBlocks(blocks) -> object keyed by the five block names. The payload
 // array field differs per block (signals/threads/qons -> items, connectors ->
 // checks, alerts -> events); each maps into the uniform `items` slot.
-function mapLiveBlocks(blocks) {
+//
+// FE-05: the optional second argument is the /state meta. Its freshness fields
+// travel in the `freshness` slot (it carries no `items`, so mergeLiveBlocks
+// always takes the newest), and connectors.reference_links travels beside the
+// connector checks as referenceLinks (plain URLs, never an ok/fail claim).
+function mapLiveBlocks(blocks, meta) {
   const b = blocks || {};
+  const connectors = mapOneBlock(b.connectors, "checks", mapConnectorCheck);
+  const refs = b.connectors && Array.isArray(b.connectors.reference_links) ? b.connectors.reference_links : null;
+  connectors.referenceLinks = refs ? refs.filter(u => typeof u === "string" && safeHttpUrl(u)) : null;
   return {
+    freshness: mapLiveFreshness(meta),
     signals: mapOneBlock(b.signals, "items", mapWorkerSignalToCard),
-    connectors: mapOneBlock(b.connectors, "checks", mapConnectorCheck),
+    connectors,
     threads: mapOneBlock(b.threads, "items", mapThreadItem),
     alerts: mapOneBlock(b.alerts, "events", x => x),
     qons: mapOneBlock(b.qons, "items", x => x),
@@ -392,6 +587,7 @@ function useLiveState(blockName) {
     items,                                  // mapped array, or null
     fetchedAt: block?.fetchedAt || null,
     note: block?.note || null,
+    referenceLinks: block?.referenceLinks || null,   // connectors only (FE-05)
     isRefreshing: liveState.isRefreshing,
     liveStale,                              // cache older than 30 min AND a good cache exists
     // What the chip shows. A block with usable items shows its own provenance
@@ -516,7 +712,7 @@ function StoreProvider({ children, navigate = () => {} }) {
       etagRef.current = nextEtag || null;
       if (mountedRef.current) {
         setLiveState(s => {
-          const nextBlocks = mapLiveBlocks(payload.blocks);
+          const nextBlocks = mapLiveBlocks(payload.blocks, payload.meta);
           // Merge per block: a fresh block with usable items wins; a block that comes
           // back degraded or empty keeps its last-good cache, so a transient bad
           // revalidation never erases good data. Freshness tracks the primary
@@ -1289,4 +1485,4 @@ function RadarDetail({ id, titleId, closeButtonRef }) {
   );
 }
 
-Object.assign(window, { StoreProvider, useStore, DetailModal, watchlistKeywords, watchlistMatches, useLiveState, useLiveBills, selectCounts, useCounts, COMMITTEE_STRIP_LABELS, liveStateDegradation, mapWorkerSignalToCard, mapLiveBlocks, fmtFetchedAt });
+Object.assign(window, { StoreProvider, useStore, DetailModal, watchlistKeywords, watchlistMatches, useLiveState, useLiveBills, selectCounts, useCounts, COMMITTEE_STRIP_LABELS, liveStateDegradation, mapWorkerSignalToCard, mapLiveBlocks, fmtFetchedAt, mapLiveFreshness, freshnessView, useFreshness, pollIsStale, configuredFeedCount, useFeedCount, feedHealthState, signalDateFields, fmtDayMonYear, fmtPollStamp });

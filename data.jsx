@@ -24,10 +24,20 @@
 const WORKER_BASE_URL = "https://aph-proxy.jvega019.workers.dev";
 
 // Licence attribution (LEG-03). APH web content is published under CC BY-NC-ND 4.0.
+// PR-12: re-verified 29 September 2026 against the copyright statement on
+// https://www.aph.gov.au/Help/Disclaimer_Privacy_Copyright, which reads "CC BY-NC-ND
+// 4.0 Deed | Attribution-NonCommercial-NoDerivs 4.0 International licence" and links
+// the 4.0 legal code. The page's template metadata still names 3.0 AU; the stated
+// licence text governs. Record: docs/licence-architecture.md section 2.
 // This exact text is shown in the persistent site footer (shell.jsx SiteFooter)
 // and appended to every CSV and brief export. tests/attribution-check.mjs fails
-// the release gate if it goes missing from the footer or an export template.
+// the release gate if it goes missing from the footer or an export template, and
+// tests/freshness.test.mjs fails if the version here, in the footer, on the About
+// page and in the licence document ever disagree.
+const APH_LICENCE_NAME = "CC BY-NC-ND 4.0";
 const APH_LICENCE_URL = "https://creativecommons.org/licenses/by-nc-nd/4.0/";
+// Kept as one literal (tests/attribution-check.mjs parses this exact form); the
+// freshness test proves its version matches APH_LICENCE_NAME.
 const APH_ATTRIBUTION = "Source material: Parliament of Australia website, licensed under CC BY-NC-ND 4.0 (" + APH_LICENCE_URL + "). Titles reproduced unmodified; scores and summaries are Parliament Pulse analysis.";
 
 // A false-positive rate is a measured quantity. The registry previously carried a
@@ -317,6 +327,6 @@ const DATASET_FLAGS = {
 QON_PATTERN.representative = true;
 
 Object.assign(window, {
-  WORKER_BASE_URL, APH_ATTRIBUTION, APH_LICENCE_URL, FPR_PENDING_NOTE, SITE_CONFIG, SOURCE_REGISTRY, sourceCounts, DATASET_FLAGS, APH_FEEDS,
+  WORKER_BASE_URL, APH_ATTRIBUTION, APH_LICENCE_URL, APH_LICENCE_NAME, FPR_PENDING_NOTE, SITE_CONFIG, SOURCE_REGISTRY, sourceCounts, DATASET_FLAGS, APH_FEEDS,
   SIGNALS, COMMITTEE_ITEMS, BILLS, DIVISIONS, WATCHLISTS, RADAR, QON_PATTERN, BRIEFING_QUEUE
 });

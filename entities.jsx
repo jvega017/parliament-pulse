@@ -7,10 +7,16 @@ window.ENTITIES = {
   // held null (scalars) or empty (arrays). The committee detail modal should render
   // an honest empty state for these fields naming that no live committee-detail feed
   // is wired, and link to the committee's own url for the real record.
+  //
+  // FE-05 (DATA-19): each name is the official title in the <title> of the
+  // committee's own aph.gov.au page, and every url returned HTTP 200 to a Chrome
+  // user-agent on 29 September 2026. A Senate url is the shared page of the
+  // paired Legislation and References committees, so the name is the pair's
+  // title ("Senate Standing Committees on ..."), not one committee of the pair.
   committees: {
     "legcon": {
       id: "legcon",
-      name: "Legal & Constitutional Affairs Legislation Committee",
+      name: "Senate Standing Committees on Legal and Constitutional Affairs",
       chamber: "Senate",
       chair: null,
       members: null,
@@ -24,7 +30,7 @@ window.ENTITIES = {
     },
     "finpa": {
       id: "finpa",
-      name: "Finance & Public Administration References Committee",
+      name: "Senate Standing Committees on Finance and Public Administration",
       chamber: "Senate",
       chair: null,
       members: null,
@@ -37,7 +43,7 @@ window.ENTITIES = {
       url: "www.aph.gov.au/Parliamentary_Business/Committees/Senate/Finance_and_Public_Administration",
     },
     "econ": {
-      id: "econ", name: "Economics Legislation Committee", chamber: "Senate",
+      id: "econ", name: "Senate Standing Committees on Economics", chamber: "Senate",
       chair: null, members: null, portfolio: null,
       active: null, recentReports: null,
       bio: null,
@@ -46,7 +52,7 @@ window.ENTITIES = {
       url: "www.aph.gov.au/Parliamentary_Business/Committees/Senate/Economics",
     },
     "rra": {
-      id: "rra", name: "Rural & Regional Affairs Committee", chamber: "Senate",
+      id: "rra", name: "Senate Standing Committees on Rural and Regional Affairs and Transport", chamber: "Senate",
       chair: null, members: null, portfolio: null,
       active: null, recentReports: null,
       bio: null,
@@ -55,7 +61,7 @@ window.ENTITIES = {
       url: "www.aph.gov.au/Parliamentary_Business/Committees/Senate/Rural_and_Regional_Affairs_and_Transport",
     },
     "jcle": {
-      id: "jcle", name: "Joint Committee on Law Enforcement", chamber: "Joint",
+      id: "jcle", name: "Parliamentary Joint Committee on Law Enforcement", chamber: "Joint",
       chair: null, members: null, portfolio: null,
       active: null, recentReports: null,
       bio: null,
@@ -64,7 +70,7 @@ window.ENTITIES = {
       url: "www.aph.gov.au/Parliamentary_Business/Committees/Joint/Law_Enforcement",
     },
     "envcomms": {
-      id: "envcomms", name: "Environment & Communications References", chamber: "Senate",
+      id: "envcomms", name: "Senate Standing Committees on Environment and Communications", chamber: "Senate",
       chair: null, members: null, portfolio: null,
       active: null, recentReports: null,
       bio: null,
@@ -73,7 +79,7 @@ window.ENTITIES = {
       url: "www.aph.gov.au/Parliamentary_Business/Committees/Senate/Environment_and_Communications",
     },
     "jcpaa": {
-      id: "jcpaa", name: "Joint Committee on Public Accounts & Audit", chamber: "Joint",
+      id: "jcpaa", name: "Joint Committee of Public Accounts and Audit", chamber: "Joint",
       chair: null, members: null, portfolio: null,
       active: null, recentReports: null,
       bio: null,
