@@ -33,7 +33,7 @@ import {
 } from "./archive";
 import { ingestQons } from "./hansard";
 import { sendDailyDigest } from "./digest";
-import { buildState } from "./state";
+import { buildState, freshnessOrDegraded } from "./state";
 
 const TTL_SECONDS = 300; // 5 minutes
 // APH's edge WAF 403s non-browser user-agents, so the proxy presents the
@@ -103,8 +103,12 @@ export default {
     if (req.method === "OPTIONS") return new Response(null, { headers: cors });
 
     if (url.pathname === "/healthz") {
+      // ok stays true for liveness (the Worker answered). Freshness is
+      // reported beside it so a monitor can alert on `stale` separately.
+      const freshness = await freshnessOrDegraded(env);
       return jsonResponse({
         ok: true,
+        ...freshness,
         version: "0.15.0",
         scoring_engine: "v1.1-deterministic",
         resend_wired: !!env.RESEND_API_KEY,

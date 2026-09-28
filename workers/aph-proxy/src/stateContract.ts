@@ -21,6 +21,15 @@ export interface StateMeta {
   generated_at: string;
   worker_version: string;
   schema: "state-v1";
+  // Ingest freshness (additive, 2026-09-29). last_poll_at = MAX(last_seen_at),
+  // last_new_item_at = MAX(first_seen_at), both ISO-8601 or null when the
+  // signals table is empty or unreadable. stale is true when last_poll_at is
+  // missing or older than 90 minutes.
+  last_poll_at?: string | null;
+  last_new_item_at?: string | null;
+  feeds?: Array<{ feed_label: string; last_seen_at: string | null }>;
+  stale?: boolean;
+  freshness_note?: string;
 }
 
 // Base shape shared by every block. Individual blocks add their own
@@ -40,6 +49,7 @@ export interface SignalItem {
   feed_label: string;
   source_group: string;
   kind: string;
+  first_seen_at: string;
   attention: string | null;
   confidence: number | null;
   scoring_explanation: string | null;

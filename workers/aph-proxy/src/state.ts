@@ -9,6 +9,7 @@
 
 import type { Env } from "./archive";
 import { queryTopSignals, listAlertEvents, queryQons } from "./archive";
+import { queryFreshness, type Freshness } from "./freshness";
 import type {
   StateResponse,
   SignalsBlock,
@@ -116,17 +117,28 @@ async function buildThreadsBlock(env: Env, now: string): Promise<ThreadsBlock> {
   }
 }
 
+// Freshness never fails the response: a query error reports nulls, stale
+// true, and a note, which is the honest reading of "we cannot tell".
+export async function freshnessOrDegraded(env: Env): Promise<Freshness & { freshness_note?: string }> {
+  try {
+    return await queryFreshness(env.ARCHIVE);
+  } catch (err) {
+    return { last_poll_at: null, last_new_item_at: null, feeds: [], stale: true, freshness_note: degradedNote(err) };
+  }
+}
+
 export async function buildState(env: Env): Promise<StateResponse> {
   const now = new Date().toISOString();
-  const [signals, connectors, alerts, qons, threads] = await Promise.all([
+  const [signals, connectors, alerts, qons, threads, freshness] = await Promise.all([
     buildSignalsBlock(env, now),
     buildConnectorsBlock(env, now),
     buildAlertsBlock(env, now),
     buildQonsBlock(env, now),
     buildThreadsBlock(env, now),
+    freshnessOrDegraded(env),
   ]);
   return {
-    meta: { generated_at: now, worker_version: WORKER_VERSION, schema: "state-v1" },
+    meta: { generated_at: now, worker_version: WORKER_VERSION, schema: "state-v1", ...freshness },
     blocks: { signals, connectors, alerts, qons, threads },
   };
 }

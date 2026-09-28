@@ -40,6 +40,9 @@ jobs:
       - name: Typecheck (worker)
         run: pnpm --filter aph-proxy typecheck
 
+      - name: Unit tests (worker)
+        run: pnpm --filter aph-proxy test
+
       - name: Worker dry-run deploy
         run: pnpm --filter aph-proxy exec wrangler deploy --dry-run --outdir=dist
         env:

@@ -26,9 +26,40 @@ export interface WorkerScoreResult {
   explanation: string;
 }
 
-function ageHours(pubDate: string | null, now: Date): number {
-  if (!pubDate) return 48;
-  return (now.getTime() - new Date(pubDate).getTime()) / 3_600_000;
+// An item whose source supplies no usable publication date carries no
+// recency evidence. It gets this floor for BOTH time and novelty, which is
+// strictly below the lowest value either dimension gives a dated item from
+// the last 7 days (time 0.35, novelty 0.2), so an undated item can never
+// outrank an equally authoritative item published in the past week. The
+// previous behaviour (treat undated as 48h old) let undated items outrank
+// genuinely recent ones and let the explanation claim "Published 2d ago".
+export const UNDATED_TIME_NOVELTY = 0.15;
+
+// Returns null when pubDate is missing or unparseable: "no date" is a fact to
+// report, not a value to invent.
+function ageHours(pubDate: string | null, now: Date): number | null {
+  if (!pubDate) return null;
+  const t = new Date(pubDate).getTime();
+  if (Number.isNaN(t)) return null;
+  return (now.getTime() - t) / 3_600_000;
+}
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+// DD Mon YYYY in Australian Eastern time (the product's audience), built from
+// numeric parts so the month label does not depend on the runtime's ICU
+// version (en-AU renders September as "Sept" in newer ICU builds).
+export function formatDayMonYear(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const parts = new Intl.DateTimeFormat("en-AU", {
+    timeZone: "Australia/Sydney", day: "2-digit", month: "numeric", year: "numeric",
+  }).formatToParts(d);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  const month = MONTHS[parseInt(get("month"), 10) - 1];
+  if (!month) return null;
+  return `${get("day")} ${month} ${get("year")}`;
 }
 
 function scoreTime(h: number): number {
@@ -100,11 +131,12 @@ export function scoreForArchive(
   pubDate: string | null,
   now: Date = new Date(),
   momentumHint = 0,
+  firstSeenAt: string | null = null,
 ): WorkerScoreResult {
   const h = ageHours(pubDate, now);
   const auth = authorityFromKind(kind);
-  const time = scoreTime(h);
-  const nov  = scoreNovelty(h);
+  const time = h === null ? UNDATED_TIME_NOVELTY : scoreTime(h);
+  const nov  = h === null ? UNDATED_TIME_NOVELTY : scoreNovelty(h);
   const scr  = scoreScrutiny(title, kind);
   const mom  = Math.max(0, Math.min(1, momentumHint));
 
@@ -131,12 +163,25 @@ export function scoreForArchive(
   // time moves past `now`. Callers that serve a score to a user must call this
   // function again with a fresh `now` at read time rather than reusing a
   // persisted explanation string. See the INSERT comment in archive.ts.
-  const ageStr  = h < 1 ? "within 1h" : h < 4 ? "within 4h" : h < 24 ? "today"
-    : h < 48 ? "yesterday" : `${Math.round(h / 24)}d ago`;
+  let dateStr: string;
+  if (h === null) {
+    const seen = formatDayMonYear(firstSeenAt);
+    dateStr = seen
+      ? `Publication date not supplied by the source; first seen ${seen}.`
+      : "Publication date not supplied by the source.";
+  } else {
+    const ageStr = h < 1 ? "within 1h" : h < 4 ? "within 4h" : h < 24 ? "today"
+      : h < 48 ? "yesterday" : `${Math.round(h / 24)}d ago`;
+    dateStr = `Published ${ageStr}.`;
+  }
+  // Name only the dimensions this function actually computes. Momentum is
+  // named only when a non-zero hint was supplied (its weight is display-only).
+  const dims = ["authority", "recency", "novelty", "scrutiny"];
+  if (mom > 0) dims.push("momentum");
   const momStr  = mom > 0 ? ` Momentum ${Math.round(mom * 100)}/100 (kind frequency trend).` : "";
   const explanation =
     `${attWord} attention (${overallPct}/100). Source: ${kind} (authority ${Math.round(auth * 100)}/100). ` +
-    `Published ${ageStr}.${momStr} Portfolio scored client-side from watchlists.`;
+    `${dateStr}${momStr} Scored on ${dims.join(", ")}.`;
 
   return {
     attention, confidence, overallPct,

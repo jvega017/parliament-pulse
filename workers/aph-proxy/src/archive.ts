@@ -290,7 +290,7 @@ export async function pollAndArchive(env: Env): Promise<{
         if (seenTitleHashes.has(titleHash)) { dedupSkipped += 1; continue; }
         seenTitleHashes.add(titleHash);
         const momentumHint = momentumMap.get(feed.kind) ?? 0.5;
-        const scored = scoreForArchive(item.title, feed.kind, item.pubDate, nowDate, momentumHint);
+        const scored = scoreForArchive(item.title, feed.kind, item.pubDate, nowDate, momentumHint, now);
         // NOTE: attention, confidence and scoring_explanation below are an
         // INGEST-TIME SNAPSHOT only. scoring_explanation in particular embeds a
         // relative-age phrase ("today", "3d ago") that is true only at `now`
@@ -485,7 +485,7 @@ export async function queryArchive(env: Env, params: URLSearchParams): Promise<{
   // function of title text only and does not change over time.
   const now = new Date();
   const rows = (rowsRes.results ?? []).map((row) => {
-    const scored = scoreForArchive(row.title, row.kind, row.pub_date, now);
+    const scored = scoreForArchive(row.title, row.kind, row.pub_date, now, 0, row.first_seen_at);
     return {
       ...row,
       attention: scored.attention,
@@ -838,6 +838,7 @@ export interface TopSignalRow {
   feed_label: string;
   source_group: string;
   kind: string;
+  first_seen_at: string;
   attention: string | null;
   confidence: number | null;
   scoring_explanation: string | null;
@@ -876,7 +877,7 @@ export async function queryTopSignals(env: Env, limit = 30): Promise<TopSignalRo
   const now = new Date();
 
   const rescored = candidates.map((row) => {
-    const scored = scoreForArchive(row.title, row.kind, row.pub_date, now);
+    const scored = scoreForArchive(row.title, row.kind, row.pub_date, now, 0, row.first_seen_at);
     return { row, overallPct: scored.overallPct, attention: scored.attention, confidence: scored.confidence, explanation: scored.explanation };
   });
 
@@ -895,6 +896,7 @@ export async function queryTopSignals(env: Env, limit = 30): Promise<TopSignalRo
     feed_label: row.feed_label,
     source_group: row.source_group,
     kind: row.kind,
+    first_seen_at: row.first_seen_at,
     attention,
     confidence,
     scoring_explanation: explanation,
