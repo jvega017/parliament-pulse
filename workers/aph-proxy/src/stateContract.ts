@@ -30,6 +30,13 @@ export interface StateMeta {
   feeds?: Array<{ feed_label: string; last_seen_at: string | null }>;
   stale?: boolean;
   freshness_note?: string;
+  // Per-feed signal counts (additive, WK-04, 29 Sep 2026). One key per
+  // configured feed_label. held = rows of that feed in blocks.signals.items
+  // (at most PER_FEED_QUOTA = 10); available = rows archived for that feed in
+  // D1. The UI can therefore say "latest {held} of {available} held". The
+  // block is capped at STATE_SIGNAL_CAP = 150 rows in total. Absent when the
+  // signals query failed.
+  signal_counts?: Record<string, { held: number; available: number }>;
 }
 
 // Base shape shared by every block. Individual blocks add their own
@@ -94,6 +101,11 @@ export interface QonItem {
   hansard_url: string;
 }
 
+// items: up to PER_FEED_QUOTA (10) rows per configured feed, each feed's rows
+// chosen by fresh score then recency from its most recent candidates, merged
+// and sorted globally by the same order, hard-capped at STATE_SIGNAL_CAP
+// (150). Before WK-04 this was a single global top 30, which starved the
+// quieter feeds (DATA-05). Item shape is unchanged.
 export interface SignalsBlock extends StateBlockBase {
   items: SignalItem[];
 }

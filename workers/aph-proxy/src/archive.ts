@@ -402,7 +402,7 @@ export async function pollAndArchive(env: Env): Promise<{
         // above -- it is never true again after this row is written. Once an
         // item drops out of its RSS feed, the re-seen UPDATE branch below stops
         // firing for its guid, so these three columns freeze permanently.
-        // Every read path that SERVES a score to a user (queryTopSignals,
+        // Every read path that SERVES a score to a user (queryStateSignals,
         // queryArchive, queryBills, the /state signals block, the digest
         // renderer) must call scoreForArchive again at read time with a fresh
         // `now` and serve that result, never these stored columns directly.
@@ -792,7 +792,7 @@ export async function queryBills(env: Env, params: URLSearchParams): Promise<{
 
   // PageBills.tsx renders `attention` as a coloured chip per row. kind is
   // always 'digest' here (see the WHERE clause above). Recompute at read time
-  // for the same reason as queryTopSignals/queryArchive: the stored value is
+  // for the same reason as queryStateSignals/queryArchive: the stored value is
   // an ingest-time snapshot that freezes once the bill drops out of its feed.
   const now = new Date();
   const scoredRows = (rows.results ?? []).map((row) => {
@@ -961,7 +961,7 @@ export async function queryMembers(env: Env, params: URLSearchParams): Promise<{
 
 // ---- Top signals (composed /state endpoint) ---------------------------------
 // Ordered by a freshly recomputed score (high first) then recency. Distinct
-// from queryArchive: no filters, no pagination — just the current
+// from queryArchive: no filters, no pagination -- just the current
 // top-of-inbox view for the composed /state response.
 //
 // LB-03 fix (2026-07-22): this used to ORDER BY the stored `attention`
@@ -969,9 +969,26 @@ export async function queryMembers(env: Env, params: URLSearchParams): Promise<{
 // drops out of its RSS feed (see the INSERT comment in pollAndArchive). A
 // stale item scored "high" weeks ago would then pin the top of the inbox
 // forever, and its persisted scoring_explanation would go on claiming
-// "Published today" indefinitely. Fixed by widening the candidate fetch to a
-// recency-only window, rescoring every candidate against the current
-// instant, and sorting by that fresh score instead.
+// "Published today" indefinitely. Fixed by selecting candidates by recency
+// only, rescoring every candidate against the current instant, and sorting
+// by that fresh score instead.
+//
+// WK-04 fix (DATA-05, 29 Sep 2026): a single global LIMIT 30 let the busiest
+// feeds (inquiries, hearings) take every row, so divisions, media releases,
+// reports and digests received nothing and their desks sat empty. Selection
+// is now per feed: one query ranks each configured feed_label's rows by
+// recency with ROW_NUMBER() OVER (PARTITION BY feed_label ...) and keeps a
+// per-feed candidate window; each feed's candidates are rescored and the top
+// PER_FEED_QUOTA kept; the union is sorted globally and capped at
+// STATE_SIGNAL_CAP. COUNT(*) OVER the same partition gives `available` for
+// meta.signal_counts, so the UI can say "latest N held" honestly.
+
+/** Rows each configured feed contributes to /state at most. */
+export const PER_FEED_QUOTA = 10;
+/** Hard ceiling on the /state signals block (13 feeds x 10 = 130 today). */
+export const STATE_SIGNAL_CAP = 150;
+/** Recency window per feed that is rescored before the quota is applied. */
+const PER_FEED_CANDIDATES = PER_FEED_QUOTA * 4;
 
 export interface TopSignalRow {
   guid: string;
@@ -987,6 +1004,14 @@ export interface TopSignalRow {
   scoring_explanation: string | null;
 }
 
+/** held = rows served in the block; available = rows archived for the feed. */
+export type SignalCounts = Record<string, { held: number; available: number }>;
+
+export interface StateSignals {
+  items: TopSignalRow[];
+  signal_counts: SignalCounts;
+}
+
 interface TopSignalCandidate {
   guid: string;
   title: string;
@@ -996,21 +1021,53 @@ interface TopSignalCandidate {
   source_group: string;
   kind: string;
   first_seen_at: string;
+  feed_available: number;
 }
 
-export async function queryTopSignals(env: Env, limit = 30): Promise<TopSignalRow[]> {
-  // Candidate window: select by RECENCY only, never by the stored `attention`
-  // column (that is half of LB-03 -- ordering by a frozen value is what let a
-  // stale item pin the top of the inbox). Widen past `limit` so items that
-  // will actually score highest once rescored are not excluded from the pool
-  // before we ever look at them.
-  const candidateLimit = Math.min(limit * 8, 300);
+interface Rescored {
+  row: TopSignalCandidate;
+  overallPct: number;
+  attention: string | null;
+  confidence: number | null;
+  explanation: string | null;
+}
+
+function byScoreThenRecency(a: Rescored, b: Rescored): number {
+  if (b.overallPct !== a.overallPct) return b.overallPct - a.overallPct;
+  const aKey = a.row.pub_date ?? a.row.first_seen_at;
+  const bKey = b.row.pub_date ?? b.row.first_seen_at;
+  return bKey.localeCompare(aKey); // ISO-8601 strings sort correctly lexically
+}
+
+export async function queryStateSignals(
+  env: Env,
+  opts: { perFeed?: number; cap?: number; feeds?: string[] } = {},
+): Promise<StateSignals> {
+  const perFeed = opts.perFeed ?? PER_FEED_QUOTA;
+  const cap = opts.cap ?? STATE_SIGNAL_CAP;
+  const labels = opts.feeds ?? APH_FEEDS.map((f) => f.label);
+  const candidatesPerFeed = Math.max(perFeed, PER_FEED_CANDIDATES);
+
+  const signal_counts: SignalCounts = {};
+  for (const l of labels) signal_counts[l] = { held: 0, available: 0 };
+  if (labels.length === 0) return { items: [], signal_counts };
+
+  // One query for every feed. Candidates are ranked by RECENCY only, never by
+  // the stored `attention` column (the LB-03 half: ordering by a frozen value
+  // is what let a stale item pin the inbox). guid breaks recency ties so the
+  // window is deterministic.
+  const placeholders = labels.map(() => "?").join(", ");
   const res = await env.ARCHIVE.prepare(
-    `SELECT guid, title, link, pub_date, feed_label, source_group, kind, first_seen_at
-       FROM signals
-       ORDER BY COALESCE(pub_date, first_seen_at) DESC
-       LIMIT ?`,
-  ).bind(candidateLimit).all<TopSignalCandidate>();
+    `SELECT guid, title, link, pub_date, feed_label, source_group, kind, first_seen_at, feed_available
+       FROM (
+         SELECT guid, title, link, pub_date, feed_label, source_group, kind, first_seen_at,
+                ROW_NUMBER() OVER (PARTITION BY feed_label ORDER BY COALESCE(pub_date, first_seen_at) DESC, guid) AS feed_rank,
+                COUNT(*) OVER (PARTITION BY feed_label) AS feed_available
+           FROM signals
+          WHERE feed_label IN (${placeholders})
+       )
+      WHERE feed_rank <= ?`,
+  ).bind(...labels, candidatesPerFeed).all<TopSignalCandidate>();
   const candidates = res.results ?? [];
 
   // One `now` for the whole batch so every candidate is scored against the
@@ -1019,19 +1076,25 @@ export async function queryTopSignals(env: Env, limit = 30): Promise<TopSignalRo
   // clock (do not hoist this above the query or to module scope).
   const now = new Date();
 
-  const rescored = candidates.map((row) => {
+  const byFeed = new Map<string, Rescored[]>();
+  for (const row of candidates) {
     const scored = scoreForArchive(row.title, row.kind, row.pub_date, now, 0, row.first_seen_at);
-    return { row, overallPct: scored.overallPct, attention: scored.attention, confidence: scored.confidence, explanation: scored.explanation };
-  });
+    const list = byFeed.get(row.feed_label) ?? [];
+    list.push({ row, overallPct: scored.overallPct, attention: scored.attention, confidence: scored.confidence, explanation: scored.explanation });
+    byFeed.set(row.feed_label, list);
+    signal_counts[row.feed_label].available = Number(row.feed_available);
+  }
 
-  rescored.sort((a, b) => {
-    if (b.overallPct !== a.overallPct) return b.overallPct - a.overallPct;
-    const aKey = a.row.pub_date ?? a.row.first_seen_at;
-    const bKey = b.row.pub_date ?? b.row.first_seen_at;
-    return bKey.localeCompare(aKey); // ISO-8601 strings sort correctly lexically
-  });
+  const merged: Rescored[] = [];
+  for (const list of byFeed.values()) {
+    list.sort(byScoreThenRecency);
+    merged.push(...list.slice(0, perFeed));
+  }
+  merged.sort(byScoreThenRecency);
+  const kept = merged.slice(0, cap);
+  for (const r of kept) signal_counts[r.row.feed_label].held += 1;
 
-  return rescored.slice(0, limit).map(({ row, attention, confidence, explanation }): TopSignalRow => ({
+  const items = kept.map(({ row, attention, confidence, explanation }): TopSignalRow => ({
     guid: row.guid,
     title: row.title,
     link: row.link,
@@ -1044,6 +1107,7 @@ export async function queryTopSignals(env: Env, limit = 30): Promise<TopSignalRo
     confidence,
     scoring_explanation: explanation,
   }));
+  return { items, signal_counts };
 }
 
 // ---- Watchlist 7-day trend --------------------------------------------------

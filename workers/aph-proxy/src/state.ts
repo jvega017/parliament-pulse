@@ -8,7 +8,7 @@
 // never fabricates content to look live.
 
 import type { Env } from "./archive";
-import { queryTopSignals, listAlertEvents, queryQons, queryFeedHealth } from "./archive";
+import { queryStateSignals, listAlertEvents, queryQons, queryFeedHealth, type SignalCounts } from "./archive";
 import { APH_REFERENCE_LINKS } from "./feeds";
 import { queryFreshness, type Freshness } from "./freshness";
 import type {
@@ -28,15 +28,20 @@ function degradedNote(err: unknown): string {
   return err instanceof Error ? err.message : "unknown error";
 }
 
-async function buildSignalsBlock(env: Env, now: string): Promise<SignalsBlock> {
+// Per-feed quotas (WK-04, DATA-05): every configured feed contributes up to
+// PER_FEED_QUOTA rows, capped at STATE_SIGNAL_CAP in total. signal_counts is
+// returned beside the block and lands in meta.signal_counts. It is omitted
+// (undefined) when the query failed, because "0 available" would then be a
+// claim the Worker cannot make.
+async function buildSignalsBlock(env: Env, now: string): Promise<{ block: SignalsBlock; signal_counts?: SignalCounts }> {
   try {
-    const rows = await queryTopSignals(env, 30);
-    if (rows.length === 0) {
-      return { provenance: "fixture", fetched_at: now, origin: ORIGIN, items: [], note: "signals table returned no rows" };
+    const { items, signal_counts } = await queryStateSignals(env);
+    if (items.length === 0) {
+      return { block: { provenance: "fixture", fetched_at: now, origin: ORIGIN, items: [], note: "signals table returned no rows" }, signal_counts };
     }
-    return { provenance: "live", fetched_at: now, origin: ORIGIN, items: rows };
+    return { block: { provenance: "live", fetched_at: now, origin: ORIGIN, items }, signal_counts };
   } catch (err) {
-    return { provenance: "fixture", fetched_at: now, origin: ORIGIN, items: [], note: degradedNote(err) };
+    return { block: { provenance: "fixture", fetched_at: now, origin: ORIGIN, items: [], note: degradedNote(err) } };
   }
 }
 
@@ -136,7 +141,7 @@ export async function freshnessOrDegraded(env: Env): Promise<Freshness & { fresh
 
 export async function buildState(env: Env): Promise<StateResponse> {
   const now = new Date().toISOString();
-  const [signals, connectors, alerts, qons, threads, freshness] = await Promise.all([
+  const [signalsResult, connectors, alerts, qons, threads, freshness] = await Promise.all([
     buildSignalsBlock(env, now),
     buildConnectorsBlock(env, now),
     buildAlertsBlock(env, now),
@@ -144,8 +149,15 @@ export async function buildState(env: Env): Promise<StateResponse> {
     buildThreadsBlock(env, now),
     freshnessOrDegraded(env),
   ]);
+  const { block: signals, signal_counts } = signalsResult;
   return {
-    meta: { generated_at: now, worker_version: WORKER_VERSION, schema: "state-v1", ...freshness },
+    meta: {
+      generated_at: now,
+      worker_version: WORKER_VERSION,
+      schema: "state-v1",
+      ...freshness,
+      ...(signal_counts ? { signal_counts } : {}),
+    },
     blocks: { signals, connectors, alerts, qons, threads },
   };
 }

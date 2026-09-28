@@ -68,7 +68,7 @@ export async function sendDailyDigest(env: EnvWithSecrets): Promise<{
   // first_seen_at, and the email is a live communication (not a historical
   // record), so the attention level that decides what a subscriber receives
   // must reflect the current instant, per the same LB-03 reasoning as
-  // queryTopSignals in archive.ts. `now` is captured after the D1 query above
+  // queryStateSignals in archive.ts. `now` is captured after the D1 query above
   // has already awaited, so it is safe from the frozen module-scope clock.
   const now = new Date();
   const newItems: SignalRow[] = rawItems.map((row) => ({

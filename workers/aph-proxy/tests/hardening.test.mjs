@@ -239,14 +239,14 @@ test("limiter: KV put runs in waitUntil, off the request path", async () => {
 
 test("state: KV put that throws still returns 200", async () => {
   for (const kvOpts of [{ putThrows: true }, { putRejects: true }]) {
-    const kv = mockKv({ ...kvOpts, seed: { "state:v1": JSON.stringify({ ok: true }) } });
+    const kv = mockKv({ ...kvOpts, seed: { "state:v2": JSON.stringify({ ok: true }) } });
     const res = await call("/state", env({ CACHE: kv }));
     assert.equal(res.status, 200, JSON.stringify(kvOpts));
   }
 });
 
 test("state: KV that throws on rate-limit keys still returns 200", async () => {
-  const kv = mockKv({ getThrows: (k) => k.startsWith("rl:"), seed: { "state:v1": JSON.stringify({ ok: true }) } });
+  const kv = mockKv({ getThrows: (k) => k.startsWith("rl:"), seed: { "state:v2": JSON.stringify({ ok: true }) } });
   const res = await call("/state", env({ CACHE: kv }));
   assert.equal(res.status, 200);
 });

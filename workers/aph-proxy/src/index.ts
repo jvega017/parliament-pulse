@@ -423,7 +423,9 @@ export default {
       if (!(await checkRateLimit(env.CACHE, ip, "state", 60, 60, ctx))) {
         return jsonResponse({ error: "rate limit exceeded — max 60/min" }, 429, cors);
       }
-      const cacheKey = "state:v1";
+      // v2 (WK-04): bumped when the signals block moved from a global top 30
+      // to per-feed quotas, so a cached 30-row body cannot outlive the deploy.
+      const cacheKey = "state:v2";
       const cached = await kvGetSafe(env.CACHE, cacheKey);
       if (cached) {
         return new Response(cached, {
