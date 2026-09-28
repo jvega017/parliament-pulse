@@ -22,13 +22,12 @@ migrations_dir = "migrations"
 
 [vars]
 # Comma-separated list of origins allowed to call this Worker (CORS).
-# Production Pages origin is parliament-pulse.pages.dev plus the custom domain
-# pulse.prometheuspolicylab.com. Dev origins cover both the Vite default (5173)
-# and the README static-server default (python -m http.server 8080), on both
-# localhost and 127.0.0.1. An origin not in this list is rejected by the browser
-# CORS check because the Worker echoes the first list entry, not the caller.
-# Add any new preview or custom origin here before it can call the Worker.
-ALLOWED_ORIGINS = "http://127.0.0.1:5173,http://localhost:5173,http://127.0.0.1:8080,http://localhost:8080,https://parliament-pulse.pages.dev,https://pulse.prometheuspolicylab.com"
+# Production is exactly the Pages origin parliament-pulse.pages.dev and the
+# custom domain pulse.prometheuspolicylab.com, nothing else (SEC-14: the
+# localhost and 127.0.0.1 dev origins moved to [env.dev] below). An origin not
+# in this list gets no access-control-allow-origin header, so the browser
+# rejects the call. Add any new production origin here before it can call.
+ALLOWED_ORIGINS = "https://parliament-pulse.pages.dev,https://pulse.prometheuspolicylab.com"
 
 # Access gate for /archive endpoint.
 # Set to "true" to require a Cloudflare Access JWT header.
@@ -92,3 +91,28 @@ crons = ["*/30 * * * *", "0 5 * * *", "0 19 * * *"]
 #   /qons      30 req/min per IP
 #   /members   30 req/min per IP
 #   /healthz/deep 30 req/min per IP
+
+# ---- Local development environment (SEC-14) ---------------------------------
+# Run locally with:  npx wrangler dev --env dev
+# This environment exists for `wrangler dev` only. Never `wrangler deploy
+# --env dev`: that would publish a second Worker (aph-proxy-dev) bound to the
+# production KV namespace and D1 database below. Wrangler does not inherit
+# vars or bindings into a named environment, so each is restated here; the
+# dev origins cover the Vite default (5173) and the README static-server
+# default (python -m http.server 8080) on localhost and 127.0.0.1.
+[env.dev]
+
+[env.dev.vars]
+ALLOWED_ORIGINS = "http://127.0.0.1:5173,http://localhost:5173,http://127.0.0.1:8080,http://localhost:8080"
+REQUIRE_ACCESS = "false"
+DIGEST_FROM_EMAIL = "noreply@prometheuspolicylab.com"
+
+[[env.dev.kv_namespaces]]
+binding = "CACHE"
+id = "7e87caca7a354030a1da85ebbbbe518f"
+
+[[env.dev.d1_databases]]
+binding = "ARCHIVE"
+database_name = "parliament-pulse-archive"
+database_id = "2147ccbf-c032-4513-8e5b-6cd131fb6f10"
+migrations_dir = "migrations"

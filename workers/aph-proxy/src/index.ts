@@ -51,7 +51,8 @@ import {
   type Env,
 } from "./archive";
 import { ingestQons } from "./hansard";
-import { sendDailyDigest } from "./digest";
+import { sendDailyDigest, DIGEST_SUBSCRIBE_ENABLED } from "./digest";
+import { adminAuthorised } from "./adminAuth";
 import { buildState, freshnessOrDegraded } from "./state";
 import { recordJobRun, pruneJobRuns, deepHealth, outcomeFromFailures, type JobSummary } from "./jobs";
 
@@ -210,11 +211,8 @@ export default {
         const connectors = await queryFeedHealth(env);
         return jsonResponse({ ok: true, connectors, reference_links: APH_REFERENCE_LINKS }, 200, cors);
       } catch (err) {
-        return jsonResponse(
-          { ok: false, reason: err instanceof Error ? err.message : "d1 unavailable" },
-          200,
-          cors,
-        );
+        console.error({ endpoint: "/healthz/connectors", error: err instanceof Error ? err.message : String(err), ts: new Date().toISOString() });
+        return jsonResponse({ ok: false, reason: "d1 unavailable" }, 200, cors);
       }
     }
 
@@ -245,7 +243,7 @@ export default {
         return jsonResponse(result, 200, cors);
       } catch (err) {
         if (err instanceof AnalyticsInputError) {
-          return jsonResponse({ error: err.message, code: "analytics_too_many_terms", max_terms: MAX_ANALYTICS_TERMS }, 400, cors);
+          return jsonResponse({ error: `too many terms, at most ${MAX_ANALYTICS_TERMS} allowed`, code: "analytics_too_many_terms", max_terms: MAX_ANALYTICS_TERMS }, 400, cors);
         }
         console.error({ endpoint: "/archive/analytics", error: err instanceof Error ? err.message : err, ts: new Date().toISOString() });
         return jsonResponse({ error: "analytics temporarily unavailable" }, 503, cors);
@@ -278,8 +276,8 @@ export default {
       // calls it. Collecting personal data for a product that cannot yet honour an
       // unsubscribe or deletion request is a privacy liability, so it is disabled
       // until a compliant double-opt-in flow exists. Flip DIGEST_SUBSCRIBE_ENABLED
-      // to re-enable once that lands.
-      const DIGEST_SUBSCRIBE_ENABLED = false;
+      // (module scope in ./digest, shared with the digest cron) to re-enable
+      // once that lands; the re-enable checklist sits beside the constant.
       if (!DIGEST_SUBSCRIBE_ENABLED) {
         return jsonResponse({ error: "email digests are not open in this release", code: "digest_closed_lb05" }, 403, cors);
       }
@@ -434,7 +432,7 @@ export default {
     // `wrangler secret put ADMIN_TOKEN`, then requires the matching x-admin-token
     // header. Call repeatedly (?limit=500 default) until `processed` is 0.
     if (url.pathname === "/admin/backfill-threads" && req.method === "POST") {
-      if (!env.ADMIN_TOKEN || req.headers.get("x-admin-token") !== env.ADMIN_TOKEN) {
+      if (!(await adminAuthorised(req.headers.get("x-admin-token"), env.ADMIN_TOKEN))) {
         return jsonResponse({ error: "admin token required" }, 401, cors);
       }
       try {
@@ -451,16 +449,16 @@ export default {
     // Same fail-closed ADMIN_TOKEN gate as backfill-threads. Exists so poll
     // failures can be diagnosed directly instead of waiting on cron log tails.
     if (url.pathname === "/admin/poll-now" && req.method === "POST") {
-      if (!env.ADMIN_TOKEN || req.headers.get("x-admin-token") !== env.ADMIN_TOKEN) {
+      if (!(await adminAuthorised(req.headers.get("x-admin-token"), env.ADMIN_TOKEN))) {
         return jsonResponse({ error: "admin token required" }, 401, cors);
       }
       try {
         const result = await pollAndArchive(env);
         return jsonResponse(result, 200, cors);
       } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.error({ endpoint: "/admin/poll-now", error: msg, ts: new Date().toISOString() });
-        return jsonResponse({ error: "poll failed", detail: msg }, 503, cors);
+        // SEC-11: the thrown message is logged server-side only.
+        console.error({ endpoint: "/admin/poll-now", error: err instanceof Error ? err.message : String(err), ts: new Date().toISOString() });
+        return jsonResponse({ error: "poll failed" }, 503, cors);
       }
     }
 
@@ -661,7 +659,12 @@ export default {
         const r = await sendDailyDigest(env);
         console.log("digest", JSON.stringify(r));
         return r;
-      }, (r) => ({ outcome: "ok", counts: { delivered: r.delivered, skipped: r.skipped } })));
+      }, (r): JobSummary => {
+        // Dormant digest (SEC-07): an ok run with a disabled marker, so
+        // /healthz/deep still sees the daily job running.
+        if ("sent" in r) return { outcome: "ok", counts: { sent: 0, disabled: 1 } };
+        return { outcome: "ok", counts: { delivered: r.delivered, skipped: r.skipped } };
+      }));
       return;
     }
     // Unmatched schedule. Cloudflare fired a trigger this handler does not

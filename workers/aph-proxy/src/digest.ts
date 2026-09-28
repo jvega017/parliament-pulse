@@ -38,11 +38,32 @@ interface SignalRow {
 
 const ATTENTION_RANK: Record<string, number> = { high: 0, med: 1, low: 2 };
 
-export async function sendDailyDigest(env: EnvWithSecrets): Promise<{
-  delivered: number;
-  skipped: number;
-  reason?: string;
-}> {
+// Single switch for the whole email digest (SEC-07, LEG-11). While false,
+// POST /digest/subscribe returns 403 and sendDailyDigest returns before any
+// D1 read, so no subscriber address is read, stored or mailed.
+//
+// Re-enabling requires, before this flag flips (all four, not a subset):
+//  1. Double opt-in: a subscribe request stores a pending row and sends a
+//     confirmation link; only a confirmed address receives a digest.
+//  2. One-click unsubscribe in every message (a List-Unsubscribe header and a
+//     visible link) that deactivates the row with no login.
+//  3. Sender identification: every message names Prometheus Policy Lab and
+//     carries a working contact address.
+//  4. Consent records: store when and how consent was given (confirmation
+//     timestamp and source) and keep them for as long as the address is held.
+// These track the Spam Act 2003 (Cth) consent, identification and unsubscribe
+// requirements [CITE NEEDED: section numbers, verify on legislation.gov.au]
+// and the Privacy Act 1988 (Cth) handling of personal information.
+export const DIGEST_SUBSCRIBE_ENABLED = false;
+
+export type DigestResult =
+  | { sent: 0; skipped: "digest_disabled" }
+  | { delivered: number; skipped: number; reason?: string };
+
+export async function sendDailyDigest(env: EnvWithSecrets): Promise<DigestResult> {
+  // Dormant: no D1 read of signals or subscribers while the digest is closed.
+  if (!DIGEST_SUBSCRIBE_ENABLED) return { sent: 0, skipped: "digest_disabled" };
+
   const apiKey = env.RESEND_API_KEY;
   if (!apiKey) {
     return { delivered: 0, skipped: 0, reason: "RESEND_API_KEY not set" };
@@ -86,7 +107,7 @@ export async function sendDailyDigest(env: EnvWithSecrets): Promise<{
   let delivered = 0;
   let skipped = 0;
 
-  for (const sub of subscribers) {
+  for (const [row, sub] of subscribers.entries()) {
     const minRank = ATTENTION_RANK[sub.attention_min] ?? 0;
     const filtered = newItems.filter((item) => {
       let resolved = item.attention;
@@ -130,7 +151,8 @@ export async function sendDailyDigest(env: EnvWithSecrets): Promise<{
       delivered += 1;
     } else {
       const errBody = (await res.json().catch(() => ({}))) as { message?: string };
-      console.error({ digest_error: errBody.message ?? res.status, email: sub.email });
+      // Never log the address: the batch position identifies the failure.
+      console.error({ digest_error: errBody.message ?? res.status, subscriber_row: row, subscribers: subscribers.length });
       skipped += 1;
     }
   }

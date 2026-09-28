@@ -160,7 +160,9 @@ test("connectors: an unmigrated feed_health table degrades to fixture, ingest st
   assert.equal(r.perFeed.find((f) => f.feed === BILLS_DIGESTS.url).new, 1, "ingest unaffected by missing health table");
   const block = (await buildState(e)).blocks.connectors;
   assert.equal(block.provenance, "fixture");
-  assert.match(block.note, /feed_health/);
+  // WK-06 (SEC-11): the note is generic; the D1 message ("no such table:
+  // feed_health") is logged server-side and never served in /state.
+  assert.equal(block.note, "query failed");
 });
 
 test("/healthz/connectors serves feed rows plus reference_links", async () => {

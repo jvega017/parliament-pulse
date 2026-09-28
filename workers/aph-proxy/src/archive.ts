@@ -324,10 +324,11 @@ export async function pollAndArchive(env: Env): Promise<{
         const xml = await res.text();
         return { ok: true, meta: feedMeta, xml, status: res.status };
       } catch (err) {
-        return {
-          ok: false, meta: feedMeta, status: 0,
-          error: err instanceof Error ? err.message : "unknown",
-        };
+        // SEC-11: the raw message stays in the log. The stored and served
+        // error (feed_health, /admin/poll-now, /state) is a fixed string.
+        console.warn("feed fetch failed", feedMeta.url, err instanceof Error ? err.message : err);
+        const timedOut = err instanceof Error && err.name === "AbortError";
+        return { ok: false, meta: feedMeta, status: 0, error: timedOut ? "fetch timed out" : "fetch failed" };
       }
     }),
   );
@@ -468,7 +469,8 @@ export async function pollAndArchive(env: Env): Promise<{
       perFeed.push({ feed: feed.url, ok: true, new: added, seen: items.length, dedup: dedupSkipped });
       await recordFeedHealth(env, feed, feedResult.status, items.length, null, now, true);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "unknown";
+      console.warn("feed processing failed", feed.url, err instanceof Error ? err.message : err);
+      const msg = "feed processing failed";
       perFeed.push({ feed: feed.url, ok: false, new: 0, seen: 0, dedup: 0, error: msg });
       await recordFeedHealth(env, feed, feedResult.status, null, msg, now, false);
     }
@@ -532,7 +534,8 @@ export async function checkConnectors(env: Env, urls: string[]): Promise<{
         .bind(url, res.status, ok ? 1 : 0, now, ok ? null : `HTTP ${res.status}`)
         .run();
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "unknown";
+      console.warn("connector check failed", url, err instanceof Error ? err.message : err);
+      const msg = "fetch failed";
       results.push({ url, ok: false, status: 0, error: msg });
       await env.ARCHIVE.prepare(
         `INSERT INTO connector_checks (url, status, ok, checked_at, error) VALUES (?, ?, ?, ?, ?)`,
@@ -1122,8 +1125,11 @@ export async function watchlistTrend(env: Env, params: URLSearchParams): Promise
   const terms = rawTerms.split(",").map(t => t.trim()).filter(Boolean).slice(0, 5);
   if (terms.length === 0) return { days: buildEmptyWeek() };
 
-  const termConditions = terms.map(() => `LOWER(title) LIKE ?`).join(" OR ");
-  const termBinds = terms.map(t => `%${t.toLowerCase().replace(/[%_\\]/g, "\\$&")}%`);
+  // SEC-16: escapeLike marks % _ and \ with a backslash, which SQLite only
+  // honours when the LIKE carries an ESCAPE clause. Without it a term such
+  // as "50%" was searched for with a literal backslash and matched nothing.
+  const termConditions = terms.map(() => `LOWER(title) LIKE ? ESCAPE '\\'`).join(" OR ");
+  const termBinds = terms.map(t => `%${escapeLike(t.toLowerCase())}%`);
 
   const rows = await env.ARCHIVE.prepare(
     `SELECT DATE(pub_date) AS day, COUNT(*) AS count

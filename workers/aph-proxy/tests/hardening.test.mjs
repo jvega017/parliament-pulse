@@ -292,3 +292,204 @@ test("analytics: LIKE wildcards in a term are escaped", async () => {
   assert.equal(res.status, 200);
   assert.equal(d1.calls[0].binds[0], "%100\\%\\_ok%");
 });
+
+// ================================================================ WK-06
+// Security tail: SEC-07, SEC-08, SEC-11, SEC-14, SEC-16, LEG-11.
+// Each test below was measured to fail on a scratch copy carrying the old
+// code (29 Sep 2026); the per-test mutation record is in the WK-06 commit.
+
+const { readFileSync } = await import("node:fs");
+const { fileURLToPath } = await import("node:url");
+const { timingSafeEqualStr, adminAuthorised } = await import("../src/adminAuth.ts");
+const { sendDailyDigest, DIGEST_SUBSCRIBE_ENABLED } = await import("../src/digest.ts");
+const { buildState } = await import("../src/state.ts");
+const { sqliteD1, memoryKv } = await import("./support/sqlite-d1.mjs");
+
+const srcText = (rel) => readFileSync(fileURLToPath(new URL(`../${rel}`, import.meta.url)), "utf8");
+
+const ADMIN = "s3cret-admin-token-0123456789";
+
+async function post(path, headers, e) {
+  const ctx = mockCtx();
+  const res = await worker.fetch(new Request(`https://worker.test${path}`, { method: "POST", headers }), e, ctx);
+  await Promise.allSettled(ctx.pending);
+  return res;
+}
+
+// A D1 stand-in whose every prepare() throws a marker message.
+function throwingD1(marker) {
+  const calls = [];
+  return {
+    calls,
+    prepare(sql) {
+      calls.push(sql);
+      throw new Error(`${marker} near "SELECT": syntax error in ${sql.slice(0, 20)}`);
+    },
+  };
+}
+
+// ---------------------------------------------------------------- (a) admin compare
+
+test("WK-06 (a) timingSafeEqualStr: equal, different, prefix, suffix, empty", async () => {
+  assert.equal(await timingSafeEqualStr(ADMIN, ADMIN), true);
+  assert.equal(await timingSafeEqualStr("wrong", ADMIN), false);
+  assert.equal(await timingSafeEqualStr(ADMIN.slice(0, 10), ADMIN), false, "correct prefix");
+  assert.equal(await timingSafeEqualStr(`${ADMIN}x`, ADMIN), false, "correct token plus a suffix");
+  assert.equal(await timingSafeEqualStr("", ADMIN), false);
+});
+
+test("WK-06 (a) adminAuthorised fails closed when ADMIN_TOKEN is unset or empty", async () => {
+  assert.equal(await adminAuthorised("", undefined), false);
+  assert.equal(await adminAuthorised("", ""), false);
+  assert.equal(await adminAuthorised(null, ""), false);
+  assert.equal(await adminAuthorised("anything", undefined), false);
+});
+
+test("WK-06 (a) admin endpoints reject wrong and correct-prefix tokens, accept the right one", async () => {
+  stubFetch(() => new Response("", { status: 503 }));
+  for (const path of ["/admin/poll-now", "/admin/backfill-threads"]) {
+    const e = env({ ADMIN_TOKEN: ADMIN });
+    assert.equal((await post(path, {}, e)).status, 401, `${path} no header`);
+    assert.equal((await post(path, { "x-admin-token": "wrong" }, e)).status, 401, `${path} wrong`);
+    assert.equal((await post(path, { "x-admin-token": ADMIN.slice(0, -1) }, e)).status, 401, `${path} prefix`);
+    assert.equal((await post(path, { "x-admin-token": ADMIN }, env())).status, 401, `${path} unset ADMIN_TOKEN`);
+    assert.equal((await post(path, { "x-admin-token": ADMIN }, e)).status, 200, `${path} right token`);
+  }
+});
+
+test("WK-06 (a) no direct !== compare against ADMIN_TOKEN remains in index.ts", () => {
+  const src = srcText("src/index.ts");
+  assert.ok(!/!==\s*env\.ADMIN_TOKEN/.test(src), "direct string compare found");
+  assert.ok(!/env\.ADMIN_TOKEN\s*!==/.test(src), "direct string compare found");
+});
+
+// ---------------------------------------------------------------- (b) error leakage
+
+test("WK-06 (b) poll-now: a thrown message never reaches the 503 body", async () => {
+  stubFetch(() => new Response("", { status: 503 }));
+  const e = env({ ADMIN_TOKEN: ADMIN });
+  // One-shot throw from the first toISOString() inside pollAndArchive, which
+  // sits outside every internal try, so it reaches the handler's catch.
+  const orig = Date.prototype.toISOString;
+  let armed = true;
+  Date.prototype.toISOString = function () {
+    if (armed) { armed = false; throw new Error("SECRET-THROWN-7f3a stack at pollAndArchive"); }
+    return orig.call(this);
+  };
+  let res;
+  try {
+    res = await post("/admin/poll-now", { "x-admin-token": ADMIN }, e);
+  } finally {
+    Date.prototype.toISOString = orig;
+  }
+  assert.equal(res.status, 503);
+  const text = await res.text();
+  assert.ok(!text.includes("SECRET-THROWN-7f3a"), text);
+  assert.deepEqual(JSON.parse(text), { error: "poll failed" });
+});
+
+test("WK-06 (b) poll-now: fetch and D1 messages never reach the per-feed results", async () => {
+  // Fetch throws for every feed.
+  stubFetch(() => { throw new Error("SECRET-FETCH-91c getaddrinfo ENOTFOUND internal.host"); });
+  let res = await post("/admin/poll-now", { "x-admin-token": ADMIN }, env({ ADMIN_TOKEN: ADMIN }));
+  let text = await res.text();
+  assert.equal(res.status, 200);
+  assert.ok(!text.includes("SECRET-FETCH-91c"), text.slice(0, 300));
+  assert.ok(JSON.parse(text).perFeed.every((f) => f.error === "fetch failed"), text.slice(0, 300));
+
+  // Fetch succeeds, every D1 statement throws inside per-feed processing.
+  const item = `<item><title>A real title</title><link>https://www.aph.gov.au/x</link><guid>g-1</guid></item>`;
+  stubFetch(() => xmlResponse(`<?xml version="1.0"?><rss version="2.0"><channel><title>t</title>${item}</channel></rss>`));
+  res = await post("/admin/poll-now", { "x-admin-token": ADMIN }, env({ ADMIN_TOKEN: ADMIN, ARCHIVE: throwingD1("SECRET-D1-44b") }));
+  text = await res.text();
+  assert.equal(res.status, 200);
+  assert.ok(!text.includes("SECRET-D1-44b"), text.slice(0, 300));
+});
+
+test("WK-06 (b) /state and /healthz/connectors never serve a D1 message", async () => {
+  const state = await buildState(env({ ARCHIVE: throwingD1("SECRET-STATE-5d0") }));
+  const s = JSON.stringify(state);
+  assert.ok(!s.includes("SECRET-STATE-5d0"), s.slice(0, 400));
+  assert.equal(state.blocks.signals.note, "query failed");
+
+  const res = await call("/healthz/connectors", env({ ARCHIVE: throwingD1("SECRET-HC-2e1") }));
+  const text = await res.text();
+  assert.ok(!text.includes("SECRET-HC-2e1"), text);
+});
+
+test("WK-06 (b) source: no jsonResponse body carries err.message or detail: msg", () => {
+  const src = srcText("src/index.ts");
+  const bad = src.split("\n").filter((l) => l.includes("jsonResponse(") && /\.message|detail:\s*msg/.test(l));
+  assert.deepEqual(bad, []);
+  assert.ok(!/detail:\s*msg/.test(src));
+});
+
+// ---------------------------------------------------------------- (c) LIKE escape
+
+test("WK-06 (c) watchlist-trend: a term containing % matches literally", async () => {
+  const d1 = sqliteD1();
+  const at = new Date(Date.now() - 3_600_000).toISOString();
+  const ins = d1.raw.prepare(
+    `INSERT INTO signals (guid, title, link, pub_date, feed_url, feed_label, source_group, kind, first_seen_at, last_seen_at)
+     VALUES (?, ?, 'https://www.aph.gov.au/x', ?, 'https://f', 'Senate reports tabled', 'Senate', 'report', ?, ?)`,
+  );
+  ins.run("g-pct", "Target of 50% by 2030", at, at, at);
+  ins.run("g-500", "Target of 500 by 2030", at, at, at);
+  ins.run("g-50x", "Target of 50x growth", at, at, at);
+  const res = await call(`/archive/watchlist-trend?terms=${encodeURIComponent("50%")}`, env({ ARCHIVE: d1, CACHE: memoryKv() }));
+  assert.equal(res.status, 200);
+  const { days } = await res.json();
+  assert.equal(days.length, 7);
+  assert.equal(days.reduce((n, d) => n + d.count, 0), 1, JSON.stringify(days));
+});
+
+test("WK-06 (c) source: every LIKE ? on user input carries ESCAPE", () => {
+  const src = srcText("src/archive.ts");
+  const likes = src.match(/LIKE \?[^`"\n]{0,20}/g) ?? [];
+  assert.ok(likes.length >= 8, `found ${likes.length}`);
+  for (const l of likes) assert.match(l, /^LIKE \? ESCAPE/, l);
+});
+
+// ---------------------------------------------------------------- (d)(e) dormant digest
+
+test("WK-06 (d) digest cron performs zero D1 queries while disabled", async () => {
+  assert.equal(DIGEST_SUBSCRIBE_ENABLED, false);
+  const d1 = mockD1();
+  stubFetch(() => new Response("{}", { status: 200 }));
+  const r = await sendDailyDigest({ ARCHIVE: d1, CACHE: mockKv(), ALLOWED_ORIGINS: "", RESEND_API_KEY: "re_test_key" });
+  assert.deepEqual(r, { sent: 0, skipped: "digest_disabled" });
+  assert.equal(d1.calls.length, 0, d1.calls.map((c) => c.sql).join(" | "));
+  assert.equal(fetchCalls.length, 0);
+});
+
+test("WK-06 (d) /digest/subscribe stays closed and writes nothing", async () => {
+  const d1 = mockD1();
+  const res = await post("/digest/subscribe", { "content-type": "application/json" }, env({ ARCHIVE: d1 }));
+  assert.equal(res.status, 403);
+  assert.equal(d1.calls.length, 0);
+});
+
+test("WK-06 (e) digest.ts logs no email address", () => {
+  const src = srcText("src/digest.ts");
+  assert.ok(!src.includes("email: sub.email"));
+  const consoleCalls = src.match(/console\.[a-z]+\([^;]*\);/g) ?? [];
+  for (const c of consoleCalls) assert.ok(!/email/i.test(c), c);
+});
+
+// ---------------------------------------------------------------- (f) CORS config
+
+test("WK-06 (f) production vars carry exactly the two https origins, no localhost", () => {
+  const toml = srcText("wrangler.toml");
+  const start = toml.indexOf("\n[vars]\n");
+  assert.ok(start >= 0, "top-level [vars] present");
+  const body = toml.slice(start + "\n[vars]\n".length);
+  const next = body.search(/^\[/m);
+  const vars = next < 0 ? body : body.slice(0, next);
+  const live = vars.split("\n").filter((l) => !l.trim().startsWith("#")).join("\n");
+  assert.ok(!/localhost|127\.0\.0\.1/.test(live), live);
+  const m = live.match(/^ALLOWED_ORIGINS\s*=\s*"([^"]*)"/m);
+  assert.ok(m, "ALLOWED_ORIGINS set");
+  assert.deepEqual(m[1].split(","), ["https://parliament-pulse.pages.dev", "https://pulse.prometheuspolicylab.com"]);
+  // Dev origins still exist, in the dev environment only.
+  assert.match(toml, /\[env\.dev\.vars\][\s\S]*ALLOWED_ORIGINS\s*=\s*"[^"]*localhost:5173/);
+});

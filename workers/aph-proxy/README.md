@@ -27,6 +27,23 @@ curl "http://127.0.0.1:8787/healthz"
 curl "http://127.0.0.1:8787/rss?u=https%3A%2F%2Fwww.aph.gov.au%2Fsenate%2Frss%2Fnew_inquiries"
 ```
 
+### Local development environment (`--env dev`)
+
+The `dev` script runs `wrangler dev --env dev`. Production `[vars]` in
+`wrangler.toml` allow exactly two origins, `https://parliament-pulse.pages.dev`
+and `https://pulse.prometheuspolicylab.com`. The localhost and 127.0.0.1
+origins (ports 5173 and 8080) live only in `[env.dev.vars]`, so a local
+frontend can call a local Worker:
+
+```bash
+npx wrangler dev --env dev
+```
+
+A plain `wrangler dev` (no `--env`) uses the production origins and rejects a
+localhost frontend at the browser CORS check. Never run
+`wrangler deploy --env dev`: it would publish a separate `aph-proxy-dev`
+Worker bound to the production KV namespace and D1 database.
+
 ## Deploy
 
 First time only:

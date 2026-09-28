@@ -24,8 +24,11 @@ import type {
 const ORIGIN = "d1:parliament-pulse-archive";
 const WORKER_VERSION = "0.15.0";
 
+// SEC-11: a degraded block names the failure class only. The thrown message
+// (which can carry SQL, table names or binding detail) is logged, never served.
 function degradedNote(err: unknown): string {
-  return err instanceof Error ? err.message : "unknown error";
+  console.warn({ event: "state.block_degraded", error: err instanceof Error ? err.message : String(err) });
+  return "query failed";
 }
 
 // Per-feed quotas (WK-04, DATA-05): every configured feed contributes up to
