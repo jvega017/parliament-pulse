@@ -16,6 +16,7 @@ const GATES = [
   "tests/honest-surfaces.test.mjs",
   "tests/unsourced-surfaces.test.mjs",
   "tests/freshness.test.mjs",
+  "tests/analytics-honesty.test.mjs",
 ];
 
 for (const g of GATES) {

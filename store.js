@@ -449,6 +449,75 @@ function useLiveBills() {
     isRefreshing: liveBills.isRefreshing
   };
 }
+const ATTENTION_DIMS_DEFAULT = ["authority", "recency", "novelty", "scrutiny"];
+const ATTENTION_DIM_LABELS = {
+  authority: "source authority",
+  recency: "recency",
+  novelty: "novelty",
+  scrutiny: "scrutiny keyword match",
+  momentum: "momentum"
+};
+function scoringDims(explanations) {
+  for (const e of explanations || []) {
+    const m = String(e || "").match(/Scored on ([a-z ,]+)\./i);
+    if (m) {
+      const dims = m[1].split(",").map((d) => d.trim().toLowerCase()).filter(Boolean);
+      if (dims.length) return dims;
+    }
+  }
+  return ATTENTION_DIMS_DEFAULT;
+}
+function attentionDisclosure(dims = ATTENTION_DIMS_DEFAULT) {
+  const words = dims.map((d) => ATTENTION_DIM_LABELS[d] || d);
+  const list = words.length > 1 ? `${words.slice(0, -1).join(", ")} and ${words[words.length - 1]}` : words.join("");
+  return `Attention is a transparent heuristic (${list}). It has not yet been validated against practitioner judgement.`;
+}
+const ATTENTION_WORDS = { high: "High", med: "Medium", low: "Low" };
+function attentionWord(level) {
+  return ATTENTION_WORDS[level] || null;
+}
+function confidenceLabel(n) {
+  return n == null || n === "" || Number.isNaN(Number(n)) ? "Confidence not scored" : `Confidence ${n} of 5`;
+}
+function uniformScore(rows, key) {
+  var _a;
+  if (!Array.isArray(rows) || rows.length < 2) return void 0;
+  const first = rows[0] ? (_a = rows[0][key]) != null ? _a : null : null;
+  return rows.every((r) => {
+    var _a2;
+    return ((_a2 = r && r[key]) != null ? _a2 : null) === first;
+  }) ? first : void 0;
+}
+function uniformScoreLine(n, kind, value) {
+  if (value == null) return `All ${n} items are currently unscored for ${kind}; the score does not yet separate them.`;
+  const level = kind === "confidence" ? confidenceLabel(value) : `${attentionWord(value) || value} attention`;
+  return `All ${n} items currently score ${level}; the score does not yet separate them.`;
+}
+function buildSearchResults(q, { signals, bills, committees, feeds, liveSignals }) {
+  const term = String(q || "").trim().toLowerCase();
+  if (!term) return null;
+  const has = (v) => (v || "").toLowerCase().includes(term);
+  const sigSource = signals || [];
+  const billSource = bills || [];
+  const commSource = committees || [];
+  const feedSource = feeds || [];
+  const sig = sigSource.filter((s) => has(s.title) || has(s.summary) || has(s.id));
+  const billHits = billSource.filter((b) => has(b.title));
+  const comm = commSource.filter((c) => [c.name, c.portfolio, c.chamber].some(has));
+  const feedHits = feedSource.filter((f) => has(f.name));
+  return {
+    sig,
+    bills: billHits,
+    comm,
+    feeds: feedHits,
+    labels: {
+      sig: liveSignals ? `Signals (latest ${sigSource.length} held)` : `Signals (${sigSource.length} held)`,
+      bills: bills ? `Bills (latest ${billSource.length} with a Bills Digest)` : "Bills (not loaded)",
+      comm: `Committees (${commSource.length} listed)`,
+      feeds: `Sources (${feedSource.length} listed feeds)`
+    }
+  };
+}
 function StoreProvider({ children, navigate = () => {
 } }) {
   const [state, setState] = React.useState(() => {
@@ -1053,20 +1122,8 @@ ${matchingSignals.map((s) => `- ${s.id}: ${s.title}`).join("\n") || "- No matchi
   } }, "Copy digest"), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: () => toast("Configuration saved locally") }, "Save config")));
 }
 function RadarDetail({ id, titleId, closeButtonRef }) {
-  const r = RADAR.find((x) => x.issue === id);
-  const { closeModal, toast } = useStore();
-  if (!r) return /* @__PURE__ */ React.createElement(ModalHead, { kicker: "Issue", title: "Not found", titleId, closeButtonRef });
-  return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(ModalHead, { kicker: "Attention radar issue", title: r.issue, representative: !!r.representative, titleId, closeButtonRef }), /* @__PURE__ */ React.createElement("div", { className: "modal-body" }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 12 } }, /* @__PURE__ */ React.createElement(Att, { level: r.att }), /* @__PURE__ */ React.createElement("span", { className: "tag" }, r.sources, " contributing sources")), /* @__PURE__ */ React.createElement("p", { style: { color: "var(--ink-2)", marginTop: 0 } }, r.reason), /* @__PURE__ */ React.createElement("h3", { className: "mono", style: { fontSize: 10, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: ".16em", marginTop: 18, marginBottom: 8 } }, "Momentum (7 days)"), /* @__PURE__ */ React.createElement("div", { className: "spark", style: { height: 40 } }, [3, 4, 5, 4, 6, 7, Math.round(r.momentum * 10)].map((v, i) => /* @__PURE__ */ React.createElement("span", { key: i, style: { height: v * 3 + 4 + "px" } }))), /* @__PURE__ */ React.createElement("h3", { className: "mono", style: { fontSize: 10, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: ".16em", marginTop: 18, marginBottom: 8 } }, "Suggested actions"), /* @__PURE__ */ React.createElement("ul", { style: { margin: 0, paddingLeft: 18, color: "var(--ink-2)" } }, /* @__PURE__ */ React.createElement("li", null, "Draft Executive Brief for Director, Digital Policy"), /* @__PURE__ */ React.createElement("li", null, "Monitor for Estimates references"), /* @__PURE__ */ React.createElement("li", null, "Coordinate with Procurement lead"))), /* @__PURE__ */ React.createElement("div", { className: "modal-foot" }, /* @__PURE__ */ React.createElement("button", { className: "btn primary", onClick: () => {
-    copyModalText(`# Issue brief
-Issue: ${r.issue}
-Portfolio: ${r.portfolio}
-Momentum: ${Math.round(r.momentum * 100)}
-
-Suggested actions:
-- Draft Executive Brief for Director, Digital Policy
-- Monitor for Estimates references
-- Coordinate with Procurement lead`, toast, "Issue brief copied");
-    closeModal();
-  } }, /* @__PURE__ */ React.createElement(Icon, { name: "brief", size: 13 }), " Draft issue brief")));
+  const r = RADAR.find((x) => x.group === id);
+  if (!r) return /* @__PURE__ */ React.createElement(ModalHead, { kicker: "Source group", title: "Not found", titleId, closeButtonRef });
+  return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(ModalHead, { kicker: "Activity by source", title: r.group, titleId, closeButtonRef }), /* @__PURE__ */ React.createElement("div", { className: "modal-body" }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 12 } }, /* @__PURE__ */ React.createElement(Att, { level: r.att }), /* @__PURE__ */ React.createElement("span", { className: "tag" }, r.count, " items from ", r.sources, " feed", r.sources !== 1 ? "s" : "")), /* @__PURE__ */ React.createElement("p", { style: { color: "var(--ink-2)", marginTop: 0 } }, attentionDisclosure())));
 }
-Object.assign(window, { StoreProvider, useStore, DetailModal, watchlistKeywords, watchlistMatches, useLiveState, useLiveBills, selectCounts, useCounts, COMMITTEE_STRIP_LABELS, liveStateDegradation, mapWorkerSignalToCard, mapLiveBlocks, fmtFetchedAt, mapLiveFreshness, freshnessView, useFreshness, pollIsStale, configuredFeedCount, useFeedCount, feedHealthState, signalDateFields, fmtDayMonYear, fmtPollStamp });
+Object.assign(window, { StoreProvider, useStore, DetailModal, watchlistKeywords, watchlistMatches, useLiveState, useLiveBills, selectCounts, useCounts, COMMITTEE_STRIP_LABELS, liveStateDegradation, mapWorkerSignalToCard, mapLiveBlocks, fmtFetchedAt, mapLiveFreshness, freshnessView, useFreshness, pollIsStale, configuredFeedCount, useFeedCount, feedHealthState, signalDateFields, fmtDayMonYear, fmtPollStamp, ATTENTION_DIMS_DEFAULT, scoringDims, attentionDisclosure, attentionWord, confidenceLabel, uniformScore, uniformScoreLine, buildSearchResults });

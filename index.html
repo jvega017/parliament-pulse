@@ -1046,6 +1046,7 @@
   /* ---------- Radar ---------- */
   .radar-row { display: grid; grid-template-columns: 1fr 80px 100px 1fr; gap: 14px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
   .radar-row:last-child { border-bottom: 0; }
+  .radar-mlabel { display: none; color: var(--ink-4); }
   .bar { height: 4px; background: var(--line-2); border-radius: 2px; overflow: hidden; }
   .bar .fill { height: 100%; background: var(--brass); }  /* priority/score metric — ember, not teal (teal is verification-only) */
   .spark { display: flex; gap: 2px; align-items: end; height: 22px; }
@@ -1252,6 +1253,10 @@
     .g-source-row, .g-live-main, .g-link-grid, .g-feed-form, .g-live-event,
     .g-qon-evidence, .g-briefings { grid-template-columns: 1fr !important; }
     .radar-row { grid-template-columns: 1fr !important; gap: 4px !important; }
+    /* FE-06: on phones the Activity-by-source header row hides and each value carries its own label. */
+    .radar-head { display: none !important; }
+    .radar-row .radar-num { text-align: left !important; }
+    .radar-mlabel { display: inline !important; }
     /* Mobile triage focus: lead with the priority hero + signals; defer secondary KPIs and the context rail. */
     .command-strip .cs-secondary { display: none; }
     .g-overview > div:last-child { display: none; }

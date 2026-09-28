@@ -45,7 +45,7 @@ const NAV = [
   { id: "overview", label: "Overview", group: "Today" },
   { id: "live", label: "Live parliament", group: "Today", live: true },
   { id: "signals", label: "Signal inbox", group: "Today" },
-  { id: "radar", label: "Attention radar", group: "Today" },
+  { id: "radar", label: "Activity by source", group: "Today" },
   { id: "committees", label: "Committees", group: "Workspace" },
   { id: "bills", label: "Bills intelligence", group: "Workspace" },
   { id: "parliament", label: "Daily program", group: "Workspace" },
@@ -81,7 +81,8 @@ function Sidebar({ page, onNavigate, mobileOpen }) {
       /* a dashboard has no unambiguous count; the hero KPI carries the priority number */
       live: null,
       signals: active ? active.length : null,
-      radar: active ? active.filter((s) => s.attention === "high" || s.attention === "med").length : null,
+      // The desk tallies live signals by source group, so its badge is the group count.
+      radar: active ? new Set(active.map((s) => s.sourceGroup || "Other")).size : null,
       committees: counts.committees,
       bills: counts.bills,
       parliament: counts.divisions,
@@ -225,17 +226,14 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
   }, []);
   const liveSignals = useLiveState("signals");
   const liveStale = liveSignals.liveStale && !noLiveCache;
-  const results = React.useMemo(() => {
-    if (!q.trim()) return null;
-    const term = q.toLowerCase();
-    const sigSource = liveSignals.items || SIGNALS;
-    const sig = sigSource.filter((s) => (s.title || "").toLowerCase().includes(term) || (s.summary || "").toLowerCase().includes(term) || (s.id || "").toLowerCase().includes(term));
-    const bills = Object.values(ENTITIES.bills).filter((b) => [b.title, b.ref, b.portfolio, b.stage].some((v) => (v || "").toLowerCase().includes(term)));
-    const comm = Object.values(ENTITIES.committees).filter((c) => [c.name, c.portfolio, c.chamber].some((v) => (v || "").toLowerCase().includes(term)));
-    const mem = Object.values(ENTITIES.members).filter((m) => [m.name, m.party, (m.roles || []).join(" ")].some((v) => (v || "").toLowerCase().includes(term)));
-    const feeds = APH_FEEDS.filter((f) => f.name.toLowerCase().includes(term));
-    return { sig, bills, comm, mem, feeds };
-  }, [q, liveSignals.items]);
+  const liveBills = useLiveBills();
+  const results = React.useMemo(() => buildSearchResults(q, {
+    signals: liveSignals.items || SIGNALS,
+    liveSignals: !!liveSignals.items,
+    bills: liveBills.items,
+    committees: Object.values(ENTITIES.committees),
+    feeds: APH_FEEDS
+  }), [q, liveSignals.items, liveBills.items]);
   const flat = React.useMemo(() => {
     if (!results) return [];
     return [
@@ -246,14 +244,11 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
         setSignalSearchQuery(q);
         navigate("signals");
       } }] : [],
-      ...results.bills.map((b) => ({ kind: "bill", key: b.ref, label: b.title, sub: b.ref, act: () => {
-        openModal("bill", b.ref);
+      ...results.bills.slice(0, 4).map((b) => ({ kind: "bill", key: b.guid, label: b.title, sub: "Bills Digest", act: () => {
+        navigate("bills");
       } })),
       ...results.comm.map((c) => ({ kind: "committee", key: c.id, label: c.name, sub: c.chamber, act: () => {
         openModal("committee", c.id);
-      } })),
-      ...results.mem.map((m) => ({ kind: "member", key: m.id, label: m.name, sub: m.party, act: () => {
-        openModal("member", m.id);
       } })),
       ...results.feeds.slice(0, 4).map((f) => ({ kind: "feed", key: f.id, label: f.name, sub: f.group, act: () => {
         openModal("feed", f.id);
@@ -295,9 +290,8 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
   const sigOff = 0;
   const sigFlatCount = results ? results.sig.slice(0, 4).length + (results.sig.length > 4 ? 1 : 0) : 0;
   const billOff = sigFlatCount;
-  const commOff = billOff + (results ? results.bills.length : 0);
-  const memOff = commOff + (results ? results.comm.length : 0);
-  const feedOff = memOff + (results ? results.mem.length : 0);
+  const commOff = billOff + (results ? results.bills.slice(0, 4).length : 0);
+  const feedOff = commOff + (results ? results.comm.length : 0);
   return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "topbar" }, /* @__PURE__ */ React.createElement(
     "button",
     {
@@ -333,12 +327,12 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
         },
         onBlur: () => setFocused(false),
         onKeyDown,
-        "aria-label": "Search parliament signals, bills, committees and members",
+        "aria-label": "Search parliament signals, bills, committees and feeds",
         "aria-expanded": open && !!results,
         "aria-autocomplete": "list",
         "aria-controls": "search-listbox",
         "aria-activedescendant": cursor >= 0 ? `search-option-${cursor}` : void 0,
-        placeholder: "Search signals, bills, committees, members, feeds\u2026"
+        placeholder: "Search signals, bills, committees, feeds\u2026"
       }
     ),
     q ? /* @__PURE__ */ React.createElement(
@@ -357,7 +351,7 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
       },
       /* @__PURE__ */ React.createElement(Icon, { name: "close", size: 12 })
     ) : /* @__PURE__ */ React.createElement("span", { className: "kbd" }, IS_MAC ? "\u2318K" : "Ctrl+K"),
-    open && results && /* @__PURE__ */ React.createElement("div", { id: "search-listbox", role: "listbox", className: "search-results" }, results.sig.length > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "sr-group" }, "Signals (", results.sig.length, ")"), results.sig.slice(0, 4).map((s, i) => /* @__PURE__ */ React.createElement(
+    open && results && /* @__PURE__ */ React.createElement("div", { id: "search-listbox", role: "listbox", className: "search-results" }, results.sig.length > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "sr-group", "data-sr-group": "signals" }, results.labels.sig, " \xB7 ", results.sig.length, " match", results.sig.length !== 1 ? "es" : ""), results.sig.slice(0, 4).map((s, i) => /* @__PURE__ */ React.createElement(
       "div",
       {
         key: s.id,
@@ -386,22 +380,26 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
       },
       /* @__PURE__ */ React.createElement("span", { className: "k" }, "All"),
       /* @__PURE__ */ React.createElement("span", null, "See all ", results.sig.length, " signals")
-    )), results.bills.length > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "sr-group" }, "Bills"), results.bills.map((b, i) => /* @__PURE__ */ React.createElement(
-      "div",
-      {
-        key: b.ref,
-        id: `search-option-${billOff + i}`,
-        role: "option",
-        "aria-selected": cursor === billOff + i,
-        className: "sr-item" + (cursor === billOff + i ? " active" : ""),
-        onMouseDown: (e) => {
-          e.preventDefault();
-          selectItem(flat[billOff + i]);
-        }
-      },
-      /* @__PURE__ */ React.createElement("span", { className: "k" }, b.ref),
-      /* @__PURE__ */ React.createElement("span", null, b.title)
-    ))), results.comm.length > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "sr-group" }, "Committees"), results.comm.map((c, i) => /* @__PURE__ */ React.createElement(
+    )), results.bills.length > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "sr-group", "data-sr-group": "bills" }, results.labels.bills, " \xB7 ", results.bills.length, " match", results.bills.length !== 1 ? "es" : ""), results.bills.slice(0, 4).map((b, i) => {
+      const link = safeHttpUrl(b.link);
+      return /* @__PURE__ */ React.createElement(
+        "div",
+        {
+          key: b.guid,
+          id: `search-option-${billOff + i}`,
+          role: "option",
+          "aria-selected": cursor === billOff + i,
+          className: "sr-item" + (cursor === billOff + i ? " active" : ""),
+          "data-sr-bill": "",
+          onMouseDown: (e) => {
+            e.preventDefault();
+            selectItem(flat[billOff + i]);
+          }
+        },
+        /* @__PURE__ */ React.createElement("span", { className: "k" }, "Bill"),
+        link ? /* @__PURE__ */ React.createElement("a", { href: link, target: "_blank", rel: "noopener noreferrer", onClick: (e) => e.stopPropagation(), style: { color: "inherit", textDecoration: "none" }, title: "Open the source at aph.gov.au" }, b.title) : /* @__PURE__ */ React.createElement("span", null, "Bills Digest item")
+      );
+    })), results.comm.length > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "sr-group", "data-sr-group": "committees" }, results.labels.comm, " \xB7 ", results.comm.length, " match", results.comm.length !== 1 ? "es" : ""), results.comm.map((c, i) => /* @__PURE__ */ React.createElement(
       "div",
       {
         key: c.id,
@@ -416,22 +414,7 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
       },
       /* @__PURE__ */ React.createElement("span", { className: "k" }, c.chamber),
       /* @__PURE__ */ React.createElement("span", null, c.name)
-    ))), results.mem.length > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "sr-group" }, "Members"), results.mem.map((m, i) => /* @__PURE__ */ React.createElement(
-      "div",
-      {
-        key: m.id,
-        id: `search-option-${memOff + i}`,
-        role: "option",
-        "aria-selected": cursor === memOff + i,
-        className: "sr-item" + (cursor === memOff + i ? " active" : ""),
-        onMouseDown: (e) => {
-          e.preventDefault();
-          selectItem(flat[memOff + i]);
-        }
-      },
-      /* @__PURE__ */ React.createElement("span", { className: "k" }, m.party),
-      /* @__PURE__ */ React.createElement("span", null, m.name)
-    ))), results.feeds.length > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "sr-group" }, "Sources (", results.feeds.length, ")"), results.feeds.slice(0, 4).map((f, i) => /* @__PURE__ */ React.createElement(
+    ))), results.feeds.length > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "sr-group", "data-sr-group": "sources" }, results.labels.feeds, " \xB7 ", results.feeds.length, " match", results.feeds.length !== 1 ? "es" : ""), results.feeds.slice(0, 4).map((f, i) => /* @__PURE__ */ React.createElement(
       "div",
       {
         key: f.id,
@@ -446,7 +429,7 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
       },
       /* @__PURE__ */ React.createElement("span", { className: "k" }, f.group),
       /* @__PURE__ */ React.createElement("span", null, f.name)
-    ))), q && !results.sig.length && !results.bills.length && !results.comm.length && !results.mem.length && !results.feeds.length && /* @__PURE__ */ React.createElement("div", { className: "sr-item", role: "option", "aria-selected": "false", style: { color: "var(--ink-4)", cursor: "default" } }, 'No matches for "', q, '"'))
+    ))), q && !results.sig.length && !results.bills.length && !results.comm.length && !results.feeds.length && /* @__PURE__ */ React.createElement("div", { className: "sr-item", role: "option", "aria-selected": "false", style: { color: "var(--ink-4)", cursor: "default" } }, 'No matches for "', q, '"'))
   ), /* @__PURE__ */ React.createElement("div", { className: "top-right" }, /* @__PURE__ */ React.createElement(TopClock, null), noLiveCache ? /* @__PURE__ */ React.createElement("span", { className: "chip warn", onClick: () => navigate("live"), title: "Live APH feeds did not respond. Each desk shows an honest empty state rather than invented data; open Live for feed health.", style: { borderColor: "color-mix(in srgb, var(--caution) 55%, transparent)", color: "var(--caution)", background: "transparent", cursor: "pointer" } }, /* @__PURE__ */ React.createElement("span", { className: "dot", style: { background: "var(--caution)", boxShadow: "none" } }), " LIVE DATA UNAVAILABLE") : pollStalled ? /* @__PURE__ */ React.createElement("span", { className: "chip warn", "data-live-chip": "stale", onClick: () => navigate("sources"), title: fresh.stallText, style: { borderColor: "color-mix(in srgb, var(--caution) 55%, transparent)", color: "var(--caution)", background: "transparent", cursor: "pointer" } }, /* @__PURE__ */ React.createElement("span", { className: "dot", style: { background: "var(--caution)", boxShadow: "none" } }), " Stale \xB7 polling stalled") : /* @__PURE__ */ React.createElement("span", { className: "chip clk", "data-live-chip": "live", onClick: () => navigate("live"), title: feedCount != null ? `${feedCount} official APH feeds polled by the Worker` : "Official APH feeds; live RSS polls on the Live page", style: { borderColor: "color-mix(in srgb, var(--gold) 55%, transparent)", color: "var(--gold)", background: "transparent" } }, /* @__PURE__ */ React.createElement("span", { className: "dot", style: { background: "var(--gold)", boxShadow: "none" } }), " Live beta", feedCount != null ? ` \xB7 ${feedCount} feeds` : ""), fresh.known && !noLiveCache && /* @__PURE__ */ React.createElement("span", { className: "mono top-poll", "data-poll-line": "", title: fresh.stallText || "When the Worker last polled the APH feeds", style: { fontSize: "var(--t-micro)", color: pollStalled ? "var(--caution)" : "var(--ink-3)", letterSpacing: ".04em", whiteSpace: "nowrap" } }, fresh.pollLine), /* @__PURE__ */ React.createElement("button", { className: "btn ghost sm", "aria-label": "Refresh live data", "aria-busy": isRefreshing, title: live.fetchedAt ? `Live data fetched ${dataAge} ago. Refresh now.` : "Refresh live data", onClick: handleLiveRefresh }, /* @__PURE__ */ React.createElement(Icon, { name: "refresh", size: 14, style: isRefreshing ? { animation: "spin 800ms linear infinite" } : void 0 }), /* @__PURE__ */ React.createElement("span", { className: "mono", style: { fontSize: "var(--t-micro)", color: "var(--ink-4)", letterSpacing: ".04em", marginLeft: 6, fontVariantNumeric: "tabular-nums" } }, dataAge)), /* @__PURE__ */ React.createElement("button", { className: "btn ghost sm", title: "Show current priority count", "aria-label": "Alerts", onClick: () => {
     const source = liveSignals.items || SIGNALS;
     const count = source.filter((s) => s.attention === "high").length;
@@ -485,29 +468,20 @@ function ProvenanceChip({ provenance, title }) {
   const cls = "chip-fixture" + (key === "live" ? " chip-live" : key === "derived" ? " chip-derived" : "");
   return /* @__PURE__ */ React.createElement("span", { className: cls, title }, LABELS[key]);
 }
-function Att({ level }) {
+function Att({ level, disclosure }) {
   const map = { high: "High", med: "Medium", low: "Low" };
-  if (!map[level]) return /* @__PURE__ */ React.createElement("span", { className: "att", title: "Attention not scored" }, "\u2014");
-  return /* @__PURE__ */ React.createElement("span", { className: "att " + level }, map[level]);
+  const tip = disclosure || attentionDisclosure();
+  if (!map[level]) return /* @__PURE__ */ React.createElement("span", { className: "att", title: `Attention not scored. ${tip}` }, "\u2014");
+  return /* @__PURE__ */ React.createElement("span", { className: "att " + level, title: tip, "data-att-disclosure": "" }, map[level]);
 }
-function Conf({ n = 3 }) {
-  const ramp = ["var(--brass)", "var(--brass)", "var(--brass-2)", "var(--gold)", "var(--gold)"];
-  return /* @__PURE__ */ React.createElement("span", { className: "conf", title: `Confidence ${n}/5` }, [1, 2, 3, 4, 5].map((i) => /* @__PURE__ */ React.createElement(
-    "span",
-    {
-      key: i,
-      className: i <= n ? "on" : "",
-      style: i <= n ? { background: ramp[i - 1] } : void 0
-    }
-  )));
+function Conf({ n }) {
+  return /* @__PURE__ */ React.createElement("span", { className: "conf-text mono", "data-conf": "", style: { fontSize: 11.5, color: "var(--ink-3)", whiteSpace: "nowrap" } }, confidenceLabel(n));
 }
 function buildBriefSections(s, isLive = false) {
-  var _a;
   const evidence = (s.evidence || []).map((e) => ({ label: e.label, url: e.url }));
-  const confidenceLabel = isLive ? "Confidence score" : "Representative confidence score";
   const provParts = [
     `Signal ID: ${s.id}`,
-    `${confidenceLabel}: ${(_a = s.confidence) != null ? _a : "\u2014"}/5`
+    isLive ? confidenceLabel(s.confidence) : `Representative ${confidenceLabel(s.confidence).toLowerCase()}`
   ];
   if (s.humanReview) provParts.push(`Review status: ${s.humanReview}`);
   if (!isLive) provParts.push("Example workflow trace; not a production processing log.");
@@ -529,22 +503,21 @@ function buildBriefSections(s, isLive = false) {
     },
     summary: s.summary,
     whyItMatters: s.attentionReason,
-    recommendedAction: {
-      label: s.action,
-      reason: s.actionReason
-    },
+    // UX-03: no recommended action exists for a live item (action is ""), so the
+    // brief carries none rather than an empty heading.
+    recommendedAction: s.action ? { label: s.action, reason: s.actionReason || "" } : null,
     evidence,
     provenance: provParts.join(" | ")
   };
 }
-function SignalCard({ s }) {
+function SignalCard({ s, hideAtt = false, hideConf = false }) {
   const { openSignal, state, isWatched } = useStore();
   const archived = !!state.archived[s.id];
   const feedback = state.feedback[s.id];
   const watched = isWatched(s.id);
-  return /* @__PURE__ */ React.createElement(SignalCardView, { s, archived, feedback, watched, openSignal });
+  return /* @__PURE__ */ React.createElement(SignalCardView, { s, archived, feedback, watched, openSignal, hideAtt, hideConf });
 }
-const SignalCardView = React.memo(function SignalCardView2({ s, archived, feedback, watched, openSignal }) {
+const SignalCardView = React.memo(function SignalCardView2({ s, archived, feedback, watched, openSignal, hideAtt, hideConf }) {
   var _a;
   if (archived) return null;
   return /* @__PURE__ */ React.createElement("div", { className: "signal", "data-att": s.attention, onClick: () => openSignal(s.id), role: "button", tabIndex: 0, "aria-label": "Open signal detail", onKeyDown: (e) => {
@@ -552,7 +525,7 @@ const SignalCardView = React.memo(function SignalCardView2({ s, archived, feedba
       e.preventDefault();
       openSignal(s.id);
     }
-  } }, /* @__PURE__ */ React.createElement("div", { className: "sig-head" }, /* @__PURE__ */ React.createElement("span", { className: "sig-id mono" }, s.isLive || /^https?:/.test(s.id) ? "APH" : s.id), /* @__PURE__ */ React.createElement("span", { className: "sig-source mono" }, "\xB7 ", s.source), /* @__PURE__ */ React.createElement(Att, { level: s.attention }), watched && /* @__PURE__ */ React.createElement("span", { className: "tag brass" }, "Watching"), /* @__PURE__ */ React.createElement("span", { className: "sig-time mono", "data-sig-when": "" }, (_a = s.when) != null ? _a : s.time)), /* @__PURE__ */ React.createElement("div", { className: "sig-title serif" }, s.link ? /* @__PURE__ */ React.createElement("a", { href: s.link, target: "_blank", rel: "noopener noreferrer", onClick: (e) => e.stopPropagation(), style: { color: "inherit", textDecoration: "none" }, title: "Open the source at aph.gov.au" }, s.title, " ", /* @__PURE__ */ React.createElement(Icon, { name: "ext", size: 12, style: { verticalAlign: "-1px", opacity: 0.6 } })) : s.isLive ? s.source : s.title), /* @__PURE__ */ React.createElement("div", { className: "sig-sum" }, s.summary.length > 120 ? s.summary.slice(0, 120).replace(/\s\S+$/, "") + "\u2026" : s.summary), /* @__PURE__ */ React.createElement("div", { className: "sig-tags" }, s.tags.map((t, i) => /* @__PURE__ */ React.createElement("span", { key: i, className: "tag " + (t.c || "") }, t.l))), /* @__PURE__ */ React.createElement("div", { className: "sig-action" }, s.action ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("span", { className: "sig-action-label" }, "Recommended"), /* @__PURE__ */ React.createElement("span", { className: "sig-action-value" }, s.action)) : /* @__PURE__ */ React.createElement("span", { className: "sig-action-label" }, "Open to triage"), /* @__PURE__ */ React.createElement("span", { className: "mono", title: "Analyst confidence", style: { fontSize: "var(--t-micro)", color: "var(--ink-4)", letterSpacing: ".04em", whiteSpace: "nowrap" } }, s.confidence == null ? "\u2014" : s.confidence + "/5")), feedback && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 8, fontSize: 11.5, color: "var(--brass)" } }, /* @__PURE__ */ React.createElement(Icon, { name: "check", size: 12, style: { verticalAlign: "-2px", marginRight: 4 } }), " Feedback: ", feedback.label), watched && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 8, fontSize: 11.5, color: "var(--brass)" } }, /* @__PURE__ */ React.createElement(Icon, { name: "watch", size: 12, style: { verticalAlign: "-2px", marginRight: 4 } }), " On watchlist"));
+  } }, /* @__PURE__ */ React.createElement("div", { className: "sig-head" }, /* @__PURE__ */ React.createElement("span", { className: "sig-id mono" }, s.isLive || /^https?:/.test(s.id) ? "APH" : s.id), /* @__PURE__ */ React.createElement("span", { className: "sig-source mono" }, "\xB7 ", s.source), !hideAtt && /* @__PURE__ */ React.createElement(Att, { level: s.attention }), watched && /* @__PURE__ */ React.createElement("span", { className: "tag brass" }, "Watching"), /* @__PURE__ */ React.createElement("span", { className: "sig-time mono", "data-sig-when": "" }, (_a = s.when) != null ? _a : s.time)), /* @__PURE__ */ React.createElement("div", { className: "sig-title serif" }, s.link ? /* @__PURE__ */ React.createElement("a", { href: s.link, target: "_blank", rel: "noopener noreferrer", onClick: (e) => e.stopPropagation(), style: { color: "inherit", textDecoration: "none" }, title: "Open the source at aph.gov.au" }, s.title, " ", /* @__PURE__ */ React.createElement(Icon, { name: "ext", size: 12, style: { verticalAlign: "-1px", opacity: 0.6 } })) : s.isLive ? s.source : s.title), /* @__PURE__ */ React.createElement("div", { className: "sig-sum" }, s.summary.length > 120 ? s.summary.slice(0, 120).replace(/\s\S+$/, "") + "\u2026" : s.summary), /* @__PURE__ */ React.createElement("div", { className: "sig-tags" }, s.tags.map((t, i) => /* @__PURE__ */ React.createElement("span", { key: i, className: "tag " + (t.c || "") }, t.l))), /* @__PURE__ */ React.createElement("div", { className: "sig-action" }, s.action ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("span", { className: "sig-action-label" }, "Recommended"), /* @__PURE__ */ React.createElement("span", { className: "sig-action-value" }, s.action)) : /* @__PURE__ */ React.createElement("span", { className: "sig-action-label" }, "Open to triage"), !hideConf && /* @__PURE__ */ React.createElement("span", { className: "mono", "data-conf": "", style: { fontSize: "var(--t-micro)", color: "var(--ink-4)", letterSpacing: ".04em", whiteSpace: "nowrap" } }, confidenceLabel(s.confidence))), feedback && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 8, fontSize: 11.5, color: "var(--brass)" } }, /* @__PURE__ */ React.createElement(Icon, { name: "check", size: 12, style: { verticalAlign: "-2px", marginRight: 4 } }), " Feedback: ", feedback.label), watched && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 8, fontSize: 11.5, color: "var(--brass)" } }, /* @__PURE__ */ React.createElement(Icon, { name: "watch", size: 12, style: { verticalAlign: "-2px", marginRight: 4 } }), " On watchlist"));
 });
 function generateBriefMarkdown(s, isLive = false) {
   const brief = buildBriefSections(s, isLive);
@@ -570,10 +543,12 @@ function generateBriefMarkdown(s, isLive = false) {
     `## Why it matters`,
     brief.whyItMatters,
     ``,
-    `## Recommended action`,
-    `**${brief.recommendedAction.label}**`,
-    brief.recommendedAction.reason,
-    ``,
+    ...brief.recommendedAction ? [
+      `## Recommended action`,
+      `**${brief.recommendedAction.label}**`,
+      brief.recommendedAction.reason,
+      ``
+    ] : [],
     `## Evidence`,
     evidence || "_No evidence links recorded._",
     ``,
@@ -586,7 +561,7 @@ function generateBriefMarkdown(s, isLive = false) {
   ].join("\n");
 }
 function Drawer() {
-  var _a, _b;
+  var _a;
   const { signalId, openSignal, closeSignal, state, modal, openModal, saveFeedback, archive, addWatchlist, isWatched, saveNote, generateBrief, toast, visibleSignalOrder, navigate } = useStore();
   const liveSignals = useLiveState("signals");
   const fixtureSignal = React.useMemo(() => SIGNALS.find((s2) => s2.id === signalId), [signalId]);
@@ -741,10 +716,10 @@ function Drawer() {
       provenance: itemProvenance,
       title: isLive ? "This item is from the Worker's live /state endpoint (D1 archive)" : "This item has no live source"
     }
-  )), /* @__PURE__ */ React.createElement("h2", { className: "h-drawer", style: { margin: "4px 0 0", maxWidth: 460 } }, isLive ? s.link ? /* @__PURE__ */ React.createElement("a", { href: s.link, target: "_blank", rel: "noopener noreferrer", style: { color: "inherit" }, title: "Open the source at aph.gov.au" }, s.title, " ", /* @__PURE__ */ React.createElement(Icon, { name: "ext", size: 13, style: { verticalAlign: "-1px", opacity: 0.6 } })) : s.source : s.title)), /* @__PURE__ */ React.createElement("div", { style: { marginLeft: "auto", display: "flex", alignItems: "center", gap: 12, flexShrink: 0 } }, sigPos !== -1 && /* @__PURE__ */ React.createElement("span", { className: "mono", style: { fontSize: "var(--t-micro)", color: "var(--ink-4)", textAlign: "right", lineHeight: 1.3 } }, /* @__PURE__ */ React.createElement("span", { style: { display: "block" } }, sigPos + 1, " / ", visibleSigs.length), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "var(--t-label)", letterSpacing: ".1em", opacity: 0.7 } }, "SIGNAL")), /* @__PURE__ */ React.createElement("button", { ref: closeButtonRef, className: "btn ghost sm", "aria-label": "Close signal detail", onClick: closeWithFlush }, /* @__PURE__ */ React.createElement(Icon, { name: "close", size: 14 })))), /* @__PURE__ */ React.createElement("div", { className: "drawer-body", ref: drawerBodyRef }, /* @__PURE__ */ React.createElement("div", { className: "drawer-section" }, /* @__PURE__ */ React.createElement("h3", null, "Recommended action"), /* @__PURE__ */ React.createElement("div", { style: { padding: "10px 14px", borderLeft: "3px solid var(--brass)", borderRadius: "0 6px 6px 0", background: "var(--panel-2)" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 600, color: "var(--ink)" } }, s.action || "\u2014"), /* @__PURE__ */ React.createElement("div", { style: { color: "var(--ink-2)", fontSize: 13, marginTop: 4 } }, s.actionReason || "\u2014"))), isLive && s.summary && s.summary === s.attentionReason ? /* @__PURE__ */ React.createElement("div", { className: "drawer-section" }, /* @__PURE__ */ React.createElement("h3", null, "Scoring explanation"), /* @__PURE__ */ React.createElement("p", null, s.summary || "\u2014")) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "drawer-section" }, /* @__PURE__ */ React.createElement("h3", null, "Summary"), /* @__PURE__ */ React.createElement("p", null, s.summary || "\u2014")), /* @__PURE__ */ React.createElement("div", { className: "drawer-section" }, /* @__PURE__ */ React.createElement("h3", null, "Why it matters"), /* @__PURE__ */ React.createElement("p", null, s.attentionReason || "\u2014"))), /* @__PURE__ */ React.createElement("div", { className: "drawer-section" }, /* @__PURE__ */ React.createElement("h3", null, "Signal metadata"), /* @__PURE__ */ React.createElement("dl", { className: "kv" }, /* @__PURE__ */ React.createElement("dt", null, "Source"), /* @__PURE__ */ React.createElement("dd", null, s.source || "\u2014"), /* @__PURE__ */ React.createElement("dt", null, "Source group"), /* @__PURE__ */ React.createElement("dd", null, s.sourceGroup || "\u2014"), /* @__PURE__ */ React.createElement("dt", null, "Authority"), /* @__PURE__ */ React.createElement("dd", null, s.sourceAuthority || "\u2014"), /* @__PURE__ */ React.createElement("dt", null, "Attention"), /* @__PURE__ */ React.createElement("dd", null, /* @__PURE__ */ React.createElement(Att, { level: s.attention })), /* @__PURE__ */ React.createElement("dt", null, "Confidence"), /* @__PURE__ */ React.createElement("dd", null, /* @__PURE__ */ React.createElement(Conf, { n: s.confidence }), " ", /* @__PURE__ */ React.createElement("span", { style: { color: "var(--ink-3)", marginLeft: 8, fontFamily: "var(--mono)", fontSize: 11 } }, isLive ? "Confidence score" : "Representative confidence score", ": ", (_a = s.confidence) != null ? _a : "\u2014", "/5")), /* @__PURE__ */ React.createElement("dt", null, "Human review"), /* @__PURE__ */ React.createElement("dd", null, s.humanReview ? `Review status: ${s.humanReview === "Required" ? "Not reviewed \xB7 policy officer must verify source links before use" : "Optional for internal triage; required before external distribution"}` : "\u2014"))), SITE_CONFIG.showUnsourcedSurfaces && !isLive && s.score && /* @__PURE__ */ React.createElement("div", { className: "drawer-section" }, /* @__PURE__ */ React.createElement("h3", null, "Attention score breakdown ", /* @__PURE__ */ React.createElement("span", { className: "chip-fixture", style: { verticalAlign: "middle", marginLeft: 6 } }, "Sample data")), /* @__PURE__ */ React.createElement("div", { style: { color: "var(--ink-4)", fontSize: 12, marginBottom: 6 } }, "Illustrative five-factor breakdown for an example signal, not a computed score."), Object.entries(s.score).map(([k, v]) => {
+  )), /* @__PURE__ */ React.createElement("h2", { className: "h-drawer", style: { margin: "4px 0 0", maxWidth: 460 } }, isLive ? s.link ? /* @__PURE__ */ React.createElement("a", { href: s.link, target: "_blank", rel: "noopener noreferrer", style: { color: "inherit" }, title: "Open the source at aph.gov.au" }, s.title, " ", /* @__PURE__ */ React.createElement(Icon, { name: "ext", size: 13, style: { verticalAlign: "-1px", opacity: 0.6 } })) : s.source : s.title)), /* @__PURE__ */ React.createElement("div", { style: { marginLeft: "auto", display: "flex", alignItems: "center", gap: 12, flexShrink: 0 } }, sigPos !== -1 && /* @__PURE__ */ React.createElement("span", { className: "mono", style: { fontSize: "var(--t-micro)", color: "var(--ink-4)", textAlign: "right", lineHeight: 1.3 } }, /* @__PURE__ */ React.createElement("span", { style: { display: "block" } }, sigPos + 1, " / ", visibleSigs.length), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "var(--t-label)", letterSpacing: ".1em", opacity: 0.7 } }, "SIGNAL")), /* @__PURE__ */ React.createElement("button", { ref: closeButtonRef, className: "btn ghost sm", "aria-label": "Close signal detail", onClick: closeWithFlush }, /* @__PURE__ */ React.createElement(Icon, { name: "close", size: 14 })))), /* @__PURE__ */ React.createElement("div", { className: "drawer-body", ref: drawerBodyRef }, s.action && /* @__PURE__ */ React.createElement("div", { className: "drawer-section" }, /* @__PURE__ */ React.createElement("h3", null, "Recommended action"), /* @__PURE__ */ React.createElement("div", { style: { padding: "10px 14px", borderLeft: "3px solid var(--brass)", borderRadius: "0 6px 6px 0", background: "var(--panel-2)" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 600, color: "var(--ink)" } }, s.action), s.actionReason && /* @__PURE__ */ React.createElement("div", { style: { color: "var(--ink-2)", fontSize: 13, marginTop: 4 } }, s.actionReason))), isLive && s.summary && s.summary === s.attentionReason ? /* @__PURE__ */ React.createElement("div", { className: "drawer-section" }, /* @__PURE__ */ React.createElement("h3", null, "Scoring explanation"), /* @__PURE__ */ React.createElement("p", null, s.summary || "\u2014")) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "drawer-section" }, /* @__PURE__ */ React.createElement("h3", null, "Summary"), /* @__PURE__ */ React.createElement("p", null, s.summary || "\u2014")), /* @__PURE__ */ React.createElement("div", { className: "drawer-section" }, /* @__PURE__ */ React.createElement("h3", null, "Why it matters"), /* @__PURE__ */ React.createElement("p", null, s.attentionReason || "\u2014"))), /* @__PURE__ */ React.createElement("div", { className: "drawer-section" }, /* @__PURE__ */ React.createElement("h3", null, "Signal metadata"), /* @__PURE__ */ React.createElement("dl", { className: "kv" }, /* @__PURE__ */ React.createElement("dt", null, "Source"), /* @__PURE__ */ React.createElement("dd", null, s.source || "\u2014"), /* @__PURE__ */ React.createElement("dt", null, "Source group"), /* @__PURE__ */ React.createElement("dd", null, s.sourceGroup || "\u2014"), /* @__PURE__ */ React.createElement("dt", null, "Authority"), /* @__PURE__ */ React.createElement("dd", null, s.sourceAuthority || "\u2014"), /* @__PURE__ */ React.createElement("dt", null, "Attention"), /* @__PURE__ */ React.createElement("dd", null, /* @__PURE__ */ React.createElement(Att, { level: s.attention })), /* @__PURE__ */ React.createElement("dt", null, "Confidence"), /* @__PURE__ */ React.createElement("dd", null, /* @__PURE__ */ React.createElement(Conf, { n: s.confidence }), !isLive && /* @__PURE__ */ React.createElement("span", { style: { color: "var(--ink-3)", marginLeft: 8, fontFamily: "var(--mono)", fontSize: 11 } }, "Representative")), /* @__PURE__ */ React.createElement("dt", null, "Human review"), /* @__PURE__ */ React.createElement("dd", null, s.humanReview ? `Review status: ${s.humanReview === "Required" ? "Not reviewed \xB7 policy officer must verify source links before use" : "Optional for internal triage; required before external distribution"}` : "\u2014"))), SITE_CONFIG.showUnsourcedSurfaces && !isLive && s.score && /* @__PURE__ */ React.createElement("div", { className: "drawer-section" }, /* @__PURE__ */ React.createElement("h3", null, "Attention score breakdown ", /* @__PURE__ */ React.createElement("span", { className: "chip-fixture", style: { verticalAlign: "middle", marginLeft: 6 } }, "Sample data")), /* @__PURE__ */ React.createElement("div", { style: { color: "var(--ink-4)", fontSize: 12, marginBottom: 6 } }, "Illustrative five-factor breakdown for an example signal, not a computed score."), Object.entries(s.score).map(([k, v]) => {
     const lab = { authority: "Source authority", portfolio: "Portfolio relevance", novelty: "Novelty", momentum: "Momentum", time: "Time sensitivity", scrutiny: "Scrutiny relevance", ops: "Operational impact" };
     return /* @__PURE__ */ React.createElement("div", { key: k, style: { display: "grid", gridTemplateColumns: "160px 1fr 40px", gap: 10, alignItems: "center", padding: "4px 0" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12.5, color: "var(--ink-2)" } }, lab[k]), /* @__PURE__ */ React.createElement("div", { className: "bar" }, /* @__PURE__ */ React.createElement("div", { className: "fill", style: { width: `${v * 100}%` } })), /* @__PURE__ */ React.createElement("div", { className: "mono", style: { fontSize: 11, color: "var(--ink-3)", textAlign: "right" } }, Math.round(v * 100)));
-  })), /* @__PURE__ */ React.createElement("div", { className: "drawer-section" }, /* @__PURE__ */ React.createElement("h3", null, "Evidence \xB7 open the actual source"), ((_b = s.evidence) == null ? void 0 : _b.length) > 0 ? s.evidence.map((e, i) => /* @__PURE__ */ React.createElement("a", { key: i, href: e.url, target: "_blank", rel: "noopener noreferrer", style: {
+  })), /* @__PURE__ */ React.createElement("div", { className: "drawer-section" }, /* @__PURE__ */ React.createElement("h3", null, "Evidence \xB7 open the actual source"), ((_a = s.evidence) == null ? void 0 : _a.length) > 0 ? s.evidence.map((e, i) => /* @__PURE__ */ React.createElement("a", { key: i, href: e.url, target: "_blank", rel: "noopener noreferrer", style: {
     display: "flex",
     alignItems: "center",
     gap: 10,
@@ -756,8 +731,8 @@ function Drawer() {
     marginBottom: 6,
     fontSize: 13
   } }, /* @__PURE__ */ React.createElement(Icon, { name: "link", size: 14, stroke: "var(--teal)" }), /* @__PURE__ */ React.createElement("span", null, e.label), /* @__PURE__ */ React.createElement("span", { className: "mono", style: { color: "var(--ink-4)", fontSize: 11, marginLeft: "auto", maxWidth: 240, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, e.url.replace(/^https?:\/\//, "")), /* @__PURE__ */ React.createElement(Icon, { name: "ext", size: 12, stroke: "var(--ink-3)" }))) : /* @__PURE__ */ React.createElement("div", { style: { color: "var(--ink-4)", fontSize: 13 } }, "\u2014 No source link recorded for this item.")), SITE_CONFIG.showUnsourcedSurfaces && /* @__PURE__ */ React.createElement("div", { className: "drawer-section" }, /* @__PURE__ */ React.createElement("h3", null, "Processing log"), s.provenance && s.provenance.length > 0 ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "chip-fixture", style: { marginBottom: 8 } }, "Illustrative example only, not a production audit log \xB7 target workflow shown, not a record of what happened to this item"), /* @__PURE__ */ React.createElement("div", { style: { border: "1px solid var(--line-2)", borderRadius: 8, overflow: "hidden" } }, s.provenance.map((p, i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { display: "grid", gridTemplateColumns: "78px 90px 1fr", gap: 10, padding: "8px 12px", fontSize: 12, borderBottom: i < s.provenance.length - 1 ? "1px solid var(--line)" : 0, background: i % 2 ? "var(--panel-hi)" : "transparent" } }, /* @__PURE__ */ React.createElement("div", { className: "mono", style: { color: "var(--ink-4)", fontSize: "var(--t-micro)" } }, p.ts), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("span", { className: "tag", style: { fontSize: "var(--t-micro)", padding: "1px 6px" } }, p.by)), /* @__PURE__ */ React.createElement("div", { style: { color: "var(--ink-2)" } }, p.event))))) : /* @__PURE__ */ React.createElement(EmptyState, { icon: "signal", kicker: "No processing log held" }, "Parliament Pulse does not record a per-signal processing log for this item. This section shows one only for illustrative example signals.")), s.updates && s.updates.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "drawer-section" }, /* @__PURE__ */ React.createElement("h3", null, "Updates to this signal \xB7 who / what / when"), s.updates.map((u, i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { display: "grid", gridTemplateColumns: "60px 140px 1fr", gap: 10, padding: "8px 0", borderBottom: i < s.updates.length - 1 ? "1px solid var(--line)" : 0, fontSize: 12.5 } }, /* @__PURE__ */ React.createElement("div", { className: "mono", style: { color: "var(--ink-4)", fontSize: 11 } }, u.ts), /* @__PURE__ */ React.createElement("div", { style: { color: "var(--brass)" } }, u.who), /* @__PURE__ */ React.createElement("div", { style: { color: "var(--ink-2)" } }, u.what)))), s.members && s.members.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "drawer-section" }, /* @__PURE__ */ React.createElement("h3", null, "People referenced"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 6 } }, s.members.map((mid) => {
-    var _a2, _b2;
-    const m = (_b2 = (_a2 = window.ENTITIES) == null ? void 0 : _a2.members) == null ? void 0 : _b2[mid];
+    var _a2, _b;
+    const m = (_b = (_a2 = window.ENTITIES) == null ? void 0 : _a2.members) == null ? void 0 : _b[mid];
     if (!m) return null;
     return /* @__PURE__ */ React.createElement("span", { key: mid, className: "tag brass clk", onClick: () => openModal("member", mid) }, m.name);
   }))), /* @__PURE__ */ React.createElement("div", { className: "drawer-section" }, /* @__PURE__ */ React.createElement("h3", null, "Analyst note ", noteSaved && /* @__PURE__ */ React.createElement("span", { className: "mono", style: { fontSize: "var(--t-micro)", color: "var(--brass)", marginLeft: 8 } }, "Saved")), /* @__PURE__ */ React.createElement(

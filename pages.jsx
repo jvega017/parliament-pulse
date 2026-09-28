@@ -436,15 +436,15 @@ function PageOverview() {
       const brief = buildBriefSections(s, !!s.isLive);
       return [
         `### ${brief.meta.id} - ${briefTitleMd(brief)}`,
-        `Source: ${brief.meta.source} | Confidence: ${brief.meta.confidence ?? "—"}/5`,
+        `Source: ${brief.meta.source} | ${confidenceLabel(brief.meta.confidence)}`,
         brief.summary,
-        `**Action:** ${brief.recommendedAction.label}. ${brief.recommendedAction.reason}`,
+        ...(brief.recommendedAction ? [`**Action:** ${brief.recommendedAction.label}. ${brief.recommendedAction.reason}`] : []),
         ``,
       ].join("\n");
     });
     const restSections = rest.length === 0 ? ["None."] : rest.map(s => {
       const brief = buildBriefSections(s, !!s.isLive);
-      return `- [${brief.meta.id}] ${briefTitleMd(brief)} - ${brief.recommendedAction.label}`;
+      return `- [${brief.meta.id}] ${briefTitleMd(brief)}${brief.recommendedAction ? ` - ${brief.recommendedAction.label}` : ""}`;
     });
     const lines = [
       `# Parliamentary Daily Signal Brief — ${today}`,
@@ -746,6 +746,7 @@ function PageAbout() {
   const { navigate, toast } = useStore();
   const goto = navigate;
   const counts = useCounts();
+  const liveSignals = useLiveState("signals");
   const copyActivationPlan = () => {
     const table = coverageRows(counts).map(row => `| ${row.module} | ${row.state} | ${row.evidence} | ${row.activation} |`).join("\n");
     const plan = [
@@ -780,6 +781,15 @@ function PageAbout() {
         grouping and watchlist matching are Parliament Pulse's own analysis over those live items.
         No sample content is shown anywhere: a desk with nothing to show says so and links to the
         official source. This page is the honest account of that split.
+      </p>
+
+      {/* PR-11: the About paragraph behind the tooltip on every attention value. */}
+      <p data-att-about="" style={{color:"var(--ink-2)", fontSize:13.5, lineHeight:1.6, maxWidth:760, marginBottom:"var(--gap-section)"}}>
+        <strong>How attention and confidence are scored.</strong> {attentionDisclosure(scoringDims((liveSignals.items || []).map(s => s.attentionReason)))} Confidence
+        is shown as "Confidence n of 5" and reflects the kind of source only: inquiry, report and hearing
+        items score 3, Bills Digests and divisions score 2, and everything else scores 1. When every item on a
+        desk shares one attention or confidence value, the desk says so in one line instead of repeating a
+        value that separates nothing.
       </p>
 
       <BetaReadinessPanel navigate={goto} />
@@ -1807,9 +1817,17 @@ function PageBills() {
     catch { return "—"; }
   };
 
+  // UX-03: a column in which every bill shares one value separates nothing, so it
+  // collapses to a single line that says so.
+  const attAll = uniformScore(bills, "attention");
+  const confAll = uniformScore(bills, "confidence");
+  const showAtt = attAll === undefined;
+  const showConf = confAll === undefined;
+  const disclosure = attentionDisclosure(scoringDims((bills || []).map(b => b.scoring_explanation)));
+
   const exportBills = () => {
     const headers = ["title", "published", "attention", "confidence", "link"];
-    const rows = (bills || []).map(b => [b.title, b.pub_date || "", b.attention ?? "—", b.confidence ?? "—", b.link || ""]);
+    const rows = (bills || []).map(b => [b.title, b.pub_date || "", attentionWord(b.attention) || "not scored", confidenceLabel(b.confidence), b.link || ""]);
     exportRowsCSV(headers, rows, `parliament-pulse-bills-${new Date().toISOString().slice(0,10)}.csv`);
   };
 
@@ -1819,7 +1837,7 @@ function PageBills() {
         <div>
           <div className="page-kicker">Parliament · Bills Intelligence</div>
           <h1 className="page-title">Bills intelligence</h1>
-          <div className="page-sub">Live from the Worker's /bills endpoint. Each title links to its official ParlInfo record; attention and confidence are Parliament Pulse's own scoring.</div>
+          <div className="page-sub" data-bills-scope="">Lists bills that have a Bills Digest in the Parliamentary Library feed, not every bill before Parliament. Each title links to its ParlInfo record; attention and confidence are Parliament Pulse's own scoring. For every bill, <a href="https://www.aph.gov.au/Parliamentary_Business/Bills_Legislation/Bills_Search_Results" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>search bills on aph.gov.au</a>.</div>
         </div>
         <div style={{display:"flex", gap:10, alignItems:"center"}}>
           {bills && <ProvenanceChip provenance="live" title="Rows from the Worker's /bills endpoint" />}
@@ -1845,10 +1863,17 @@ function PageBills() {
             </EmptyState>
           </div>
         ) : (
+          <>
+          {(!showAtt || !showConf) && (
+            <div className="panel-body score-uniform" style={{fontSize:12.5, color:"var(--ink-3)", paddingBottom:0}}>
+              {!showAtt && <div data-uniform="attention">{uniformScoreLine(bills.length, "attention", attAll)}</div>}
+              {!showConf && <div data-uniform="confidence">{uniformScoreLine(bills.length, "confidence", confAll)}</div>}
+            </div>
+          )}
           <div className="table-scroll">
           <table className="ds">
             <thead><tr>
-              <th>Title</th><th>Published</th><th>Attention</th><th>Confidence</th>
+              <th>Title</th><th>Published</th>{showAtt && <th data-col="attention" title={disclosure}>Attention</th>}{showConf && <th data-col="confidence">Confidence</th>}
             </tr></thead>
             <tbody>
               {bills.map(b => {
@@ -1864,14 +1889,16 @@ function PageBills() {
                       {b.description && <div style={{fontSize:12, color:"var(--ink-3)", marginTop:2}}>{b.description}</div>}
                     </td>
                     <td className="mono" style={{fontSize:11.5, color:"var(--ink-3)"}}>{fmtBillDate(b.pub_date)}</td>
-                    <td><Att level={b.attention} /></td>
-                    <td>{b.confidence != null ? <Conf n={b.confidence} /> : <span className="mono" style={{color:"var(--ink-4)"}}>—</span>}</td>
+                    {showAtt && <td data-col="attention"><Att level={b.attention} disclosure={disclosure} /></td>}
+                    {showConf && <td data-col="confidence"><Conf n={b.confidence} /></td>}
                   </tr>
                 );
               })}
             </tbody>
           </table>
           </div>
+          <div className="panel-body score-disclosure" data-att-disclosure-line="" style={{fontSize:12, color:"var(--ink-4)"}}>{disclosure}</div>
+          </>
         )}
       </div>
 
@@ -2164,7 +2191,7 @@ function PageBriefings() {
         <div>
           <div className="page-kicker">Workflow</div>
           <h1 className="page-title">Briefings</h1>
-          <div className="page-sub">Briefs you generate from a signal appear here with their evidence links: What happened · Source · Why it matters · Recommended action · Evidence · Provenance.</div>
+          <div className="page-sub">Briefs you generate from a signal appear here with their evidence links: What happened · Source · Why it matters · Evidence · Provenance.</div>
         </div>
         <div style={{display:"flex", gap:8, flexWrap:"wrap", justifyContent:"flex-end"}}>
           <button className="btn" disabled={briefs.length === 0} onClick={() => downloadBriefingQueue(briefs, toast)}><Icon name="download" size={13}/> Export queue</button>
@@ -2231,8 +2258,10 @@ function PageBriefings() {
                 <div>{brief.meta.source} · {brief.meta.sourceAuthority} · {brief.meta.date}</div>
                 <h5>Why it matters</h5>
                 <div>{brief.whyItMatters}</div>
-                <h5>Recommended action</h5>
-                <div><strong>{brief.recommendedAction.label}.</strong> {brief.recommendedAction.reason}</div>
+                {brief.recommendedAction && <>
+                  <h5>Recommended action</h5>
+                  <div><strong>{brief.recommendedAction.label}.</strong> {brief.recommendedAction.reason}</div>
+                </>}
                 {brief.evidence.length > 0 && <>
                   <h5>Evidence</h5>
                   <ul>{brief.evidence.map((e,i) => <li key={i}><a href={e.url} target="_blank" rel="noopener noreferrer" style={{color:"var(--brief-link)", textDecoration:"underline"}}>{e.label}</a></li>)}</ul>
@@ -2537,10 +2566,10 @@ function PageWatchlists() {
 
 // ---------- RADAR ----------
 function PageRadar() {
-  const { openModal } = useStore();
-  // Derived clustering: the product's own grouping of live signals by source group.
-  // Momentum and confidence require history the product does not hold, so they render
-  // "—" in derived mode rather than an invented number (spec 2.3, invariant 4).
+  // FE-06 (DATA-15): this desk counts live signals by the Worker's source group
+  // (chamber or feed family). It is an activity tally, so it carries only what the
+  // tally holds: items, contributing feeds and the highest attention level among
+  // them. It claims no trend and prescribes no next step.
   const live = useLiveState("signals");
   const derivedRows = React.useMemo(() => {
     if (!live.items) return null;
@@ -2548,7 +2577,7 @@ function PageRadar() {
     const groups = new Map();
     live.items.forEach(s => {
       const key = s.sourceGroup || "Other";
-      const g = groups.get(key) || { issue: key, count: 0, sources: new Set(), att: null };
+      const g = groups.get(key) || { group: key, count: 0, sources: new Set(), att: null };
       g.count += 1;
       if (s.source) g.sources.add(s.source);
       // Attention climbs only from a real med/high signal; a group of unscored
@@ -2557,61 +2586,58 @@ function PageRadar() {
       groups.set(key, g);
     });
     return [...groups.values()]
-      .map(g => ({ issue: g.issue, att: g.att, sources: g.sources.size, count: g.count,
-        reason: `${g.count} live items across ${g.sources.size} feed${g.sources.size !== 1 ? "s" : ""}` }))
+      .map(g => ({ group: g.group, att: g.att, sources: g.sources.size, count: g.count }))
       .sort((a, b) => b.count - a.count);
   }, [live.items]);
   const derived = !!derivedRows;
   const rows = derivedRows || RADAR;
+  // UX-03: a column in which every row carries the same value separates nothing,
+  // so it collapses to one line that says so.
+  const attAll = uniformScore(rows, "att");
+  const showAtt = attAll === undefined;
+  const cols = showAtt ? "1fr 90px 90px 150px" : "1fr 90px 90px";
+  const head = {color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em"};
+  const disclosure = attentionDisclosure(scoringDims((live.items || []).map(s => s.attentionReason)));
   return (
     <div className="page">
       <div className="page-head">
         <div>
           <div className="page-kicker">Today</div>
-          <h1 className="page-title">Attention radar</h1>
-          <div className="page-sub">Transparent categories, no fake precision scores. Click any issue for momentum detail and suggested actions.</div>
+          <h1 className="page-title">Activity by source</h1>
+          <div className="page-sub">Live signals counted by source group, with the number of feeds behind each group and the highest attention level among its items. A tally of what the feeds published, not a trend.</div>
         </div>
         <ProvenanceChip provenance={derived ? "derived" : "fixture"}
-          title={derived ? "Grouped live signals; momentum and confidence require history the product does not yet have" : "Live data is unavailable, so no clusters render"} />
+          title={derived ? "Counted from the live signal stream" : "Live data is unavailable, so no groups render"} />
       </div>
 
       <div className="panel">
         <div className="panel-head">
-          <h2 className="panel-title">Active issues</h2>
-          <span className="panel-kicker">{derived ? "Grouped from the live signal stream" : "No live signal stream connected"}</span>
+          <h2 className="panel-title">Source groups</h2>
+          <span className="panel-kicker">{derived ? `${rows.length} group${rows.length !== 1 ? "s" : ""} from ${live.items.length} live signals` : "No live signal stream connected"}</span>
         </div>
         <div className="panel-body">
           {rows.length === 0 ? (
             <EmptyState icon="radar" kicker="Live data unavailable" variant="error">
-              Live data is unavailable. Parliament Pulse shows nothing rather than showing an invented issue cluster. <a href="https://www.aph.gov.au" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>Go to aph.gov.au</a>.
+              Live data is unavailable. Parliament Pulse shows nothing rather than an invented tally. <a href="https://www.aph.gov.au" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>Go to aph.gov.au</a>.
             </EmptyState>
           ) : (
           <>
-          <div className="radar-row g-radar-table" style={{display:"grid", padding:"4px 0 10px", borderBottom:"1px solid var(--line)", alignItems:"center", gap:14}}>
-            <div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em"}}>Issue</div>
-            <div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em"}}>Attention</div>
-            <div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", textAlign:"right"}}>Sources</div>
-            <div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em"}}>Momentum</div>
-            <div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em"}}>Confidence</div>
+          {!showAtt && <div className="score-uniform" data-uniform="attention" style={{fontSize:12.5, color:"var(--ink-3)", marginBottom:10}}>{uniformScoreLine(rows.length, "attention", attAll)}</div>}
+          <div className="radar-row radar-head g-radar-table" style={{display:"grid", gridTemplateColumns:cols, padding:"4px 0 10px", borderBottom:"1px solid var(--line)", alignItems:"center", gap:14}}>
+            <div className="mono t-label" style={head}>Source group</div>
+            <div className="mono t-label" style={{...head, textAlign:"right"}}>Items</div>
+            <div className="mono t-label" style={{...head, textAlign:"right"}}>Feeds</div>
+            {showAtt && <div className="mono t-label" data-col="attention" style={head} title={disclosure}>Highest attention</div>}
           </div>
           {rows.map((r,i) => (
-            <div key={r.issue} className={(derived ? "" : "clk ") + "radar-row g-radar-table"} onClick={derived ? undefined : () => openModal("radar", r.issue)} style={{display:"grid", padding:"14px 8px", borderBottom: i<rows.length-1 ? "1px solid var(--line)" : 0, gap:14, alignItems:"center", borderRadius:6, cursor: derived ? "default" : undefined}}>
-              <div>
-                <div style={{fontSize:14, fontWeight:500}}>{r.issue}</div>
-                <div style={{fontSize:12, color:"var(--ink-3)", marginTop:2}}>{r.reason}</div>
-              </div>
-              <div><Att level={r.att}/></div>
-              <div className="mono" style={{textAlign:"right", color:"var(--ink-2)"}}>{r.sources}</div>
-              {derived
-                ? <div className="mono" style={{color:"var(--ink-4)"}}>—</div>
-                : <div><div className="bar"><div className="fill" style={{width:`${r.momentum*100}%`}}/></div></div>}
-              {derived
-                ? <div className="mono" style={{color:"var(--ink-4)"}}>—</div>
-                : <div style={{display:"flex", alignItems:"center", gap:10}}>
-                    <div className="ring" style={{"--p": Math.round(r.confidence*100)}} data-p={Math.round(r.confidence*100)}></div>
-                  </div>}
+            <div key={r.group} className="radar-row g-radar-table" style={{display:"grid", gridTemplateColumns:cols, padding:"14px 8px", borderBottom: i<rows.length-1 ? "1px solid var(--line)" : 0, gap:14, alignItems:"center", borderRadius:6}}>
+              <div style={{fontSize:14, fontWeight:500}}>{r.group}</div>
+              <div className="mono radar-num" style={{textAlign:"right", color:"var(--ink-2)"}}>{r.count}<span className="radar-mlabel"> item{r.count !== 1 ? "s" : ""}</span></div>
+              <div className="mono radar-num" style={{textAlign:"right", color:"var(--ink-2)"}}>{r.sources}<span className="radar-mlabel"> feed{r.sources !== 1 ? "s" : ""}</span></div>
+              {showAtt && <div data-col="attention"><Att level={r.att} disclosure={disclosure}/></div>}
             </div>
           ))}
+          <div className="score-disclosure" data-att-disclosure-line="" style={{fontSize:12, color:"var(--ink-4)", marginTop:12}}>{disclosure}</div>
           </>
           )}
         </div>
@@ -2671,6 +2697,15 @@ function PageSignals() {
   const shown = progressive ? visible.slice(0, renderCap) : visible;
   const moreToShow = progressive && shown.length < visible.length;
   const filterLabel = { high: "high", med: "medium", low: "low" }[filter] || filter;
+
+  // UX-03: measured over the inbox in view BEFORE the attention filter, so choosing
+  // "High" never collapses the column merely because the filter made it uniform.
+  const inView = React.useMemo(() => sourceSignals.filter(s => !state.archived[s.id]), [sourceSignals, state.archived]);
+  const attAll = uniformScore(inView, "attention");
+  const confAll = uniformScore(inView, "confidence");
+  const hideAtt = attAll !== undefined;
+  const hideConf = confAll !== undefined;
+  const disclosure = attentionDisclosure(scoringDims(inView.map(s => s.attentionReason)));
 
   // Reset the cap when the slice changes so a filter, sort, or search switch starts
   // from the first page.
@@ -2767,7 +2802,14 @@ function PageSignals() {
         )
       ) : (
         <div>
-          {shown.map(s => <SignalCard key={s.id} s={s} />)}
+          {(hideAtt || hideConf) && (
+            <div className="score-uniform" style={{fontSize:12.5, color:"var(--ink-3)", marginBottom:12}}>
+              {hideAtt && <div data-uniform="attention">{uniformScoreLine(inView.length, "attention", attAll)}</div>}
+              {hideConf && <div data-uniform="confidence">{uniformScoreLine(inView.length, "confidence", confAll)}</div>}
+            </div>
+          )}
+          {shown.map(s => <SignalCard key={s.id} s={s} hideAtt={hideAtt} hideConf={hideConf} />)}
+          <div className="score-disclosure" data-att-disclosure-line="" style={{fontSize:12, color:"var(--ink-4)", marginTop:12}}>{disclosure}</div>
           {moreToShow && <div ref={sentinelRef} className="list-sentinel" aria-hidden="true" />}
           {progressive && (
             <div className="list-progress" style={{display:"flex", alignItems:"center", gap:12, padding:"14px 4px 4px"}}>

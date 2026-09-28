@@ -108,7 +108,7 @@ const NAV = [
   { id: "overview", label: "Overview", group: "Today" },
   { id: "live", label: "Live parliament", group: "Today", live: true },
   { id: "signals", label: "Signal inbox", group: "Today" },
-  { id: "radar", label: "Attention radar", group: "Today" },
+  { id: "radar", label: "Activity by source", group: "Today" },
   { id: "committees", label: "Committees", group: "Workspace" },
   { id: "bills", label: "Bills intelligence", group: "Workspace" },
   { id: "parliament", label: "Daily program", group: "Workspace" },
@@ -145,7 +145,8 @@ function Sidebar({ page, onNavigate, mobileOpen }) {
       overview: null,  /* a dashboard has no unambiguous count; the hero KPI carries the priority number */
       live: null,
       signals: active ? active.length : null,
-      radar: active ? active.filter(s => s.attention === "high" || s.attention === "med").length : null,
+      // The desk tallies live signals by source group, so its badge is the group count.
+      radar: active ? new Set(active.map(s => s.sourceGroup || "Other")).size : null,
       committees: counts.committees,
       bills: counts.bills,
       parliament: counts.divisions,
@@ -370,18 +371,17 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
   // UNAVAILABLE chip can never show at the same time. The explicit && !noLiveCache
   // documents that mutual exclusion at the call site.
   const liveStale = liveSignals.liveStale && !noLiveCache;
-  const results = React.useMemo(() => {
-    if (!q.trim()) return null;
-    const term = q.toLowerCase();
-    const sigSource = liveSignals.items || SIGNALS;
-    const sig = sigSource.filter(s =>
-      (s.title || "").toLowerCase().includes(term) || (s.summary || "").toLowerCase().includes(term) || (s.id || "").toLowerCase().includes(term));
-    const bills = Object.values(ENTITIES.bills).filter(b => [b.title, b.ref, b.portfolio, b.stage].some(v => (v || "").toLowerCase().includes(term)));
-    const comm = Object.values(ENTITIES.committees).filter(c => [c.name, c.portfolio, c.chamber].some(v => (v || "").toLowerCase().includes(term)));
-    const mem = Object.values(ENTITIES.members).filter(m => [m.name, m.party, (m.roles || []).join(" ")].some(v => (v || "").toLowerCase().includes(term)));
-    const feeds = APH_FEEDS.filter(f => f.name.toLowerCase().includes(term));
-    return { sig, bills, comm, mem, feeds };
-  }, [q, liveSignals.items]);
+  // FE-06 (UX-08, DATA-14): bills are the live /bills rows from the shared
+  // liveBills cache in store.jsx (the same rows PageBills renders), and every
+  // group label states its real scope. No member group: no member source exists.
+  const liveBills = useLiveBills();
+  const results = React.useMemo(() => buildSearchResults(q, {
+    signals: liveSignals.items || SIGNALS,
+    liveSignals: !!liveSignals.items,
+    bills: liveBills.items,
+    committees: Object.values(ENTITIES.committees),
+    feeds: APH_FEEDS,
+  }), [q, liveSignals.items, liveBills.items]);
 
   // Flat ordered list for keyboard cursor
   const flat = React.useMemo(() => {
@@ -389,9 +389,8 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
     return [
       ...results.sig.slice(0,4).map(s => ({ kind:"signal", key:s.id, label:s.title, sub:s.id, act:() => { openSignal(s.id); } })),
       ...(results.sig.length > 4 ? [{ kind:"signalsAll", key:"signals-all", label:`See all ${results.sig.length} signals`, sub:q, act:() => { setSignalSearchQuery(q); navigate("signals"); } }] : []),
-      ...results.bills.map(b => ({ kind:"bill", key:b.ref, label:b.title, sub:b.ref, act:() => { openModal("bill", b.ref); } })),
+      ...results.bills.slice(0,4).map(b => ({ kind:"bill", key:b.guid, label:b.title, sub:"Bills Digest", act:() => { navigate("bills"); } })),
       ...results.comm.map(c => ({ kind:"committee", key:c.id, label:c.name, sub:c.chamber, act:() => { openModal("committee", c.id); } })),
-      ...results.mem.map(m => ({ kind:"member", key:m.id, label:m.name, sub:m.party, act:() => { openModal("member", m.id); } })),
       ...results.feeds.slice(0,4).map(f => ({ kind:"feed", key:f.id, label:f.name, sub:f.group, act:() => { openModal("feed", f.id); } })),
     ];
   }, [results, q, openSignal, openModal, setSignalSearchQuery, navigate]);
@@ -412,9 +411,8 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
   const sigOff  = 0;
   const sigFlatCount = results ? results.sig.slice(0,4).length + (results.sig.length > 4 ? 1 : 0) : 0;
   const billOff = sigFlatCount;
-  const commOff = billOff + (results ? results.bills.length : 0);
-  const memOff  = commOff + (results ? results.comm.length : 0);
-  const feedOff = memOff  + (results ? results.mem.length : 0);
+  const commOff = billOff + (results ? results.bills.slice(0,4).length : 0);
+  const feedOff = commOff + (results ? results.comm.length : 0);
 
   return (
     <>
@@ -437,12 +435,12 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
           onFocus={() => { setOpen(true); setFocused(true); }}
           onBlur={() => setFocused(false)}
           onKeyDown={onKeyDown}
-          aria-label="Search parliament signals, bills, committees and members"
+          aria-label="Search parliament signals, bills, committees and feeds"
           aria-expanded={open && !!results}
           aria-autocomplete="list"
           aria-controls="search-listbox"
           aria-activedescendant={cursor >= 0 ? `search-option-${cursor}` : undefined}
-          placeholder="Search signals, bills, committees, members, feeds…" />
+          placeholder="Search signals, bills, committees, feeds…" />
         {q ? (
           <button onClick={() => { setQ(""); setOpen(false); setCursor(-1); ref.current?.focus(); }}
             aria-label="Clear search" title="Clear search"
@@ -455,7 +453,7 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
         {open && results && (
           <div id="search-listbox" role="listbox" className="search-results">
             {results.sig.length > 0 && <>
-              <div className="sr-group">Signals ({results.sig.length})</div>
+              <div className="sr-group" data-sr-group="signals">{results.labels.sig} · {results.sig.length} match{results.sig.length !== 1 ? "es" : ""}</div>
               {results.sig.slice(0,4).map((s, i) => (
                 <div key={s.id} id={`search-option-${sigOff + i}`} role="option" aria-selected={cursor === sigOff + i}
                   className={"sr-item" + (cursor === sigOff + i ? " active" : "")}
@@ -475,17 +473,24 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
               )}
             </>}
             {results.bills.length > 0 && <>
-              <div className="sr-group">Bills</div>
-              {results.bills.map((b, i) => (
-                <div key={b.ref} id={`search-option-${billOff + i}`} role="option" aria-selected={cursor === billOff + i}
-                  className={"sr-item" + (cursor === billOff + i ? " active" : "")}
+              <div className="sr-group" data-sr-group="bills">{results.labels.bills} · {results.bills.length} match{results.bills.length !== 1 ? "es" : ""}</div>
+              {results.bills.slice(0,4).map((b, i) => {
+                // Licence rule: a live APH bill title renders only inside an anchor to its APH link.
+                const link = safeHttpUrl(b.link);
+                return (
+                <div key={b.guid} id={`search-option-${billOff + i}`} role="option" aria-selected={cursor === billOff + i}
+                  className={"sr-item" + (cursor === billOff + i ? " active" : "")} data-sr-bill=""
                   onMouseDown={e => { e.preventDefault(); selectItem(flat[billOff + i]); }}>
-                  <span className="k">{b.ref}</span><span>{b.title}</span>
+                  <span className="k">Bill</span>
+                  {link
+                    ? <a href={link} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} style={{color:"inherit", textDecoration:"none"}} title="Open the source at aph.gov.au">{b.title}</a>
+                    : <span>Bills Digest item</span>}
                 </div>
-              ))}
+                );
+              })}
             </>}
             {results.comm.length > 0 && <>
-              <div className="sr-group">Committees</div>
+              <div className="sr-group" data-sr-group="committees">{results.labels.comm} · {results.comm.length} match{results.comm.length !== 1 ? "es" : ""}</div>
               {results.comm.map((c, i) => (
                 <div key={c.id} id={`search-option-${commOff + i}`} role="option" aria-selected={cursor === commOff + i}
                   className={"sr-item" + (cursor === commOff + i ? " active" : "")}
@@ -494,18 +499,8 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
                 </div>
               ))}
             </>}
-            {results.mem.length > 0 && <>
-              <div className="sr-group">Members</div>
-              {results.mem.map((m, i) => (
-                <div key={m.id} id={`search-option-${memOff + i}`} role="option" aria-selected={cursor === memOff + i}
-                  className={"sr-item" + (cursor === memOff + i ? " active" : "")}
-                  onMouseDown={e => { e.preventDefault(); selectItem(flat[memOff + i]); }}>
-                  <span className="k">{m.party}</span><span>{m.name}</span>
-                </div>
-              ))}
-            </>}
             {results.feeds.length > 0 && <>
-              <div className="sr-group">Sources ({results.feeds.length})</div>
+              <div className="sr-group" data-sr-group="sources">{results.labels.feeds} · {results.feeds.length} match{results.feeds.length !== 1 ? "es" : ""}</div>
               {results.feeds.slice(0,4).map((f, i) => (
                 <div key={f.id} id={`search-option-${feedOff + i}`} role="option" aria-selected={cursor === feedOff + i}
                   className={"sr-item" + (cursor === feedOff + i ? " active" : "")}
@@ -514,7 +509,7 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
                 </div>
               ))}
             </>}
-            {q && !results.sig.length && !results.bills.length && !results.comm.length && !results.mem.length && !results.feeds.length && (
+            {q && !results.sig.length && !results.bills.length && !results.comm.length && !results.feeds.length && (
               <div className="sr-item" role="option" aria-selected="false" style={{color:"var(--ink-4)", cursor:"default"}}>No matches for "{q}"</div>
             )}
           </div>
@@ -598,33 +593,26 @@ function ProvenanceChip({ provenance, title }) {
   return <span className={cls} title={title}>{LABELS[key]}</span>;
 }
 
-function Att({ level }) {
+function Att({ level, disclosure }) {
   const map = { high: "High", med: "Medium", low: "Low" };
+  // PR-11: every attention value carries the same short disclosure as its tooltip.
+  const tip = disclosure || attentionDisclosure();
   // An absent attention value renders as an em-dash, never a fabricated tier.
-  if (!map[level]) return <span className="att" title="Attention not scored">—</span>;
-  return <span className={"att " + level}>{map[level]}</span>;
+  if (!map[level]) return <span className="att" title={`Attention not scored. ${tip}`}>—</span>;
+  return <span className={"att " + level} title={tip} data-att-disclosure="">{map[level]}</span>;
 }
 
-function Conf({ n = 3 }) {
-  // 5-segment ember-to-gold ramp: lit segments climb from incandescent ember to gold
-  // so the bar reads quantitatively, not just as a count.
-  const ramp = ["var(--brass)", "var(--brass)", "var(--brass-2)", "var(--gold)", "var(--gold)"];
-  return (
-    <span className="conf" title={`Confidence ${n}/5`}>
-      {[1,2,3,4,5].map(i => (
-        <span key={i} className={i<=n?"on":""}
-          style={i<=n ? {background: ramp[i-1]} : undefined} />
-      ))}
-    </span>
-  );
+// UX-03: confidence reads "Confidence n of 5" in words, never a bare number or a
+// segmented bar that implies more precision than a kind-based rule carries.
+function Conf({ n }) {
+  return <span className="conf-text mono" data-conf="" style={{fontSize:11.5, color:"var(--ink-3)", whiteSpace:"nowrap"}}>{confidenceLabel(n)}</span>;
 }
 
 function buildBriefSections(s, isLive = false) {
   const evidence = (s.evidence || []).map(e => ({ label: e.label, url: e.url }));
-  const confidenceLabel = isLive ? "Confidence score" : "Representative confidence score";
   const provParts = [
     `Signal ID: ${s.id}`,
-    `${confidenceLabel}: ${s.confidence ?? "—"}/5`,
+    isLive ? confidenceLabel(s.confidence) : `Representative ${confidenceLabel(s.confidence).toLowerCase()}`,
   ];
   if (s.humanReview) provParts.push(`Review status: ${s.humanReview}`);
   // Only a non-live example carries a workflow-trace disclaimer; a live item's
@@ -648,31 +636,33 @@ function buildBriefSections(s, isLive = false) {
     },
     summary: s.summary,
     whyItMatters: s.attentionReason,
-    recommendedAction: {
-      label: s.action,
-      reason: s.actionReason,
-    },
+    // UX-03: no recommended action exists for a live item (action is ""), so the
+    // brief carries none rather than an empty heading.
+    recommendedAction: s.action ? { label: s.action, reason: s.actionReason || "" } : null,
     evidence,
     provenance: provParts.join(" | "),
   };
 }
 
-function SignalCard({ s }) {
+// hideAtt / hideConf (UX-03): the Signal inbox passes these when every signal in
+// view shares one attention or confidence value, and states that once above the
+// list instead of repeating a value that separates nothing on every card.
+function SignalCard({ s, hideAtt = false, hideConf = false }) {
   const { openSignal, state, isWatched } = useStore();
   const archived = !!state.archived[s.id];
   const feedback = state.feedback[s.id];
   const watched = isWatched(s.id);
-  return <SignalCardView s={s} archived={archived} feedback={feedback} watched={watched} openSignal={openSignal} />;
+  return <SignalCardView s={s} archived={archived} feedback={feedback} watched={watched} openSignal={openSignal} hideAtt={hideAtt} hideConf={hideConf} />;
 }
 
-const SignalCardView = React.memo(function SignalCardView({ s, archived, feedback, watched, openSignal }) {
+const SignalCardView = React.memo(function SignalCardView({ s, archived, feedback, watched, openSignal, hideAtt, hideConf }) {
   if (archived) return null;
   return (
     <div className="signal" data-att={s.attention} onClick={() => openSignal(s.id)} role="button" tabIndex={0} aria-label="Open signal detail" onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openSignal(s.id); } }}>
       <div className="sig-head">
         <span className="sig-id mono">{s.isLive || /^https?:/.test(s.id) ? "APH" : s.id}</span>
         <span className="sig-source mono">· {s.source}</span>
-        <Att level={s.attention} />
+        {!hideAtt && <Att level={s.attention} />}
         {watched && <span className="tag brass">Watching</span>}
         <span className="sig-time mono" data-sig-when="">{s.when ?? s.time}</span>
       </div>
@@ -690,7 +680,7 @@ const SignalCardView = React.memo(function SignalCardView({ s, archived, feedbac
         {s.action
           ? <><span className="sig-action-label">Recommended</span><span className="sig-action-value">{s.action}</span></>
           : <span className="sig-action-label">Open to triage</span>}
-        <span className="mono" title="Analyst confidence" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)", letterSpacing:".04em", whiteSpace:"nowrap"}}>{s.confidence == null ? "—" : s.confidence + "/5"}</span>
+        {!hideConf && <span className="mono" data-conf="" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)", letterSpacing:".04em", whiteSpace:"nowrap"}}>{confidenceLabel(s.confidence)}</span>}
       </div>
       {feedback && (
         <div style={{marginTop:8, fontSize:11.5, color:"var(--brass)"}}>
@@ -725,10 +715,12 @@ function generateBriefMarkdown(s, isLive = false) {
     `## Why it matters`,
     brief.whyItMatters,
     ``,
-    `## Recommended action`,
-    `**${brief.recommendedAction.label}**`,
-    brief.recommendedAction.reason,
-    ``,
+    ...(brief.recommendedAction ? [
+      `## Recommended action`,
+      `**${brief.recommendedAction.label}**`,
+      brief.recommendedAction.reason,
+      ``,
+    ] : []),
     `## Evidence`,
     evidence || "_No evidence links recorded._",
     ``,
@@ -925,13 +917,17 @@ function Drawer() {
               </div>
             </div>
             <div className="drawer-body" ref={drawerBodyRef}>
-              <div className="drawer-section">
-                <h3>Recommended action</h3>
-                <div style={{padding:"10px 14px", borderLeft:"3px solid var(--brass)", borderRadius:"0 6px 6px 0", background:"var(--panel-2)"}}>
-                  <div style={{fontWeight:600, color:"var(--ink)"}}>{s.action || "—"}</div>
-                  <div style={{color:"var(--ink-2)", fontSize:13, marginTop:4}}>{s.actionReason || "—"}</div>
+              {/* UX-03: a live item has no recommended action (action is ""), so the
+                  section renders only when one exists. */}
+              {s.action && (
+                <div className="drawer-section">
+                  <h3>Recommended action</h3>
+                  <div style={{padding:"10px 14px", borderLeft:"3px solid var(--brass)", borderRadius:"0 6px 6px 0", background:"var(--panel-2)"}}>
+                    <div style={{fontWeight:600, color:"var(--ink)"}}>{s.action}</div>
+                    {s.actionReason && <div style={{color:"var(--ink-2)", fontSize:13, marginTop:4}}>{s.actionReason}</div>}
+                  </div>
                 </div>
-              </div>
+              )}
               {/* A live item's summary and attentionReason both come from the Worker's single
                   scoring_explanation field (store.jsx mapWorkerSignalToCard). Showing the same
                   sentence twice under two different headings would read as two independent
@@ -952,7 +948,7 @@ function Drawer() {
                   <dt>Source group</dt><dd>{s.sourceGroup || "—"}</dd>
                   <dt>Authority</dt><dd>{s.sourceAuthority || "—"}</dd>
                   <dt>Attention</dt><dd><Att level={s.attention} /></dd>
-                  <dt>Confidence</dt><dd><Conf n={s.confidence} /> <span style={{color:"var(--ink-3)", marginLeft:8, fontFamily:"var(--mono)", fontSize:11}}>{isLive ? "Confidence score" : "Representative confidence score"}: {s.confidence ?? "—"}/5</span></dd>
+                  <dt>Confidence</dt><dd><Conf n={s.confidence} />{!isLive && <span style={{color:"var(--ink-3)", marginLeft:8, fontFamily:"var(--mono)", fontSize:11}}>Representative</span>}</dd>
                   <dt>Human review</dt><dd>{s.humanReview ? `Review status: ${s.humanReview === "Required" ? "Not reviewed · policy officer must verify source links before use" : "Optional for internal triage; required before external distribution"}` : "—"}</dd>
                 </dl>
               </div>

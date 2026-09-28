@@ -614,6 +614,85 @@ function useLiveBills() {
   };
 }
 
+// ---- Analytics honesty (FE-06: UX-03, PR-11, UX-08, DATA-14) ----
+// Pure helpers shared by the Bills, Signals and Activity-by-source desks and the
+// search palette. They never invent a score: they only describe the values the
+// Worker actually sent.
+
+// The dimensions the Worker's scoreForArchive computes (workers/aph-proxy
+// src/workerScoring.ts: authority, recency, novelty, scrutiny). A live
+// scoring_explanation that ends "Scored on a, b, c." overrides this list, so the
+// disclosure follows the Worker rather than a frozen copy of it.
+const ATTENTION_DIMS_DEFAULT = ["authority", "recency", "novelty", "scrutiny"];
+const ATTENTION_DIM_LABELS = {
+  authority: "source authority", recency: "recency", novelty: "novelty",
+  scrutiny: "scrutiny keyword match", momentum: "momentum",
+};
+function scoringDims(explanations) {
+  for (const e of explanations || []) {
+    const m = String(e || "").match(/Scored on ([a-z ,]+)\./i);
+    if (m) {
+      const dims = m[1].split(",").map(d => d.trim().toLowerCase()).filter(Boolean);
+      if (dims.length) return dims;
+    }
+  }
+  return ATTENTION_DIMS_DEFAULT;
+}
+function attentionDisclosure(dims = ATTENTION_DIMS_DEFAULT) {
+  const words = dims.map(d => ATTENTION_DIM_LABELS[d] || d);
+  const list = words.length > 1 ? `${words.slice(0, -1).join(", ")} and ${words[words.length - 1]}` : words.join("");
+  return `Attention is a transparent heuristic (${list}). It has not yet been validated against practitioner judgement.`;
+}
+
+const ATTENTION_WORDS = { high: "High", med: "Medium", low: "Low" };
+function attentionWord(level) { return ATTENTION_WORDS[level] || null; }
+// Confidence is always "Confidence n of 5", never a bare number or a bar.
+function confidenceLabel(n) {
+  return (n == null || n === "" || Number.isNaN(Number(n))) ? "Confidence not scored" : `Confidence ${n} of 5`;
+}
+
+// The one value every row shares, or undefined when the rows differ (or there
+// are fewer than two rows, where "all" says nothing). null is a real shared
+// value: every row unscored.
+function uniformScore(rows, key) {
+  if (!Array.isArray(rows) || rows.length < 2) return undefined;
+  const first = rows[0] ? (rows[0][key] ?? null) : null;
+  return rows.every(r => ((r && r[key]) ?? null) === first) ? first : undefined;
+}
+function uniformScoreLine(n, kind, value) {
+  if (value == null) return `All ${n} items are currently unscored for ${kind}; the score does not yet separate them.`;
+  const level = kind === "confidence" ? confidenceLabel(value) : `${attentionWord(value) || value} attention`;
+  return `All ${n} items currently score ${level}; the score does not yet separate them.`;
+}
+
+// Search palette index (UX-08, DATA-14). Signals are the live /state rows (or
+// the empty fixture), bills are the live /bills rows from the shared liveBills
+// cache that PageBills also reads, committees and feeds are the static lists.
+// Each group carries its real scope so the palette never implies it searched
+// more than it holds.
+function buildSearchResults(q, { signals, bills, committees, feeds, liveSignals }) {
+  const term = String(q || "").trim().toLowerCase();
+  if (!term) return null;
+  const has = v => (v || "").toLowerCase().includes(term);
+  const sigSource = signals || [];
+  const billSource = bills || [];
+  const commSource = committees || [];
+  const feedSource = feeds || [];
+  const sig = sigSource.filter(s => has(s.title) || has(s.summary) || has(s.id));
+  const billHits = billSource.filter(b => has(b.title));
+  const comm = commSource.filter(c => [c.name, c.portfolio, c.chamber].some(has));
+  const feedHits = feedSource.filter(f => has(f.name));
+  return {
+    sig, bills: billHits, comm, feeds: feedHits,
+    labels: {
+      sig: liveSignals ? `Signals (latest ${sigSource.length} held)` : `Signals (${sigSource.length} held)`,
+      bills: bills ? `Bills (latest ${billSource.length} with a Bills Digest)` : "Bills (not loaded)",
+      comm: `Committees (${commSource.length} listed)`,
+      feeds: `Sources (${feedSource.length} listed feeds)`,
+    },
+  };
+}
+
 function StoreProvider({ children, navigate = () => {} }) {
   // Owners assigned to signals/bills, feedback given, watchlist additions, toasts
   const [state, setState] = React.useState(() => {
@@ -1454,35 +1533,22 @@ function WatchlistDetail({ id, titleId, closeButtonRef }) {
   );
 }
 
+// FE-06 (DATA-15): the radar groups live signals by source group, so its detail
+// states only what that grouping holds: the group, its highest attention level
+// and how many feeds contributed. It shows no trend and prescribes no next step,
+// because the product computes neither.
 function RadarDetail({ id, titleId, closeButtonRef }) {
-  const r = RADAR.find(x => x.issue === id);
-  const { closeModal, toast } = useStore();
-  if (!r) return <ModalHead kicker="Issue" title="Not found" titleId={titleId} closeButtonRef={closeButtonRef} />;
+  const r = RADAR.find(x => x.group === id);
+  if (!r) return <ModalHead kicker="Source group" title="Not found" titleId={titleId} closeButtonRef={closeButtonRef} />;
   return (
     <>
-      <ModalHead kicker="Attention radar issue" title={r.issue} representative={!!r.representative} titleId={titleId} closeButtonRef={closeButtonRef} />
+      <ModalHead kicker="Activity by source" title={r.group} titleId={titleId} closeButtonRef={closeButtonRef} />
       <div className="modal-body">
-        <div style={{display:"flex", gap:8, marginBottom:12}}><Att level={r.att}/><span className="tag">{r.sources} contributing sources</span></div>
-        <p style={{color:"var(--ink-2)", marginTop:0}}>{r.reason}</p>
-        <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:8}}>Momentum (7 days)</h3>
-        <div className="spark" style={{height:40}}>
-          {[3,4,5,4,6,7,Math.round(r.momentum*10)].map((v,i)=><span key={i} style={{height:(v*3+4)+"px"}}/>)}
-        </div>
-        <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:8}}>Suggested actions</h3>
-        <ul style={{margin:0, paddingLeft:18, color:"var(--ink-2)"}}>
-          <li>Draft Executive Brief for Director, Digital Policy</li>
-          <li>Monitor for Estimates references</li>
-          <li>Coordinate with Procurement lead</li>
-        </ul>
-      </div>
-      <div className="modal-foot">
-        <button className="btn primary" onClick={() => {
-          copyModalText(`# Issue brief\nIssue: ${r.issue}\nPortfolio: ${r.portfolio}\nMomentum: ${Math.round(r.momentum * 100)}\n\nSuggested actions:\n- Draft Executive Brief for Director, Digital Policy\n- Monitor for Estimates references\n- Coordinate with Procurement lead`, toast, "Issue brief copied");
-          closeModal();
-        }}><Icon name="brief" size={13}/> Draft issue brief</button>
+        <div style={{display:"flex", gap:8, marginBottom:12}}><Att level={r.att}/><span className="tag">{r.count} items from {r.sources} feed{r.sources !== 1 ? "s" : ""}</span></div>
+        <p style={{color:"var(--ink-2)", marginTop:0}}>{attentionDisclosure()}</p>
       </div>
     </>
   );
 }
 
-Object.assign(window, { StoreProvider, useStore, DetailModal, watchlistKeywords, watchlistMatches, useLiveState, useLiveBills, selectCounts, useCounts, COMMITTEE_STRIP_LABELS, liveStateDegradation, mapWorkerSignalToCard, mapLiveBlocks, fmtFetchedAt, mapLiveFreshness, freshnessView, useFreshness, pollIsStale, configuredFeedCount, useFeedCount, feedHealthState, signalDateFields, fmtDayMonYear, fmtPollStamp });
+Object.assign(window, { StoreProvider, useStore, DetailModal, watchlistKeywords, watchlistMatches, useLiveState, useLiveBills, selectCounts, useCounts, COMMITTEE_STRIP_LABELS, liveStateDegradation, mapWorkerSignalToCard, mapLiveBlocks, fmtFetchedAt, mapLiveFreshness, freshnessView, useFreshness, pollIsStale, configuredFeedCount, useFeedCount, feedHealthState, signalDateFields, fmtDayMonYear, fmtPollStamp, ATTENTION_DIMS_DEFAULT, scoringDims, attentionDisclosure, attentionWord, confidenceLabel, uniformScore, uniformScoreLine, buildSearchResults });
