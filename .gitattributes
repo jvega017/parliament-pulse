@@ -1,0 +1,8 @@
+# The release gate byte-compares each committed .js with a fresh esbuild of its
+# .jsx, and esbuild writes LF. Keep source and build output LF on every clone
+# (core.autocrlf=true on Windows would otherwise check them out as CRLF and
+# fail the comparison with nothing actually changed).
+*.js   text eol=lf
+*.jsx  text eol=lf
+*.mjs  text eol=lf
+*.yml  text eol=lf

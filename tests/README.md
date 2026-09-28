@@ -1,59 +1,42 @@
 # Parliament Pulse test suite
 
-No `package.json` exists at the repo root (confirmed 2026-07-21: `npm ls` on
-this directory returns an empty tree), so there are no `npm test` scripts to
-run. Until one is added, run the four gates directly, in this order, from the
-repo root. Rebuild first: every test after the first one reads the shipped
-`.js` files, and a stale build produces stale (mis-)results, not just a
-`release-gate.mjs` failure.
+Since FE-02 (29 Sep 2026) the repo root has a `package.json` with esbuild
+pinned to an exact version. One-time setup, then one command:
 
 ```sh
-powershell -NoProfile -ExecutionPolicy Bypass -File ./build-jsx.ps1
-node tests/release-gate.mjs
-node tests/state-contract.test.mjs
-node tests/beta-contract.test.mjs
-node tests/asset-manifest.test.mjs
-node tests/a11y.test.mjs
-node tests/deploy-integrity.test.mjs
+npm ci          # installs the pinned esbuild from package-lock.json
+npm run gate    # rebuild every .jsx, then run every local gate below; stops at the first failure
+npm run probe   # production probe against the deployed site (network; not part of the gate)
 ```
 
-`deploy-integrity.test.mjs` runs `build-dist.ps1` itself and inspects `dist/`.
-All seven commands must exit 0 before a deploy ships. The single command below
-runs the same six steps and stops at the first failure (POSIX shells / Git
-Bash; `&&` short-circuits so a broken build never lets a later check paper
-over it):
-
-```sh
-powershell -NoProfile -ExecutionPolicy Bypass -File ./build-jsx.ps1 \
-  && node tests/release-gate.mjs \
-  && node tests/state-contract.test.mjs \
-  && node tests/beta-contract.test.mjs \
-  && node tests/asset-manifest.test.mjs \
-  && node tests/a11y.test.mjs
-```
+`npm run build` alone rebuilds the seven `.js` files (the cross-platform
+equivalent of `build-jsx.ps1`, which now calls the same pinned binary).
+`node tests/deploy-integrity.test.mjs` runs `build-dist.ps1` and inspects
+`dist/`; it needs PowerShell, so it runs locally before a deploy and is not
+in `npm run gate` or CI. CI (`.github/workflows/ci.yml`) runs `npm ci`,
+`npm run gate`, then `git diff --exit-code -- '*.js'` on every push and PR.
 
 ## What each gate checks
 
 | File | Checks | Canary-proven |
 |---|---|---|
-| `release-gate.mjs` | Zero-fabrication scan of the shipped bundle (no invented parliamentary content), plus a jsx/js staleness check | Yes |
+| `fabrication-selftest.test.mjs` | The scanner itself: every banned pattern trips its own canary, honest copy trips nothing, the archived pre-sweep bundle still trips at least 5 classes, and the removed sitting-date constructs are each caught | Yes (it is the canary) |
+| `release-gate.mjs` | Zero-fabrication scan of the shipped bundle (no invented parliamentary content, including hardcoded sitting or return dates), plus a content-based jsx/js sync check: each `.jsx` is rebuilt with the pinned esbuild into a temp directory and byte-compared with the committed `.js` | Yes |
 | `state-contract.test.mjs` | Worker `GET /state` payload shape; a degraded block never fabricates content | No (assertion-based, not canary-based) |
 | `beta-contract.test.mjs` | No public-facing "demo" wording; beta-evidence UI elements are present | No (assertion-based, not canary-based) |
 | `asset-manifest.test.mjs` | Every asset `index.html` references exists on disk; zero external-origin references in functional `src`/`href`/`content` attributes or `_headers` directive values; `assets/fonts/fonts.css` URLs resolve relative to their own directory; the og image stays under 300KB | Yes |
-| `a11y.test.mjs` | **Static structural approximation only** (see the file's header comment for why: no `package.json`, no local `playwright`/`axe-core`). Skip link, `<main id="pp-content">` landmark, toast container ARIA roles, image alt text, icon-only-button aria-labels, form-control labels, no positive tabindex | Yes |
+| `a11y.test.mjs` | **Static structural approximation only** (see the file's header comment; no local `playwright`/`axe-core` yet). Skip link, `<main id="pp-content">` landmark, toast container ARIA roles, image alt text, icon-only-button aria-labels, form-control labels, no positive tabindex | Yes |
 
 ## Real axe-core run: still owed
 
 `a11y.test.mjs` is a source-level approximation, not a rendered-DOM or
 colour-contrast check. To get a real `axe-core` scan across the app's routes:
 
-1. Add a `package.json` at the repo root.
-2. `npm install -D playwright axe-core` and `npx playwright install chromium`.
-3. Write a script that launches the built `index.html` (a local static server
+1. `npm install -D playwright axe-core` and `npx playwright install chromium`.
+2. Write a script that launches the built `index.html` (a local static server
    or `file://`), injects `axe-core`, calls `axe.run()` per route (`overview`,
    `signals`, `bills`, `committees`, `briefings`, `about`, …), and asserts zero
    `critical`/`serious` violations.
 
-This was not done here because it is outside the tests/-only scope of this
-change and because introducing a root `package.json` is a decision that
-touches the whole project, not just the test suite.
+The root `package.json` now exists (FE-02), so this is unblocked; it remains
+owed as a separate package.

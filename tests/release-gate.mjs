@@ -18,7 +18,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import os from "node:os";
 import { BANNED, scan } from "./fabrication-patterns.mjs";
+import { JSX_FILES, compile } from "../scripts/build-config.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -39,31 +41,11 @@ const SHIPPED = [
 // ---------------------------------------------------------------------------
 let canaryFailures = 0;
 for (const b of BANNED) {
-  // Build a string that should trip exactly this pattern.
-  const specimen = {
-    "invented inquiry submission date": "Submissions close: 19 May 2026",
-    "invented inquiry reporting date": "Reporting: by 30 August 2026",
-    "invented inquiry submission deadline": "Submissions close 19 May 2026",
-    "invented terms of reference": "4. Any related matters",
-    "invented inquiry scope": "governance for digital programs over $100m",
-    "invented procurement threshold used across fabrications": "programs over $100m since",
-    "invented hearing witness": b.re.source.includes("First")
-      ? "Department (First Assistant Secretary)" : "Industry peak body",
-    "invented analytical trigger": "Trigger likely: ANAO report tabled 22 Apr",
-    "invented question-on-notice text": "contracts since FY23-24",
-    "invented audit-log timestamp": "08:14:04 · enrichment",
-    "invented scoring log line": "Attention = 0.86 → HIGH",
-    "fabricated watchlist total": "5 of 38 watchlisted",
-    "invented bill provision": "scope expanded to cover state-level identity exchanges",
-    "invented division tally": "Negatived (64-78)",
-    "invented news headline": "Speaker announces procedural changes to question time",
-    "invented member activity": "Lodged QON on digital procurement · 23 Apr",
-    "hardcoded 'Today' schedule claim": b.re.source.includes("\\d{1,2}")
-      ? 'when: "Today, 10:00"' : "Today, 10:00",
-  }[b.why];
-
-  if (specimen === undefined) {
-    console.error(`CANARY BUILD ERROR: no specimen defined for "${b.why}"`);
+  // Each pattern carries its own specimen in fabrication-patterns.mjs, so a
+  // pattern added without one fails here instead of passing untested.
+  const specimen = b.canary;
+  if (typeof specimen !== "string" || specimen.length === 0) {
+    console.error(`CANARY BUILD ERROR: no specimen defined for "${b.why}" /${b.re.source}/`);
     canaryFailures++;
     continue;
   }
@@ -76,21 +58,12 @@ for (const b of BANNED) {
 // Seed a whole synthetic "file" containing every fabrication and confirm the
 // scanner returns a hit for each one. This tests scan() end to end, rather
 // than testing each regex in isolation.
-const seededFile = [
-  "Submissions close: 19 May 2026", "Reporting: by 30 August 2026",
-  "4. Any related matters", "digital programs over $100m",
-  "Department (First Assistant Secretary)", "Industry peak body",
-  "Trigger likely: ANAO report tabled 22 Apr", "contracts since FY23-24",
-  "08:14:04 · enrichment", "Attention = 0.86 → HIGH",
-  "5 of 38 watchlisted", "state-level identity exchanges",
-  "Negatived (64-78)", "Speaker announces procedural changes",
-  "Lodged QON on digital procurement · 23 Apr", 'when: "Today, 10:00"',
-].join("\n");
+const seededFile = BANNED.map(b => b.canary || "").join("\n");
 
 const seededHits = scan(seededFile);
 if (seededHits.length !== BANNED.length) {
-  const caught = new Set(seededHits.map(h => h.why));
-  const missed = BANNED.filter(b => !caught.has(b.why));
+  const caught = new Set(seededHits.map(h => h.re));
+  const missed = BANNED.filter(b => !caught.has(b.re));
   console.error(`CANARY FAIL: seeded file should trip all ${BANNED.length} patterns, tripped ${seededHits.length}.`);
   for (const m of missed) console.error(`  undetected: ${m.why}  /${m.re.source}/`);
   canaryFailures++;
@@ -126,18 +99,39 @@ for (const file of SHIPPED) {
 }
 
 // Sync check: a fabrication removed from .jsx but left in the built .js still
-// ships. Catch a stale build, which is the specific failure mode this repo's
-// dual .jsx/.js layout invites.
-const PAIRS = ["data", "entities", "icons", "store", "shell", "pages", "app"];
-for (const base of PAIRS) {
-  const jsx = path.join(root, `${base}.jsx`);
-  const js = path.join(root, `${base}.js`);
-  if (!fs.existsSync(jsx) || !fs.existsSync(js)) continue;
-  if (fs.statSync(jsx).mtimeMs > fs.statSync(js).mtimeMs + 1000) {
-    console.error(`STALE BUILD  ${base}.js is older than ${base}.jsx. Run build-jsx.ps1 before shipping.`);
-    findings++;
+// ships. Content-based (FE-02, replacing the old mtime comparison): rebuild
+// every .jsx with the pinned esbuild and the exact flags of the real build into
+// a temp directory, then byte-compare with the committed .js. mtime was both
+// blind (a stale .js with a newer timestamp passed) and noisy (a clone, a
+// checkout or a bare touch of a .jsx failed the gate with nothing changed).
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pp-sync-"));
+try {
+  for (const base of JSX_FILES) {
+    const js = path.join(root, `${base}.js`);
+    if (!fs.existsSync(path.join(root, `${base}.jsx`)) || !fs.existsSync(js)) continue;
+    const out = path.join(tmp, `${base}.js`);
+    const r = compile(base, out);
+    if (!r.ok) {
+      console.error(`SYNC CHECK ERROR  could not rebuild ${base}.jsx: ${r.error}`);
+      findings++;
+      continue;
+    }
+    const expected = fs.readFileSync(out);
+    const actual = fs.readFileSync(js);
+    if (!expected.equals(actual)) {
+      // Name the first differing line so the drift is one look away.
+      const e = expected.toString("utf8").split("\n");
+      const a2 = actual.toString("utf8").split("\n");
+      let n = 0;
+      while (n < Math.max(e.length, a2.length) && e[n] === a2[n]) n++;
+      console.error(`CONTENT MISMATCH  ${base}.js does not match a fresh build of ${base}.jsx (first difference at line ${n + 1}). Run npm run build before shipping.`);
+      findings++;
+    }
   }
+} finally {
+  fs.rmSync(tmp, { recursive: true, force: true });
 }
+console.log(`Sync check: ${JSX_FILES.length} .jsx files rebuilt with the pinned esbuild and byte-compared with the committed .js.`);
 
 if (findings > 0) {
   console.error(`\nRELEASE GATE: FAIL. ${findings} finding(s).`);

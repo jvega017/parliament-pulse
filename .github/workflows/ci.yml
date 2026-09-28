@@ -1,0 +1,47 @@
+# Parliament Pulse truth gates (FE-02).
+#
+# Runs on every push and pull request: install the pinned toolchain, rebuild
+# every .jsx, run every local gate, then fail if the rebuild changed any
+# committed .js (a .jsx edited without rebuilding).
+#
+# No deploy job, by design: CI deploy credentials are an owner decision.
+# Third-party actions are pinned by full commit SHA (resolved with
+# `git ls-remote --tags` on 2026-09-29); the tag is in the trailing comment.
+
+name: ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install pinned toolchain
+        run: npm ci
+
+      - name: Build and run every truth gate
+        run: npm run gate
+
+      - name: Committed .js matches a fresh build
+        run: git diff --exit-code -- '*.js'

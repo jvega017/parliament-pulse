@@ -1,0 +1,18 @@
+{
+  "name": "parliament-pulse",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Parliament Pulse frontend (Prometheus Policy Lab). Build and truth gates only; the app itself has no runtime npm dependencies.",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "gate": "npm run build && node scripts/gate.mjs",
+    "probe": "node tests/production-probe.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
+}

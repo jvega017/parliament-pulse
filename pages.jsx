@@ -1419,15 +1419,14 @@ function LiveFeedStrip({ title, items, fetchedAt, emptyText }) {
 }
 
 // ---------- SITTING-DAY HONESTY HELPERS ----------
-// Verified from the PM&C parliamentary sitting calendar for 2026 (issued 26
-// November 2025): July carries no sittings; Parliament next sits 11-13 and
-// 17-20 August 2026. Every sitting-day desk below (daily program, divisions,
-// hearings) shares this one return date so it can never drift out of sync
-// across panels.
+// No sitting or return date is ever hardcoded here: a literal date goes false
+// the day the calendar moves, and tests/fabrication-patterns.mjs bans the
+// patterns. When a sitting-day feed returns zero items the copy says only that
+// the app holds no records, and points to the official source.
 
 // Shared honest-empty copy for a sitting-day feed that has returned zero items.
-// `chamber` reads naturally into "{chamber} is not sitting."; `feedNoun` reads
-// into "{feedNoun} resume when Parliament returns on {date}."
+// `chamber` names the chamber; `feedNoun` names the feed (for example
+// "Divisions"); `url` and `linkLabel` point to the official source.
 function recessEmptyText(chamber, feedNoun, url, linkLabel) {
   return (
     <>

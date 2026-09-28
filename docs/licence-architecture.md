@@ -64,7 +64,7 @@ Facts-and-links is the primary path because it sits entirely in Juan's control. 
 
 ## 8. Conformance
 
-Phase 1 exit requires every page checked against sections 3 and 4, zero verbatim feed prose on any surface, and the digest template conformed. CI carries an axe-core smoke and the jsx-sync check; a licence-conformance check on the render layer is added as the contract stabilises.
+Phase 1 exit requires every page checked against sections 3 and 4, zero verbatim feed prose on any surface, and the digest template conformed. CI (`.github/workflows/ci.yml`, added 29 Sep 2026) runs on every push and pull request: `npm ci` with esbuild pinned to an exact version, then `npm run gate`, which rebuilds every `.jsx` and runs the fabrication self-test, the release gate (zero-fabrication scan plus a content-based jsx/js sync check that byte-compares a fresh build with each committed `.js`), the asset-manifest, static a11y, beta-contract, matching and state-contract gates, and finally `git diff --exit-code` on the built `.js`. Two checks are still owed and not yet in CI: a rendered-DOM axe-core scan (the a11y gate is a static structural approximation) and a licence-conformance check on the render layer, added as the contract stabilises.
 
 ---
 
