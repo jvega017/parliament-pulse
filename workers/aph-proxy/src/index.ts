@@ -1,7 +1,9 @@
 // APH RSS proxy + archive Worker.
 // Endpoints:
 //   GET /rss?u=<configured-feed-url>   proxied RSS with KV cache (exact-URL allowlist)
-//   GET /healthz                        liveness probe
+//   GET /healthz                        liveness probe (always 200 while the Worker answers)
+//   GET /healthz/deep                   job-run readiness from job_runs: 200 when the last ok poll
+//                                       is within 75 min and each daily job within 26 h, else 503
 //   GET /healthz/connectors             feed-derived health, one row per configured feed, plus reference_links
 //   GET /archive?from=&to=&kind=&q=&source_group=&limit=&offset=
 //   GET /archive/analytics?terms=ai,cyber&from=&to=
@@ -9,8 +11,12 @@
 //   POST /digest/subscribe              {email, watchlists, attention_min}
 //
 // Cron triggers (configured in wrangler.toml):
-//   */30 * * * *   poll APH feeds and upsert into D1
-//   0 5 * * *      ping the 12 reference links into connector_checks (internal link-rot log, not served as health)
+//   */30 * * * *   poll APH feeds and upsert into D1; re-derive member roster
+//   0 5 * * *      ping the 12 reference links into connector_checks (internal link-rot log, not served
+//                  as health); prune job_runs rows older than 30 days
+//   0 19 * * *     Hansard QON ingest + digest delivery
+// Every scheduled job runs through recordJobRun (src/jobs.ts), which logs it to job_runs
+// for /healthz/deep and never rejects out of scheduled().
 
 import { APH_REFERENCE_LINKS, APH_ALLOWED_HOSTS, APH_BROWSER_HEADERS, APH_FEEDS } from "./feeds";
 import { checkRateLimit, clientIp } from "./rateLimit";
@@ -47,6 +53,7 @@ import {
 import { ingestQons } from "./hansard";
 import { sendDailyDigest } from "./digest";
 import { buildState, freshnessOrDegraded } from "./state";
+import { recordJobRun, pruneJobRuns, deepHealth, outcomeFromFailures, type JobSummary } from "./jobs";
 
 const TTL_SECONDS = 300; // 5 minutes
 // APH's edge WAF 403s non-browser user-agents, so the proxy presents the
@@ -66,7 +73,34 @@ const READ_LIMITS: Record<string, [string, number]> = {
   "/alerts": ["alerts", 60],
   "/alerts/events": ["alert_events", 60],
   "/healthz/connectors": ["connectors", 30],
+  "/healthz/deep": ["healthz_deep", 30],
 };
+
+// Run-log summaries (WK-05). Counts only: no feed URLs, error text, email
+// addresses or upstream bodies reach the job_runs.detail column.
+function summarisePoll(r: Awaited<ReturnType<typeof pollAndArchive>>): JobSummary {
+  const failed = r.perFeed.filter((f) => !f.ok).length;
+  return {
+    outcome: outcomeFromFailures(r.perFeed.length, failed),
+    counts: {
+      feeds: r.perFeed.length,
+      feeds_failed: failed,
+      new_items: r.perFeed.reduce((a, f) => a + (f.new || 0), 0),
+      seen_items: r.perFeed.reduce((a, f) => a + (f.seen || 0), 0),
+    },
+  };
+}
+
+// The connector check pings reference landing pages (an internal link-rot
+// log, not feed health), and https://parlinfo.aph.gov.au/ is refused by the
+// APH WAF at the site root. The job counts as ok when it ran; failed links are
+// recorded as a count, so link rot never marks the job overdue.
+function summariseConnectors(r: Awaited<ReturnType<typeof checkConnectors>>): JobSummary {
+  return {
+    outcome: "ok",
+    counts: { links: r.results.length, links_failed: r.results.filter((x) => !x.ok).length },
+  };
+}
 
 // KV cache helpers that fail open: a KV outage degrades to a cache miss and a
 // skipped write, never to a 5xx on a read endpoint.
@@ -153,6 +187,20 @@ export default {
         resend_wired: !!env.RESEND_API_KEY,
         digest_from: env.DIGEST_FROM_EMAIL ?? null,
       }, 200, cors);
+    }
+
+    if (url.pathname === "/healthz/deep") {
+      // WK-05 (ARCH-06): readiness for an external monitor. 200 only when the
+      // last ok poll is inside POLL_MAX_AGE_MS and each daily job is inside
+      // DAILY_MAX_AGE_MS; otherwise 503 with the same body and ok:false.
+      const noStore = { ...cors, "cache-control": "no-store" };
+      try {
+        const health = await deepHealth(env);
+        return jsonResponse(health, health.ok ? 200 : 503, noStore);
+      } catch (err) {
+        console.error({ endpoint: "/healthz/deep", error: err instanceof Error ? err.message : String(err), ts: new Date().toISOString() });
+        return jsonResponse({ ok: false, note: "job run log unavailable" }, 503, noStore);
+      }
     }
 
     if (url.pathname === "/healthz/connectors") {
@@ -567,14 +615,21 @@ export default {
   // Cron handler. The cron schedule is wired in wrangler.toml; this handler
   // dispatches based on the schedule string.
   async scheduled(event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    // WK-05 (ARCH-06): every branch runs through recordJobRun, which writes a
+    // job_runs row (start, finish, outcome, counts-only detail) for
+    // /healthz/deep and never rejects, so no job can throw out of scheduled().
     if (event.cron === "*/30 * * * *") {
-      ctx.waitUntil(pollAndArchive(env).then((r) => {
+      ctx.waitUntil(recordJobRun(env, "poll", async () => {
+        const r = await pollAndArchive(env);
         console.log("archive poll", JSON.stringify(r));
-      }));
+        return r;
+      }, summarisePoll));
       // Re-derive member roster from senators_details archive on every RSS poll.
-      ctx.waitUntil(ingestMembers(env).then((r) => {
+      ctx.waitUntil(recordJobRun(env, "members", async () => {
+        const r = await ingestMembers(env);
         console.log("member ingest", JSON.stringify(r));
-      }));
+        return r;
+      }, (r) => ({ outcome: "ok", counts: { added: r.added, updated: r.updated } })));
       return;
     }
     // Daily connector re-verification. This string MUST match wrangler.toml's
@@ -584,20 +639,29 @@ export default {
     // the cadence moved from "0 0 */14 * *" to daily and this line was not
     // updated, leaving connector health frozen at 15 July. If you change the
     // schedule, change it in both places and verify MAX(checked_at) in D1 moves.
+    // /healthz/deep reports this job overdue after 26 hours without an ok run.
     if (event.cron === "0 5 * * *") {
-      ctx.waitUntil(checkConnectors(env, APH_REFERENCE_LINKS).then((r) => {
+      ctx.waitUntil(recordJobRun(env, "connectors", async () => {
+        const r = await checkConnectors(env, APH_REFERENCE_LINKS);
         console.log("connector check", JSON.stringify(r));
-      }));
+        return r;
+      }, summariseConnectors));
+      // Keep the run log to 30 days.
+      ctx.waitUntil(pruneJobRuns(env));
       return;
     }
     if (event.cron === "0 19 * * *") {
       // 19:00 UTC = 05:00 AEST next day. QON ingest + digest delivery.
-      ctx.waitUntil(ingestQons(env).then((r) => {
+      ctx.waitUntil(recordJobRun(env, "qons", async () => {
+        const r = await ingestQons(env);
         console.log("qon ingest", JSON.stringify(r));
-      }));
-      ctx.waitUntil(sendDailyDigest(env).then((r) => {
+        return r;
+      }, (r) => ({ outcome: "ok", counts: { added: r.added, attempted: r.attempted } })));
+      ctx.waitUntil(recordJobRun(env, "digest", async () => {
+        const r = await sendDailyDigest(env);
         console.log("digest", JSON.stringify(r));
-      }));
+        return r;
+      }, (r) => ({ outcome: "ok", counts: { delivered: r.delivered, skipped: r.skipped } })));
       return;
     }
     // Unmatched schedule. Cloudflare fired a trigger this handler does not

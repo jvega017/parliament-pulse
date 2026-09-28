@@ -49,7 +49,16 @@ enabled = true
 #                  to a fortnight old beside a Live chip (observed 2026-07-21:
 #                  checks stamped 15 July). Feed health has to be current to
 #                  mean anything. 12 requests a day is negligible.
+#                  The same job prunes job_runs rows older than 30 days.
 #   0 19 * * *     daily 05:00 AEST: Hansard QON ingest + digest delivery
+#
+# Job-run log (WK-05, ARCH-06): every job above is recorded in the D1 table
+# job_runs (migration 0008, NOT yet applied remotely). GET /healthz/deep reads
+# it and returns 503 when the last ok poll is older than 75 minutes or a daily
+# job's last ok run is older than 26 hours; point an external uptime monitor
+# at /healthz/deep. GET /healthz stays a liveness probe. If a cron string here
+# changes, the matching scheduled() branch must change too, or /healthz/deep
+# will report that job overdue.
 [triggers]
 crons = ["*/30 * * * *", "0 5 * * *", "0 19 * * *"]
 
@@ -82,3 +91,4 @@ crons = ["*/30 * * * *", "0 5 * * *", "0 19 * * *"]
 #   /bills     60 req/min per IP
 #   /qons      30 req/min per IP
 #   /members   30 req/min per IP
+#   /healthz/deep 30 req/min per IP

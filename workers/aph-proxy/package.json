@@ -8,7 +8,7 @@
     "build": "tsc --noEmit",
     "deploy": "wrangler deploy",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types tests/threads.test.mjs && node --experimental-strip-types tests/archive.test.mjs && node --experimental-strip-types tests/scoring.test.mjs && node --experimental-strip-types tests/hardening.test.mjs && node --experimental-strip-types --experimental-sqlite tests/ingest.test.mjs && node --experimental-strip-types --experimental-sqlite tests/state-quota.test.mjs"
+    "test": "node --experimental-strip-types tests/threads.test.mjs && node --experimental-strip-types tests/archive.test.mjs && node --experimental-strip-types tests/scoring.test.mjs && node --experimental-strip-types tests/hardening.test.mjs && node --experimental-strip-types --experimental-sqlite tests/ingest.test.mjs && node --experimental-strip-types --experimental-sqlite tests/state-quota.test.mjs && node --experimental-strip-types --experimental-sqlite tests/health.test.mjs"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "4.20260424.1",
