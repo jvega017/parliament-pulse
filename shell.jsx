@@ -687,7 +687,7 @@ const SignalCardView = React.memo(function SignalCardView({ s, archived, feedbac
         <span className="sig-source mono">· {s.source}</span>
         {!hideAtt && <Att level={s.attention} />}
         {watched && <span className="tag brass">Watching</span>}
-        <span className="sig-time mono" data-sig-when="">{s.when ?? s.time}</span>
+        <span className="sig-time mono" data-sig-when="">{signalWhen(s)}</span>
       </div>
       {/* Licence rule: a live APH title renders only inside an anchor to its APH link.
           A live row with no valid link shows the source label, never the bare title.

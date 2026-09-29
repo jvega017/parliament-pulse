@@ -141,6 +141,28 @@ function fmtClockHM(t, timeZone = PP_TZ) {
   const p = ppDateParts(t, timeZone);
   return `${p.hour}:${p.minute}`;
 }
+function fmtDayMon(t, timeZone = PP_TZ, now = Date.now()) {
+  const p = ppDateParts(t, timeZone);
+  const thisYear = ppDateParts(now, PP_TZ).year;
+  return `${Number(p.day)} ${PP_MONTHS[Number(p.month) - 1]}${p.year === thisYear ? "" : " " + p.year}`;
+}
+function fmtWhenShort(t, now = Date.now()) {
+  return fmtDayMonYear(t) === fmtDayMonYear(now) ? fmtClockHM(t) : fmtDayMon(t, PP_TZ, now);
+}
+function fmtIsoDate(iso, withYear = true) {
+  const t = iso ? Date.parse(iso) : NaN;
+  if (Number.isNaN(t)) return NOT_SUPPLIED;
+  return withYear ? fmtDayMonYear(t) : fmtDayMon(t);
+}
+function signalWhen(s, now = Date.now()) {
+  var _a;
+  if (!s) return "";
+  if (typeof s.pubAt === "number" && !Number.isNaN(s.pubAt)) {
+    if (s.dateKind === "datetime") return fmtWhenShort(s.pubAt, now);
+    if (s.dateKind === "date") return fmtDayMon(s.pubAt, "UTC", now);
+  }
+  return (_a = s.when) != null ? _a : s.time;
+}
 function pubDateHasClock(s) {
   if (!/\d{1,2}:\d{2}/.test(s)) return false;
   if (/T00:00(:00(\.0+)?)?(Z|[+-]00:?00)$/i.test(s)) return false;
@@ -153,14 +175,14 @@ function signalDateFields(pubDate, firstSeenAt) {
   if (!Number.isNaN(t)) {
     if (pubDateHasClock(raw)) {
       const time = fmtClockHM(t);
-      return { dateKind: "datetime", time, date: fmtDayMonYear(t), when: time };
+      return { dateKind: "datetime", time, date: fmtDayMonYear(t), when: time, pubAt: t };
     }
     const date2 = fmtDayMonYear(t, "UTC");
-    return { dateKind: "date", time: "", date: date2, when: date2 };
+    return { dateKind: "date", time: "", date: date2, when: date2, pubAt: t };
   }
   const seen = firstSeenAt ? Date.parse(firstSeenAt) : NaN;
   const date = Number.isNaN(seen) ? "Date not supplied" : `Date not supplied, first seen ${fmtDayMonYear(seen)}`;
-  return { dateKind: "none", time: "", date, when: date };
+  return { dateKind: "none", time: "", date, when: date, pubAt: null };
 }
 function mapWorkerSignalToCard(row) {
   var _a, _b;
@@ -171,6 +193,7 @@ function mapWorkerSignalToCard(row) {
     time: dates.time,
     date: dates.date,
     when: dates.when,
+    pubAt: dates.pubAt,
     dateKind: dates.dateKind,
     firstSeenAt: row.first_seen_at || null,
     // DATA-20: the badge is the Worker's own feed_label for this row, never a
@@ -403,7 +426,8 @@ function mergeLiveBlocks(prev, next) {
 function fmtFetchedAt(iso) {
   if (!iso) return NOT_SUPPLIED;
   try {
-    return new Date(iso).toLocaleTimeString("en-AU", { hour: "2-digit", minute: "2-digit", timeZone: "Australia/Brisbane" });
+    const t = Date.parse(iso);
+    return Number.isNaN(t) ? NOT_SUPPLIED : fmtClockHM(t);
   } catch (e) {
     return NOT_SUPPLIED;
   }

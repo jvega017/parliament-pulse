@@ -179,6 +179,38 @@ function fmtClockHM(t, timeZone = PP_TZ) {
   const p = ppDateParts(t, timeZone);
   return `${p.hour}:${p.minute}`;
 }
+// The single short-date formatter: "28 Sep", with the year added only when the
+// date falls outside the current Brisbane year ("28 Sep 2025"). Every short date
+// the product prints comes from here or fmtDayMonYear, never from
+// toLocaleDateString, so a month is always "Sep" and never "Sept".
+function fmtDayMon(t, timeZone = PP_TZ, now = Date.now()) {
+  const p = ppDateParts(t, timeZone);
+  const thisYear = ppDateParts(now, PP_TZ).year;
+  return `${Number(p.day)} ${PP_MONTHS[Number(p.month) - 1]}${p.year === thisYear ? "" : " " + p.year}`;
+}
+// A card-head label for a timed item: the Brisbane clock when it was published
+// today (Brisbane), otherwise its date ("28 Sep").
+function fmtWhenShort(t, now = Date.now()) {
+  return fmtDayMonYear(t) === fmtDayMonYear(now) ? fmtClockHM(t) : fmtDayMon(t, PP_TZ, now);
+}
+// ISO string in, formatted date out, or NOT_SUPPLIED for a missing or bad value.
+function fmtIsoDate(iso, withYear = true) {
+  const t = iso ? Date.parse(iso) : NaN;
+  if (Number.isNaN(t)) return NOT_SUPPLIED;
+  return withYear ? fmtDayMonYear(t) : fmtDayMon(t);
+}
+// A signal card's head label, worked out at render time so it stays right
+// across midnight: timed items read the clock today and the date otherwise;
+// date-only items read their calendar day; undated items keep their
+// "Date not supplied" line.
+function signalWhen(s, now = Date.now()) {
+  if (!s) return "";
+  if (typeof s.pubAt === "number" && !Number.isNaN(s.pubAt)) {
+    if (s.dateKind === "datetime") return fmtWhenShort(s.pubAt, now);
+    if (s.dateKind === "date") return fmtDayMon(s.pubAt, "UTC", now);
+  }
+  return s.when ?? s.time;
+}
 
 // Does a pub_date carry a real clock time? A date-only source value must never
 // grow an invented 00:00 (or 10:00 once shifted into AEST). Date-only forms:
@@ -201,23 +233,24 @@ function pubDateHasClock(s) {
 //   dateKind "datetime": time "HH:MM", date "D Mon YYYY" (both Brisbane)
 //   dateKind "date":     time "",      date "D Mon YYYY" (the stated calendar day)
 //   dateKind "none":     time "",      date "Date not supplied, first seen D Mon YYYY"
-// `when` is the compact label a card head shows: the clock, else the date line.
+// `when` is the fallback card-head label; signalWhen() derives the live one at
+// render time from `pubAt` (the parsed epoch) and dateKind.
 function signalDateFields(pubDate, firstSeenAt) {
   const raw = pubDate == null ? "" : String(pubDate).trim();
   const t = raw ? Date.parse(raw) : NaN;
   if (!Number.isNaN(t)) {
     if (pubDateHasClock(raw)) {
       const time = fmtClockHM(t);
-      return { dateKind: "datetime", time, date: fmtDayMonYear(t), when: time };
+      return { dateKind: "datetime", time, date: fmtDayMonYear(t), when: time, pubAt: t };
     }
     // A date-only value names a calendar day; read it in UTC so the day never
     // shifts across the date line.
     const date = fmtDayMonYear(t, "UTC");
-    return { dateKind: "date", time: "", date, when: date };
+    return { dateKind: "date", time: "", date, when: date, pubAt: t };
   }
   const seen = firstSeenAt ? Date.parse(firstSeenAt) : NaN;
   const date = Number.isNaN(seen) ? "Date not supplied" : `Date not supplied, first seen ${fmtDayMonYear(seen)}`;
-  return { dateKind: "none", time: "", date, when: date };
+  return { dateKind: "none", time: "", date, when: date, pubAt: null };
 }
 
 // signals.items[] -> signal card shape. Moved from pages.jsx unchanged, then
@@ -233,6 +266,7 @@ function mapWorkerSignalToCard(row) {
     time: dates.time,
     date: dates.date,
     when: dates.when,
+    pubAt: dates.pubAt,
     dateKind: dates.dateKind,
     firstSeenAt: row.first_seen_at || null,
     // DATA-20: the badge is the Worker's own feed_label for this row, never a
@@ -537,7 +571,8 @@ function mergeLiveBlocks(prev, next) {
 function fmtFetchedAt(iso) {
   if (!iso) return NOT_SUPPLIED;
   try {
-    return new Date(iso).toLocaleTimeString("en-AU", { hour: "2-digit", minute: "2-digit", timeZone: "Australia/Brisbane" });
+    const t = Date.parse(iso);
+    return Number.isNaN(t) ? NOT_SUPPLIED : fmtClockHM(t);
   } catch {
     return NOT_SUPPLIED;
   }

@@ -227,11 +227,7 @@ function PageBills() {
   const live = useLiveBills();
   const bills = live.items; // null = nothing has ever loaded; array (maybe empty) once live
 
-  const fmtBillDate = (iso) => {
-    if (!iso) return NOT_SUPPLIED;
-    try { return new Date(iso).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" }); }
-    catch { return NOT_SUPPLIED; }
-  };
+  const fmtBillDate = (iso) => fmtIsoDate(iso, true);
 
   // UX-03: a column in which every bill shares one value separates nothing, so it
   // collapses to a single line that says so.
@@ -406,9 +402,7 @@ function PageParliament() {
 // ---------- PATTERNS ----------
 // Format a thread span date (day + month) from an ISO timestamp.
 function fmtSpanDate(iso) {
-  if (!iso) return NOT_SUPPLIED;
-  try { return new Date(iso).toLocaleDateString("en-AU", { day: "numeric", month: "short" }); }
-  catch { return NOT_SUPPLIED; }
+  return fmtIsoDate(iso, false);
 }
 
 // One live thread row. The product-owned facts (item count, first/last seen) lead;

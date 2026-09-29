@@ -58,10 +58,19 @@ function parts(ms, timeZone) {
 }
 const dayMonYear = (ms, tz = "Australia/Brisbane") => { const p = parts(ms, tz); return `${Number(p.day)} ${MONTHS[Number(p.month) - 1]} ${p.year}`; };
 const clock = ms => { const p = parts(ms, "Australia/Brisbane"); return `${p.hour}:${p.minute}`; };
+// The card-head label (FE final): "28 Sep", with the year only outside the
+// current Brisbane year; a timed item published today reads its clock instead.
+const dayMon = (ms, tz = "Australia/Brisbane") => { const p = parts(ms, tz); const y = parts(NOW_MS, "Australia/Brisbane").year; return `${Number(p.day)} ${MONTHS[Number(p.month) - 1]}${p.year === y ? "" : " " + p.year}`; };
+const cardWhen = ms => (dayMonYear(ms) === dayMonYear(NOW_MS) ? clock(ms) : dayMon(ms));
 
 const FIRST_SEEN = NOW_MS - 2 * 24 * 60 * MIN;
 const TIMED = NOW_MS - 3 * 60 * MIN;
-const DATE_ONLY_ISO = "2026-09-24T00:00:00.000Z";   // the Worker's toISOString of "2026-09-24"
+// The Worker's toISOString of a date-only value dated TODAY in Brisbane. It must be
+// today: a card head shows a clock only for an item published today (FE final),
+// so an invented clock on a past date-only value would never reach the card and
+// the "clock invented" canary below could not fail.
+const brisbaneToday = (() => { const p = parts(NOW_MS, "Australia/Brisbane"); return `${p.year}-${p.month.padStart(2, "0")}-${p.day.padStart(2, "0")}`; })();
+const DATE_ONLY_ISO = `${brisbaneToday}T00:00:00.000Z`;
 const DATE_ONLY_RAW = "2026-09-23";
 
 const baseSig = (id, extra) => ({
@@ -77,9 +86,9 @@ const SIGNALS = [
 ];
 const EXPECT = {
   undated: `Date not supplied, first seen ${dayMonYear(FIRST_SEEN)}`,
-  dateonly: dayMonYear(Date.parse(DATE_ONLY_ISO), "UTC"),
-  dateonlyraw: dayMonYear(Date.parse(DATE_ONLY_RAW), "UTC"),
-  timed: clock(TIMED),
+  dateonly: dayMon(Date.parse(DATE_ONLY_ISO), "UTC"),
+  dateonlyraw: dayMon(Date.parse(DATE_ONLY_RAW), "UTC"),
+  timed: cardWhen(TIMED),
 };
 
 const FEED_CHECKS = [

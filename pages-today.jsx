@@ -67,6 +67,11 @@ function PageOverview() {
   const [showHelp, setShowHelp] = useState(() => !safeGetLocalStorage("pp-onboarded") && !isPhoneViewport());
   const priority = sourceSignals.filter(s => s.attention === "high" && !state.archived[s.id]);
   let rest = sourceSignals.filter(s => s.attention !== "high" && !state.archived[s.id]);
+  // "In the last 24 hours" counts only items that carry a publication clock time
+  // inside that window. Date-only and undated items cannot be placed in it, so
+  // they count toward the inbox total and never toward the 24-hour figure.
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const restRecent = rest.filter(s => s.dateKind === "datetime" && typeof s.pubAt === "number" && Date.now() - s.pubAt <= DAY_MS).length;
   if (sortByAttention) {
     const rank = { high: 0, med: 1, low: 2 };
     rest = [...rest].sort((a, b) => (rank[a.attention] ?? 3) - (rank[b.attention] ?? 3));
@@ -101,7 +106,7 @@ function PageOverview() {
   }).sort((a, b) => b.ts - a.ts).slice(0, 4);
 
   const generateDailyBrief = () => {
-    const today = new Date().toLocaleDateString("en-AU", { day:"numeric", month:"long", year:"numeric" });
+    const today = fmtDayMonYear(Date.now());
     // A live APH title is emitted as a markdown link to its source; a fixture title
     // stays plain text; a live title with no valid link falls back to the source label.
     const briefTitleMd = (brief) => brief.isLive ? (brief.link ? `[${brief.title}](${brief.link})` : brief.meta.source) : brief.title;
@@ -240,7 +245,7 @@ function PageOverview() {
             </div>
             {rest.length > 0 && (
               <div className="panel-foot">
-                <span style={{color:"var(--ink-3)", fontSize:"var(--t-body-sm)"}}>{rest.length} more signal{rest.length !== 1 ? "s" : ""} in the last 24h</span>
+                <span data-rest-line="" style={{color:"var(--ink-3)", fontSize:"var(--t-body-sm)"}}>{rest.length} more signal{rest.length !== 1 ? "s" : ""} in the inbox{restRecent > 0 ? `, ${restRecent} published in the last 24 hours` : ""}</span>
                 <button className="btn ghost sm" style={{marginLeft:"auto"}} onClick={() => goto && goto("signals")}>Open Signal inbox →</button>
               </div>
             )}
@@ -268,7 +273,7 @@ function PageOverview() {
                 <div className="timeline">
                   {live.items.slice(0, 6).map((s, i) => (
                     <div key={s.id || i} className="tl-item">
-                      <div className="tl-time">{s.when ?? s.time} · {s.source}</div>
+                      <div className="tl-time">{signalWhen(s)} · {s.source}</div>
                       <div className="tl-body">
                         {s.link
                           ? <a href={s.link} target="_blank" rel="noopener noreferrer" style={{color:"var(--link)", textDecoration:"none"}} title="Opens the source at aph.gov.au">{s.title}</a>
@@ -583,13 +588,8 @@ function PageLive() {
     return () => { cancelled = true; clearInterval(id); controllers.forEach(c => c.abort()); window.__refreshLiveFeeds = null; };
   }, []);
 
-  const fmtTime = (d) => {
-    if (!d) return NOT_SUPPLIED;
-    const now = new Date();
-    const sameDay = d.toDateString() === now.toDateString();
-    if (sameDay) return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
-    return `${d.getDate()} ${d.toLocaleString("en-AU",{month:"short"})}`;
-  };
+  // The shared short formatter (store.jsx): the Brisbane clock today, else "28 Sep".
+  const fmtTime = (d) => (!d || Number.isNaN(d.getTime()) ? NOT_SUPPLIED : fmtWhenShort(d.getTime()));
   const liveCount = Object.values(feedStatus).filter(s => s.ok).length;
   const totalFeeds = Object.keys(feedStatus).filter(k => k !== "__fileGuard").length || liveFeedList().length;
   // Collected feed errors, surfaced in the empty-state panel (F1).
