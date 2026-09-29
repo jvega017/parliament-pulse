@@ -65,7 +65,12 @@ heading and buttons unclipped at 390 and 320 px; the first Overview signal above
 700 px at 390 px (returning and first visit); Bills and Sources stack with
 `data-label` at 390 px and stay tables at 1280 px; Sources fits its panel with
 both Worker shapes; Live has no iframe and makes no YouTube request until
-"Load YouTube player", then embeds the verified channel with no `autoplay=1`.
+"Load YouTube player", then embeds the verified channel with no `autoplay=1`;
+and at 390 px in both themes (FE final) the topbar controls, theme toggle included,
+share one row, each card's "Confidence n of 5" reads on one line clear of Open, and
+the drawer's evidence label reads on one line above an address at least half the
+row wide, with the drawer date unbroken (four canaries, each required to fail for
+its own reason).
 
 `design.test.mjs` (FE-09) also carries the FE-11 fonts check: on the Overview at
 1280 x 800 and 390 x 844, first visit and returning, every font file that renders

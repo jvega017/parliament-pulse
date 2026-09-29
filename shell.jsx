@@ -553,14 +553,14 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
           <Icon name="refresh" size={14} style={isRefreshing ? {animation:"spin 800ms linear infinite"} : undefined} />
           <span className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)", letterSpacing:".04em", marginLeft:6, fontVariantNumeric:"tabular-nums"}}>{dataAge}</span>
         </button>
-        <button className="btn ghost sm" title="Show current priority count" aria-label="Alerts" onClick={() => {
+        <button className="btn ghost sm tb-alerts" title="Show current priority count" aria-label="Alerts" onClick={() => {
           const source = liveSignals.items || SIGNALS;
           const count = source.filter(s => s.attention === "high").length;
           toast(source.length === 0 ? "Live data is unavailable, so there are no signals to review" : `${count} priority signals currently need review`, "brass");
         }}><Icon name="bell" size={14} /></button>
-        <button className="btn primary sm" onClick={() => navigate("briefings")}><Icon name="plus" size={13} /> New brief</button>
+        <button className="btn primary sm tb-new-brief" aria-label="New brief" onClick={() => navigate("briefings")}><Icon name="plus" size={13} /><span className="tb-label"> New brief</span></button>
         <ShortcutHelp />
-        <button className="btn ghost sm" title={isDark ? "Switch to light mode" : "Switch to dark mode"} aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"} onClick={() => {
+        <button className="btn ghost sm tb-theme" title={isDark ? "Switch to light mode" : "Switch to dark mode"} aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"} onClick={() => {
           const next = isDark ? "light" : "dark";
           document.documentElement.dataset.theme = next;
           safeSetLocalStorage("pp-theme", next);
@@ -926,8 +926,11 @@ function Drawer() {
           <>
             <div className="drawer-head">
               <div>
-                <div className="mono" style={{fontSize:"var(--t-label)", color:"var(--ink-4)", letterSpacing:".16em", textTransform:"uppercase", display:"flex", alignItems:"center", gap:8}}>
-                  <span style={{minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>{isLive || /^https?:/.test(s.id || "") ? (s.source || "APH") : s.id} · {s.date}</span>
+                <div className="mono drawer-kicker" style={{fontSize:"var(--t-label)", color:"var(--ink-4)", letterSpacing:".16em", textTransform:"uppercase", display:"flex", alignItems:"center", flexWrap:"wrap", gap:"4px 8px"}}>
+                  {/* The kicker wraps between its parts, never inside the date (FE final:
+                      at 390 px the old single nowrap line cut the date off). */}
+                  <span style={{minWidth:0, overflowWrap:"anywhere"}}>{isLive || /^https?:/.test(s.id || "") ? (s.source || "APH") : s.id}</span>
+                  <span data-drawer-date="" style={{whiteSpace:"nowrap"}}>· {s.date}</span>
                   <ProvenanceChip provenance={itemProvenance}
                     title={isLive ? "This item is from an official APH feed" : "This item has no live source"} />
                 </div>
@@ -1007,14 +1010,18 @@ function Drawer() {
               <div className="drawer-section">
                 <h3>Evidence · open the actual source</h3>
                 {s.evidence?.length > 0 ? s.evidence.map((e,i) => (
-                  <a key={i} href={e.url} target="_blank" rel="noopener noreferrer" style={{
+                  <a key={i} className="ev-link" href={e.url} target="_blank" rel="noopener noreferrer" style={{
                     display:"flex", alignItems:"center", gap:10, padding:"10px 12px",
                     border:"1px solid var(--line-2)", borderRadius:8, color:"var(--ink)",
                     textDecoration:"none", marginBottom:6, fontSize:"var(--t-body-sm)",
                   }}>
                     <Icon name="link" size={14} stroke="var(--link)" style={{flexShrink:0}} />
-                    <span style={{flex:"1 1 auto", minWidth:0}}>{e.label}</span>
-                    <span className="mono" style={{color:"var(--ink-4)", fontSize:"var(--t-eyebrow)", marginLeft:"auto", maxWidth:240, minWidth:0, flex:"0 1 auto", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>{e.url.replace(/^https?:\/\//,"")}</span>
+                    {/* The label sits above its address, so on a phone the label keeps
+                        one line and the address gets the full row width (FE final). */}
+                    <span className="ev-text" style={{flex:"1 1 auto", minWidth:0, display:"flex", flexDirection:"column", gap:2}}>
+                      <span className="ev-label">{e.label}</span>
+                      <span className="mono ev-url" style={{color:"var(--ink-4)", fontSize:"var(--t-eyebrow)", minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>{e.url.replace(/^https?:\/\//,"")}</span>
+                    </span>
                     <Icon name="ext" size={12} stroke="var(--ink-3)" style={{flexShrink:0}} />
                   </a>
                 )) : <div style={{color:"var(--ink-4)", fontSize:"var(--t-body-sm)"}}>No source link recorded for this item.</div>}

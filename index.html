@@ -1467,6 +1467,26 @@
     table.ds.ds-stack td.ds-lead::before { content: none; }
   }
 
+  /* FE final (mobile polish at 390 px): the topbar controls hold one row, so the
+     theme toggle no longer drops to a row of its own. On a phone the topbar
+     drops two things another surface already carries: the Alerts button (it
+     repeats the Priority signals count) and the feed count in the Live chip
+     (Sources lists every feed). The poll line keeps its own full-width row
+     below the controls, so a stalled poll still says so on every desk. A
+     signal card's confidence reads on one line under the triage label, with
+     Open beside both. */
+  @media (max-width: 640px) {
+    .top-right .tb-alerts, .top-right .tb-feeds { display: none; }
+    .top-right .top-poll { order: 10; flex-basis: 100%; text-align: right; }
+    .sig-action { grid-template-columns: minmax(0, 1fr) auto; row-gap: 4px; }
+    .sig-action > .sig-action-label, .sig-action > .sig-action-value, .sig-action > [data-conf] { grid-column: 1; }
+    .sig-action > [data-conf] { white-space: nowrap !important; }
+    .sig-action > .sig-open { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
+  }
+  @media (max-width: 360px) {
+    .top-right .tb-new-brief .tb-label { display: none; }
+  }
+
   /* ---- Modal ---- */
   .modal-back {
     position: fixed; inset: 0; background: var(--scrim-strong); backdrop-filter: blur(3px);

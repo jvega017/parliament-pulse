@@ -20,6 +20,12 @@
 //   sources-fit Sources with both Worker shapes (tests/fixtures/state.json and
 //               state-legacy.json): the table fits its panel at 1280 px and
 //               stacks at 390 px, in both themes.
+//   phone       FE final, 390 px, dark and light: the topbar controls (theme
+//               toggle included) share one row; every card's "Confidence n of 5"
+//               reads on one line and does not run under the Open button; in the
+//               signal drawer the evidence label reads on one line with its
+//               address below it at least half the row wide, and the drawer date
+//               never breaks inside itself.
 //   player      Live on first load has NO iframe and has made NO request to
 //               YouTube; after "Load YouTube player" exactly one iframe exists,
 //               its URL is the verified channel's live_stream embed with no
@@ -41,6 +47,10 @@
 //   card-clip      the Live card's overflow set back to hidden (live-clip)
 //   eager-embed    the player starting in embed mode (player)
 //   autoplay       autoplay=1 restored on the embed URL (player)
+//   phone-topbar   the rule that takes Alerts out of the phone topbar removed (phone)
+//   phone-conf     the phone two-column card footer removed (phone)
+//   ev-row         the evidence label and address put back side by side (phone)
+//   drawer-date    the drawer date allowed to break inside itself (phone)
 // A canary whose mutation does not apply aborts the run as untrustworthy.
 
 import fs from "node:fs";
@@ -177,6 +187,51 @@ async function playerProblems(page) {
   return out;
 }
 
+// FE final phone polish: one measurement per defect named in the 390 px review.
+async function phoneProblems(page, label) {
+  const out = await page.evaluate(() => {
+    const bad = [];
+    const vis = el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0 && getComputedStyle(el).display !== "none"; };
+    const lines = el => { const cs = getComputedStyle(el); const lh = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.6; return Math.round(el.getBoundingClientRect().height / lh); };
+    const ctrls = [...document.querySelectorAll(".top-right > *")].filter(el => vis(el) && !el.classList.contains("top-poll"));
+    const tops = ctrls.map(el => Math.round(el.getBoundingClientRect().top));
+    if (!ctrls.length) bad.push("topbar: no visible controls");
+    else if (Math.max(...tops) - Math.min(...tops) > 4) bad.push(`topbar: controls sit on ${new Set(tops).size} rows (tops ${tops.join(", ")}); the theme toggle wraps`);
+    if (!document.querySelector(".top-right [aria-label^='Switch to']")) bad.push("topbar: no theme toggle");
+    const confs = [...document.querySelectorAll("main .signal .sig-action [data-conf]")];
+    if (!confs.length) bad.push("cards: no confidence label on the desk");
+    for (const c of confs) {
+      if (lines(c) > 1) { bad.push(`cards: "${c.textContent}" wraps onto ${lines(c)} lines`); break; }
+      const open = c.parentElement.querySelector(".sig-open");
+      const range = document.createRange(); range.selectNodeContents(c); const tr = range.getBoundingClientRect();
+      const or = open && open.getBoundingClientRect();
+      if (or && tr.right > or.left - 2 && tr.bottom > or.top && tr.top < or.bottom) { bad.push(`cards: "${c.textContent}" runs under the Open button (text right ${Math.round(tr.right)}, Open left ${Math.round(or.left)})`); break; }
+      if (tr.right > c.closest(".signal").getBoundingClientRect().right) { bad.push(`cards: "${c.textContent}" overflows its card`); break; }
+    }
+    return bad;
+  });
+  // The drawer, opened from the first card.
+  await page.click("main .signal .sig-open");
+  await page.waitForSelector("aside.drawer.on .ev-link", { timeout: 5000 }).catch(() => {});
+  await page.waitForTimeout(400);
+  out.push(...await page.evaluate(() => {
+    const bad = [];
+    const lines = el => { const cs = getComputedStyle(el); const lh = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.6; return Math.round(el.getBoundingClientRect().height / lh); };
+    const link = document.querySelector("aside.drawer.on .ev-link");
+    if (!link) return ["drawer: no evidence row"];
+    const lab = link.querySelector(".ev-label"), url = link.querySelector(".ev-url");
+    if (!lab || !url) return ["drawer: evidence row has no label or address"];
+    if (lines(lab) > 1) bad.push(`drawer: evidence label "${lab.textContent}" wraps onto ${lines(lab)} lines`);
+    if (url.getBoundingClientRect().width < link.getBoundingClientRect().width * 0.5) bad.push(`drawer: evidence address is ${Math.round(url.getBoundingClientRect().width)} px in a ${Math.round(link.getBoundingClientRect().width)} px row`);
+    const d = document.querySelector("aside.drawer.on [data-drawer-date]");
+    if (!d) bad.push("drawer: no date in the kicker");
+    else if (lines(d) > 1) bad.push(`drawer: the date "${d.textContent}" breaks across lines`);
+    return bad;
+  }));
+  await page.keyboard.press("Escape");
+  return out.map(x => `${label}: ${x}`);
+}
+
 // ---- the clean-build suite -----------------------------------------------------
 async function runSuite(h, { baseUrl, only } = {}) {
   const results = {};
@@ -244,6 +299,14 @@ async function runSuite(h, { baseUrl, only } = {}) {
     }
     results["sources-fit"] = { problems: bad };
   }
+  if (!only || only.includes("phone")) {
+    const bad = [];
+    for (const theme of THEMES) {
+      await open("overview", { width: 390, theme });
+      bad.push(...await phoneProblems(page, `390px ${theme}`));
+    }
+    results.phone = { problems: bad };
+  }
   if (!only || only.includes("player")) {
     const fresh = await h.newPage();   // a new context: its request log starts empty
     await openDesk(fresh, "live", { width: 1280, ...(baseUrl ? { baseUrl } : {}) });
@@ -297,6 +360,17 @@ const CANARIES = [
     apply: d => mutate(d, "pages-today.js", 'React.useState("card")', 'React.useState("embed")') },
   { name: "autoplay", check: "player",
     apply: d => mutate(d, "pages-today.js", "live_stream?channel=${APH_YT_CHANNEL}`", "live_stream?channel=${APH_YT_CHANNEL}&autoplay=1&mute=1`") },
+  { name: "phone-topbar", check: "phone",
+    expect: "topbar:", apply: d => mutate(d, "index.html", ".top-right .tb-alerts, .top-right .tb-feeds { display: none; }", "") },
+  { name: "phone-conf", check: "phone",
+    // The four phone .sig-action rules act together (measured: removing the grid
+    // rule alone leaves the explicit placements holding the layout), so the
+    // canary removes all four.
+    expect: "cards:", apply: d => mutate(d, "index.html", /    \.sig-action \{ grid-template-columns: minmax\(0, 1fr\) auto; row-gap: 4px; \}\n[\s\S]*?\.sig-action > \.sig-open \{[^}]*\}\n/, "") },
+  { name: "ev-row", check: "phone",
+    expect: "drawer: evidence", apply: d => mutate(d, "shell.js", 'className: "ev-text", style: { flex: "1 1 auto", minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }', 'className: "ev-text", style: { flex: "1 1 auto", minWidth: 0, display: "flex", flexDirection: "row", gap: 10 }') },
+  { name: "drawer-date", check: "phone",
+    expect: "drawer: the date", apply: d => mutate(d, "shell.js", '"data-drawer-date": "", style: { whiteSpace: "nowrap" }', '"data-drawer-date": "", style: { whiteSpace: "normal", display: "inline-block", width: 40 }') },
 ];
 
 async function runCanary(h, c) {
@@ -328,6 +402,7 @@ try {
   check(r["first-sig"].problems.length === 0, `Overview at 390 px: first signal starts above 700 px (returning ${r["first-sig"].tops.returning}, first visit ${r["first-sig"].tops.first}; 320 px returning ${r["first-sig"].tops.returning320})`, r["first-sig"].problems.join("\n      "));
   check(r.tables.problems.length === 0, "Bills and Sources stack with data-label at 390 px and stay tables at 1280 px; Activity by source labels follow the width", r.tables.problems.join("\n      "));
   check(r["sources-fit"].problems.length === 0, "Sources, current and older Worker shapes: the table fits its panel at 1280 px and stacks at 390 px, both themes", r["sources-fit"].problems.slice(0, 6).join("\n      "));
+  check(r.phone.problems.length === 0, "Overview and drawer at 390 px, both themes: topbar controls on one row with the theme toggle, confidence on one line clear of Open, evidence label on one line above a wide address, drawer date unbroken", r.phone.problems.slice(0, 6).join("\n      "));
   check(r.player.problems.length === 0, "Live: no iframe and no YouTube request before 'Load YouTube player'; one APH live stream embed after, verified channel, no autoplay; chambers link to ParlView", r.player.problems.join("\n      "));
   const errs = [...r.pageErrors, ...r.player.pageErrors].filter(e => !/net::ERR_BLOCKED_BY_CLIENT|Failed to load resource/.test(e));
   check(errs.length === 0, "no page errors or console errors across the run", errs.slice(0, 4).join("\n      "));
@@ -337,8 +412,10 @@ try {
     let res;
     try { res = await runCanary(h, c); }
     catch (e) { check(false, `canary ${c.name}: could not run (untrustworthy)`, e.message); continue; }
-    check(res.problems.length > 0, `canary ${c.name}: the ${c.check} check fails on the mutated build`, "the check stayed silent on a build with its control removed");
-    if (res.problems.length) console.log(`      caught: ${res.problems[0]}`);
+    // A canary with `expect` counts only when it fails for its own reason.
+    const own = c.expect ? res.problems.some(p => p.includes(c.expect)) : res.problems.length > 0;
+    check(own, `canary ${c.name}: the ${c.check} check fails on the mutated build${c.expect ? ` with "${c.expect}"` : ""}`, c.expect ? `got ${JSON.stringify(res.problems.slice(0, 3))}` : "the check stayed silent on a build with its control removed");
+    if (res.problems.length) console.log(`      caught: ${(c.expect && res.problems.find(p => p.includes(c.expect))) || res.problems[0]}`);
   }
 } finally {
   await h.close();
