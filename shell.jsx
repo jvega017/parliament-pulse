@@ -542,8 +542,8 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
             <span className="dot" style={{background:"var(--caution)", boxShadow:"none"}}/> Stale · polling stalled
           </button>
         ) : (
-          <button type="button" className="chip clk" data-live-chip="live" onClick={() => navigate("live")} title={feedCount != null ? `${feedCount} official APH feeds checked every 30 minutes` : "Official APH feeds; the Live page reads them directly"} style={{borderColor:"color-mix(in srgb, var(--gold) 55%, transparent)", color:"var(--gold)", background:"transparent"}}>
-            <span className="dot" style={{background:"var(--gold)", boxShadow:"none"}}/> Live beta{feedCount != null ? ` · ${feedCount} feeds` : ""}
+          <button type="button" className="chip clk" data-live-chip="live" onClick={() => navigate("live")} title={feedCount != null ? `${feedCount} official APH feeds polled by the Parliament Pulse service` : "Official APH feeds; the Live page reads them directly"} style={{borderColor:"color-mix(in srgb, var(--gold) 55%, transparent)", color:"var(--gold)", background:"transparent"}}>
+            <span className="dot" style={{background:"var(--gold)", boxShadow:"none"}}/> Live beta{feedCount != null ? <span className="tb-feeds">{` · ${feedCount} feeds`}</span> : ""}
           </button>
         )}
         {fresh.known && !noLiveCache && (

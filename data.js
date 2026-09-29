@@ -4,7 +4,6 @@ const WORKER_BASE_URL = "https://aph-proxy.jvega019.workers.dev";
 const APH_LICENCE_NAME = "CC BY-NC-ND 4.0";
 const APH_LICENCE_URL = "https://creativecommons.org/licenses/by-nc-nd/4.0/";
 const APH_ATTRIBUTION = "Source material: Parliament of Australia website, licensed under CC BY-NC-ND 4.0 (" + APH_LICENCE_URL + "). Titles reproduced unmodified; scores and summaries are Parliament Pulse analysis.";
-const FPR_PENDING_NOTE = "Measured after 30 days";
 const SITE_CONFIG = {
   showUnsourcedSurfaces: false,
   contact: null,
@@ -12,7 +11,12 @@ const SITE_CONFIG = {
     {
       id: "qon",
       name: "Questions on notice",
-      reason: "ParlInfo's questions on notice search refuses automated access, so no machine-readable feed can be fetched.",
+      // Re-verified 29 Sep 2026 (05:43 to 05:45 UTC): ParlInfo answers a Chrome
+      // user-agent with HTTP 200 (a scripted user-agent gets HTTP 403 from its
+      // Azure WAF), serves Hansard results to the same request, and returns "No
+      // results found" for the questions on notice query. The earlier claim that
+      // it "refuses automated access" was not true for a browser user-agent.
+      reason: "Parliament Pulse's search of ParlInfo returns no questions on notice, so none are held here.",
       aphUrl: "https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/Senate_chamber_documents/qon"
     },
     {
@@ -196,7 +200,7 @@ const DATASET_FLAGS = {
   DIVISIONS: { representative: true, note: "Empty: no verified division-result feed is wired. Vote tallies were invented and have been removed. See https://www.aph.gov.au/house/rss/divisions." },
   WATCHLISTS: { representative: true, note: "Name and keyword list are real product configuration and are kept. matches and trend were invented counts of live activity: no keyword matcher over the signal stream is built, so both are nulled/emptied and consumers compute the real (currently zero) match count live." },
   RADAR: { representative: true, note: "Empty: every issue named an invented cluster of parliamentary activity (fabricated inquiries, QON references, hearings) with an invented momentum/confidence score. No clustering layer over real signals is built; rows only render once the live signal stream is grouped (derived mode)." },
-  QON_PATTERN: { representative: true, note: "Empty: ParlInfo Questions on Notice search returns 403 to automated access, so no live QON feed can be fetched. No representative fixture is held either. See https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/Senate_chamber_documents/qon." },
+  QON_PATTERN: { representative: true, note: "Empty: the ParlInfo questions on notice query returns no results, so no live QON source is held. No representative fixture is held either. See https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/Senate_chamber_documents/qon." },
   BRIEFING_QUEUE: { representative: true, note: "Empty: every row invented a piece of parliamentary business already sitting in a named policy team's queue. A shared briefings queue needs a backend that does not exist; the desks read the user's own generated briefs (state.briefsGenerated) as the real source instead." }
 };
 [SIGNALS, COMMITTEE_ITEMS, BILLS, DIVISIONS, WATCHLISTS, RADAR, BRIEFING_QUEUE].forEach((arr) => {
@@ -210,7 +214,6 @@ Object.assign(window, {
   APH_ATTRIBUTION,
   APH_LICENCE_URL,
   APH_LICENCE_NAME,
-  FPR_PENDING_NOTE,
   SITE_CONFIG,
   SOURCE_REGISTRY,
   sourceCounts,

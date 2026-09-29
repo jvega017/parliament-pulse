@@ -202,7 +202,7 @@ function PageOverview() {
           <div className="stat-meta" data-poll-line="" style={fresh.stale ? {color:"var(--caution)"} : undefined}>
             {fresh.known
               ? (fresh.stale ? fresh.stallText : fresh.pollLine)
-              : (feedCount == null ? "Feed count appears once the feed list loads" : "Official APH feeds checked every 30 minutes")}
+              : (feedCount == null ? "Feed count appears once the feed list loads" : "Official APH feeds the service polls")}
           </div>
         </div>
       </div>
@@ -644,8 +644,8 @@ function PageLive() {
               </span>
             </div>
             <div className="panel-body">
-              <EmptyState icon="clock" kicker="No verified daily program held">
-                Parliament Pulse does not yet build a chamber-specific daily program on this page. Official House Daily Program items appear in the "Recent items · APH RSS" panel alongside this player when the feed returns them. Open the House or Senate program above for the current official schedule.
+              <EmptyState icon="clock" kicker="Programs are on aph.gov.au">
+                This page does not build a chamber daily program. House daily program items from the APH feed appear in the "Recent items · APH RSS" panel beside this player whenever the feed returns them. Open the House or Senate program above for the current official schedule.
               </EmptyState>
             </div>
           </div>

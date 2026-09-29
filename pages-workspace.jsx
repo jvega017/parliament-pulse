@@ -50,14 +50,20 @@ function LiveFeedStrip({ title, items, fetchedAt, emptyText }) {
 // the day the calendar moves, and tests/fabrication-patterns.mjs bans the
 // patterns. When a sitting-day feed returns zero items the copy says only that
 // the app holds no records, and points to the official source.
+//
+// Every empty sentence names the exact feed and window it speaks for ("dated
+// today", "in the current feed window"). A blanket "no hearing records are
+// available in this app" sat under a Today's hearings panel on a page that
+// listed upcoming hearings a few rows below, so the two contradicted each other.
 
 // Shared honest-empty copy for a sitting-day feed that has returned zero items.
-// `chamber` names the chamber; `feedNoun` names the feed (for example
-// "Divisions"); `url` and `linkLabel` point to the official source.
-function recessEmptyText(chamber, feedNoun, url, linkLabel) {
+// `scope` is one sentence naming the feed and the window that are empty (for
+// example "No hearings dated today are in the APH hearing feeds."); `url` and
+// `linkLabel` point to the official source.
+function recessEmptyText(scope, url, linkLabel) {
   return (
     <>
-      No {feedNoun} records are available in this app for {chamber}. This does not establish whether the chamber is sitting. Check the official source for current proceedings.{" "}
+      {scope} This does not establish whether the chamber is sitting. Check the official source for current proceedings.{" "}
       <a href={url} target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>{linkLabel} <Icon name="ext" size={11} style={{verticalAlign:"-1px"}}/></a>.
     </>
   );
@@ -112,8 +118,8 @@ function DivisionsLiveList() {
     <SittingDeskList
       rows={rows} emptyIcon="flag"
       unavailableText={<>Parliament Pulse holds no verified division results right now because the live signal feed is unavailable. <a href="https://www.aph.gov.au/Parliamentary_Business/Chamber_documents" target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>Open division results on aph.gov.au</a>.</>}
-      emptyKicker="No verified divisions held"
-      emptyBody={recessEmptyText("the House", "division", "https://www.aph.gov.au/Parliamentary_Business/Chamber_documents", "Open division results on aph.gov.au")}
+      emptyKicker="No divisions in the feed window"
+      emptyBody={recessEmptyText("The House divisions feed lists no division results in the current feed window.", "https://www.aph.gov.au/Parliamentary_Business/Chamber_documents", "Open division results on aph.gov.au")}
     />
   );
 }
@@ -132,8 +138,8 @@ function TodaysHearingsPanel() {
         <SittingDeskList
           rows={rows} emptyIcon="clock"
           unavailableText={<>Parliament Pulse holds no verified hearing schedule right now because the live signal feed is unavailable. <a href="https://www.aph.gov.au/Parliamentary_Business/Committees" target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>Open committee hearings on aph.gov.au</a>.</>}
-          emptyKicker="No verified hearings held"
-          emptyBody={recessEmptyText("Parliament", "hearing", "https://www.aph.gov.au/Parliamentary_Business/Committees", "Open committee hearings on aph.gov.au")}
+          emptyKicker="No hearings dated today"
+          emptyBody={recessEmptyText("The APH feeds of today's House, joint and Senate hearings list no hearings dated today.", "https://www.aph.gov.au/Parliamentary_Business/Committees", "Open committee hearings on aph.gov.au")}
         />
       </div>
     </div>
@@ -201,8 +207,8 @@ function PageCommittees() {
             <SittingDeskList
               rows={upcomingHearings} emptyIcon="signal"
               unavailableText={<>Parliament Pulse holds no verified upcoming Senate hearings right now because the live signal feed is unavailable. <a href="https://www.aph.gov.au/Parliamentary_Business/Committees" target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>Open committee hearings on aph.gov.au</a>.</>}
-              emptyKicker="No verified upcoming hearings held"
-              emptyBody={<>Parliament Pulse holds no verified upcoming Senate hearings in the current live window. <a href="https://www.aph.gov.au/Parliamentary_Business/Committees" target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>Open committee hearings on aph.gov.au</a>.</>}
+              emptyKicker="No upcoming hearings listed"
+              emptyBody={<>The Upcoming Senate hearings feed lists no hearings in the current live window. <a href="https://www.aph.gov.au/Parliamentary_Business/Committees" target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>Open committee hearings on aph.gov.au</a>.</>}
             />
           </div>
         </div>
@@ -212,8 +218,8 @@ function PageCommittees() {
             <SittingDeskList
               rows={recentItems} emptyIcon="signal"
               unavailableText={<>Parliament Pulse holds no verified committee reports or inquiries right now because the live signal feed is unavailable. <a href="https://www.aph.gov.au/Parliamentary_Business/Committees" target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>Open committee reports on aph.gov.au</a>.</>}
-              emptyKicker="No verified reports or inquiries held"
-              emptyBody={<>Parliament Pulse holds no verified committee reports or inquiries in the current live window. <a href="https://www.aph.gov.au/Parliamentary_Business/Committees" target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>Open committee reports on aph.gov.au</a>.</>}
+              emptyKicker="No reports or inquiries listed"
+              emptyBody={<>The committee inquiry and report feeds list no items in the current live window. <a href="https://www.aph.gov.au/Parliamentary_Business/Committees" target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>Open committee reports on aph.gov.au</a>.</>}
             />
           </div>
         </div>
@@ -353,8 +359,8 @@ function PageParliament() {
             <SittingDeskList
               rows={dailyProgramLive} emptyIcon="clock"
               unavailableText={<>Parliament Pulse holds no verified daily program right now because the live signal feed is unavailable. <a href="https://www.aph.gov.au/Parliamentary_Business/Chamber_documents" target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>Open the House daily program on aph.gov.au</a>.</>}
-              emptyKicker="No verified daily program held"
-              emptyBody={recessEmptyText("the House", "daily program", "https://www.aph.gov.au/Parliamentary_Business/Chamber_documents", "Open the House daily program on aph.gov.au")}
+              emptyKicker="No daily program items in the feed window"
+              emptyBody={recessEmptyText("The House daily program feed lists no items in the current feed window.", "https://www.aph.gov.au/Parliamentary_Business/Chamber_documents", "Open the House daily program on aph.gov.au")}
             />
           </div>
         </div>
@@ -378,8 +384,8 @@ function PageParliament() {
             <SittingDeskList
               rows={newsLive} emptyIcon="signal"
               unavailableText={<>Parliament Pulse holds no verified House news right now because the live signal feed is unavailable. <a href="https://www.aph.gov.au/house/rss/house_news" target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>Open House news on aph.gov.au</a>.</>}
-              emptyKicker="No verified items held"
-              emptyBody={<>Parliament Pulse holds no verified House news or media releases in the current live window. <a href="https://www.aph.gov.au/house/rss/house_news" target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>Open House news on aph.gov.au</a>.</>}
+              emptyKicker="No House news listed"
+              emptyBody={<>The House news and media release feeds list no items in the current live window. <a href="https://www.aph.gov.au/house/rss/house_news" target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>Open House news on aph.gov.au</a>.</>}
             />
           </div>
         </div>
@@ -504,7 +510,7 @@ function PagePatterns() {
 
       <div style={{padding:"10px 14px", background:"var(--panel-hi)", border:"1px solid var(--line-bright)", borderRadius:8, marginBottom:16, display:"flex", gap:10, alignItems:"center", color:"var(--ink-2)", fontSize:"var(--t-body-sm)"}}>
         <Icon name="flag" size={14} stroke="var(--info)"/>
-        <span><strong>Questions on notice not connected</strong>: ParlInfo's search refuses automated access, so no questions on notice are held. {threads.items ? "The threads above are built from live signals. " : ""}<a href="https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/Senate_chamber_documents/qon" target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>Search questions on notice on aph.gov.au</a>.</span>
+        <span><strong>Questions on notice not connected</strong>: Parliament Pulse's search of ParlInfo returns no questions on notice, so none are held. {threads.items ? "The threads above are built from live signals. " : ""}<a href="https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/Senate_chamber_documents/qon" target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>Search questions on notice on aph.gov.au</a>.</span>
       </div>
 
       {/* FE-04: the QON_PATTERN block (and its Draft Estimates monitor note button)
@@ -557,7 +563,7 @@ function PagePatterns() {
         <div className="panel-head"><h2 className="panel-title">Clustered scrutiny pattern</h2></div>
         <div className="panel-body">
           <EmptyState icon="pattern" kicker="No questions on notice held">
-            Parliament Pulse holds no questions on notice to find a scrutiny pattern in, because ParlInfo's search refuses automated access. <a href="https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/Senate_chamber_documents/qon" target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>Search questions on notice on aph.gov.au</a>, or <a href="https://www.aph.gov.au/Parliamentary_Business/Senate_estimates" target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>open Senate Estimates</a>.
+            Parliament Pulse holds no questions on notice to find a scrutiny pattern in, because its search of ParlInfo returns none. <a href="https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/Senate_chamber_documents/qon" target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>Search questions on notice on aph.gov.au</a>, or <a href="https://www.aph.gov.au/Parliamentary_Business/Senate_estimates" target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>open Senate Estimates</a>.
           </EmptyState>
         </div>
       </div>
@@ -696,7 +702,7 @@ function PageBriefings() {
 }
 
 // ---------- ALERT RULES ----------
-// The alerts engine runs inside every 30-minute poll and has run since launch,
+// The alerts engine runs inside every feed poll and has run since launch,
 // but has never had a rule to evaluate: GET /alerts has always returned
 // {"rules":[]} (verified live, 2026-07-22) because no rule has ever been
 // created. This panel is the missing surface: create/list/delete a rule against
@@ -785,7 +791,7 @@ function AlertRulesPanel() {
       </div>
       <div className="panel-body">
         <p style={{margin:"0 0 14px", fontSize:"var(--t-body-sm)", color:"var(--ink-3)", lineHeight:1.6}}>
-          The alerts engine evaluates each configured rule against every 30-minute feed poll, whether or not
+          The alerts engine evaluates each configured rule against every feed poll, whether or not
           this tab is open. A rule matches on its keyword terms, and can optionally require a minimum
           attention level, a source group, or a signal kind.
           {!ALERTS_WRITABLE && " You cannot yet create or remove rules here: that needs a sign-in, which this release does not have."}
@@ -860,7 +866,7 @@ function AlertRulesPanel() {
         {!matched.items ? (
           <div className="empty">
             {rules && rules.length > 0
-              ? "No alert matches yet. The engine checks your rules on every 30-minute poll."
+              ? "No alert matches yet. The engine checks your rules on every feed poll."
               : "No alert rules are configured yet. Matches appear here within thirty minutes of creating one."}
           </div>
         ) : (

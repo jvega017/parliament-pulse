@@ -9,7 +9,7 @@ const BETA_READINESS_ROWS = [
   {
     state: "Configured",
     title: "Official APH feeds",
-    detail: "Six official APH RSS feeds are checked every 30 minutes. The Live page shows each feed's current state and links to the source.",
+    detail: "The Parliament Pulse service reads the official APH RSS feeds. The Live page shows each feed's current state and links to the source.",
     action: "Open Live",
     page: "live",
   },
@@ -204,8 +204,11 @@ function ProvenanceMetricsBand({ navigate }) {
   // frontend registry length.
   const feedCount = useFeedCount();
   const dash = v => (typeof v === "number" ? v : NO_VALUE);
+  // The Official feeds cell appears only when the Worker reports its configured
+  // feed count. An older Worker reports none, and a cell holding a bare dot told
+  // the reader nothing, so it is left out rather than shown empty.
   const metrics = [
-    { label: "Official feeds", value: dash(feedCount), detail: feedCount == null ? "Appears once the feed list loads" : "Official APH feeds checked every 30 minutes", icon: "rss", page: "sources" },
+    ...(typeof feedCount === "number" ? [{ label: "Official feeds", value: feedCount, detail: "Official APH feeds the service polls", icon: "rss", page: "sources" }] : []),
     { label: "Signals", value: dash(counts.signals), detail: counts.signals == null ? "Live signals are unavailable" : "Live signals held right now", icon: "signal", page: "signals" },
     { label: "Committee items", value: dash(counts.committees), detail: "From the live committee feeds", icon: "committee", page: "committees" },
     { label: "Human review", value: "On", detail: "Verify before publication", icon: "check" },
@@ -213,7 +216,7 @@ function ProvenanceMetricsBand({ navigate }) {
   return (
     <div className="provenance-metrics">
       <div className="panel-section-title">Provenance at a glance</div>
-      <div className="prov-metric-grid">
+      <div className="prov-metric-grid" style={{"--prov-cols": metrics.length}}>
         {metrics.map(m => (
           <button key={m.label} className="prov-metric" data-metric={m.label} onClick={() => navigate(m.page || "signals")}>
             <Icon name={m.icon} size={14}/>
@@ -371,6 +374,10 @@ function NotYetAvailablePanel() {
   );
 }
 
+// The date the privacy, terms and disclaimer text above last changed. It moves
+// only when that text moves: tests/finalise.test.mjs records a hash of the text
+// beside this date and fails when one changes without the other.
+const PRIVACY_UPDATED = "29 September 2026";
 function LegalNoticePanel() {
   return (
     <div className="panel" style={{ marginTop: "var(--gap-section)" }} id="about-legal">
@@ -402,7 +409,7 @@ function LegalNoticePanel() {
         <h3 style={legalH}>Contact and corrections</h3>
         <p style={legalP}><ContactLine /></p>
 
-        <p className="mono" style={{ fontSize:"var(--t-eyebrow)", color: "var(--ink-4)", marginTop: 14 }}>Last updated 23 July 2026.</p>
+        <p className="mono" data-privacy-updated="" style={{ fontSize:"var(--t-eyebrow)", color: "var(--ink-4)", marginTop: 14 }}>Last updated {PRIVACY_UPDATED}.</p>
       </div>
     </div>
   );
@@ -441,8 +448,8 @@ function PageAbout() {
       </div>
 
       <p style={{color:"var(--ink-2)", fontSize:"var(--t-body-sm)", lineHeight:1.6, maxWidth:760, marginBottom:"var(--gap-section)"}}>
-        Parliament Pulse is a live beta. It checks the official APH feeds every 30 minutes,
-        and every live item links back to its source at aph.gov.au. Signal scoring, threads, source
+        Parliament Pulse is a live beta. It reads the official APH feeds, shows when each was last
+        checked, and links every live item back to its source at aph.gov.au. Signal scoring, threads, source
         grouping and watchlist matching are Parliament Pulse's own analysis over those live items.
         No sample content is shown anywhere: a desk with nothing to show says so and links to the
         official source. This page is the honest account of that split.
@@ -505,9 +512,12 @@ function PageSources() {
   const health = useLiveState("connectors");   // health.items is the mapped checks array
   const [testing, setTesting] = useState(false);
   const [testState, setTestState] = useState(null);
-  const [newUrl, setNewUrl] = useState("https://www.aph.gov.au/.../FlagPost/Blog_entries");
-  const [newName, setNewName] = useState("FlagPost Blog (HTML)");
+  // The form starts empty: example values are placeholders only, so no real
+  // feed name or address is ever pre-filled as though the reader had typed it.
+  const [newUrl, setNewUrl] = useState("");
+  const [newName, setNewName] = useState("");
   const startTest = () => {
+    if (!newUrl.trim()) { toast("Paste an RSS URL first"); document.getElementById("new-feed-url")?.focus(); return; }
     setTesting(true); setTestState(null);
     // Simulated only: no network request is made. The lines below illustrate the
     // steps a real backend validator would run; they never report an actual result.
@@ -526,8 +536,8 @@ function PageSources() {
     }), 1100);
   };
   const saveFeed = () => {
-    if (!newName.trim()) return;
-    addFeed({ id: "custom-"+Date.now(), name: newName.trim(), url: newUrl, status:"review", group:"Custom" });
+    if (!newName.trim() || !newUrl.trim()) { toast("Add a display name and an RSS URL"); return; }
+    addFeed({ id: "custom-"+Date.now(), name: newName.trim(), url: newUrl.trim(), status:"review", group:"Custom" });
     setTestState(null);
   };
 
@@ -576,7 +586,7 @@ function PageSources() {
       <div className={"grid " + (feedShape ? "g-3" : "g-2")} style={{marginBottom:18}}>
         <div className="panel stat" data-stat="feeds"><div className="stat-label">Active feeds</div>
           {feedShape
-            ? <><div className="stat-value">{feedChecks.length}</div><div className="stat-meta">official APH feeds checked every 30 minutes</div></>
+            ? <><div className="stat-value">{feedChecks.length}</div><div className="stat-meta">official APH feeds the service polls</div></>
             : <><div className="stat-value" style={{fontSize:"var(--t-subhead)", color:"var(--ink-3)"}}>{NOT_SUPPLIED}</div><div className="stat-meta">{health.items ? health.items.length + " sources health-checked; this version of the service does not list feeds one by one" : "Appears once the feed list loads"}</div></>}
         </div>
         <div className="panel stat" data-stat="healthy"><div className="stat-label">Healthy</div>
@@ -662,7 +672,7 @@ function PageSources() {
           <table className="ds ds-stack">
             <thead><tr>
               <th>Source</th><th>Group</th><th>Status</th><th>Last</th>
-              <th className="num">Today</th><th title="False-positive rate">False positives <span style={{fontWeight:400, textTransform:"none", letterSpacing:0}}>· {FPR_PENDING_NOTE.toLowerCase()}</span></th><th>Check</th>
+              <th className="num">Today</th><th>Check</th>
             </tr></thead>
             <tbody>
               {allFeeds.map(f => {
@@ -685,7 +695,6 @@ function PageSources() {
                   </td>
                   <td className="mono" data-label="Last" style={{fontSize:"var(--t-caption)", color:"var(--ink-3)"}}>{c ? fmtFetchedAt(c.checkedAt) : (f.last || NO_VALUE)}</td>
                   <td className="num" data-label="Today">{f.lastItemCount ?? NO_VALUE}</td>
-                  <td data-label="False positives" title={FPR_PENDING_NOTE} style={{color:"var(--ink-4)"}}>{NO_VALUE}</td>
                   <td data-label="Check">{f.parser || NO_VALUE}</td>
                 </tr>
                 );
@@ -700,8 +709,11 @@ function PageSources() {
                   <td data-label="Status" style={!c.ok ? {color:"var(--escalate)"} : undefined}>{c.ok ? "Live" : `Error ${c.httpStatus ?? ""}`.trim()}</td>
                   <td className="mono" data-label="Last" style={{fontSize:"var(--t-caption)", color:"var(--ink-3)"}}>{fmtFetchedAt(c.checkedAt)}</td>
                   <td className="num" data-label="Today">{NO_VALUE}</td>
-                  <td data-label="False positives"><span className="tag">{NO_VALUE}</span></td>
-                  <td data-label="Check">Checked every 30 minutes</td>
+                  {/* The Worker pings these reference pages on its own schedule (a
+                      daily link check on the current Worker); the Last column shows
+                      the time of the check that produced this row, so no cadence
+                      is claimed here. */}
+                  <td data-label="Check">Page reachability</td>
                 </tr>
               ))}
             </tbody>
@@ -736,10 +748,10 @@ function PageSources() {
             </div>
             <div className="panel-body">
               <label htmlFor="new-feed-name" className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em"}}>Display name</label>
-              <input id="new-feed-name" value={newName} onChange={e=>setNewName(e.target.value)} className="search" style={{padding:"8px 10px", marginTop:4, marginBottom:8, width:"100%"}}/>
+              <input id="new-feed-name" value={newName} onChange={e=>setNewName(e.target.value)} placeholder="For example: My committee feed" autoComplete="off" className="search" style={{padding:"8px 10px", marginTop:4, marginBottom:8, width:"100%"}}/>
               <label htmlFor="new-feed-url" className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em"}}>Paste RSS URL</label>
               <div style={{display:"flex", gap:8, marginTop:4}}>
-                <input id="new-feed-url" value={newUrl} onChange={e=>setNewUrl(e.target.value)} className="search" style={{flex:1, minWidth:0, padding:"8px 10px"}}/>
+                <input id="new-feed-url" type="url" inputMode="url" value={newUrl} onChange={e=>setNewUrl(e.target.value)} placeholder="https://example.org/feed.xml" autoComplete="off" className="search" style={{flex:1, minWidth:0, padding:"8px 10px"}}/>
                 <button className="btn primary" onClick={startTest}>{testing && !testState ? "Testing…" : "Validate"}</button>
               </div>
 

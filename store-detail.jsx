@@ -133,7 +133,7 @@ function CommitteeDetail({ id, titleId, closeButtonRef }) {
 
         <h3 className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:22, marginBottom:8}}>Upcoming & today's hearings</h3>
         <div className="empty">
-          Parliament Pulse holds no verified hearing schedule for this committee, because APH publishes hearing programmes on the committee page rather than as a machine-readable feed. See the current schedule at{" "}
+          This panel does not match hearings to individual committees. Hearings from the APH feeds are listed on the Committees page under Today's hearings and Upcoming Senate hearings; the committee's own page carries its full programme. See{" "}
           <a href="https://www.aph.gov.au/Parliamentary_Business/Committees" target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>aph.gov.au/Parliamentary_Business/Committees <Icon name="ext" size={11} style={{verticalAlign:"-1px"}}/></a>.
         </div>
 
@@ -146,7 +146,7 @@ function CommitteeDetail({ id, titleId, closeButtonRef }) {
           </div>
         ) : (
           <div className="empty">
-            Parliament Pulse holds no verified inquiry list for this committee. See the committee's own page on aph.gov.au for its current inquiries.
+            This panel does not match inquiries to individual committees. Inquiries from the APH feeds are listed on the Committees page under Inquiries and reports, and the committee's own page on aph.gov.au lists its current inquiries.
           </div>
         )}
       </div>
@@ -376,7 +376,6 @@ function FeedDetail({ id, titleId, closeButtonRef }) {
           <dt>Last success</dt><dd>{last}</dd>
           <dt>Items at last check</dt><dd>{parsed}</dd>
           {c && c.parseError && <><dt>Error</dt><dd>{c.parseError}</dd></>}
-          <dt>False positives</dt><dd title={FPR_PENDING_NOTE}><span style={{color:"var(--ink-4)"}}>Not measured yet ({FPR_PENDING_NOTE.toLowerCase()})</span></dd>
         </dl>
       </div>
       <div className="modal-foot">
