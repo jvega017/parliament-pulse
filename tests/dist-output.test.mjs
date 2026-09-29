@@ -103,6 +103,9 @@ function problems(s) {
   const byHash = {};
   for (const f of woff) (byHash[sha256(s.files.get(f))] ||= []).push(f);
   for (const g of Object.values(byHash)) if (g.length > 1) out.push(`fonts: ${g.join(", ")} are byte-identical copies`);
+  // 7. images
+  const refs = s.html + "\n" + (s.files.get("manifest.webmanifest") || Buffer.from("")).toString("utf8");
+  for (const f of s.files.keys()) if (/\.(png|jpe?g|webp|gif|avif)$/i.test(f) && !refs.includes(f)) out.push(`image: ${f} ships but neither index.html nor manifest.webmanifest references it`);
   if (!s.info || !s.info.js_map || JSX_FILES.some(f => !s.info.js_map[`${f}.js`] || !s.files.has(s.info.js_map[`${f}.js`]))) out.push("map: build-info.json js_map does not name an existing hashed file for every app script");
   return out;
 }
@@ -135,6 +138,7 @@ try {
       return { ...clean, files };
     })() },
     { why: "font-display: swap removed", expect: "fonts: an @font-face lacks", s: { ...clean, files: new Map([...clean.files, ["assets/fonts/fonts.css", Buffer.from(clean.files.get("assets/fonts/fonts.css").toString("utf8").replace("font-display:swap;", ""))]]) } },
+    { why: "an unreferenced screenshot ships", expect: "image: assets/screenshot-signal-inbox.png", s: { ...clean, files: new Map([...clean.files, ["assets/screenshot-signal-inbox.png", Buffer.from("png")]]) } },
     { why: "JS after total not smaller", expect: "sizes:", s: { ...clean, info: { ...clean.info, brotli: { ...clean.info.brotli, after: { ...clean.info.brotli.after, js: clean.info.brotli.before.js } } } } },
   ];
   for (const c of CANARIES) {
