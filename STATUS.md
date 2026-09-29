@@ -51,8 +51,8 @@ Why QON and member data are empty (probed 29 Sep 2026):
 
 Nothing below is live until the owner merges to `main` and the CI-gated
 deploy runs. New migrations `0006_feed_health.sql`,
-`0007_backfill_thread_item_count.sql` and `0008_job_runs.sql` are not applied
-to the remote D1; the deploy runbook must apply them first. Remote migration
+`0007_backfill_thread_item_count.sql`, `0008_job_runs.sql` and
+`0009_joint_source_group.sql` are not applied to the remote D1; the deploy runbook must apply them first. Remote migration
 state was not queried in this session.
 
 | Package | Change in the code | Effect on surfaces |
@@ -65,6 +65,7 @@ state was not queried in this session.
 | WK-06 | Constant-time admin token compare, error messages no longer served, CORS and LIKE escaping fixes, digest stays dormant | No surface change |
 | WK-07 | D1 export with a manifest and a tested restore drill (`RESTORE.md`) | No surface change |
 | WK-08 | Empty QON and member surfaces keep provenance `fixture` and carry a plain reason in `note`; `/qons` and `/members` add `provenance` and `note`; feed tables generated from `src/jurisdictions.json` | Empty desks say why they are empty |
+| 0.16.1 | Feeds whose label contains "joint" are grouped `Joint` (previously `Custom`); migration 0009 relabels stored `signals` and `alert_rules` rows | Activity by source and the drawer Source group read `Joint` |
 
 On the branch the QON and member surfaces stay **empty**. The crons keep
 running and record their zero-row outcomes as counts in `job_runs.detail`
@@ -112,4 +113,9 @@ daily program and today's hearings feeds carry items only in sitting weeks.
 
 The deployed frontend is the separate `Claude-Workspace/03_Projects/parliament-pulse`
 repository. `apps/web` here is retired (frozen 30 May 2026, not built or
-deployed); its `deploy-web.yml` workflow is manual-dispatch only.
+deployed). Its `deploy-web.yml` workflow was deleted on this branch on
+29 September 2026: it was manual-dispatch only, but a dispatch would still
+have published the stale `apps/web` build to the production Pages project
+`parliament-pulse`. No workflow in this repository now deploys a frontend.
+The deletion takes effect on `main` only after merge; until then the copy on
+`main` can still be dispatched.

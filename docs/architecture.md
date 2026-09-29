@@ -56,7 +56,6 @@ proxy; that SPA is retired and the Worker now archives, scores and composes.
 | CI | `.github/workflows/ci.yml` |
 | Worker deploy (after CI on `main`) | `.github/workflows/deploy-worker.yml` |
 | D1 backup | `.github/workflows/d1-backup.yml`, `workers/aph-proxy/RESTORE.md` |
-| Retired SPA deploy (manual only) | `.github/workflows/deploy-web.yml` |
 
 ## Secrets
 

@@ -49,7 +49,7 @@
     ],
     "sourceGroupRules": [
       { "group": "Library", "matchesAny": ["library", "flagpost", "digest", "bills digest"] },
-      { "group": "Custom", "matchesAny": ["joint"] },
+      { "group": "Joint", "matchesAny": ["joint"] },
       { "group": "Senate", "matchesAny": ["senate", "senators"] }
     ],
     "defaultSourceGroup": "House"
