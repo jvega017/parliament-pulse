@@ -508,7 +508,7 @@ function PageNotFound({ path }) {
 
 // ---------- SOURCES ----------
 function PageSources() {
-  const { openModal, addFeed, state, toast } = useStore();
+  const { openModal, addFeed, state, toast, refreshLiveState } = useStore();
   const health = useLiveState("connectors");   // health.items is the mapped checks array
   // The form starts empty: example values are placeholders only, so no real
   // feed name or address is ever pre-filled as though the reader had typed it.
@@ -537,6 +537,17 @@ function PageSources() {
   // (11 checks vs 6 registry rows). Counted from data, never hardcoded.
   const workerRows = (health.items || []).filter(c => !registryUrls.has(c.url));
   const healthyCount = (health.items || []).filter(c => c.ok).length;
+  // "Refresh all" used to call the Live page's poller, which exists only while
+  // Live parliament is open, so on this page it could only print "Open Live
+  // parliament to refresh the feeds" and sent no request. It now reloads /state
+  // through the store, as the topbar refresh button does, and the health table
+  // re-renders from the checks that come back.
+  const refreshHealth = () => {
+    if (typeof refreshLiveState !== "function") { toast("Feed health cannot be reloaded right now", "error"); return; }
+    Promise.resolve(refreshLiveState())
+      .then(() => toast("Feed health reloaded from the latest check"))
+      .catch(() => toast("Could not reach the service; showing the last health check held", "error"));
+  };
 
   // FE-05 (DATA-08, UX-12, DATA-16): a current Worker serves one check per
   // CONFIGURED feed. The table is then built from those rows alone, one row per
@@ -565,7 +576,7 @@ function PageSources() {
           <div className="page-sub">The official APH feeds Parliament Pulse reads{health.items ? ", with the result of the latest health check for each" : "; each feed's health appears after the next check"}. Feeds you add yourself are kept on this device and are not yet checked.</div>
         </div>
         <div style={{display:"flex", gap:10}}>
-          <button className="btn" title="Refreshes the live RSS feeds shown on Live parliament" onClick={() => { if (typeof window.__refreshLiveFeeds === "function") { window.__refreshLiveFeeds(); toast("Live feeds re-polled"); } else { toast("Open Live parliament to refresh the feeds"); } }}><Icon name="refresh" size={13}/> Refresh all</button>
+          <button className="btn" data-refresh-health="" title="Reloads the latest feed health check from the Parliament Pulse service" onClick={refreshHealth}><Icon name="refresh" size={13}/> Refresh health</button>
           <button className="btn primary" onClick={() => document.getElementById("new-feed-url")?.focus()}><Icon name="plus" size={13}/> Add feed</button>
         </div>
       </div>
@@ -578,9 +589,9 @@ function PageSources() {
         </div>
         <div className="panel stat" data-stat="healthy"><div className="stat-label">Healthy</div>
           {feedShape
-            ? <><div className="stat-value">{feedOk}/{feedPolled}</div><div className="stat-meta">polled feeds OK{feedPending ? ` · ${feedPending} not yet polled` : ""} · as at {fmtFetchedAt(health.fetchedAt)} AEST</div></>
+            ? <><div className="stat-value">{feedOk}/{feedPolled}</div><div className="stat-meta" data-healthy-meta="">{["polled feeds OK", feedPending ? `${feedPending} not yet polled` : "", latestCheckClause(feedChecks)].filter(Boolean).join(" · ")}</div></>
             : health.items
-            ? <><div className="stat-value">{healthyCount}/{health.items.length}</div><div className="stat-meta">as at {fmtFetchedAt(health.fetchedAt)} AEST</div></>
+            ? <><div className="stat-value">{healthyCount}/{health.items.length}</div><div className="stat-meta" data-healthy-meta="">{latestCheckClause(health.items) || "No check time supplied"}</div></>
             : <><div className="stat-value" style={{fontSize:"var(--t-subhead)", color:"var(--ink-3)"}}>{NOT_SUPPLIED}</div><div className="stat-meta">Available after live poll</div></>}
         </div>
         {/* FE-09: the "items ingested today" and "false positive rate" tiles showed

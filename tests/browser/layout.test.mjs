@@ -26,6 +26,13 @@
 //               signal drawer the evidence label reads on one line with its
 //               address below it at least half the row wide, and the drawer date
 //               never breaks inside itself.
+//   card-date   round 2, with the Worker 0.16-shaped fixture (tests/fixtures/state.json:
+//               8 undated items with a first-seen date): on Overview and Signals at
+//               390 and 320 px every card-head date sits inside its card, and in the
+//               drawer the date and its "first seen" clause sit inside the drawer.
+//   search      round 2, state.json (the poll line shows): at 1280 px the topbar
+//               search input is at least 200 px wide on Overview and Sources, and
+//               the page does not scroll sideways.
 //   player      Live on first load has NO iframe and has made NO request to
 //               YouTube; after "Load YouTube player" exactly one iframe exists,
 //               its URL is the verified channel's live_stream embed with no
@@ -51,6 +58,10 @@
 //   phone-conf     the phone two-column card footer removed (phone)
 //   ev-row         the evidence label and address put back side by side (phone)
 //   drawer-date    the drawer date allowed to break inside itself (phone)
+//   card-when      the card head given the long "first seen" label again (card-date)
+//   drawer-seen    the drawer date and its first-seen clause joined in one
+//                  unbreakable span again (card-date)
+//   search-min     the topbar search min-width removed (search)
 // A canary whose mutation does not apply aborts the run as untrustworthy.
 
 import fs from "node:fs";
@@ -232,6 +243,54 @@ async function phoneProblems(page, label) {
   return out.map(x => `${label}: ${x}`);
 }
 
+// Round 2: card-head dates inside their cards, and the drawer date inside the drawer.
+async function cardDateProblems(page) {
+  return page.evaluate(() => {
+    const bad = [];
+    const times = [...document.querySelectorAll("main .signal .sig-time")];
+    if (!times.length) bad.push("no card-head dates on the desk");
+    if (!times.some(t => /Date not supplied/.test(t.textContent))) bad.push("no undated card on the desk (the fixture must carry one)");
+    for (const t of times) {
+      const card = t.closest(".signal").getBoundingClientRect();
+      const rg = document.createRange(); rg.selectNodeContents(t); const tr = rg.getBoundingClientRect();
+      if (tr.right > card.right - 1 || tr.left < card.left) bad.push(`card date "${t.textContent}" runs past its card (text right ${Math.round(tr.right)}, card right ${Math.round(card.right)})`);
+    }
+    return bad.slice(0, 6);
+  });
+}
+async function drawerDateProblems(page) {
+  await page.click("main .signal .sig-open");
+  await page.waitForSelector("aside.drawer.on [data-drawer-date]", { timeout: 5000 }).catch(() => {});
+  await page.waitForTimeout(400);
+  const bad = await page.evaluate(() => {
+    const out = [];
+    const drawer = document.querySelector("aside.drawer.on");
+    if (!drawer) return ["drawer did not open"];
+    const dr = drawer.getBoundingClientRect();
+    const parts = [...drawer.querySelectorAll("[data-drawer-date], [data-drawer-seen]")];
+    const all = parts.map(p => p.textContent).join(" ");
+    if (!/first seen \d{1,2} [A-Z][a-z]{2} \d{4}/.test(all)) out.push(`drawer date "${all}" carries no first-seen date (first card must be undated)`);
+    for (const p of parts) {
+      const r = p.getBoundingClientRect();
+      if (r.right > Math.min(dr.right, window.innerWidth) + 1) out.push(`drawer date part "${p.textContent}" runs past the drawer (right ${Math.round(r.right)}, drawer right ${Math.round(dr.right)})`);
+    }
+    return out;
+  });
+  await page.keyboard.press("Escape");
+  return bad;
+}
+async function searchWidthProblems(page) {
+  return page.evaluate(() => {
+    const i = document.querySelector(".topbar .search input");
+    if (!i) return ["no topbar search input"];
+    const w = i.getBoundingClientRect().width;
+    const out = [];
+    if (!document.querySelector(".topbar [data-poll-line]")) out.push("no poll line in the topbar (the fixture must show one)");
+    if (w < 200) out.push(`topbar search input is ${Math.round(w)} px wide, expected at least 200`);
+    return out;
+  });
+}
+
 // ---- the clean-build suite -----------------------------------------------------
 async function runSuite(h, { baseUrl, only } = {}) {
   const results = {};
@@ -307,6 +366,27 @@ async function runSuite(h, { baseUrl, only } = {}) {
     }
     results.phone = { problems: bad };
   }
+  if (!only || only.includes("card-date")) {
+    const bad = [];
+    for (const width of [390, 320]) {
+      for (const id of ["overview", "signals"]) {
+        await open(id, { width });
+        for (const p of await cardDateProblems(page)) bad.push(`${id} ${width}px: ${p}`);
+      }
+      await open("overview", { width });
+      for (const p of await drawerDateProblems(page)) bad.push(`drawer ${width}px: ${p}`);
+    }
+    results["card-date"] = { problems: bad };
+  }
+  if (!only || only.includes("search")) {
+    const bad = [];
+    for (const id of ["overview", "sources"]) for (const theme of THEMES) {
+      await open(id, { width: 1280, theme });
+      for (const p of await searchWidthProblems(page)) bad.push(`${id} 1280px ${theme}: ${p}`);
+      for (const p of await overflowProblems(page)) bad.push(`${id} 1280px ${theme}: ${p}`);
+    }
+    results.search = { problems: bad };
+  }
   if (!only || only.includes("player")) {
     const fresh = await h.newPage();   // a new context: its request log starts empty
     await openDesk(fresh, "live", { width: 1280, ...(baseUrl ? { baseUrl } : {}) });
@@ -371,6 +451,13 @@ const CANARIES = [
     expect: "drawer: evidence", apply: d => mutate(d, "shell.js", 'className: "ev-text", style: { flex: "1 1 auto", minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }', 'className: "ev-text", style: { flex: "1 1 auto", minWidth: 0, display: "flex", flexDirection: "row", gap: 10 }') },
   { name: "drawer-date", check: "phone",
     expect: "drawer: the date", apply: d => mutate(d, "shell.js", '"data-drawer-date": "", style: { whiteSpace: "nowrap" }', '"data-drawer-date": "", style: { whiteSpace: "normal", display: "inline-block", width: 40 }') },
+  // Round 2.
+  { name: "card-when", check: "card-date",
+    expect: "runs past its card", apply: d => mutate(d, "store.js", 'return { dateKind: "none", time: "", date, when: "Date not supplied", pubAt: null };', 'return { dateKind: "none", time: "", date, when: date, pubAt: null };') },
+  { name: "drawer-seen", check: "card-date",
+    expect: "runs past the drawer", apply: d => mutate(d, "shell.js", 'const [day, seen] = String(s.date || "").split(", first seen ");', 'const [day, seen] = [String(s.date || ""), ""];') },
+  { name: "search-min", check: "search",
+    expect: "topbar search input is", apply: d => mutate(d, "index.html", ".topbar .search { min-width: 320px; }", "") },
 ];
 
 async function runCanary(h, c) {
@@ -403,6 +490,8 @@ try {
   check(r.tables.problems.length === 0, "Bills and Sources stack with data-label at 390 px and stay tables at 1280 px; Activity by source labels follow the width", r.tables.problems.join("\n      "));
   check(r["sources-fit"].problems.length === 0, "Sources, current and older Worker shapes: the table fits its panel at 1280 px and stacks at 390 px, both themes", r["sources-fit"].problems.slice(0, 6).join("\n      "));
   check(r.phone.problems.length === 0, "Overview and drawer at 390 px, both themes: topbar controls on one row with the theme toggle, confidence on one line clear of Open, evidence label on one line above a wide address, drawer date unbroken", r.phone.problems.slice(0, 6).join("\n      "));
+  check(r["card-date"].problems.length === 0, "Overview and Signals at 390 and 320 px with the 0.16-shaped fixture: every card-head date sits inside its card; the drawer date and its first-seen clause sit inside the drawer", r["card-date"].problems.slice(0, 6).join("\n      "));
+  check(r.search.problems.length === 0, "Topbar at 1280 px with the poll line showing, Overview and Sources, both themes: the search input is at least 200 px wide and the page does not scroll sideways", r.search.problems.slice(0, 6).join("\n      "));
   check(r.player.problems.length === 0, "Live: no iframe and no YouTube request before 'Load YouTube player'; one APH live stream embed after, verified channel, no autoplay; chambers link to ParlView", r.player.problems.join("\n      "));
   const errs = [...r.pageErrors, ...r.player.pageErrors].filter(e => !/net::ERR_BLOCKED_BY_CLIENT|Failed to load resource/.test(e));
   check(errs.length === 0, "no page errors or console errors across the run", errs.slice(0, 4).join("\n      "));

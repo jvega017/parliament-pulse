@@ -182,7 +182,7 @@ function signalDateFields(pubDate, firstSeenAt) {
   }
   const seen = firstSeenAt ? Date.parse(firstSeenAt) : NaN;
   const date = Number.isNaN(seen) ? "Date not supplied" : `Date not supplied, first seen ${fmtDayMonYear(seen)}`;
-  return { dateKind: "none", time: "", date, when: date, pubAt: null };
+  return { dateKind: "none", time: "", date, when: "Date not supplied", pubAt: null };
 }
 function mapWorkerSignalToCard(row) {
   var _a, _b;
@@ -439,6 +439,14 @@ function fmtFetchedAt(v) {
 function fetchedClause(v) {
   const t = fetchedAtMs(v);
   return Number.isNaN(t) ? "" : `fetched ${fmtClockHM(t)} AEST`;
+}
+function latestCheckClause(checks) {
+  let latest = NaN;
+  for (const c of checks || []) {
+    const t = fetchedAtMs(c && c.checkedAt);
+    if (!Number.isNaN(t) && (Number.isNaN(latest) || t > latest)) latest = t;
+  }
+  return Number.isNaN(latest) ? "" : `last check ${fmtClockHM(latest)} AEST`;
 }
 function liveStateDegradation(liveState, now = Date.now()) {
   if (!liveState) return "loading";

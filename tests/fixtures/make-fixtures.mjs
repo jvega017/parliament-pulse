@@ -28,7 +28,7 @@ const FEEDS = [
   { label: "Senate committee reports", group: "Senate", kind: "report", url: "https://www.aph.gov.au/senate/rss/reports" },
   { label: "House media releases", group: "House", kind: "signal", url: "https://www.aph.gov.au/house/rss/media_releases" },
   { label: "House committee inquiries", group: "House", kind: "inquiry", url: "https://www.aph.gov.au/house/rss/new_inquiries" },
-  { label: "Joint committee inquiries", group: "Custom", kind: "inquiry", url: "https://www.aph.gov.au/joint/rss/new_inquiries" },
+  { label: "Joint committee inquiries", group: "Joint", kind: "inquiry", url: "https://www.aph.gov.au/joint/rss/new_inquiries" },
 ];
 
 // Title lengths span the live range (the longest live title on 29 Sep 2026 was

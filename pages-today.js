@@ -216,6 +216,16 @@ async function mapPool(items, limit, fn) {
   await Promise.all(Array.from({ length: lanes }, worker));
   return results;
 }
+function sortLiveEventsNewestFirst(events) {
+  const ms = (e) => e && e.date && typeof e.date.getTime === "function" && !Number.isNaN(e.date.getTime()) ? e.date.getTime() : null;
+  return [...events].sort((a, b) => {
+    const ea = ms(a), eb = ms(b);
+    if (ea != null && eb != null && ea !== eb) return eb - ea;
+    if (ea == null && eb != null) return 1;
+    if (eb == null && ea != null) return -1;
+    return a.feedIdx - b.feedIdx || a.itemIdx - b.itemIdx;
+  });
+}
 function PageLive() {
   const { toast, consumeLiveRefresh } = useStore();
   const [events, setEvents] = useState([]);
@@ -314,8 +324,7 @@ function PageLive() {
         }
       });
       window.__sourceHealth = sourceCounts();
-      all.sort((a, b) => a.feedIdx - b.feedIdx || a.itemIdx - b.itemIdx);
-      setEvents(all.slice(0, 30));
+      setEvents(sortLiveEventsNewestFirst(all).slice(0, 30));
       setFeedStatus(status);
       setLastPoll(/* @__PURE__ */ new Date());
       setLoading(false);

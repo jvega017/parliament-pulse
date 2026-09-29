@@ -930,7 +930,16 @@ function Drawer() {
                   {/* The kicker wraps between its parts, never inside the date (FE final:
                       at 390 px the old single nowrap line cut the date off). */}
                   <span style={{minWidth:0, overflowWrap:"anywhere"}}>{isLive || /^https?:/.test(s.id || "") ? (s.source || "APH") : s.id}</span>
-                  <span data-drawer-date="" style={{whiteSpace:"nowrap"}}>· {s.date}</span>
+                  {/* An undated item's "first seen" clause is its own unbreakable part,
+                      so at 390 and 320 px it drops a line instead of running past
+                      the drawer; neither part ever breaks inside itself. */}
+                  {(() => {
+                    const [day, seen] = String(s.date || "").split(", first seen ");
+                    return <>
+                      <span data-drawer-date="" style={{whiteSpace:"nowrap"}}>· {day}{seen ? "," : ""}</span>
+                      {seen && <span data-drawer-seen="" style={{whiteSpace:"nowrap"}}>first seen {seen}</span>}
+                    </>;
+                  })()}
                   <ProvenanceChip provenance={itemProvenance}
                     title={isLive ? "This item is from an official APH feed" : "This item has no live source"} />
                 </div>

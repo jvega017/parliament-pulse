@@ -14,7 +14,9 @@
 //             "Last APH poll 5 min ago"; no ribbon.
 //   old       an older Worker: no freshness fields, landing-page checks. The app
 //             renders without errors and keeps its previous behaviour.
-//   signals   an undated row reads "Date not supplied, first seen D Mon YYYY";
+//   signals   an undated card head reads "Date not supplied" and its drawer date
+//             "Date not supplied, first seen D Mon YYYY" (round 2: the long label
+//             ran past the card at 390 and 320 px);
 //             a date-only row prints its date and no clock time; a timed row
 //             prints its Brisbane clock time.
 //   sources   one row per connectors.checks entry, never-polled feeds read
@@ -85,7 +87,7 @@ const SIGNALS = [
   baseSig("timed", { pub_date: iso(TIMED), first_seen_at: NOW, feed_label: "House media releases" }),
 ];
 const EXPECT = {
-  undated: `Date not supplied, first seen ${dayMonYear(FIRST_SEEN)}`,
+  undated: "Date not supplied",
   dateonly: dayMon(Date.parse(DATE_ONLY_ISO), "UTC"),
   dateonlyraw: dayMon(Date.parse(DATE_ONLY_RAW), "UTC"),
   timed: cardWhen(TIMED),
@@ -202,8 +204,10 @@ function run(variant, overrides = {}) {
   const h = React.createElement;
   const r = (C, p = {}) => renderToString(h(C, p), React);
   const cards = {};
+  const dates = {};
   for (const s of blocks.signals.items || []) {
     cards[s.id.split("/").pop()] = r(ctx.SignalCard, { s });
+    dates[s.id.split("/").pop()] = s.date;
   }
   return {
     topbar: r(ctx.Topbar, { mobileNavOpen: false, setMobileNavOpen: () => {} }),
@@ -213,7 +217,7 @@ function run(variant, overrides = {}) {
     about: r(ctx.PageAbout),
     attribution: vm.runInContext("APH_ATTRIBUTION", ctx),
     licenceName: vm.runInContext("APH_LICENCE_NAME", ctx),
-    cards,
+    cards, dates,
   };
 }
 
@@ -262,6 +266,8 @@ const GROUPS = {
       const got = sigWhen(out.cards[k] || "");
       if (got !== want) f.push(`signals: ${k} card reads ${JSON.stringify(got)}, expected ${JSON.stringify(want)}`);
     }
+    const drawer = `Date not supplied, first seen ${dayMonYear(FIRST_SEEN)}`;
+    if (out.dates.undated !== drawer) f.push(`signals: undated drawer date reads ${JSON.stringify(out.dates.undated)}, expected ${JSON.stringify(drawer)}`);
     for (const k of ["undated", "dateonly", "dateonlyraw"]) {
       if (CLOCK_RE.test(text(out.cards[k] || ""))) f.push(`signals: ${k} card prints a clock time`);
       if (/Published|>\s*—\s*</.test(out.cards[k] || "")) f.push(`signals: ${k} card reads Published or a bare dash`);

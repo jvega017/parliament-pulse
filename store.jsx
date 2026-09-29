@@ -234,7 +234,9 @@ function pubDateHasClock(s) {
 //   dateKind "date":     time "",      date "D Mon YYYY" (the stated calendar day)
 //   dateKind "none":     time "",      date "Date not supplied, first seen D Mon YYYY"
 // `when` is the fallback card-head label; signalWhen() derives the live one at
-// render time from `pubAt` (the parsed epoch) and dateKind.
+// render time from `pubAt` (the parsed epoch) and dateKind. An undated card head
+// reads only "Date not supplied": the "first seen" date stays in `date`, which
+// the drawer shows, because the long label ran past the card at 390 and 320 px.
 function signalDateFields(pubDate, firstSeenAt) {
   const raw = pubDate == null ? "" : String(pubDate).trim();
   const t = raw ? Date.parse(raw) : NaN;
@@ -250,7 +252,7 @@ function signalDateFields(pubDate, firstSeenAt) {
   }
   const seen = firstSeenAt ? Date.parse(firstSeenAt) : NaN;
   const date = Number.isNaN(seen) ? "Date not supplied" : `Date not supplied, first seen ${fmtDayMonYear(seen)}`;
-  return { dateKind: "none", time: "", date, when: date, pubAt: null };
+  return { dateKind: "none", time: "", date, when: "Date not supplied", pubAt: null };
 }
 
 // signals.items[] -> signal card shape. Moved from pages.jsx unchanged, then
@@ -589,6 +591,18 @@ function fmtFetchedAt(v) {
 function fetchedClause(v) {
   const t = fetchedAtMs(v);
   return Number.isNaN(t) ? "" : `fetched ${fmtClockHM(t)} AEST`;
+}
+// The latest check time across a set of feed health checks, as
+// "last check 09:55 AEST", or "" when no check carries a time. The Sources
+// "Healthy" tile reads this: the page's own fetch time says nothing about when
+// the service last checked the feeds.
+function latestCheckClause(checks) {
+  let latest = NaN;
+  for (const c of checks || []) {
+    const t = fetchedAtMs(c && c.checkedAt);
+    if (!Number.isNaN(t) && (Number.isNaN(latest) || t > latest)) latest = t;
+  }
+  return Number.isNaN(latest) ? "" : `last check ${fmtClockHM(latest)} AEST`;
 }
 
 // Explicit degradation state machine over the /state cache: loading | ready |

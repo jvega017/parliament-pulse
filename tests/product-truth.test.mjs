@@ -21,6 +21,17 @@
 //             instead of running past the card.
 //   livecount the Live page count says "items", never "tabled items": the count
 //             includes media releases, which are not tabled.
+// Round 2:
+//   carddate  an undated card head reads only "Date not supplied" (the long
+//             "first seen" label ran past the card at 390 and 320 px); the card's
+//             drawer date keeps "Date not supplied, first seen D Mon YYYY".
+//   refresh   the Sources refresh button calls the store's refreshLiveState (one
+//             /state request) and is labelled "Refresh health"; it used to depend
+//             on the Live page's poller and could only say "Open Live parliament".
+//   checktime the Sources "Healthy" tile reads the latest feed check time, never
+//             the page's fetch time, and drops the clause when no check has a time.
+//   livesort  Live "Recent items" run newest first with undated items last, and
+//             the poller applies that sort before the 30-item cap.
 //
 // Canary-first: each control is removed on an in-memory scratch copy of the built
 // .js or index.html (the working tree is never touched) and the matching assertion
@@ -47,6 +58,12 @@ const clock = ms => {
   return `${o.hour}:${o.minute}`;
 };
 const FETCHED_MS = NOW_MS - 7 * MIN;
+// Feed checks: the latest check (CHECK_A) is 12 minutes old, never the fetch time.
+const CHECK_A = NOW_MS - 12 * MIN, CHECK_B = NOW_MS - 31 * MIN;
+const feedCheck = (label, at, extra) => ({ url: `https://www.aph.gov.au/truth/feed/${label.replace(/\W+/g, "_")}`, feed_label: label, kind: "signal", checked_at: at, ok: 1, status: 200, error: null, last_http_status: 200, items_parsed: 4, parse_error: null, last_success_at: at, ...extra });
+const NEVER = { ok: 0, status: null, last_http_status: null, items_parsed: null, last_success_at: null };
+const CHECKS = [feedCheck("House media releases", iso(CHECK_B)), feedCheck("Senate committee reports", iso(CHECK_A)), feedCheck("House news", null, NEVER)];
+const CHECKS_UNTIMED = [feedCheck("House news", null, NEVER)];
 
 const sig = (id, extra) => ({
   guid: `https://www.aph.gov.au/truth/${id}`, title: `Truth item ${id}`, link: `https://www.aph.gov.au/truth/${id}`,
@@ -65,7 +82,7 @@ const EXPECT_ORDER = ["recent", "sep15", "jul", "undated", "undated2"];
 const BILL = { guid: "https://parlinfo.aph.gov.au/truth/bill1", title: "Truth Amendment Bill 2026", link: "https://parlinfo.aph.gov.au/truth/bill1", pub_date: "2026-09-28T04:00:00.000Z", description: null, attention: "high", confidence: 1 };
 const BLOCKS = {
   signals: { provenance: "live", fetched_at: NOW, origin: "fixture", items: SIGNALS },
-  connectors: { provenance: "live", fetched_at: NOW, origin: "fixture", checks: [] },
+  connectors: { provenance: "live", fetched_at: NOW, origin: "fixture", checks: CHECKS },
   threads: { provenance: "fixture", fetched_at: NOW, origin: "fixture", items: [] },
   alerts: { provenance: "fixture", fetched_at: NOW, origin: "fixture", events: [] },
   qons: { provenance: "fixture", fetched_at: NOW, origin: "fixture", items: [] },
@@ -122,22 +139,55 @@ function renderToString(el, React) {
 }
 const text = html => html.replace(/<[^>]+>/g, " ").replace(/&quot;/g, '"').replace(/\s+/g, " ").trim();
 
-function run(sources, billsFetchedAt) {
+// Walk an element tree, expanding function components, and return the first host
+// element whose props pass `pred` (so a test can call its onClick).
+function findEl(el, React, pred) {
+  if (el == null || typeof el !== "object") return null;
+  if (Array.isArray(el)) { for (const e of el) { const r = findEl(e, React, pred); if (r) return r; } return null; }
+  const { type, props } = el;
+  if (type === React.Fragment) return findEl(props.children, React, pred);
+  if (typeof type === "function") {
+    const out = type.prototype && typeof type.prototype.render === "function" ? new type(props).render() : type(props);
+    return findEl(out, React, pred);
+  }
+  if (pred(props || {})) return el;
+  return findEl(props && props.children, React, pred);
+}
+
+function run(sources, billsFetchedAt, checks = CHECKS) {
   const storeRef = { value: null };
   const { ctx, React } = makeContext(storeRef);
   JSX_FILES.filter(f => f !== "app").forEach(f => vm.runInContext(sources[f], ctx, { filename: `${f}.js` }));
-  const mapped = ctx.mapLiveBlocks(JSON.parse(JSON.stringify(BLOCKS)), JSON.parse(JSON.stringify(META)));
+  const blocks = JSON.parse(JSON.stringify(BLOCKS));
+  blocks.connectors.checks = JSON.parse(JSON.stringify(checks));
+  const mapped = ctx.mapLiveBlocks(blocks, JSON.parse(JSON.stringify(META)));
+  const calls = { refresh: 0, toasts: [] };
   storeRef.value = {
     state: { ...vm.runInContext("STORE_DEFAULTS", ctx) },
     liveState: { status: "ready", meta: META, blocks: mapped, fetchedAt: FETCHED_MS, isRefreshing: false },
     liveBills: { status: "ready", items: [BILL], fetchedAt: billsFetchedAt, isRefreshing: false },
-    navigate: () => {}, toast: () => {}, openModal: () => {}, openSignal: () => {}, closeSignal: () => {}, closeModal: () => {},
+    navigate: () => {}, toast: m => { calls.toasts.push(String(m)); }, openModal: () => {}, openSignal: () => {}, closeSignal: () => {}, closeModal: () => {},
     isWatched: () => false, addFeed: () => {}, requestLiveRefresh: () => {}, consumeLiveRefresh: () => false,
-    refreshLiveState: () => Promise.resolve(), setSignalSearchQuery: () => {}, signalSearchQuery: "",
+    refreshLiveState: () => { calls.refresh++; return new Promise(() => {}); }, setSignalSearchQuery: () => {}, signalSearchQuery: "",
     setVisibleSignalOrder: () => {}, modal: null, signalId: null,
   };
   const r = (C, p = {}) => renderToString(React.createElement(C, p), React);
+  // Press the Sources refresh button (found by its label) and record what it did.
+  const btn = findEl(React.createElement(ctx.PageSources), React, p => typeof p.onClick === "function" && /Refresh (all|health)/.test(renderToString(p.children, React)));
+  const refresh = { found: !!btn, label: btn ? text(renderToString(btn.props.children, React)) : null };
+  if (btn) { btn.props.onClick({ preventDefault() {} }); refresh.calls = calls.refresh; refresh.toasts = calls.toasts.slice(); }
+  const undated = (mapped.signals.items || []).find(x => /\/undated$/.test(x.id));
+  const T = ms => ({ getTime: () => ms });
+  const liveEvents = typeof ctx.sortLiveEventsNewestFirst === "function" ? ctx.sortLiveEventsNewestFirst([
+    { title: "feed0-a", date: T(NOW_MS - 3 * 24 * 60 * MIN), feedIdx: 0, itemIdx: 0 },
+    { title: "feed0-b", date: null, feedIdx: 0, itemIdx: 1 },
+    { title: "feed1-a", date: T(NOW_MS - 5 * MIN), feedIdx: 1, itemIdx: 0 },
+    { title: "feed1-b", date: T(NOW_MS - 90 * 24 * 60 * MIN), feedIdx: 1, itemIdx: 1 },
+    { title: "feed2-a", date: null, feedIdx: 2, itemIdx: 0 },
+    { title: "feed2-b", date: T(NOW_MS - 2 * 24 * 60 * MIN), feedIdx: 2, itemIdx: 1 },
+  ]).map(e => e.title) : null;
   return {
+    refresh, undatedDate: undated ? undated.date : null, liveEvents,
     bills: r(ctx.PageBills), signals: r(ctx.PageSignals), sources: r(ctx.PageSources),
     fmtNumber: ctx.fmtFetchedAt(FETCHED_MS), fmtIso: ctx.fmtFetchedAt(iso(FETCHED_MS)), fmtNull: ctx.fmtFetchedAt(null),
   };
@@ -150,8 +200,8 @@ const cssRule = (html, sel) => { const m = html.match(new RegExp(`\\${sel}\\s*\\
 // ---- assertions ------------------------------------------------------------------
 function assertAll(sources) {
   const f = [];
-  let withTime, noTime;
-  try { withTime = run(sources, FETCHED_MS); noTime = run(sources, null); }
+  let withTime, noTime, untimed;
+  try { withTime = run(sources, FETCHED_MS); noTime = run(sources, null); untimed = run(sources, FETCHED_MS, CHECKS_UNTIMED); }
   catch (e) { return [`render threw ${e && e.stack ? e.stack.split("\n").slice(0, 2).join(" ") : e}`]; }
   // fetched
   const want = clock(FETCHED_MS);
@@ -192,6 +242,33 @@ function assertAll(sources) {
   const today = shipped(sources["pages-today"]);
   if (/tabled items/.test(today)) f.push('livecount: Live page counts media releases as "tabled items"');
   if (!/\$\{events\.length\} item\$\{/.test(today)) f.push("livecount: Live page item count template not found");
+  // carddate
+  const card = (withTime.signals.match(/data-signal-id="https:\/\/www\.aph\.gov\.au\/truth\/undated"[\s\S]*?data-sig-when="">([^<]*)</) || [])[1];
+  if (card !== "Date not supplied") f.push(`carddate: undated card head reads ${JSON.stringify(card)}, expected "Date not supplied" (the first-seen label overflows the card at 390 px)`);
+  if (!/^Date not supplied, first seen \d{1,2} [A-Z][a-z]{2} \d{4}$/.test(withTime.undatedDate || "")) f.push(`carddate: the drawer date reads ${JSON.stringify(withTime.undatedDate)}, expected "Date not supplied, first seen D Mon YYYY"`);
+  // refresh
+  const rf = withTime.refresh;
+  if (!rf.found) f.push("refresh: no Sources refresh button");
+  else {
+    if (rf.label !== "Refresh health") f.push(`refresh: the Sources button reads ${JSON.stringify(rf.label)}, expected "Refresh health"`);
+    if (rf.calls !== 1) f.push(`refresh: pressing it made ${rf.calls} store refresh call(s), expected 1 (a /state request)`);
+    if (rf.toasts.some(m => /Open Live parliament/.test(m))) f.push('refresh: pressing it only says "Open Live parliament to refresh the feeds"');
+  }
+  // checktime
+  const meta = html => { const m = html.match(/data-healthy-meta="">([^<]*)</); return m ? m[1] : null; };
+  const mTimed = meta(withTime.sources);
+  const wantCheck = `last check ${clock(CHECK_A)} AEST`;
+  if (mTimed == null) f.push("checktime: no Healthy meta line on Sources");
+  else {
+    if (!mTimed.includes(wantCheck)) f.push(`checktime: Healthy reads ${JSON.stringify(mTimed)}, expected it to carry "${wantCheck}" (the latest check)`);
+    if (mTimed.includes(clock(FETCHED_MS))) f.push(`checktime: Healthy prints the page fetch time ${clock(FETCHED_MS)}`);
+  }
+  const mUntimed = meta(untimed.sources);
+  if (mUntimed == null || /last check|as at|Not supplied/.test(mUntimed)) f.push(`checktime: with no check times Healthy reads ${JSON.stringify(mUntimed)}, expected the clause dropped`);
+  // livesort
+  const wantLive = ["feed1-a", "feed2-b", "feed0-a", "feed1-b", "feed0-b", "feed2-a"];
+  if (!withTime.liveEvents || withTime.liveEvents.join(",") !== wantLive.join(",")) f.push(`livesort: Live items order ${JSON.stringify(withTime.liveEvents)}, expected ${wantLive.join(",")} (newest first, undated last in feed order)`);
+  if (!/setEvents\(sortLiveEventsNewestFirst\(all\)\.slice\(0,\s*30\)\)/.test(today)) f.push("livesort: the Live poller does not sort before the 30-item cap");
   return f;
 }
 
@@ -211,6 +288,16 @@ const CANARIES = [
   { why: "card-head date allowed to wrap", expect: "nowrap:", m: mut("index.html", "font-variant-numeric: tabular-nums; white-space: nowrap; }", "font-variant-numeric: tabular-nums; }") },
   { why: "card head cannot wrap, so a long date overflows", expect: "nowrap: .sig-head", m: mut("index.html", ".sig-head { display:flex; flex-wrap: wrap;", ".sig-head { display:flex;") },
   { why: "the Live count says tabled items", expect: "livecount:", m: mut("pages-today", '`${events.length} item${events.length !== 1 ? "s" : ""} \\xB7', "`${events.length} tabled items \\xB7") },
+  // round 2
+  { why: "the card head carries the long first-seen label again", expect: "carddate: undated card head", m: mut("store", 'return { dateKind: "none", time: "", date, when: "Date not supplied", pubAt: null };', 'return { dateKind: "none", time: "", date, when: date, pubAt: null };') },
+  { why: "the drawer loses its first-seen date", expect: "carddate: the drawer date", m: mut("store", "`Date not supplied, first seen ${fmtDayMonYear(seen)}`", '"Date not supplied"') },
+  { why: "Refresh all depends on the Live poller again", expect: "refresh:", m: mut("pages-reference", "onClick: refreshHealth }", 'onClick: () => { if (typeof window.__refreshLiveFeeds === "function") { window.__refreshLiveFeeds(); toast("Live feeds re-polled"); } else { toast("Open Live parliament to refresh the feeds"); } } }') },
+  { why: "Healthy reads the page fetch time again", expect: "checktime:", m: mut("pages-reference", "latestCheckClause(feedChecks)]", "`as at ${fmtFetchedAt(health.fetchedAt)} AEST`]") },
+  { why: "the check clause picks the earliest check", expect: "checktime:", m: mut("store", "t > latest)) latest = t;", "t < latest)) latest = t;") },
+  { why: "the check clause prints a placeholder with no check time", expect: "checktime: with no check times", m: mut("store", 'return Number.isNaN(latest) ? "" : `last check ${fmtClockHM(latest)} AEST`;', "return `last check ${Number.isNaN(latest) ? NOT_SUPPLIED : fmtClockHM(latest)} AEST`;") },
+  { why: "Live items back in feed order", expect: "livesort:", m: mut("pages-today", "if (ea != null && eb != null && ea !== eb) return eb - ea;", "") },
+  { why: "Live undated items sort first", expect: "livesort:", m: mut("pages-today", "if (ea == null && eb != null) return 1;\n    if (eb == null && ea != null) return -1;", "if (ea == null && eb != null) return -1;\n    if (eb == null && ea != null) return 1;") },
+  { why: "the Live poller skips the sort", expect: "livesort: the Live poller", m: mut("pages-today", "setEvents(sortLiveEventsNewestFirst(all).slice(0, 30));", "setEvents(all.slice(0, 30));") },
 ];
 
 let failures = 0;
@@ -227,4 +314,4 @@ console.log(`Canary self-test PASSED: ${CANARIES.length} scratch-copy regression
 const real = assertAll(SOURCES);
 for (const m of real) { console.error(`FAIL  ${m}`); failures++; }
 if (failures) { console.error(`\nPRODUCT TRUTH: FAIL. ${failures} finding(s).`); process.exit(1); }
-console.log("PRODUCT TRUTH: PASSED. Fetch times read from numbers and the clause is omitted without one; the inbox sorts newest first with undated items last; no simulated feed check; the Not yet connected panel links to APH with no commercial wording or dead Request button; card-head dates do not wrap; the Live count says items.");
+console.log("PRODUCT TRUTH: PASSED. Fetch times read from numbers and the clause is omitted without one; the inbox sorts newest first with undated items last; no simulated feed check; the Not yet connected panel links to APH with no commercial wording or dead Request button; card-head dates do not wrap; the Live count says items; undated card heads read \"Date not supplied\" with first seen kept for the drawer; Refresh health reloads /state; Healthy reads the latest check time; Live items run newest first.");
