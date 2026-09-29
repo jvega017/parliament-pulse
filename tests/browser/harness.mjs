@@ -168,7 +168,8 @@ export async function openDesk(page, id, { theme = "dark", width = 1280, height 
     if (!firstVisit) { localStorage.setItem("pp-beta-ack", "1"); localStorage.setItem("pp-onboarded", "1"); }
   }, { theme, firstVisit });
   await page.reload({ waitUntil: "load" });
-  await page.waitForSelector(".nav-item");
+  // attached, not visible: the closed phone navigation is visibility:hidden (FE-10, A11Y-03).
+  await page.waitForSelector(".nav-item", { state: "attached" });
   if (id !== "overview") {
     const clicked = await page.evaluate(id => {
       const i = NAV.findIndex(n => n.id === id);

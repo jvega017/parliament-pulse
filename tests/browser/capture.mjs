@@ -41,7 +41,7 @@ try {
       }
       // Signal drawer: open the first card on the Signal inbox.
       await openDesk(page, "signals", { theme, width });
-      await page.click(".signal[role=button]");
+      await page.click(".signal .sig-open");
       await page.waitForSelector("aside.drawer.on");
       await page.waitForTimeout(400);
       let f = path.join(outDir, `drawer-${theme}-${width}.png`);
@@ -49,7 +49,7 @@ try {
       written.push(f);
       // One modal: the first feed row on Sources.
       await openDesk(page, "sources", { theme, width });
-      await page.click("table.ds tbody tr[data-feed-row], table.ds tbody tr");
+      await page.click("[data-feed-open]");
       await page.waitForSelector(".modal", { timeout: 5000 });
       await page.waitForTimeout(400);
       f = path.join(outDir, `modal-${theme}-${width}.png`);

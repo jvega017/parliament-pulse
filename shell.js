@@ -8,7 +8,7 @@ function TopClock() {
     const id = setInterval(() => setClock(fmtClock()), 1e3);
     return () => clearInterval(id);
   }, []);
-  return /* @__PURE__ */ React.createElement("span", { className: "mono top-clock", "aria-label": "Local time", title: "Local time", style: { fontSize: "var(--t-caption)", color: "var(--ink-3)", letterSpacing: ".06em", fontVariantNumeric: "tabular-nums" } }, clock);
+  return /* @__PURE__ */ React.createElement("span", { className: "mono top-clock", title: "Local time", style: { fontSize: "var(--t-caption)", color: "var(--ink-3)", letterSpacing: ".06em", fontVariantNumeric: "tabular-nums" } }, /* @__PURE__ */ React.createElement("span", { className: "sr-only" }, "Local time "), clock);
 }
 function BetaNotice() {
   const key = "pp-beta-ack";
@@ -126,26 +126,42 @@ function Sidebar({ page, onNavigate, mobileOpen }) {
     /* @__PURE__ */ React.createElement("span", null, n.label),
     n.live && liveNav && /* @__PURE__ */ React.createElement("span", { className: "count nav-live", "data-live-state": liveNav, title: liveNav === "live" ? "APH feeds polled recently" : liveNav === "stale" ? "The APH feed poll has stalled; items may be out of date" : "Live data is unavailable" }, LIVE_NAV_LABELS[liveNav]),
     !n.live && typeof navCount[n.id] === "number" && navCount[n.id] > 0 && /* @__PURE__ */ React.createElement("span", { className: "count", "data-nav-count": n.id }, navCount[n.id])
-  ))))), /* @__PURE__ */ React.createElement("div", { className: "side-status", "aria-label": "System status" }, noLiveCache ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "side-status-head" }, /* @__PURE__ */ React.createElement("span", { className: "dot", style: { background: "var(--caution)", boxShadow: "none" } }), /* @__PURE__ */ React.createElement("span", null, "Live data unavailable")), /* @__PURE__ */ React.createElement("div", null, "The official APH feeds did not respond at the last check, so each desk says what is missing instead of showing invented data. See Sources for feed health.")) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "side-status-head" }, /* @__PURE__ */ React.createElement("span", { className: "dot", style: { background: "var(--ok)", boxShadow: "none" } }), /* @__PURE__ */ React.createElement("span", null, "Official feeds connected")), /* @__PURE__ */ React.createElement("div", null, "Parliament Pulse reads the official APH feeds. Each feed's health is on Sources."))), /* @__PURE__ */ React.createElement("div", { className: "side-foot" }, /* @__PURE__ */ React.createElement("div", { style: { lineHeight: 1.2 } }, /* @__PURE__ */ React.createElement("div", { style: { fontFamily: "var(--mono)", fontSize: "var(--t-micro)", color: "var(--ink-4)" } }, "Prometheus Policy Lab \xB7 free beta"))));
+  ))))), /* @__PURE__ */ React.createElement("div", { className: "side-status", role: "group", "aria-label": "System status" }, noLiveCache ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "side-status-head" }, /* @__PURE__ */ React.createElement("span", { className: "dot", style: { background: "var(--caution)", boxShadow: "none" } }), /* @__PURE__ */ React.createElement("span", null, "Live data unavailable")), /* @__PURE__ */ React.createElement("div", null, "The official APH feeds did not respond at the last check, so each desk says what is missing instead of showing invented data. See Sources for feed health.")) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "side-status-head" }, /* @__PURE__ */ React.createElement("span", { className: "dot", style: { background: "var(--ok)", boxShadow: "none" } }), /* @__PURE__ */ React.createElement("span", null, "Official feeds connected")), /* @__PURE__ */ React.createElement("div", null, "Parliament Pulse reads the official APH feeds. Each feed's health is on Sources."))), /* @__PURE__ */ React.createElement("div", { className: "side-foot" }, /* @__PURE__ */ React.createElement("div", { style: { lineHeight: 1.2 } }, /* @__PURE__ */ React.createElement("div", { style: { fontFamily: "var(--mono)", fontSize: "var(--t-micro)", color: "var(--ink-4)" } }, "Prometheus Policy Lab \xB7 free beta"))));
+}
+const SHORTCUTS_KEY = "pp-shortcuts";
+function singleKeyShortcutsOn() {
+  return safeGetLocalStorage(SHORTCUTS_KEY) !== "off";
+}
+function shortcutBlocked(e) {
+  if (!singleKeyShortcutsOn()) return true;
+  if (e.ctrlKey || e.metaKey || e.altKey) return true;
+  const el = document.activeElement;
+  const tag = el && el.tagName;
+  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || !!(el && el.isContentEditable);
 }
 function ShortcutHelp() {
   const [open, setOpen] = React.useState(false);
+  const [enabled, setEnabled] = React.useState(singleKeyShortcutsOn);
   const shortcuts = [
-    ["j / k", "Navigate to next / previous signal"],
-    ["Enter / Space", "Open focused signal or nav item"],
+    ["j / k", "Next or previous signal"],
+    ["Enter / Space", "Activate the focused button or nav item"],
     ["Esc", "Close drawer or modal"],
-    ["b", "Copy brief to clipboard (while signal open)"],
-    ["w", "Add signal to watchlist (while signal open)"],
-    ["a", "Archive signal and advance (while signal open)"],
+    ["b", "Copy brief to clipboard (while a signal is open)"],
+    ["w", "Add signal to watchlist (while a signal is open)"],
+    ["a", "Archive signal and advance; Undo is in the notice (while a signal is open)"],
     [IS_MAC ? "\u2318K" : "Ctrl+K", "Focus global search"]
   ];
-  return /* @__PURE__ */ React.createElement("div", { style: { position: "relative" } }, /* @__PURE__ */ React.createElement("button", { className: "btn ghost sm", title: "Keyboard shortcuts", onClick: () => setOpen((o) => !o), "aria-label": "View keyboard shortcuts", "aria-expanded": open }, /* @__PURE__ */ React.createElement(Icon, { name: "pattern", size: 13 })), open && /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", top: "calc(100% + 8px)", right: 0, background: "var(--panel-2)", border: "1px solid var(--line-bright)", borderRadius: "var(--r-md)", boxShadow: "var(--elev-2)", zIndex: 40, width: 320, padding: "12px 14px" }, role: "dialog", "aria-label": "Keyboard shortcuts" }, /* @__PURE__ */ React.createElement("div", { className: "mono", style: { fontSize: "var(--t-label)", color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: ".16em", marginBottom: 10 } }, "Keyboard shortcuts"), shortcuts.map(([k, d]) => /* @__PURE__ */ React.createElement("div", { key: k, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderBottom: "1px solid var(--line)", fontSize: "var(--t-body-sm)" } }, /* @__PURE__ */ React.createElement("span", { style: { color: "var(--ink-2)" } }, d), /* @__PURE__ */ React.createElement("kbd", { style: { fontFamily: "var(--mono)", fontSize: "var(--t-eyebrow)", background: "var(--panel-hi)", border: "1px solid var(--line-2)", borderRadius: 4, padding: "2px 7px", color: "var(--brass)", marginLeft: 10, whiteSpace: "nowrap" } }, k))), /* @__PURE__ */ React.createElement("button", { style: { marginTop: 10, background: "none", border: "none", color: "var(--ink-4)", cursor: "pointer", fontSize: "var(--t-caption)", padding: 0 }, onClick: () => setOpen(false) }, "Close")));
+  const onToggle = (e) => {
+    const on = e.target.checked;
+    setEnabled(on);
+    safeSetLocalStorage(SHORTCUTS_KEY, on ? "on" : "off");
+  };
+  return /* @__PURE__ */ React.createElement("div", { style: { position: "relative" } }, /* @__PURE__ */ React.createElement("button", { className: "btn ghost sm", title: "Keyboard shortcuts", onClick: () => setOpen((o) => !o), "aria-label": "Keyboard shortcuts and settings", "aria-expanded": open }, /* @__PURE__ */ React.createElement(Icon, { name: "pattern", size: 13 })), open && /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", top: "calc(100% + 8px)", right: 0, background: "var(--panel-2)", border: "1px solid var(--line-bright)", borderRadius: "var(--r-md)", boxShadow: "var(--elev-2)", zIndex: 40, width: 320, maxWidth: "calc(100vw - 32px)", padding: "12px 14px" }, role: "dialog", "aria-label": "Keyboard shortcuts", "data-shortcut-settings": "" }, /* @__PURE__ */ React.createElement("div", { className: "mono", style: { fontSize: "var(--t-label)", color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: ".16em", marginBottom: 10 } }, "Keyboard shortcuts"), /* @__PURE__ */ React.createElement("label", { htmlFor: "pp-shortcut-toggle", style: { display: "flex", alignItems: "center", gap: 10, padding: "4px 0 10px", fontSize: "var(--t-body-sm)", color: "var(--ink)", cursor: "pointer", minHeight: 24 } }, /* @__PURE__ */ React.createElement("input", { id: "pp-shortcut-toggle", type: "checkbox", checked: enabled, onChange: onToggle, "data-shortcut-toggle": "", style: { width: 20, height: 20, margin: 0, accentColor: "var(--brass)" } }), "Single-key shortcuts (j, k, b, w, a)"), shortcuts.map(([k, d]) => /* @__PURE__ */ React.createElement("div", { key: k, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderBottom: "1px solid var(--line)", fontSize: "var(--t-body-sm)", opacity: !enabled && k.length <= 5 && /^[a-z]( \/ [a-z])?$/.test(k) ? 0.55 : 1 } }, /* @__PURE__ */ React.createElement("span", { style: { color: "var(--ink-2)" } }, d), /* @__PURE__ */ React.createElement("kbd", { style: { fontFamily: "var(--mono)", fontSize: "var(--t-eyebrow)", background: "var(--panel-hi)", border: "1px solid var(--line-2)", borderRadius: 4, padding: "2px 7px", color: "var(--brass)", marginLeft: 10, whiteSpace: "nowrap" } }, k))), /* @__PURE__ */ React.createElement("button", { className: "btn ghost sm", style: { marginTop: 10 }, onClick: () => setOpen(false) }, "Close")));
 }
 function Topbar({ mobileNavOpen, setMobileNavOpen }) {
   const { openModal, openSignal, toast, modal, signalId, setSignalSearchQuery, requestLiveRefresh, consumeLiveRefresh, navigate, liveState, refreshLiveState } = useStore();
   const [q, setQ] = React.useState("");
   const [open, setOpen] = React.useState(false);
-  const [cursor, setCursor] = React.useState(-1);
   const [isDark, setIsDark] = React.useState(() => safeGetLocalStorage("pp-theme") !== "light");
   const [focused, setFocused] = React.useState(false);
   const [, setAgeTick] = React.useState(0);
@@ -181,21 +197,22 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
   }, [liveState, refreshLiveState, requestLiveRefresh, consumeLiveRefresh, navigate, toast]);
   React.useEffect(() => {
     const h = (e) => {
-      var _a, _b, _c;
+      var _a, _b, _c, _d;
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         (_a = ref.current) == null ? void 0 : _a.focus();
       }
       if (e.key === "Escape") {
         if (modal || signalId) return;
+        const inResults = !!(searchRef.current && searchRef.current.contains(document.activeElement) && document.activeElement !== ref.current);
         if (open) {
           e.preventDefault();
           setOpen(false);
-          setCursor(-1);
-          (_b = ref.current) == null ? void 0 : _b.blur();
+          if (inResults) (_b = ref.current) == null ? void 0 : _b.focus();
+          else (_c = ref.current) == null ? void 0 : _c.blur();
           return;
         }
-        (_c = ref.current) == null ? void 0 : _c.blur();
+        (_d = ref.current) == null ? void 0 : _d.blur();
       }
     };
     window.addEventListener("keydown", h);
@@ -206,7 +223,6 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
       if (!searchRef.current || searchRef.current.contains(e.target)) return;
       setOpen(false);
       setFocused(false);
-      setCursor(-1);
     };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
@@ -221,64 +237,50 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
     committees: Object.values(ENTITIES.committees),
     feeds: APH_FEEDS
   }), [q, liveSignals.items, liveBills.items]);
-  const flat = React.useMemo(() => {
-    if (!results) return [];
-    return [
-      ...results.sig.slice(0, 4).map((s) => ({ kind: "signal", key: s.id, label: s.title, sub: s.id, act: () => {
-        openSignal(s.id);
-      } })),
-      ...results.sig.length > 4 ? [{ kind: "signalsAll", key: "signals-all", label: `See all ${results.sig.length} signals`, sub: q, act: () => {
-        setSignalSearchQuery(q);
-        navigate("signals");
-      } }] : [],
-      ...results.bills.slice(0, 4).map((b) => ({ kind: "bill", key: b.guid, label: b.title, sub: "Bills Digest", act: () => {
-        navigate("bills");
-      } })),
-      ...results.comm.map((c) => ({ kind: "committee", key: c.id, label: c.name, sub: c.chamber, act: () => {
-        openModal("committee", c.id);
-      } })),
-      ...results.feeds.slice(0, 4).map((f) => ({ kind: "feed", key: f.id, label: f.name, sub: f.group, act: () => {
-        openModal("feed", f.id);
-      } }))
-    ];
-  }, [results, q, openSignal, openModal, setSignalSearchQuery, navigate]);
-  React.useEffect(() => setCursor(-1), [q]);
-  const selectItem = (item) => {
-    item.act();
+  const selectItem = (act) => {
+    act();
     setOpen(false);
     setQ("");
-    setCursor(-1);
+  };
+  const resultsRef = React.useRef(null);
+  const focusResult = (dir) => {
+    var _a;
+    const list = resultsRef.current ? [...resultsRef.current.querySelectorAll("[data-sr-focus]")] : [];
+    if (!list.length) return;
+    const i = list.indexOf(document.activeElement);
+    if (dir > 0) list[Math.min(i + 1, list.length - 1)].focus();
+    else if (i <= 0) (_a = ref.current) == null ? void 0 : _a.focus();
+    else list[i - 1].focus();
   };
   const onKeyDown = (e) => {
     var _a;
     if (!open || !results) return;
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setCursor((c) => Math.min(c + 1, flat.length - 1));
-      return;
-    }
-    if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setCursor((c) => Math.max(c - 1, -1));
+      focusResult(1);
       return;
     }
     if (e.key === "Escape") {
       setOpen(false);
-      setCursor(-1);
       (_a = ref.current) == null ? void 0 : _a.blur();
       return;
     }
-    if (e.key === "Enter" && cursor >= 0 && flat[cursor]) {
+  };
+  const onResultsKeyDown = (e) => {
+    if (e.key === "ArrowDown") {
       e.preventDefault();
-      selectItem(flat[cursor]);
-      return;
+      focusResult(1);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      focusResult(-1);
     }
   };
-  const sigOff = 0;
-  const sigFlatCount = results ? results.sig.slice(0, 4).length + (results.sig.length > 4 ? 1 : 0) : 0;
-  const billOff = sigFlatCount;
-  const commOff = billOff + (results ? results.bills.slice(0, 4).length : 0);
-  const feedOff = commOff + (results ? results.comm.length : 0);
+  const onSearchBlur = (e) => {
+    const next = e.relatedTarget;
+    if (next && searchRef.current && searchRef.current.contains(next)) return;
+    if (next) setOpen(false);
+  };
+  const row = ({ key, k, title, link, openLabel, act, extra }) => /* @__PURE__ */ React.createElement("li", { key, className: "sr-item", ...extra || {} }, link ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("span", { className: "k" }, k), /* @__PURE__ */ React.createElement("a", { className: "sr-title", href: link, target: "_blank", rel: "noopener noreferrer", style: { color: "inherit", textDecoration: "none" }, title: "Open the source at aph.gov.au" }, title), /* @__PURE__ */ React.createElement("button", { type: "button", className: "sr-open sr-open-short", "data-sr-focus": "", "aria-label": openLabel, onClick: () => selectItem(act) }, "Open")) : /* @__PURE__ */ React.createElement("button", { type: "button", className: "sr-open", "data-sr-focus": "", onClick: () => selectItem(act) }, /* @__PURE__ */ React.createElement("span", { className: "k" }, k), /* @__PURE__ */ React.createElement("span", { className: "sr-title" }, title)));
   return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "topbar" }, /* @__PURE__ */ React.createElement(
     "button",
     {
@@ -294,7 +296,7 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
     {
       ref: searchRef,
       className: "search" + (focused ? " focused" : ""),
-      onClick: () => setOpen(true),
+      onBlur: onSearchBlur,
       style: focused ? { borderColor: "var(--brass)", boxShadow: "0 0 0 3px var(--brass-soft)" } : void 0
     },
     /* @__PURE__ */ React.createElement(Icon, { name: "search", size: 14, stroke: focused ? "var(--brass)" : "var(--ink-3)" }),
@@ -303,7 +305,7 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
       {
         ref,
         value: q,
-        role: "combobox",
+        onClick: () => setOpen(true),
         onChange: (e) => {
           setQ(e.target.value);
           setOpen(true);
@@ -315,10 +317,7 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
         onBlur: () => setFocused(false),
         onKeyDown,
         "aria-label": "Search parliament signals, bills, committees and feeds",
-        "aria-expanded": open && !!results,
-        "aria-autocomplete": "list",
-        "aria-controls": "search-listbox",
-        "aria-activedescendant": cursor >= 0 ? `search-option-${cursor}` : void 0,
+        "aria-controls": open && results ? "search-listbox" : void 0,
         placeholder: "Search signals, bills, committees, feeds\u2026"
       }
     ),
@@ -329,95 +328,37 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
           var _a;
           setQ("");
           setOpen(false);
-          setCursor(-1);
           (_a = ref.current) == null ? void 0 : _a.focus();
         },
         "aria-label": "Clear search",
         title: "Clear search",
-        style: { background: "none", border: "none", cursor: "pointer", padding: "2px 4px", color: "var(--ink-3)", display: "flex", alignItems: "center", flexShrink: 0 }
+        style: { background: "none", border: "none", cursor: "pointer", padding: 0, minWidth: 24, minHeight: 24, color: "var(--ink-3)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }
       },
       /* @__PURE__ */ React.createElement(Icon, { name: "close", size: 12 })
     ) : /* @__PURE__ */ React.createElement("span", { className: "kbd" }, IS_MAC ? "\u2318K" : "Ctrl+K"),
-    open && results && /* @__PURE__ */ React.createElement("div", { id: "search-listbox", role: "listbox", className: "search-results" }, results.sig.length > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "sr-group", "data-sr-group": "signals" }, results.labels.sig, " \xB7 ", results.sig.length, " match", results.sig.length !== 1 ? "es" : ""), results.sig.slice(0, 4).map((s, i) => /* @__PURE__ */ React.createElement(
-      "div",
-      {
-        key: s.id,
-        id: `search-option-${sigOff + i}`,
-        role: "option",
-        "aria-selected": cursor === sigOff + i,
-        className: "sr-item" + (cursor === sigOff + i ? " active" : ""),
-        onMouseDown: (e) => {
-          e.preventDefault();
-          selectItem(flat[sigOff + i]);
-        }
-      },
-      /* @__PURE__ */ React.createElement("span", { className: "k" }, s.isLive ? s.source : s.id),
-      s.isLive && s.link ? /* @__PURE__ */ React.createElement("a", { href: s.link, target: "_blank", rel: "noopener noreferrer", onClick: (e) => e.stopPropagation(), style: { color: "inherit", textDecoration: "none" }, title: "Open the source at aph.gov.au" }, s.title) : /* @__PURE__ */ React.createElement("span", null, s.title)
-    )), results.sig.length > 4 && /* @__PURE__ */ React.createElement(
-      "div",
-      {
-        id: `search-option-${sigOff + 4}`,
-        role: "option",
-        "aria-selected": cursor === sigOff + 4,
-        className: "sr-item" + (cursor === sigOff + 4 ? " active" : ""),
-        onMouseDown: (e) => {
-          e.preventDefault();
-          selectItem(flat[sigOff + 4]);
-        }
-      },
-      /* @__PURE__ */ React.createElement("span", { className: "k" }, "All"),
-      /* @__PURE__ */ React.createElement("span", null, "See all ", results.sig.length, " signals")
-    )), results.bills.length > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "sr-group", "data-sr-group": "bills" }, results.labels.bills, " \xB7 ", results.bills.length, " match", results.bills.length !== 1 ? "es" : ""), results.bills.slice(0, 4).map((b, i) => {
+    open && results && /* @__PURE__ */ React.createElement("div", { id: "search-listbox", ref: resultsRef, className: "search-results", role: "region", "aria-label": "Search results", onKeyDown: onResultsKeyDown }, results.sig.length > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "sr-group", "data-sr-group": "signals" }, results.labels.sig, " \xB7 ", results.sig.length, " match", results.sig.length !== 1 ? "es" : ""), /* @__PURE__ */ React.createElement("ul", { className: "sr-list" }, results.sig.slice(0, 4).map((s) => row({
+      key: s.id,
+      k: s.isLive ? s.source : s.id,
+      title: s.isLive && !s.link ? s.source : s.title,
+      link: s.isLive && s.link ? s.link : null,
+      openLabel: `Open ${s.title} in Parliament Pulse`,
+      act: () => openSignal(s.id)
+    })), results.sig.length > 4 && row({ key: "signals-all", k: "All", title: `See all ${results.sig.length} signals`, act: () => {
+      setSignalSearchQuery(q);
+      navigate("signals");
+    } }))), results.bills.length > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "sr-group", "data-sr-group": "bills" }, results.labels.bills, " \xB7 ", results.bills.length, " match", results.bills.length !== 1 ? "es" : ""), /* @__PURE__ */ React.createElement("ul", { className: "sr-list" }, results.bills.slice(0, 4).map((b) => {
       const link = safeHttpUrl(b.link);
-      return /* @__PURE__ */ React.createElement(
-        "div",
-        {
-          key: b.guid,
-          id: `search-option-${billOff + i}`,
-          role: "option",
-          "aria-selected": cursor === billOff + i,
-          className: "sr-item" + (cursor === billOff + i ? " active" : ""),
-          "data-sr-bill": "",
-          onMouseDown: (e) => {
-            e.preventDefault();
-            selectItem(flat[billOff + i]);
-          }
-        },
-        /* @__PURE__ */ React.createElement("span", { className: "k" }, "Bill"),
-        link ? /* @__PURE__ */ React.createElement("a", { href: link, target: "_blank", rel: "noopener noreferrer", onClick: (e) => e.stopPropagation(), style: { color: "inherit", textDecoration: "none" }, title: "Open the source at aph.gov.au" }, b.title) : /* @__PURE__ */ React.createElement("span", null, "Bills Digest item")
-      );
-    })), results.comm.length > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "sr-group", "data-sr-group": "committees" }, results.labels.comm, " \xB7 ", results.comm.length, " match", results.comm.length !== 1 ? "es" : ""), results.comm.map((c, i) => /* @__PURE__ */ React.createElement(
-      "div",
-      {
-        key: c.id,
-        id: `search-option-${commOff + i}`,
-        role: "option",
-        "aria-selected": cursor === commOff + i,
-        className: "sr-item" + (cursor === commOff + i ? " active" : ""),
-        onMouseDown: (e) => {
-          e.preventDefault();
-          selectItem(flat[commOff + i]);
-        }
-      },
-      /* @__PURE__ */ React.createElement("span", { className: "k" }, c.chamber),
-      /* @__PURE__ */ React.createElement("span", null, c.name)
-    ))), results.feeds.length > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "sr-group", "data-sr-group": "sources" }, results.labels.feeds, " \xB7 ", results.feeds.length, " match", results.feeds.length !== 1 ? "es" : ""), results.feeds.slice(0, 4).map((f, i) => /* @__PURE__ */ React.createElement(
-      "div",
-      {
-        key: f.id,
-        id: `search-option-${feedOff + i}`,
-        role: "option",
-        "aria-selected": cursor === feedOff + i,
-        className: "sr-item" + (cursor === feedOff + i ? " active" : ""),
-        onMouseDown: (e) => {
-          e.preventDefault();
-          selectItem(flat[feedOff + i]);
-        }
-      },
-      /* @__PURE__ */ React.createElement("span", { className: "k" }, f.group),
-      /* @__PURE__ */ React.createElement("span", null, f.name)
-    ))), q && !results.sig.length && !results.bills.length && !results.comm.length && !results.feeds.length && /* @__PURE__ */ React.createElement("div", { className: "sr-item", role: "option", "aria-selected": "false", style: { color: "var(--ink-4)", cursor: "default" } }, 'No matches for "', q, '"'))
-  ), /* @__PURE__ */ React.createElement("div", { className: "top-right" }, /* @__PURE__ */ React.createElement(TopClock, null), noLiveCache ? /* @__PURE__ */ React.createElement("span", { className: "chip warn", onClick: () => navigate("live"), title: "Live APH feeds did not respond. Each desk shows an honest empty state rather than invented data; open Live for feed health.", style: { borderColor: "color-mix(in srgb, var(--caution) 55%, transparent)", color: "var(--caution)", background: "transparent", cursor: "pointer" } }, /* @__PURE__ */ React.createElement("span", { className: "dot", style: { background: "var(--caution)", boxShadow: "none" } }), " LIVE DATA UNAVAILABLE") : pollStalled ? /* @__PURE__ */ React.createElement("span", { className: "chip warn", "data-live-chip": "stale", onClick: () => navigate("sources"), title: fresh.stallText, style: { borderColor: "color-mix(in srgb, var(--caution) 55%, transparent)", color: "var(--caution)", background: "transparent", cursor: "pointer" } }, /* @__PURE__ */ React.createElement("span", { className: "dot", style: { background: "var(--caution)", boxShadow: "none" } }), " Stale \xB7 polling stalled") : /* @__PURE__ */ React.createElement("span", { className: "chip clk", "data-live-chip": "live", onClick: () => navigate("live"), title: feedCount != null ? `${feedCount} official APH feeds checked every 30 minutes` : "Official APH feeds; the Live page reads them directly", style: { borderColor: "color-mix(in srgb, var(--gold) 55%, transparent)", color: "var(--gold)", background: "transparent" } }, /* @__PURE__ */ React.createElement("span", { className: "dot", style: { background: "var(--gold)", boxShadow: "none" } }), " Live beta", feedCount != null ? ` \xB7 ${feedCount} feeds` : ""), fresh.known && !noLiveCache && /* @__PURE__ */ React.createElement("span", { className: "mono top-poll", "data-poll-line": "", title: fresh.stallText || "When Parliament Pulse last checked the APH feeds", style: { fontSize: "var(--t-micro)", color: pollStalled ? "var(--caution)" : "var(--ink-3)", letterSpacing: ".04em", whiteSpace: "nowrap" } }, fresh.pollLine), /* @__PURE__ */ React.createElement("button", { className: "btn ghost sm", "aria-label": "Refresh live data", "aria-busy": isRefreshing, title: live.fetchedAt ? `Live data fetched ${dataAge} ago. Refresh now.` : "Refresh live data", onClick: handleLiveRefresh }, /* @__PURE__ */ React.createElement(Icon, { name: "refresh", size: 14, style: isRefreshing ? { animation: "spin 800ms linear infinite" } : void 0 }), /* @__PURE__ */ React.createElement("span", { className: "mono", style: { fontSize: "var(--t-micro)", color: "var(--ink-4)", letterSpacing: ".04em", marginLeft: 6, fontVariantNumeric: "tabular-nums" } }, dataAge)), /* @__PURE__ */ React.createElement("button", { className: "btn ghost sm", title: "Show current priority count", "aria-label": "Alerts", onClick: () => {
+      return row({
+        key: b.guid,
+        k: "Bill",
+        title: link ? b.title : "Bills Digest item",
+        link,
+        openLabel: `Open ${b.title} in Bills intelligence`,
+        act: () => navigate("bills"),
+        extra: { "data-sr-bill": "" }
+      });
+    }))), results.comm.length > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "sr-group", "data-sr-group": "committees" }, results.labels.comm, " \xB7 ", results.comm.length, " match", results.comm.length !== 1 ? "es" : ""), /* @__PURE__ */ React.createElement("ul", { className: "sr-list" }, results.comm.map((c) => row({ key: c.id, k: c.chamber, title: c.name, act: () => openModal("committee", c.id) })))), results.feeds.length > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "sr-group", "data-sr-group": "sources" }, results.labels.feeds, " \xB7 ", results.feeds.length, " match", results.feeds.length !== 1 ? "es" : ""), /* @__PURE__ */ React.createElement("ul", { className: "sr-list" }, results.feeds.slice(0, 4).map((f) => row({ key: f.id, k: f.group, title: f.name, act: () => openModal("feed", f.id) })))), q && !results.sig.length && !results.bills.length && !results.comm.length && !results.feeds.length && /* @__PURE__ */ React.createElement("div", { className: "sr-item", role: "status", style: { color: "var(--ink-4)" } }, 'No matches for "', q, '"'))
+  ), /* @__PURE__ */ React.createElement("div", { className: "top-right" }, /* @__PURE__ */ React.createElement(TopClock, null), noLiveCache ? /* @__PURE__ */ React.createElement("button", { type: "button", className: "chip warn", onClick: () => navigate("live"), title: "Live APH feeds did not respond. Each desk shows an honest empty state rather than invented data; open Live for feed health.", style: { borderColor: "color-mix(in srgb, var(--caution) 55%, transparent)", color: "var(--caution)", background: "transparent", cursor: "pointer" } }, /* @__PURE__ */ React.createElement("span", { className: "dot", style: { background: "var(--caution)", boxShadow: "none" } }), " LIVE DATA UNAVAILABLE") : pollStalled ? /* @__PURE__ */ React.createElement("button", { type: "button", className: "chip warn", "data-live-chip": "stale", onClick: () => navigate("sources"), title: fresh.stallText, style: { borderColor: "color-mix(in srgb, var(--caution) 55%, transparent)", color: "var(--caution)", background: "transparent", cursor: "pointer" } }, /* @__PURE__ */ React.createElement("span", { className: "dot", style: { background: "var(--caution)", boxShadow: "none" } }), " Stale \xB7 polling stalled") : /* @__PURE__ */ React.createElement("button", { type: "button", className: "chip clk", "data-live-chip": "live", onClick: () => navigate("live"), title: feedCount != null ? `${feedCount} official APH feeds checked every 30 minutes` : "Official APH feeds; the Live page reads them directly", style: { borderColor: "color-mix(in srgb, var(--gold) 55%, transparent)", color: "var(--gold)", background: "transparent" } }, /* @__PURE__ */ React.createElement("span", { className: "dot", style: { background: "var(--gold)", boxShadow: "none" } }), " Live beta", feedCount != null ? ` \xB7 ${feedCount} feeds` : ""), fresh.known && !noLiveCache && /* @__PURE__ */ React.createElement("span", { className: "mono top-poll", "data-poll-line": "", title: fresh.stallText || "When Parliament Pulse last checked the APH feeds", style: { fontSize: "var(--t-micro)", color: pollStalled ? "var(--caution)" : "var(--ink-3)", letterSpacing: ".04em", whiteSpace: "nowrap" } }, fresh.pollLine), /* @__PURE__ */ React.createElement("button", { className: "btn ghost sm", "aria-label": "Refresh live data", "aria-busy": isRefreshing, title: live.fetchedAt ? `Live data fetched ${dataAge} ago. Refresh now.` : "Refresh live data", onClick: handleLiveRefresh }, /* @__PURE__ */ React.createElement(Icon, { name: "refresh", size: 14, style: isRefreshing ? { animation: "spin 800ms linear infinite" } : void 0 }), /* @__PURE__ */ React.createElement("span", { className: "mono", style: { fontSize: "var(--t-micro)", color: "var(--ink-4)", letterSpacing: ".04em", marginLeft: 6, fontVariantNumeric: "tabular-nums" } }, dataAge)), /* @__PURE__ */ React.createElement("button", { className: "btn ghost sm", title: "Show current priority count", "aria-label": "Alerts", onClick: () => {
     const source = liveSignals.items || SIGNALS;
     const count = source.filter((s) => s.attention === "high").length;
     toast(source.length === 0 ? "Live data is unavailable, so there are no signals to review" : `${count} priority signals currently need review`, "brass");
@@ -458,7 +399,7 @@ function ProvenanceChip({ provenance, title }) {
 function Att({ level, disclosure }) {
   const map = { high: "High", med: "Medium", low: "Low" };
   const tip = disclosure || attentionDisclosure();
-  if (!map[level]) return /* @__PURE__ */ React.createElement("span", { className: "att", title: `Attention not scored. ${tip}`, "aria-label": "Attention not scored" }, NO_VALUE);
+  if (!map[level]) return /* @__PURE__ */ React.createElement("span", { className: "att", title: `Attention not scored. ${tip}` }, /* @__PURE__ */ React.createElement("span", { "aria-hidden": "true" }, NO_VALUE), /* @__PURE__ */ React.createElement("span", { className: "sr-only" }, "Attention not scored"));
   return /* @__PURE__ */ React.createElement("span", { className: "att " + level, title: tip, "data-att-disclosure": "" }, map[level]);
 }
 function Conf({ n }) {
@@ -506,13 +447,10 @@ function SignalCard({ s, hideAtt = false, hideConf = false }) {
 }
 const SignalCardView = React.memo(function SignalCardView2({ s, archived, feedback, watched, openSignal, hideAtt, hideConf }) {
   var _a;
+  const titleId = "sig-t-" + React.useId().replace(/:/g, "");
   if (archived) return null;
-  return /* @__PURE__ */ React.createElement("div", { className: "signal", "data-att": s.attention, onClick: () => openSignal(s.id), role: "button", tabIndex: 0, "aria-label": "Open signal detail", onKeyDown: (e) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      openSignal(s.id);
-    }
-  } }, /* @__PURE__ */ React.createElement("div", { className: "sig-head" }, /* @__PURE__ */ React.createElement("span", { className: "sig-id mono" }, s.isLive || /^https?:/.test(s.id) ? "APH" : s.id), /* @__PURE__ */ React.createElement("span", { className: "sig-source mono" }, "\xB7 ", s.source), !hideAtt && /* @__PURE__ */ React.createElement(Att, { level: s.attention }), watched && /* @__PURE__ */ React.createElement("span", { className: "tag brass" }, "Watching"), /* @__PURE__ */ React.createElement("span", { className: "sig-time mono", "data-sig-when": "" }, (_a = s.when) != null ? _a : s.time)), /* @__PURE__ */ React.createElement("div", { className: "sig-title serif" }, s.link ? /* @__PURE__ */ React.createElement("a", { href: s.link, target: "_blank", rel: "noopener noreferrer", onClick: (e) => e.stopPropagation(), style: { color: "inherit", textDecoration: "none" }, title: "Open the source at aph.gov.au" }, s.title, " ", /* @__PURE__ */ React.createElement(Icon, { name: "ext", size: 12, style: { verticalAlign: "-1px", opacity: 0.6 } })) : s.isLive ? s.source : s.title), /* @__PURE__ */ React.createElement("div", { className: "sig-sum" }, s.summary.length > 120 ? s.summary.slice(0, 120).replace(/\s\S+$/, "") + "\u2026" : s.summary), /* @__PURE__ */ React.createElement("div", { className: "sig-tags" }, s.tags.map((t, i) => /* @__PURE__ */ React.createElement("span", { key: i, className: "tag " + (t.c || "") }, t.l))), /* @__PURE__ */ React.createElement("div", { className: "sig-action" }, s.action ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("span", { className: "sig-action-label" }, "Recommended"), /* @__PURE__ */ React.createElement("span", { className: "sig-action-value" }, s.action)) : /* @__PURE__ */ React.createElement("span", { className: "sig-action-label" }, "Open to triage"), !hideConf && /* @__PURE__ */ React.createElement("span", { className: "mono", "data-conf": "", style: { fontSize: "var(--t-micro)", color: "var(--ink-4)", letterSpacing: ".04em", whiteSpace: "nowrap" } }, confidenceLabel(s.confidence))), feedback && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 8, fontSize: "var(--t-caption)", color: "var(--brass)" } }, /* @__PURE__ */ React.createElement(Icon, { name: "check", size: 12, style: { verticalAlign: "-2px", marginRight: 4 } }), " Feedback: ", feedback.label), watched && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 8, fontSize: "var(--t-caption)", color: "var(--brass)" } }, /* @__PURE__ */ React.createElement(Icon, { name: "watch", size: 12, style: { verticalAlign: "-2px", marginRight: 4 } }), " On watchlist"));
+  const name = s.title || s.source || "signal";
+  return /* @__PURE__ */ React.createElement("article", { className: "signal", "data-att": s.attention, "aria-labelledby": titleId, "data-signal-id": s.id }, /* @__PURE__ */ React.createElement("div", { className: "sig-head" }, /* @__PURE__ */ React.createElement("span", { className: "sig-id mono" }, s.isLive || /^https?:/.test(s.id) ? "APH" : s.id), /* @__PURE__ */ React.createElement("span", { className: "sig-source mono" }, "\xB7 ", s.source), !hideAtt && /* @__PURE__ */ React.createElement(Att, { level: s.attention }), watched && /* @__PURE__ */ React.createElement("span", { className: "tag brass" }, "Watching"), /* @__PURE__ */ React.createElement("span", { className: "sig-time mono", "data-sig-when": "" }, (_a = s.when) != null ? _a : s.time)), /* @__PURE__ */ React.createElement("h3", { className: "sig-title serif", id: titleId }, s.link ? /* @__PURE__ */ React.createElement("a", { href: s.link, target: "_blank", rel: "noopener noreferrer", style: { color: "inherit", textDecoration: "none" }, title: "Open the source at aph.gov.au" }, s.title, " ", /* @__PURE__ */ React.createElement(Icon, { name: "ext", size: 12, style: { verticalAlign: "-1px", opacity: 0.6 } })) : s.isLive ? s.source : s.title), /* @__PURE__ */ React.createElement("div", { className: "sig-sum" }, s.summary.length > 120 ? s.summary.slice(0, 120).replace(/\s\S+$/, "") + "\u2026" : s.summary), /* @__PURE__ */ React.createElement("div", { className: "sig-tags" }, s.tags.map((t, i) => /* @__PURE__ */ React.createElement("span", { key: i, className: "tag " + (t.c || "") }, t.l))), /* @__PURE__ */ React.createElement("div", { className: "sig-action" }, s.action ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("span", { className: "sig-action-label" }, "Recommended"), /* @__PURE__ */ React.createElement("span", { className: "sig-action-value" }, s.action)) : /* @__PURE__ */ React.createElement("span", { className: "sig-action-label" }, "Open to triage"), !hideConf && /* @__PURE__ */ React.createElement("span", { className: "mono", "data-conf": "", style: { fontSize: "var(--t-micro)", color: "var(--ink-4)", letterSpacing: ".04em", whiteSpace: "nowrap" } }, confidenceLabel(s.confidence)), /* @__PURE__ */ React.createElement("button", { type: "button", className: "sig-open", "aria-label": "Open " + name, onClick: () => openSignal(s.id) }, "Open")), feedback && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 8, fontSize: "var(--t-caption)", color: "var(--brass)" } }, /* @__PURE__ */ React.createElement(Icon, { name: "check", size: 12, style: { verticalAlign: "-2px", marginRight: 4 } }), " Feedback: ", feedback.label), watched && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 8, fontSize: "var(--t-caption)", color: "var(--brass)" } }, /* @__PURE__ */ React.createElement(Icon, { name: "watch", size: 12, style: { verticalAlign: "-2px", marginRight: 4 } }), " On watchlist"));
 });
 function generateBriefMarkdown(s, isLive = false) {
   const brief = buildBriefSections(s, isLive);
@@ -598,14 +536,16 @@ function Drawer() {
   }, [signalId, visibleSigs]);
   React.useEffect(() => {
     if (signalId) {
-      prevFocusRef.current = document.activeElement;
+      const active = document.activeElement;
+      if (!prevFocusRef.current && !(active && active.closest && active.closest("aside.drawer"))) prevFocusRef.current = active;
       requestAnimationFrame(() => {
         var _a2;
         return (_a2 = closeButtonRef.current) == null ? void 0 : _a2.focus();
       });
     } else if (prevFocusRef.current) {
-      prevFocusRef.current.focus();
+      const back = prevFocusRef.current;
       prevFocusRef.current = null;
+      if (back.isConnected) back.focus();
     }
   }, [signalId]);
   React.useEffect(() => {
@@ -643,16 +583,14 @@ function Drawer() {
   }, [signalId]);
   React.useEffect(() => {
     const handler = (e) => {
-      var _a2;
       if (modal) return;
-      const tag = (_a2 = document.activeElement) == null ? void 0 : _a2.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
       if (e.key === "Escape" && signalId) {
         e.preventDefault();
         flushNote();
         closeSignal();
         return;
       }
+      if (shortcutBlocked(e)) return;
       if (e.key === "j" || e.key === "k") {
         e.preventDefault();
         const cur = visibleSigs.findIndex((s2) => s2.id === signalId);
@@ -697,13 +635,13 @@ function Drawer() {
   const watched = signalId ? isWatched(signalId) : false;
   const labels = ["Correct priority", "Too high", "Too low", "Wrong topic", "Wrong portfolio", "Duplicate", "Noise", "Needs human review"];
   const sigPos = visibleSigs.findIndex((x) => x.id === signalId);
-  return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "drawer-back" + (on ? " on" : ""), onClick: closeWithFlush, "aria-hidden": "true" }), /* @__PURE__ */ React.createElement("aside", { className: "drawer" + (on ? " on" : ""), role: "dialog", "aria-modal": "true", "aria-label": "Signal detail" }, on && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "drawer-head" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "mono", style: { fontSize: "var(--t-label)", color: "var(--ink-4)", letterSpacing: ".16em", textTransform: "uppercase", display: "flex", alignItems: "center", gap: 8 } }, /* @__PURE__ */ React.createElement("span", { style: { minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, isLive || /^https?:/.test(s.id || "") ? s.source || "APH" : s.id, " \xB7 ", s.date), /* @__PURE__ */ React.createElement(
+  return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "drawer-back" + (on ? " on" : ""), onClick: closeWithFlush, "aria-hidden": "true" }), /* @__PURE__ */ React.createElement("aside", { className: "drawer" + (on ? " on" : ""), role: "dialog", "aria-modal": "true", "aria-label": "Signal detail", "aria-hidden": on ? void 0 : "true" }, on && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "drawer-head" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "mono", style: { fontSize: "var(--t-label)", color: "var(--ink-4)", letterSpacing: ".16em", textTransform: "uppercase", display: "flex", alignItems: "center", gap: 8 } }, /* @__PURE__ */ React.createElement("span", { style: { minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, isLive || /^https?:/.test(s.id || "") ? s.source || "APH" : s.id, " \xB7 ", s.date), /* @__PURE__ */ React.createElement(
     ProvenanceChip,
     {
       provenance: itemProvenance,
       title: isLive ? "This item is from an official APH feed" : "This item has no live source"
     }
-  )), /* @__PURE__ */ React.createElement("h2", { className: "h-drawer", style: { margin: "4px 0 0", maxWidth: 460 } }, isLive ? s.link ? /* @__PURE__ */ React.createElement("a", { href: s.link, target: "_blank", rel: "noopener noreferrer", style: { color: "inherit" }, title: "Open the source at aph.gov.au" }, s.title, " ", /* @__PURE__ */ React.createElement(Icon, { name: "ext", size: 13, style: { verticalAlign: "-1px", opacity: 0.6 } })) : s.source : s.title)), /* @__PURE__ */ React.createElement("div", { style: { marginLeft: "auto", display: "flex", alignItems: "center", gap: 12, flexShrink: 0 } }, sigPos !== -1 && /* @__PURE__ */ React.createElement("span", { className: "mono", style: { fontSize: "var(--t-micro)", color: "var(--ink-4)", textAlign: "right", lineHeight: 1.3 } }, /* @__PURE__ */ React.createElement("span", { style: { display: "block" } }, sigPos + 1, " / ", visibleSigs.length), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "var(--t-label)", letterSpacing: ".1em", opacity: 0.7 } }, "SIGNAL")), /* @__PURE__ */ React.createElement("button", { ref: closeButtonRef, className: "btn ghost sm", "aria-label": "Close signal detail", onClick: closeWithFlush }, /* @__PURE__ */ React.createElement(Icon, { name: "close", size: 14 })))), /* @__PURE__ */ React.createElement("div", { className: "drawer-body", ref: drawerBodyRef }, s.action && /* @__PURE__ */ React.createElement("div", { className: "drawer-section" }, /* @__PURE__ */ React.createElement("h3", null, "Recommended action"), /* @__PURE__ */ React.createElement("div", { style: { padding: "10px 14px", borderLeft: "3px solid var(--brass)", borderRadius: "0 6px 6px 0", background: "var(--panel-2)" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 600, color: "var(--ink)" } }, s.action), s.actionReason && /* @__PURE__ */ React.createElement("div", { style: { color: "var(--ink-2)", fontSize: "var(--t-body-sm)", marginTop: 4 } }, s.actionReason))), isLive && s.summary && s.summary === s.attentionReason ? /* @__PURE__ */ React.createElement("div", { className: "drawer-section" }, /* @__PURE__ */ React.createElement("h3", null, "Scoring explanation"), /* @__PURE__ */ React.createElement("p", null, s.summary || NOT_SUPPLIED)) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "drawer-section" }, /* @__PURE__ */ React.createElement("h3", null, "Summary"), /* @__PURE__ */ React.createElement("p", null, s.summary || NOT_SUPPLIED)), /* @__PURE__ */ React.createElement("div", { className: "drawer-section" }, /* @__PURE__ */ React.createElement("h3", null, "Why it matters"), /* @__PURE__ */ React.createElement("p", null, s.attentionReason || NOT_SUPPLIED))), /* @__PURE__ */ React.createElement("div", { className: "drawer-section" }, /* @__PURE__ */ React.createElement("h3", null, "Signal metadata"), /* @__PURE__ */ React.createElement("dl", { className: "kv" }, /* @__PURE__ */ React.createElement("dt", null, "Source"), /* @__PURE__ */ React.createElement("dd", null, s.source || NOT_SUPPLIED), /* @__PURE__ */ React.createElement("dt", null, "Source group"), /* @__PURE__ */ React.createElement("dd", null, s.sourceGroup || NOT_SUPPLIED), /* @__PURE__ */ React.createElement("dt", null, "Authority"), /* @__PURE__ */ React.createElement("dd", null, s.sourceAuthority || NOT_SUPPLIED), /* @__PURE__ */ React.createElement("dt", null, "Attention"), /* @__PURE__ */ React.createElement("dd", null, /* @__PURE__ */ React.createElement(Att, { level: s.attention })), /* @__PURE__ */ React.createElement("dt", null, "Confidence"), /* @__PURE__ */ React.createElement("dd", null, /* @__PURE__ */ React.createElement(Conf, { n: s.confidence }), !isLive && /* @__PURE__ */ React.createElement("span", { style: { color: "var(--ink-3)", marginLeft: 8, fontFamily: "var(--mono)", fontSize: "var(--t-eyebrow)" } }, "Representative")), /* @__PURE__ */ React.createElement("dt", null, "Human review"), /* @__PURE__ */ React.createElement("dd", null, s.humanReview ? `Review status: ${s.humanReview === "Required" ? "Not reviewed \xB7 policy officer must verify source links before use" : "Optional for internal triage; required before external distribution"}` : NOT_SUPPLIED))), SITE_CONFIG.showUnsourcedSurfaces && !isLive && s.score && /* @__PURE__ */ React.createElement("div", { className: "drawer-section" }, /* @__PURE__ */ React.createElement("h3", null, "Attention score breakdown ", /* @__PURE__ */ React.createElement("span", { className: "chip-fixture", style: { verticalAlign: "middle", marginLeft: 6 } }, "Sample data")), /* @__PURE__ */ React.createElement("div", { style: { color: "var(--ink-4)", fontSize: "var(--t-caption)", marginBottom: 6 } }, "Illustrative five-factor breakdown for an example signal, not a computed score."), Object.entries(s.score).map(([k, v]) => {
+  )), /* @__PURE__ */ React.createElement("h2", { className: "h-drawer", style: { margin: "4px 0 0", maxWidth: 460 } }, isLive ? s.link ? /* @__PURE__ */ React.createElement("a", { href: s.link, target: "_blank", rel: "noopener noreferrer", style: { color: "inherit" }, title: "Open the source at aph.gov.au" }, s.title, " ", /* @__PURE__ */ React.createElement(Icon, { name: "ext", size: 13, style: { verticalAlign: "-1px", opacity: 0.6 } })) : s.source : s.title)), /* @__PURE__ */ React.createElement("div", { style: { marginLeft: "auto", display: "flex", alignItems: "center", gap: 12, flexShrink: 0 } }, sigPos !== -1 && /* @__PURE__ */ React.createElement("span", { className: "mono", style: { fontSize: "var(--t-micro)", color: "var(--ink-4)", textAlign: "right", lineHeight: 1.3 } }, /* @__PURE__ */ React.createElement("span", { style: { display: "block" } }, sigPos + 1, " / ", visibleSigs.length), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "var(--t-label)", letterSpacing: ".1em" } }, "SIGNAL")), /* @__PURE__ */ React.createElement("button", { ref: closeButtonRef, className: "btn ghost sm", "aria-label": "Close signal detail", onClick: closeWithFlush }, /* @__PURE__ */ React.createElement(Icon, { name: "close", size: 14 })))), /* @__PURE__ */ React.createElement("div", { className: "drawer-body", ref: drawerBodyRef }, s.action && /* @__PURE__ */ React.createElement("div", { className: "drawer-section" }, /* @__PURE__ */ React.createElement("h3", null, "Recommended action"), /* @__PURE__ */ React.createElement("div", { style: { padding: "10px 14px", borderLeft: "3px solid var(--brass)", borderRadius: "0 6px 6px 0", background: "var(--panel-2)" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 600, color: "var(--ink)" } }, s.action), s.actionReason && /* @__PURE__ */ React.createElement("div", { style: { color: "var(--ink-2)", fontSize: "var(--t-body-sm)", marginTop: 4 } }, s.actionReason))), isLive && s.summary && s.summary === s.attentionReason ? /* @__PURE__ */ React.createElement("div", { className: "drawer-section" }, /* @__PURE__ */ React.createElement("h3", null, "Scoring explanation"), /* @__PURE__ */ React.createElement("p", null, s.summary || NOT_SUPPLIED)) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "drawer-section" }, /* @__PURE__ */ React.createElement("h3", null, "Summary"), /* @__PURE__ */ React.createElement("p", null, s.summary || NOT_SUPPLIED)), /* @__PURE__ */ React.createElement("div", { className: "drawer-section" }, /* @__PURE__ */ React.createElement("h3", null, "Why it matters"), /* @__PURE__ */ React.createElement("p", null, s.attentionReason || NOT_SUPPLIED))), /* @__PURE__ */ React.createElement("div", { className: "drawer-section" }, /* @__PURE__ */ React.createElement("h3", null, "Signal metadata"), /* @__PURE__ */ React.createElement("dl", { className: "kv" }, /* @__PURE__ */ React.createElement("dt", null, "Source"), /* @__PURE__ */ React.createElement("dd", null, s.source || NOT_SUPPLIED), /* @__PURE__ */ React.createElement("dt", null, "Source group"), /* @__PURE__ */ React.createElement("dd", null, s.sourceGroup || NOT_SUPPLIED), /* @__PURE__ */ React.createElement("dt", null, "Authority"), /* @__PURE__ */ React.createElement("dd", null, s.sourceAuthority || NOT_SUPPLIED), /* @__PURE__ */ React.createElement("dt", null, "Attention"), /* @__PURE__ */ React.createElement("dd", null, /* @__PURE__ */ React.createElement(Att, { level: s.attention })), /* @__PURE__ */ React.createElement("dt", null, "Confidence"), /* @__PURE__ */ React.createElement("dd", null, /* @__PURE__ */ React.createElement(Conf, { n: s.confidence }), !isLive && /* @__PURE__ */ React.createElement("span", { style: { color: "var(--ink-3)", marginLeft: 8, fontFamily: "var(--mono)", fontSize: "var(--t-eyebrow)" } }, "Representative")), /* @__PURE__ */ React.createElement("dt", null, "Human review"), /* @__PURE__ */ React.createElement("dd", null, s.humanReview ? `Review status: ${s.humanReview === "Required" ? "Not reviewed \xB7 policy officer must verify source links before use" : "Optional for internal triage; required before external distribution"}` : NOT_SUPPLIED))), SITE_CONFIG.showUnsourcedSurfaces && !isLive && s.score && /* @__PURE__ */ React.createElement("div", { className: "drawer-section" }, /* @__PURE__ */ React.createElement("h3", null, "Attention score breakdown ", /* @__PURE__ */ React.createElement("span", { className: "chip-fixture", style: { verticalAlign: "middle", marginLeft: 6 } }, "Sample data")), /* @__PURE__ */ React.createElement("div", { style: { color: "var(--ink-4)", fontSize: "var(--t-caption)", marginBottom: 6 } }, "Illustrative five-factor breakdown for an example signal, not a computed score."), Object.entries(s.score).map(([k, v]) => {
     const lab = { authority: "Source authority", portfolio: "Portfolio relevance", novelty: "Novelty", momentum: "Momentum", time: "Time sensitivity", scrutiny: "Scrutiny relevance", ops: "Operational impact" };
     return /* @__PURE__ */ React.createElement("div", { key: k, style: { display: "grid", gridTemplateColumns: "160px 1fr 40px", gap: 10, alignItems: "center", padding: "4px 0" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--t-body-sm)", color: "var(--ink-2)" } }, lab[k]), /* @__PURE__ */ React.createElement("div", { className: "bar" }, /* @__PURE__ */ React.createElement("div", { className: "fill", style: { width: `${v * 100}%` } })), /* @__PURE__ */ React.createElement("div", { className: "mono", style: { fontSize: "var(--t-eyebrow)", color: "var(--ink-3)", textAlign: "right" } }, Math.round(v * 100)));
   })), /* @__PURE__ */ React.createElement("div", { className: "drawer-section" }, /* @__PURE__ */ React.createElement("h3", null, "Evidence \xB7 open the actual source"), ((_a = s.evidence) == null ? void 0 : _a.length) > 0 ? s.evidence.map((e, i) => /* @__PURE__ */ React.createElement("a", { key: i, href: e.url, target: "_blank", rel: "noopener noreferrer", style: {
@@ -721,7 +659,7 @@ function Drawer() {
     var _a2, _b;
     const m = (_b = (_a2 = window.ENTITIES) == null ? void 0 : _a2.members) == null ? void 0 : _b[mid];
     if (!m) return null;
-    return /* @__PURE__ */ React.createElement("span", { key: mid, className: "tag brass clk", onClick: () => openModal("member", mid) }, m.name);
+    return /* @__PURE__ */ React.createElement("button", { type: "button", key: mid, className: "tag brass clk", onClick: () => openModal("member", mid) }, m.name);
   }))), /* @__PURE__ */ React.createElement("div", { className: "drawer-section" }, /* @__PURE__ */ React.createElement("h3", null, "Analyst note ", noteSaved && /* @__PURE__ */ React.createElement("span", { className: "mono", style: { fontSize: "var(--t-micro)", color: "var(--brass)", marginLeft: 8 } }, "Saved")), /* @__PURE__ */ React.createElement(
     "textarea",
     {
@@ -751,6 +689,6 @@ function Drawer() {
   } }, "Archive"), /* @__PURE__ */ React.createElement("button", { className: "btn ghost", style: { marginLeft: "auto" }, onClick: closeWithFlush }, "Close")))));
 }
 function SiteFooter() {
-  return /* @__PURE__ */ React.createElement("footer", { className: "site-foot", role: "contentinfo" }, /* @__PURE__ */ React.createElement("p", null, "Source material: Parliament of Australia website, licensed under", " ", /* @__PURE__ */ React.createElement("a", { href: "https://creativecommons.org/licenses/by-nc-nd/4.0/", target: "_blank", rel: "noopener noreferrer license" }, "CC BY-NC-ND 4.0"), ".", " ", "Titles reproduced unmodified; scores and summaries are Parliament Pulse analysis."), /* @__PURE__ */ React.createElement("nav", { className: "site-foot-links", "aria-label": "Legal" }, /* @__PURE__ */ React.createElement("a", { href: "#/about/legal" }, "Legal and disclaimer"), /* @__PURE__ */ React.createElement("a", { href: "#/about/privacy" }, "Privacy"), /* @__PURE__ */ React.createElement("a", { href: "#/about/licence" }, "Licence and attribution")));
+  return /* @__PURE__ */ React.createElement("footer", { className: "site-foot", role: "contentinfo" }, /* @__PURE__ */ React.createElement("p", null, "Source material: Parliament of Australia website, licensed under", " ", /* @__PURE__ */ React.createElement("a", { href: "https://creativecommons.org/licenses/by-nc-nd/4.0/", target: "_blank", rel: "noopener noreferrer license" }, "CC BY-NC-ND 4.0"), ".", " ", "Titles reproduced unmodified; scores and summaries are Parliament Pulse analysis."), /* @__PURE__ */ React.createElement("nav", { className: "site-foot-links", "aria-label": "Legal" }, /* @__PURE__ */ React.createElement("a", { href: "#/about/legal" }, "Legal and disclaimer"), /* @__PURE__ */ React.createElement("a", { href: "#/about/privacy" }, "Privacy"), /* @__PURE__ */ React.createElement("a", { href: "#/about/licence" }, "Licence and attribution"), /* @__PURE__ */ React.createElement("a", { href: "#/about/accessibility" }, "Accessibility")));
 }
 Object.assign(window, { liveNavState, Sidebar, Topbar, TopClock, SignalCard, Drawer, Att, Conf, ProvenanceChip, BetaNotice, EmptyState, SkeletonRow, SkeletonCard, SkeletonTable, fmtDataAge, buildBriefSections, SiteFooter, generateBriefMarkdown });

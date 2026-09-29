@@ -29,13 +29,15 @@ in `npm run gate` or CI. CI (`.github/workflows/ci.yml`) runs `npm ci`,
 | `state-contract.test.mjs` | Worker `GET /state` payload shape; a degraded block never fabricates content | No (assertion-based, not canary-based) |
 | `beta-contract.test.mjs` | No public-facing "demo" wording; beta-evidence UI elements are present | No (assertion-based, not canary-based) |
 | `asset-manifest.test.mjs` | Every asset `index.html` references exists on disk; zero external-origin references in functional `src`/`href`/`content` attributes or `_headers` directive values; `assets/fonts/fonts.css` URLs resolve relative to their own directory; the og image stays under 300KB | Yes |
-| `a11y.test.mjs` | **Static structural approximation only** (see the file's header comment; `playwright` is now pinned for the browser tests, `axe-core` is not installed). Skip link, `<main id="pp-content">` landmark, toast container ARIA roles, image alt text, icon-only-button aria-labels, form-control labels, no positive tabindex | Yes |
+| `a11y.test.mjs` | Static structural approximation (the rendered-DOM scan is `npm run a11y`, below). Skip link, `<main id="pp-content">` landmark, toast container ARIA roles, image alt text, icon-only-button aria-labels, form-control labels, no positive tabindex | Yes |
+| `keyboard-static.test.mjs` | FE-10 (A11Y-01, WCAG 2.1.1). No `onClick` or `onMouseDown` on a non-interactive element (div, span, tr, td, li and the rest) unless it also has `role`, `tabIndex={0}` and `onKeyDown`. Two marked exemptions, each verified: `a11y-exempt: backdrop` (the scrim must be `aria-hidden`) and `a11y-exempt: stop` (the handler may only stop propagation). `SCAN_ROOT=<dir>` points it at a scratch copy | Yes (9 seeded mouse-only specimens caught, 6 compliant specimens left alone) |
 
 ## Browser harness, layout test (FE-07) and routing test (FE-08)
 
 ```sh
 npx playwright install chromium   # once; playwright itself is pinned in package.json
-npm run browser                   # layout.test.mjs, then routing.test.mjs
+npm run browser                   # layout, routing, design, then keyboard.test.mjs
+npm run a11y                      # axe.test.mjs: the real axe-core scan (FE-10)
 ```
 
 `tests/browser/harness.mjs` is the shared harness (FE-09 and FE-10 reuse it). It
@@ -75,16 +77,32 @@ listener removed (Back fails), the title write removed, the h1 focus removed,
 Not found replaced by Overview, the `?page=` migration removed, and a footer
 link removed. CI runs both files as the `browser` job.
 
-## Real axe-core run: still owed
+## Real axe-core scan and keyboard test (FE-10)
 
-`a11y.test.mjs` is a source-level approximation, not a rendered-DOM or
-colour-contrast check. To get a real `axe-core` scan across the app's routes:
+`npm run a11y` runs `tests/browser/axe.test.mjs`: `@axe-core/playwright` (pinned
+exact) on the harness, tags wcag2a, wcag2aa, wcag21a, wcag21aa and wcag22aa, over
+64 states: every NAV desk, the open signal drawer, the Sources feed modal and the
+search results in both themes at 1280 and 390 px, plus the phone navigation open
+and closed at 390 px. Off-screen `.signal` cards are painted for the scan
+(`content-visibility: visible`), so their contrast is measured. It fails on any
+serious or critical violation and writes the full result, including axe's
+"needs review" nodes, to `tests/browser/out/axe.json` (gitignored). Canary: a
+scratch copy of dist/ with a nameless button and an image without alt injected
+must fail on button-name and image-alt before the clean build is trusted. It also
+checks the About accessibility section (`#/about/accessibility`) against the run:
+state count, axe-core version and tags must match, and the stated scan date must
+not be later than the run (it prints a note when they differ, so re-issue
+`A11Y_SCAN` in pages.jsx after a clean run on a changed UI).
 
-1. `npm install -D playwright axe-core` and `npx playwright install chromium`.
-2. Write a script that launches the built `index.html` (a local static server
-   or `file://`), injects `axe-core`, calls `axe.run()` per route (`overview`,
-   `signals`, `bills`, `committees`, `briefings`, `about`, …), and asserts zero
-   `critical`/`serious` violations.
-
-The root `package.json` now exists (FE-02), so this is unblocked; it remains
-owed as a separate package.
+`tests/browser/keyboard.test.mjs` (in `npm run browser`) checks: Tab from the top
+of the Signal inbox reaches every card's Open button (distinct "Open <title>"
+names), Enter opens the drawer on it, Esc closes it and returns focus; every card
+is an `<article>` named by its title with no link inside a button; the closed
+phone navigation has 0 focusable descendants and 0 Tab stops, Esc closes the open
+one to its toggle; the closed drawer is out of the accessibility tree; j works,
+is typed in a field, Ctrl+A does not archive, a archives with Undo, and turning
+the single-key shortcuts off stops j and survives a reload; every visible control
+on every desk, the drawer and the modal is at least 24 x 24 CSS px; no visible
+text is under 12 px. Seven scratch-copy canaries each remove one control and must
+fail their check. `KBD_ONLY=targets,text` runs a subset (printed SKIP for the
+rest) without the canaries.

@@ -1155,10 +1155,13 @@ function DetailModal() {
   };
 
   return (
-    <div className="modal-back" onClick={closeModal}>
+    <div className="modal-back">
+      {/* FE-10 (A11Y-01): the click-outside layer is its own aria-hidden scrim
+          under the dialog; Esc and the dialog's Close button do the same. */}
+      {/* a11y-exempt: backdrop */}
+      <div className="modal-scrim" onClick={closeModal} aria-hidden="true" />
       <div
         className="modal"
-        onClick={e => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -1232,7 +1235,7 @@ function CommitteeDetail({ id, titleId, closeButtonRef }) {
         {c.inquiries.length > 0 ? (
           <div style={{display:"flex", flexWrap:"wrap", gap:6}}>
             {c.inquiries.map((q, i) => (
-              <span key={i} className="tag clk" onClick={() => openModal("inquiry", q)}>{q}</span>
+              <button type="button" key={i} className="tag clk" onClick={() => openModal("inquiry", q)}>{q}</button>
             ))}
           </div>
         ) : (
@@ -1351,7 +1354,7 @@ function BillDetail({ id, titleId, closeButtonRef }) {
 
         {min && <>
           <h3 className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:6}}>Responsible minister</h3>
-          <span className="tag clk brass" onClick={() => openModal("minister", b.minister)}>{min.name}</span>
+          <button type="button" className="tag clk brass" onClick={() => openModal("minister", b.minister)}>{min.name}</button>
         </>}
 
         <h3 className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:6}}>Matching watchlists</h3>
@@ -1425,7 +1428,7 @@ function DivisionDetail({ id, titleId, closeButtonRef }) {
           <dt>When</dt><dd>{d.when}</dd>
           <dt>Chamber</dt><dd>{d.chamber}</dd>
           <dt>Result</dt><dd style={{color: d.result.startsWith("Agreed") ? "var(--ok)" : "var(--escalate)"}}>{d.result}</dd>
-          <dt>Related bill</dt><dd><span className="tag clk brass" onClick={() => openModal("bill", d.bill)}>{d.bill}</span></dd>
+          <dt>Related bill</dt><dd><button type="button" className="tag clk brass" onClick={() => openModal("bill", d.bill)}>{d.bill}</button></dd>
         </dl>
         <h3 className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:16, marginBottom:8}}>Vote breakdown</h3>
         <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:10}}>
@@ -1568,7 +1571,7 @@ function RadarDetail({ id, titleId, closeButtonRef }) {
 // link's #pp-content, for example) is an in-page anchor, not a route: parseRoute
 // returns null and the router leaves the current desk alone.
 // parseRoute and routeHash are pure; app.jsx owns the listener and the history writes.
-const ABOUT_SECTIONS = ["legal", "privacy", "not-yet-available", "licence"];
+const ABOUT_SECTIONS = ["legal", "privacy", "not-yet-available", "licence", "accessibility"];
 
 function routeDeskIds() {
   return (typeof NAV !== "undefined" && Array.isArray(NAV)) ? NAV.map(n => n.id) : [];

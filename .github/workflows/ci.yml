@@ -70,5 +70,11 @@ jobs:
       - name: Install Chromium for the pinned playwright
         run: npx playwright install --with-deps chromium
 
-      - name: Browser layout and routing tests
+      - name: Browser layout, routing, design and keyboard tests
         run: npm run browser
+
+      # FE-10: real axe-core scan (WCAG 2.2 AA tags) of every desk, the drawer,
+      # a modal, the search results and the phone navigation, both themes, 1280
+      # and 390 px. Fails on any serious or critical violation.
+      - name: Accessibility scan (axe-core)
+        run: npm run a11y

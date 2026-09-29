@@ -42,6 +42,17 @@ function App() {
     safeSetLocalStorage("pp-nav-open", String(mobileNavOpen));
   }, [mobileNavOpen]);
   React.useEffect(() => {
+    if (!mobileNavOpen) return;
+    const h = (e) => {
+      if (e.key !== "Escape") return;
+      setMobileNavOpen(false);
+      const t = document.querySelector(".nav-toggle");
+      if (t) t.focus();
+    };
+    document.addEventListener("keydown", h);
+    return () => document.removeEventListener("keydown", h);
+  }, [mobileNavOpen]);
+  React.useEffect(() => {
     const saved = safeGetLocalStorage("pp-theme");
     if (saved) document.documentElement.dataset.theme = saved;
   }, []);

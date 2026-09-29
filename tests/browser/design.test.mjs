@@ -89,7 +89,7 @@ async function printProblems(h, baseUrl, { pdf = false } = {}) {
   // brief lands in the queue as it does for a reader.
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"], { origin: new URL(baseUrl).origin });
   await openDesk(page, "signals", { baseUrl });
-  await page.click(".signal[role=button]");
+  await page.click(".signal .sig-open");
   await page.waitForSelector("aside.drawer.on");
   await page.click("aside.drawer button:has-text('Generate brief')");
   await page.waitForTimeout(200);

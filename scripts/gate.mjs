@@ -10,6 +10,7 @@ const GATES = [
   "tests/release-gate.mjs",
   "tests/asset-manifest.test.mjs",
   "tests/a11y.test.mjs",
+  "tests/keyboard-static.test.mjs",
   "tests/beta-contract.test.mjs",
   "tests/matching.test.mjs",
   "tests/state-contract.test.mjs",

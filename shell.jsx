@@ -13,8 +13,8 @@ function TopClock() {
     return () => clearInterval(id);
   }, []);
   return (
-    <span className="mono top-clock" aria-label="Local time" title="Local time" style={{fontSize:"var(--t-caption)", color:"var(--ink-3)", letterSpacing:".06em", fontVariantNumeric:"tabular-nums"}}>
-      {clock}
+    <span className="mono top-clock" title="Local time" style={{fontSize:"var(--t-caption)", color:"var(--ink-3)", letterSpacing:".06em", fontVariantNumeric:"tabular-nums"}}>
+      <span className="sr-only">Local time </span>{clock}
     </span>
   );
 }
@@ -219,7 +219,7 @@ function Sidebar({ page, onNavigate, mobileOpen }) {
           </div>
         ))}
       </nav>
-      <div className="side-status" aria-label="System status">
+      <div className="side-status" role="group" aria-label="System status">
         {noLiveCache ? (
           <>
             <div className="side-status-head">
@@ -247,32 +247,60 @@ function Sidebar({ page, onNavigate, mobileOpen }) {
   );
 }
 
+// FE-10 (A11Y-05, WCAG 2.1.4): the single-character shortcuts (j, k, b, w, a)
+// can be turned off here, and the choice is kept in pp-shortcuts. They never
+// fire while focus is in a text field or with Ctrl, Cmd or Alt held, so Ctrl+A
+// selects text and never archives. Esc and Ctrl+K are not single-character
+// shortcuts and always work.
+const SHORTCUTS_KEY = "pp-shortcuts";
+function singleKeyShortcutsOn() {
+  return safeGetLocalStorage(SHORTCUTS_KEY) !== "off";
+}
+// True when a keydown must not trigger a single-character shortcut.
+function shortcutBlocked(e) {
+  if (!singleKeyShortcutsOn()) return true;
+  if (e.ctrlKey || e.metaKey || e.altKey) return true;
+  const el = document.activeElement;
+  const tag = el && el.tagName;
+  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || !!(el && el.isContentEditable);
+}
+
 function ShortcutHelp() {
   const [open, setOpen] = React.useState(false);
+  const [enabled, setEnabled] = React.useState(singleKeyShortcutsOn);
   const shortcuts = [
-    ["j / k", "Navigate to next / previous signal"],
-    ["Enter / Space", "Open focused signal or nav item"],
+    ["j / k", "Next or previous signal"],
+    ["Enter / Space", "Activate the focused button or nav item"],
     ["Esc", "Close drawer or modal"],
-    ["b", "Copy brief to clipboard (while signal open)"],
-    ["w", "Add signal to watchlist (while signal open)"],
-    ["a", "Archive signal and advance (while signal open)"],
+    ["b", "Copy brief to clipboard (while a signal is open)"],
+    ["w", "Add signal to watchlist (while a signal is open)"],
+    ["a", "Archive signal and advance; Undo is in the notice (while a signal is open)"],
     [IS_MAC ? "⌘K" : "Ctrl+K", "Focus global search"],
   ];
+  const onToggle = e => {
+    const on = e.target.checked;
+    setEnabled(on);
+    safeSetLocalStorage(SHORTCUTS_KEY, on ? "on" : "off");
+  };
   return (
     <div style={{position:"relative"}}>
-      <button className="btn ghost sm" title="Keyboard shortcuts" onClick={() => setOpen(o => !o)} aria-label="View keyboard shortcuts" aria-expanded={open}>
+      <button className="btn ghost sm" title="Keyboard shortcuts" onClick={() => setOpen(o => !o)} aria-label="Keyboard shortcuts and settings" aria-expanded={open}>
         <Icon name="pattern" size={13} />
       </button>
       {open && (
-        <div style={{position:"absolute", top:"calc(100% + 8px)", right:0, background:"var(--panel-2)", border:"1px solid var(--line-bright)", borderRadius:"var(--r-md)", boxShadow:"var(--elev-2)", zIndex:40, width:320, padding:"12px 14px"}} role="dialog" aria-label="Keyboard shortcuts">
+        <div style={{position:"absolute", top:"calc(100% + 8px)", right:0, background:"var(--panel-2)", border:"1px solid var(--line-bright)", borderRadius:"var(--r-md)", boxShadow:"var(--elev-2)", zIndex:40, width:320, maxWidth:"calc(100vw - 32px)", padding:"12px 14px"}} role="dialog" aria-label="Keyboard shortcuts" data-shortcut-settings="">
           <div className="mono" style={{fontSize:"var(--t-label)", color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginBottom:10}}>Keyboard shortcuts</div>
+          <label htmlFor="pp-shortcut-toggle" style={{display:"flex", alignItems:"center", gap:10, padding:"4px 0 10px", fontSize:"var(--t-body-sm)", color:"var(--ink)", cursor:"pointer", minHeight:24}}>
+            <input id="pp-shortcut-toggle" type="checkbox" checked={enabled} onChange={onToggle} data-shortcut-toggle="" style={{width:20, height:20, margin:0, accentColor:"var(--brass)"}} />
+            Single-key shortcuts (j, k, b, w, a)
+          </label>
           {shortcuts.map(([k, d]) => (
-            <div key={k} style={{display:"flex", justifyContent:"space-between", alignItems:"center", padding:"5px 0", borderBottom:"1px solid var(--line)", fontSize:"var(--t-body-sm)"}}>
+            <div key={k} style={{display:"flex", justifyContent:"space-between", alignItems:"center", padding:"5px 0", borderBottom:"1px solid var(--line)", fontSize:"var(--t-body-sm)", opacity: !enabled && k.length <= 5 && /^[a-z]( \/ [a-z])?$/.test(k) ? .55 : 1}}>
               <span style={{color:"var(--ink-2)"}}>{d}</span>
               <kbd style={{fontFamily:"var(--mono)", fontSize:"var(--t-eyebrow)", background:"var(--panel-hi)", border:"1px solid var(--line-2)", borderRadius:4, padding:"2px 7px", color:"var(--brass)", marginLeft:10, whiteSpace:"nowrap"}}>{k}</kbd>
             </div>
           ))}
-          <button style={{marginTop:10, background:"none", border:"none", color:"var(--ink-4)", cursor:"pointer", fontSize:"var(--t-caption)", padding:0}} onClick={() => setOpen(false)}>Close</button>
+          <button className="btn ghost sm" style={{marginTop:10}} onClick={() => setOpen(false)}>Close</button>
         </div>
       )}
     </div>
@@ -283,7 +311,6 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
   const { openModal, openSignal, toast, modal, signalId, setSignalSearchQuery, requestLiveRefresh, consumeLiveRefresh, navigate, liveState, refreshLiveState } = useStore();
   const [q, setQ] = React.useState("");
   const [open, setOpen] = React.useState(false);
-  const [cursor, setCursor] = React.useState(-1);
   const [isDark, setIsDark] = React.useState(() => safeGetLocalStorage("pp-theme") !== "light");
   const [focused, setFocused] = React.useState(false);
   const [, setAgeTick] = React.useState(0);
@@ -334,7 +361,8 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); ref.current?.focus(); }
       if (e.key === "Escape") {
         if (modal || signalId) return;
-        if (open) { e.preventDefault(); setOpen(false); setCursor(-1); ref.current?.blur(); return; }
+        const inResults = !!(searchRef.current && searchRef.current.contains(document.activeElement) && document.activeElement !== ref.current);
+        if (open) { e.preventDefault(); setOpen(false); if (inResults) ref.current?.focus(); else ref.current?.blur(); return; }
         ref.current?.blur();
       }
     };
@@ -347,7 +375,6 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
       if (!searchRef.current || searchRef.current.contains(e.target)) return;
       setOpen(false);
       setFocused(false);
-      setCursor(-1);
     };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
@@ -374,37 +401,56 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
     feeds: APH_FEEDS,
   }), [q, liveSignals.items, liveBills.items]);
 
-  // Flat ordered list for keyboard cursor
-  const flat = React.useMemo(() => {
-    if (!results) return [];
-    return [
-      ...results.sig.slice(0,4).map(s => ({ kind:"signal", key:s.id, label:s.title, sub:s.id, act:() => { openSignal(s.id); } })),
-      ...(results.sig.length > 4 ? [{ kind:"signalsAll", key:"signals-all", label:`See all ${results.sig.length} signals`, sub:q, act:() => { setSignalSearchQuery(q); navigate("signals"); } }] : []),
-      ...results.bills.slice(0,4).map(b => ({ kind:"bill", key:b.guid, label:b.title, sub:"Bills Digest", act:() => { navigate("bills"); } })),
-      ...results.comm.map(c => ({ kind:"committee", key:c.id, label:c.name, sub:c.chamber, act:() => { openModal("committee", c.id); } })),
-      ...results.feeds.slice(0,4).map(f => ({ kind:"feed", key:f.id, label:f.name, sub:f.group, act:() => { openModal("feed", f.id); } })),
-    ];
-  }, [results, q, openSignal, openModal, setSignalSearchQuery, navigate]);
-
-  React.useEffect(() => setCursor(-1), [q]);
-
-  const selectItem = (item) => { item.act(); setOpen(false); setQ(""); setCursor(-1); };
-
+  // FE-10 (A11Y-01, A11Y-02): the results are rows of real buttons and links.
+  // The old listbox put an APH source link inside each role="option" (nested
+  // interactive) and selected with onMouseDown only. Now each row has one
+  // button that opens the item in Parliament Pulse and, for a live APH title,
+  // a separate link to the source (the licence rule: a live title renders only
+  // inside its APH link). ArrowDown from the field moves focus into the
+  // results, ArrowUp and ArrowDown move between them, Esc returns to the field.
+  const selectItem = (act) => { act(); setOpen(false); setQ(""); };
+  const resultsRef = React.useRef(null);
+  const focusResult = (dir) => {
+    const list = resultsRef.current ? [...resultsRef.current.querySelectorAll("[data-sr-focus]")] : [];
+    if (!list.length) return;
+    const i = list.indexOf(document.activeElement);
+    if (dir > 0) list[Math.min(i + 1, list.length - 1)].focus();
+    else if (i <= 0) ref.current?.focus();
+    else list[i - 1].focus();
+  };
   const onKeyDown = (e) => {
     if (!open || !results) return;
-    if (e.key === "ArrowDown") { e.preventDefault(); setCursor(c => Math.min(c + 1, flat.length - 1)); return; }
-    if (e.key === "ArrowUp")   { e.preventDefault(); setCursor(c => Math.max(c - 1, -1)); return; }
-    if (e.key === "Escape")    { setOpen(false); setCursor(-1); ref.current?.blur(); return; }
-    if (e.key === "Enter" && cursor >= 0 && flat[cursor]) { e.preventDefault(); selectItem(flat[cursor]); return; }
+    if (e.key === "ArrowDown") { e.preventDefault(); focusResult(1); return; }
+    if (e.key === "Escape")    { setOpen(false); ref.current?.blur(); return; }
+  };
+  const onResultsKeyDown = (e) => {
+    if (e.key === "ArrowDown") { e.preventDefault(); focusResult(1); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); focusResult(-1); }
+  };
+  // Close the panel when focus leaves the whole search region (Tab past the end).
+  const onSearchBlur = (e) => {
+    const next = e.relatedTarget;
+    if (next && searchRef.current && searchRef.current.contains(next)) return;
+    if (next) setOpen(false);
   };
 
-  // Map flat index back to per-group index offsets for rendering
-  const sigOff  = 0;
-  const sigFlatCount = results ? results.sig.slice(0,4).length + (results.sig.length > 4 ? 1 : 0) : 0;
-  const billOff = sigFlatCount;
-  const commOff = billOff + (results ? results.bills.slice(0,4).length : 0);
-  const feedOff = commOff + (results ? results.comm.length : 0);
-
+  // One row. link: a live APH title renders inside its source link and the row
+  // gets a separate Open button; without one the whole row is the button.
+  const row = ({ key, k, title, link, openLabel, act, extra }) => (
+    <li key={key} className="sr-item" {...(extra || {})}>
+      {link ? (
+        <>
+          <span className="k">{k}</span>
+          <a className="sr-title" href={link} target="_blank" rel="noopener noreferrer" style={{color:"inherit", textDecoration:"none"}} title="Open the source at aph.gov.au">{title}</a>
+          <button type="button" className="sr-open sr-open-short" data-sr-focus="" aria-label={openLabel} onClick={() => selectItem(act)}>Open</button>
+        </>
+      ) : (
+        <button type="button" className="sr-open" data-sr-focus="" onClick={() => selectItem(act)}>
+          <span className="k">{k}</span><span className="sr-title">{title}</span>
+        </button>
+      )}
+    </li>
+  );
   return (
     <>
     <div className="topbar">
@@ -417,91 +463,70 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
       >
         <Icon name="menu" size={15} />
       </button>
-      <div ref={searchRef} className={"search" + (focused ? " focused" : "")} onClick={() => setOpen(true)}
+      <div ref={searchRef} className={"search" + (focused ? " focused" : "")} onBlur={onSearchBlur}
         style={focused ? {borderColor:"var(--brass)", boxShadow:"0 0 0 3px var(--brass-soft)"} : undefined}>
         <Icon name="search" size={14} stroke={focused ? "var(--brass)" : "var(--ink-3)"} />
         <input ref={ref} value={q}
-          role="combobox"
+          onClick={() => setOpen(true)}
           onChange={e => { setQ(e.target.value); setOpen(true); }}
           onFocus={() => { setOpen(true); setFocused(true); }}
           onBlur={() => setFocused(false)}
           onKeyDown={onKeyDown}
           aria-label="Search parliament signals, bills, committees and feeds"
-          aria-expanded={open && !!results}
-          aria-autocomplete="list"
-          aria-controls="search-listbox"
-          aria-activedescendant={cursor >= 0 ? `search-option-${cursor}` : undefined}
+          aria-controls={open && results ? "search-listbox" : undefined}
           placeholder="Search signals, bills, committees, feeds…" />
         {q ? (
-          <button onClick={() => { setQ(""); setOpen(false); setCursor(-1); ref.current?.focus(); }}
+          <button onClick={() => { setQ(""); setOpen(false); ref.current?.focus(); }}
             aria-label="Clear search" title="Clear search"
-            style={{background:"none", border:"none", cursor:"pointer", padding:"2px 4px", color:"var(--ink-3)", display:"flex", alignItems:"center", flexShrink:0}}>
+            style={{background:"none", border:"none", cursor:"pointer", padding:0, minWidth:24, minHeight:24, color:"var(--ink-3)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0}}>
             <Icon name="close" size={12} />
           </button>
         ) : (
           <span className="kbd">{IS_MAC ? "⌘K" : "Ctrl+K"}</span>
         )}
         {open && results && (
-          <div id="search-listbox" role="listbox" className="search-results">
+          <div id="search-listbox" ref={resultsRef} className="search-results" role="region" aria-label="Search results" onKeyDown={onResultsKeyDown}>
             {results.sig.length > 0 && <>
               <div className="sr-group" data-sr-group="signals">{results.labels.sig} · {results.sig.length} match{results.sig.length !== 1 ? "es" : ""}</div>
-              {results.sig.slice(0,4).map((s, i) => (
-                <div key={s.id} id={`search-option-${sigOff + i}`} role="option" aria-selected={cursor === sigOff + i}
-                  className={"sr-item" + (cursor === sigOff + i ? " active" : "")}
-                  onMouseDown={e => { e.preventDefault(); selectItem(flat[sigOff + i]); }}>
-                  <span className="k">{s.isLive ? s.source : s.id}</span>
-                  {s.isLive && s.link
-                    ? <a href={s.link} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} style={{color:"inherit", textDecoration:"none"}} title="Open the source at aph.gov.au">{s.title}</a>
-                    : <span>{s.title}</span>}
-                </div>
-              ))}
-              {results.sig.length > 4 && (
-                <div id={`search-option-${sigOff + 4}`} role="option" aria-selected={cursor === sigOff + 4}
-                  className={"sr-item" + (cursor === sigOff + 4 ? " active" : "")}
-                  onMouseDown={e => { e.preventDefault(); selectItem(flat[sigOff + 4]); }}>
-                  <span className="k">All</span><span>See all {results.sig.length} signals</span>
-                </div>
-              )}
+              <ul className="sr-list">
+                {results.sig.slice(0,4).map(s => row({
+                  key: s.id, k: s.isLive ? s.source : s.id,
+                  title: s.isLive && !s.link ? s.source : s.title,
+                  link: s.isLive && s.link ? s.link : null,
+                  openLabel: `Open ${s.title} in Parliament Pulse`,
+                  act: () => openSignal(s.id),
+                }))}
+                {results.sig.length > 4 && row({ key: "signals-all", k: "All", title: `See all ${results.sig.length} signals`, act: () => { setSignalSearchQuery(q); navigate("signals"); } })}
+              </ul>
             </>}
             {results.bills.length > 0 && <>
               <div className="sr-group" data-sr-group="bills">{results.labels.bills} · {results.bills.length} match{results.bills.length !== 1 ? "es" : ""}</div>
-              {results.bills.slice(0,4).map((b, i) => {
-                // Licence rule: a live APH bill title renders only inside an anchor to its APH link.
-                const link = safeHttpUrl(b.link);
-                return (
-                <div key={b.guid} id={`search-option-${billOff + i}`} role="option" aria-selected={cursor === billOff + i}
-                  className={"sr-item" + (cursor === billOff + i ? " active" : "")} data-sr-bill=""
-                  onMouseDown={e => { e.preventDefault(); selectItem(flat[billOff + i]); }}>
-                  <span className="k">Bill</span>
-                  {link
-                    ? <a href={link} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} style={{color:"inherit", textDecoration:"none"}} title="Open the source at aph.gov.au">{b.title}</a>
-                    : <span>Bills Digest item</span>}
-                </div>
-                );
-              })}
+              <ul className="sr-list">
+                {results.bills.slice(0,4).map(b => {
+                  // Licence rule: a live APH bill title renders only inside an anchor to its APH link.
+                  const link = safeHttpUrl(b.link);
+                  return row({
+                    key: b.guid, k: "Bill", title: link ? b.title : "Bills Digest item", link,
+                    openLabel: `Open ${b.title} in Bills intelligence`,
+                    act: () => navigate("bills"), extra: { "data-sr-bill": "" },
+                  });
+                })}
+              </ul>
             </>}
             {results.comm.length > 0 && <>
               <div className="sr-group" data-sr-group="committees">{results.labels.comm} · {results.comm.length} match{results.comm.length !== 1 ? "es" : ""}</div>
-              {results.comm.map((c, i) => (
-                <div key={c.id} id={`search-option-${commOff + i}`} role="option" aria-selected={cursor === commOff + i}
-                  className={"sr-item" + (cursor === commOff + i ? " active" : "")}
-                  onMouseDown={e => { e.preventDefault(); selectItem(flat[commOff + i]); }}>
-                  <span className="k">{c.chamber}</span><span>{c.name}</span>
-                </div>
-              ))}
+              <ul className="sr-list">
+                {results.comm.map(c => row({ key: c.id, k: c.chamber, title: c.name, act: () => openModal("committee", c.id) }))}
+              </ul>
             </>}
             {results.feeds.length > 0 && <>
               <div className="sr-group" data-sr-group="sources">{results.labels.feeds} · {results.feeds.length} match{results.feeds.length !== 1 ? "es" : ""}</div>
-              {results.feeds.slice(0,4).map((f, i) => (
-                <div key={f.id} id={`search-option-${feedOff + i}`} role="option" aria-selected={cursor === feedOff + i}
-                  className={"sr-item" + (cursor === feedOff + i ? " active" : "")}
-                  onMouseDown={e => { e.preventDefault(); selectItem(flat[feedOff + i]); }}>
-                  <span className="k">{f.group}</span><span>{f.name}</span>
-                </div>
-              ))}
+              <ul className="sr-list">
+                {results.feeds.slice(0,4).map(f => row({ key: f.id, k: f.group, title: f.name, act: () => openModal("feed", f.id) }))}
+              </ul>
             </>}
             {q && !results.sig.length && !results.bills.length && !results.comm.length && !results.feeds.length && (
-              <div className="sr-item" role="option" aria-selected="false" style={{color:"var(--ink-4)", cursor:"default"}}>No matches for "{q}"</div>
+              <div className="sr-item" role="status" style={{color:"var(--ink-4)"}}>No matches for "{q}"</div>
             )}
           </div>
         )}
@@ -509,17 +534,17 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
       <div className="top-right">
         <TopClock />
         {noLiveCache ? (
-          <span className="chip warn" onClick={() => navigate("live")} title="Live APH feeds did not respond. Each desk shows an honest empty state rather than invented data; open Live for feed health." style={{borderColor:"color-mix(in srgb, var(--caution) 55%, transparent)", color:"var(--caution)", background:"transparent", cursor:"pointer"}}>
+          <button type="button" className="chip warn" onClick={() => navigate("live")} title="Live APH feeds did not respond. Each desk shows an honest empty state rather than invented data; open Live for feed health." style={{borderColor:"color-mix(in srgb, var(--caution) 55%, transparent)", color:"var(--caution)", background:"transparent", cursor:"pointer"}}>
             <span className="dot" style={{background:"var(--caution)", boxShadow:"none"}}/> LIVE DATA UNAVAILABLE
-          </span>
+          </button>
         ) : pollStalled ? (
-          <span className="chip warn" data-live-chip="stale" onClick={() => navigate("sources")} title={fresh.stallText} style={{borderColor:"color-mix(in srgb, var(--caution) 55%, transparent)", color:"var(--caution)", background:"transparent", cursor:"pointer"}}>
+          <button type="button" className="chip warn" data-live-chip="stale" onClick={() => navigate("sources")} title={fresh.stallText} style={{borderColor:"color-mix(in srgb, var(--caution) 55%, transparent)", color:"var(--caution)", background:"transparent", cursor:"pointer"}}>
             <span className="dot" style={{background:"var(--caution)", boxShadow:"none"}}/> Stale · polling stalled
-          </span>
+          </button>
         ) : (
-          <span className="chip clk" data-live-chip="live" onClick={() => navigate("live")} title={feedCount != null ? `${feedCount} official APH feeds checked every 30 minutes` : "Official APH feeds; the Live page reads them directly"} style={{borderColor:"color-mix(in srgb, var(--gold) 55%, transparent)", color:"var(--gold)", background:"transparent"}}>
+          <button type="button" className="chip clk" data-live-chip="live" onClick={() => navigate("live")} title={feedCount != null ? `${feedCount} official APH feeds checked every 30 minutes` : "Official APH feeds; the Live page reads them directly"} style={{borderColor:"color-mix(in srgb, var(--gold) 55%, transparent)", color:"var(--gold)", background:"transparent"}}>
             <span className="dot" style={{background:"var(--gold)", boxShadow:"none"}}/> Live beta{feedCount != null ? ` · ${feedCount} feeds` : ""}
-          </span>
+          </button>
         )}
         {fresh.known && !noLiveCache && (
           <span className="mono top-poll" data-poll-line="" title={fresh.stallText || "When Parliament Pulse last checked the APH feeds"} style={{fontSize:"var(--t-micro)", color: pollStalled ? "var(--caution)" : "var(--ink-3)", letterSpacing:".04em", whiteSpace:"nowrap"}}>{fresh.pollLine}</span>
@@ -589,7 +614,7 @@ function Att({ level, disclosure }) {
   // PR-11: every attention value carries the same short disclosure as its tooltip.
   const tip = disclosure || attentionDisclosure();
   // An absent attention value renders as an em-dash, never a fabricated tier.
-  if (!map[level]) return <span className="att" title={`Attention not scored. ${tip}`} aria-label="Attention not scored">{NO_VALUE}</span>;
+  if (!map[level]) return <span className="att" title={`Attention not scored. ${tip}`}><span aria-hidden="true">{NO_VALUE}</span><span className="sr-only">Attention not scored</span></span>;
   return <span className={"att " + level} title={tip} data-att-disclosure="">{map[level]}</span>;
 }
 
@@ -646,10 +671,17 @@ function SignalCard({ s, hideAtt = false, hideConf = false }) {
   return <SignalCardView s={s} archived={archived} feedback={feedback} watched={watched} openSignal={openSignal} hideAtt={hideAtt} hideConf={hideConf} />;
 }
 
+// FE-10 (A11Y-02): a card is an <article> named by its title, with one Open
+// button (named "Open <title>") and, for a live item, a separate source link.
+// The old card was a role="button" named "Open signal detail" on all 30 cards,
+// with the source link nested inside it. The Open button's ::after stretches
+// over the card (index.html), so a click anywhere on it still opens the drawer.
 const SignalCardView = React.memo(function SignalCardView({ s, archived, feedback, watched, openSignal, hideAtt, hideConf }) {
+  const titleId = "sig-t-" + React.useId().replace(/:/g, "");
   if (archived) return null;
+  const name = s.title || s.source || "signal";
   return (
-    <div className="signal" data-att={s.attention} onClick={() => openSignal(s.id)} role="button" tabIndex={0} aria-label="Open signal detail" onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openSignal(s.id); } }}>
+    <article className="signal" data-att={s.attention} aria-labelledby={titleId} data-signal-id={s.id}>
       <div className="sig-head">
         <span className="sig-id mono">{s.isLive || /^https?:/.test(s.id) ? "APH" : s.id}</span>
         <span className="sig-source mono">· {s.source}</span>
@@ -660,9 +692,9 @@ const SignalCardView = React.memo(function SignalCardView({ s, archived, feedbac
       {/* Licence rule: a live APH title renders only inside an anchor to its APH link.
           A live row with no valid link shows the source label, never the bare title.
           Fixture rows keep their plain title. */}
-      <div className="sig-title serif">{s.link
-        ? <a href={s.link} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} style={{color:"inherit", textDecoration:"none"}} title="Open the source at aph.gov.au">{s.title} <Icon name="ext" size={12} style={{verticalAlign:"-1px", opacity:.6}}/></a>
-        : (s.isLive ? s.source : s.title)}</div>
+      <h3 className="sig-title serif" id={titleId}>{s.link
+        ? <a href={s.link} target="_blank" rel="noopener noreferrer" style={{color:"inherit", textDecoration:"none"}} title="Open the source at aph.gov.au">{s.title} <Icon name="ext" size={12} style={{verticalAlign:"-1px", opacity:.6}}/></a>
+        : (s.isLive ? s.source : s.title)}</h3>
       <div className="sig-sum">{s.summary.length > 120 ? s.summary.slice(0, 120).replace(/\s\S+$/, "") + "…" : s.summary}</div>
       <div className="sig-tags">
         {s.tags.map((t, i) => <span key={i} className={"tag " + (t.c || "")}>{t.l}</span>)}
@@ -672,6 +704,7 @@ const SignalCardView = React.memo(function SignalCardView({ s, archived, feedbac
           ? <><span className="sig-action-label">Recommended</span><span className="sig-action-value">{s.action}</span></>
           : <span className="sig-action-label">Open to triage</span>}
         {!hideConf && <span className="mono" data-conf="" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)", letterSpacing:".04em", whiteSpace:"nowrap"}}>{confidenceLabel(s.confidence)}</span>}
+        <button type="button" className="sig-open" aria-label={"Open " + name} onClick={() => openSignal(s.id)}>Open</button>
       </div>
       {feedback && (
         <div style={{marginTop:8, fontSize:"var(--t-caption)", color:"var(--brass)"}}>
@@ -683,7 +716,7 @@ const SignalCardView = React.memo(function SignalCardView({ s, archived, feedbac
           <Icon name="watch" size={12} style={{verticalAlign:"-2px", marginRight:4}}/> On watchlist
         </div>
       )}
-    </div>
+    </article>
   );
 });
 
@@ -781,11 +814,16 @@ function Drawer() {
   // Focus management: save trigger element, move focus into drawer, restore on close
   React.useEffect(() => {
     if (signalId) {
-      prevFocusRef.current = document.activeElement;
+      // Keep the element that opened the drawer: j and k move between signals
+      // inside the open drawer and must not replace it with the drawer's own button.
+      const active = document.activeElement;
+      if (!prevFocusRef.current && !(active && active.closest && active.closest("aside.drawer"))) prevFocusRef.current = active;
       requestAnimationFrame(() => closeButtonRef.current?.focus());
     } else if (prevFocusRef.current) {
-      prevFocusRef.current.focus();
+      const back = prevFocusRef.current;
       prevFocusRef.current = null;
+      // The opener can leave the page (an archived card); focus it only if it is still there.
+      if (back.isConnected) back.focus();
     }
   }, [signalId]);
 
@@ -821,9 +859,11 @@ function Drawer() {
   React.useEffect(() => {
     const handler = (e) => {
       if (modal) return; // disable when detail modal is open
-      const tag = document.activeElement?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
       if (e.key === "Escape" && signalId) { e.preventDefault(); flushNote(); closeSignal(); return; }
+      // FE-10 (A11Y-05): every single-character shortcut below is off when the
+      // reader turned them off, while focus is in a text field, and whenever
+      // Ctrl, Cmd or Alt is held (so Ctrl+A selects text and never archives).
+      if (shortcutBlocked(e)) return;
       if (e.key === "j" || e.key === "k") {
         e.preventDefault();
         const cur = visibleSigs.findIndex(s => s.id === signalId);
@@ -877,8 +917,11 @@ function Drawer() {
   const sigPos = visibleSigs.findIndex(x => x.id === signalId);
   return (
     <>
+      {/* a11y-exempt: backdrop */}
       <div className={"drawer-back" + (on ? " on" : "")} onClick={closeWithFlush} aria-hidden="true" />
-      <aside className={"drawer" + (on ? " on" : "")} role="dialog" aria-modal="true" aria-label="Signal detail">
+      {/* FE-10: closed, the drawer is hidden (index.html sets visibility) and
+          aria-hidden, so it leaves the accessibility tree and the focus order. */}
+      <aside className={"drawer" + (on ? " on" : "")} role="dialog" aria-modal="true" aria-label="Signal detail" aria-hidden={on ? undefined : "true"}>
         {on && (
           <>
             <div className="drawer-head">
@@ -901,7 +944,7 @@ function Drawer() {
                 {sigPos !== -1 && (
                   <span className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)", textAlign:"right", lineHeight:1.3}}>
                     <span style={{display:"block"}}>{sigPos + 1} / {visibleSigs.length}</span>
-                    <span style={{fontSize:"var(--t-label)", letterSpacing:".1em", opacity:.7}}>SIGNAL</span>
+                    <span style={{fontSize:"var(--t-label)", letterSpacing:".1em"}}>SIGNAL</span>
                   </span>
                 )}
                 <button ref={closeButtonRef} className="btn ghost sm" aria-label="Close signal detail" onClick={closeWithFlush}><Icon name="close" size={14} /></button>
@@ -1025,7 +1068,7 @@ function Drawer() {
                     {s.members.map(mid => {
                       const m = window.ENTITIES?.members?.[mid];
                       if (!m) return null;
-                      return <span key={mid} className="tag brass clk" onClick={() => openModal("member", mid)}>{m.name}</span>;
+                      return <button type="button" key={mid} className="tag brass clk" onClick={() => openModal("member", mid)}>{m.name}</button>;
                     })}
                   </div>
                 </div>
@@ -1089,6 +1132,7 @@ function SiteFooter() {
         <a href="#/about/legal">Legal and disclaimer</a>
         <a href="#/about/privacy">Privacy</a>
         <a href="#/about/licence">Licence and attribution</a>
+        <a href="#/about/accessibility">Accessibility</a>
       </nav>
     </footer>
   );

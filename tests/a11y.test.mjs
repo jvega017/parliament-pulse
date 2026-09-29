@@ -1,6 +1,6 @@
 // Accessibility regression test for Parliament Pulse.
 //
-// *** STATIC STRUCTURAL APPROXIMATION. A real axe-core scan is still owed. ***
+// *** STATIC STRUCTURAL APPROXIMATION. The real axe-core scan is tests/browser/axe.test.mjs (npm run a11y, FE-10). ***
 // Tooling check performed 2026-07-21 in this environment:
 //   - No package.json exists anywhere in the repo (`npm ls` -> empty tree).
 //   - `require("playwright")` and `require("axe-core")` both fail: neither is
@@ -321,8 +321,8 @@ if (inFlightNotes.length) {
 
 if (findings > 0) {
   console.error(`\nA11Y GATE: FAIL. ${findings} finding(s).`);
-  console.error("Reminder: this is a static structural approximation. A real axe-core scan is still owed (see header comment).");
+  console.error("Reminder: this is a static structural approximation; the rendered-DOM scan is npm run a11y.");
   process.exit(1);
 }
 console.log(`Scanned ${SOURCE_FILES.length} source files: skip link, main landmark, toast ARIA roles, image alt text, icon-only-button labels, form-control labels, tabindex.`);
-console.log("A11Y GATE (static structural approximation): PASSED. A real axe-core scan is still owed.");
+console.log("A11Y GATE (static structural approximation): PASSED. The rendered-DOM axe-core scan is npm run a11y.");

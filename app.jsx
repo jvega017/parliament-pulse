@@ -53,6 +53,19 @@ function App() {
   React.useEffect(() => {
     safeSetLocalStorage("pp-nav-open", String(mobileNavOpen));
   }, [mobileNavOpen]);
+  // FE-10: Esc closes the open mobile navigation and returns focus to its toggle,
+  // so the scrim's click-to-close has a keyboard equivalent.
+  React.useEffect(() => {
+    if (!mobileNavOpen) return;
+    const h = e => {
+      if (e.key !== "Escape") return;
+      setMobileNavOpen(false);
+      const t = document.querySelector(".nav-toggle");
+      if (t) t.focus();
+    };
+    document.addEventListener("keydown", h);
+    return () => document.removeEventListener("keydown", h);
+  }, [mobileNavOpen]);
   React.useEffect(() => {
     const saved = safeGetLocalStorage("pp-theme");
     if (saved) document.documentElement.dataset.theme = saved;
@@ -119,6 +132,7 @@ function App() {
       <RouteSignalSync route={route} setRoute={setRoute} />
       <div className="sr-only" role="status" aria-live="polite" aria-atomic="true" data-route-announcer="">{announce}</div>
       <div className="app">
+        {/* a11y-exempt: backdrop */}
         <div className={"drawer-back mobile-nav-back" + (mobileNavOpen ? " on" : "")} onClick={() => setMobileNavOpen(false)} aria-hidden="true" />
         <Sidebar page={page} onNavigate={navigate} mobileOpen={mobileNavOpen} />
         <div className="main">

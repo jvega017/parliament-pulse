@@ -94,17 +94,20 @@ reconnecting message.
 
 ## Tests and gates
 
-- `npm run gate`: rebuild, then eleven local gates (fabrication-pattern self-test, release gate
-  with jsx/js sync and attribution, asset manifest, static a11y, beta wording, watchlist matching,
-  state contract, honest surfaces, unsourced surfaces, freshness, analytics honesty). Each
-  canary-proven gate seeds the defect it claims to catch and aborts if it misses it.
-- `npm run browser`: the Playwright layout test and the routing test, against a fresh `dist/`
-  served with the production CSP and fixture Worker responses.
+- `npm run gate`: rebuild, then thirteen local gates (fabrication-pattern self-test, release gate
+  with jsx/js sync and attribution, asset manifest, static a11y, keyboard-operable click targets,
+  beta wording, watchlist matching, state contract, honest surfaces, unsourced surfaces, freshness,
+  analytics honesty, copy gates). Each canary-proven gate seeds the defect it claims to catch and
+  aborts if it misses it.
+- `npm run browser`: the Playwright layout, routing, design and keyboard tests, against a fresh
+  `dist/` served with the production CSP and fixture Worker responses.
+- `npm run a11y`: the axe-core scan (WCAG 2.2 AA tags) of every desk, the drawer, a modal, the
+  search results and the phone navigation, both themes, 1280 and 390 px.
 - `npm run probe`: the production probe (network): fabrication scan, deployed files against
   `dist/build-info.json`, and denylisted internal paths answering 404.
 
 Details and each gate's canaries: `tests/README.md`. CI (`.github/workflows/ci.yml`) runs
-`npm run gate`, the committed-js check and `npm run browser`.
+`npm run gate`, the committed-js check, `npm run browser` and `npm run a11y`.
 
 ## Deploy (owner step)
 

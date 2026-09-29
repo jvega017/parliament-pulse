@@ -229,7 +229,7 @@ function coverageRows(counts) {
 
 function BetaReadinessPanel({ navigate }) {
   return (
-    <div className="beta-ledger" aria-label="Beta evidence status">
+    <div className="beta-ledger" role="group" aria-label="Beta evidence status">
       <div className="beta-ledger-head">
         <div>
           <div className="panel-section-title">Beta evidence ledger</div>
@@ -314,7 +314,7 @@ function ProvenanceMetricsBand({ navigate }) {
 function CoverageActivationMatrix({ navigate, copyPlan }) {
   const rows = coverageRows(useCounts());
   return (
-    <div className="coverage-matrix" aria-label="Desk coverage and what comes next">
+    <div className="coverage-matrix" role="group" aria-label="Desk coverage and what comes next">
       <div className="coverage-head">
         <div>
           <div className="panel-section-title">Desk coverage</div>
@@ -671,20 +671,73 @@ const LOCAL_STORAGE_KEYS = [
   { key: "pp-nav-open", holds: "whether the mobile navigation was left open" },
   { key: "pp-beta-ack", holds: "that you dismissed the beta notice" },
   { key: "pp-onboarded", holds: "that you dismissed the How it works guide" },
+  { key: "pp-shortcuts", holds: "whether you turned the single-key keyboard shortcuts off" },
 ];
 
 // FE-04 (PR-07, LEG-04): the contact channel is read from SITE_CONFIG only. An
 // email address renders as a mailto: link and an https URL as a link; while it is
 // unset the text says so and points the reader at the official source.
-function ContactLine() {
+function ContactLine({ purpose = "To report a correction or ask a privacy question", pending = "A public corrections address is being set up. Until it is published, check any item against the linked official APH source." }) {
   const c = SITE_CONFIG.contact;
   if (typeof c === "string" && /^https:\/\//i.test(c)) {
-    return <>To report a correction or ask a privacy question, contact Prometheus Policy Lab at <a href={c} target="_blank" rel="noopener noreferrer" style={{ color: "var(--link)" }}>{c.replace(/^https:\/\//i, "")}</a>.</>;
+    return <>{purpose}, contact Prometheus Policy Lab at <a href={c} target="_blank" rel="noopener noreferrer" style={{ color: "var(--link)" }}>{c.replace(/^https:\/\//i, "")}</a>.</>;
   }
   if (typeof c === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c)) {
-    return <>To report a correction or ask a privacy question, email Prometheus Policy Lab at <a href={"mailto:" + c} style={{ color: "var(--link)" }}>{c}</a>.</>;
+    return <>{purpose}, email Prometheus Policy Lab at <a href={"mailto:" + c} style={{ color: "var(--link)" }}>{c}</a>.</>;
   }
-  return <>A public corrections address is being set up. Until it is published, check any item against the linked official APH source.</>;
+  return <>{pending}</>;
+}
+
+// FE-10 (LEG-09): the accessibility statement. Every figure below is the
+// scope of the recorded axe-core run (npm run a11y, tests/browser/axe.test.mjs),
+// which checks this section against its own run: the state count, the axe-core
+// version and the rule tags must match, and the date must not be later than
+// the run. Re-issue the date only after a clean run on the changed UI.
+const A11Y_SCAN = {
+  date: "2026-09-29",
+  dateText: "29 September 2026",
+  axeVersion: "4.13.0",
+  tags: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"],
+  stateCount: 64,
+};
+function AccessibilityPanel() {
+  return (
+    <div className="panel" style={{ marginTop: "var(--gap-section)" }} id="about-accessibility" data-section="accessibility">
+      <div className="panel-head">
+        <h2 className="panel-title">Accessibility</h2>
+        <span className="panel-kicker">Target, what was tested, and known limits</span>
+      </div>
+      <div className="panel-body" style={{ fontSize:"var(--t-body-sm)", lineHeight: 1.65, color: "var(--ink-2)", maxWidth: 820 }}>
+        <h3 style={legalH}>Target</h3>
+        <p style={legalP}>Parliament Pulse aims to meet the Web Content Accessibility Guidelines (WCAG) 2.2 at Level AA. This section does not claim full conformance: it states what has been measured.</p>
+
+        <h3 style={legalH}>What was tested</h3>
+        <p style={legalP}>
+          On <time dateTime={A11Y_SCAN.date} data-axe-scan-date={A11Y_SCAN.date}>{A11Y_SCAN.dateText}</time>, an automated scan with
+          axe-core <span data-axe-version={A11Y_SCAN.axeVersion}>{A11Y_SCAN.axeVersion}</span> checked <span data-axe-state-count={A11Y_SCAN.stateCount}>{A11Y_SCAN.stateCount}</span> page
+          states against its WCAG 2.0, 2.1 and 2.2 Level A and AA rules (<span className="mono" data-axe-tags={A11Y_SCAN.tags.join(" ")} style={{ fontSize:"var(--t-caption)" }}>{A11Y_SCAN.tags.join(", ")}</span>).
+          The states were every desk in the navigation, an open signal, an open feed detail dialog, the search results, and the phone navigation open and closed,
+          each in the dark and the light theme at 1280 and 390 pixels wide. The scan found no serious or critical violations.
+        </p>
+        <p style={legalP}>Most panels here have a gradient background, and axe cannot measure text contrast over a gradient. For those, the test measured contrast again with each gradient replaced by each of its colours in turn, and that found no serious or critical contrast failures either. <span data-axe-unmeasured="some">Some elements, such as text partly covered by another layer, still could not be measured automatically and need a manual check.</span></p>
+        <p style={legalP}>The scan ran against a recorded test copy of the APH feeds, so it checked the page structure and design, not the wording of any live item. A scripted keyboard test also checks that Tab reaches every signal's Open button, Enter opens it, Esc closes it and returns focus, and the closed phone navigation holds no focus stops.</p>
+
+        <h3 style={legalH}>Known limitations</h3>
+        <ul style={{ margin: "0 0 6px", paddingLeft: 18 }}>
+          <li>Automated tools find only some accessibility barriers. No manual audit or screen reader testing has been done yet.</li>
+          <li>Dialogs and views not listed above, such as bill, committee and watchlist details, were not part of the scan.</li>
+          <li>Item titles and descriptions come from the APH feeds as published. Parliament Pulse does not rewrite them, so it cannot fix their wording or structure.</li>
+          <li>The Live parliament page can load the APH YouTube player on request. The player's accessibility is YouTube's.</li>
+        </ul>
+
+        <h3 style={legalH}>Keyboard shortcuts</h3>
+        <p style={legalP}>The single-key shortcuts (j, k, b, w and a) can be turned off from the keyboard shortcuts button in the top bar. They never fire while you type in a field or hold Ctrl, Cmd or Alt, and archiving with a shows a notice with Undo.</p>
+
+        <h3 style={legalH}>Report a barrier</h3>
+        <p style={legalP}><ContactLine purpose="To report an accessibility barrier" pending="A public contact address is being set up. Until it is published, this site has no channel for reporting an accessibility barrier." /></p>
+      </div>
+    </div>
+  );
 }
 const legalP = { margin: "0 0 6px" };
 // FE-04 (PR-06, DATA-09): coverage Parliament Pulse does not hold, rendered from
@@ -702,7 +755,7 @@ function NotYetAvailablePanel() {
           <div key={u.id} data-unavailable={u.id} style={{ padding: "10px 0", borderBottom: i < items.length - 1 ? "1px solid var(--line)" : 0, display: "grid", gap: 4 }}>
             <strong style={{ fontSize:"var(--t-body-sm)", color: "var(--ink)" }}>{u.name}</strong>
             <span style={{ fontSize:"var(--t-body-sm)", color: "var(--ink-2)", lineHeight: 1.5 }}>{u.reason}</span>
-            <a href={u.aphUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize:"var(--t-body-sm)", color: "var(--link)", display: "inline-flex", alignItems: "center", gap: 6 }}>
+            <a href={u.aphUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize:"var(--t-body-sm)", color: "var(--link)", display: "inline-flex", alignItems: "center", gap: 6, minHeight: 24 }}>
               Use the official page on aph.gov.au <Icon name="ext" size={11} />
             </a>
           </div>
@@ -807,6 +860,8 @@ function PageAbout() {
       <ProvenanceMetricsBand navigate={goto} />
 
       <NotYetAvailablePanel />
+
+      <AccessibilityPanel />
 
       <LegalNoticePanel />
     </div>
@@ -1221,7 +1276,7 @@ function PageLive() {
           </div>
           <div className="panel-body" style={{maxHeight:720, overflowY:"auto"}}>
             {loading && events.length === 0 && (
-              <div style={{padding:"8px 0"}} aria-label="Loading live RSS feed" aria-busy="true">
+              <div style={{padding:"8px 0"}} role="status" aria-label="Loading live RSS feed" aria-busy="true">
                 {[...Array(6)].map((_, i) => (
                   <SkeletonRow key={i} />
                 ))}
@@ -1439,9 +1494,12 @@ function PageSources() {
                 const reg = registryByUrl.get(c.url);
                 const st = feedHealthState(c);
                 return (
-                <tr key={c.url} data-feed-row={c.feedLabel} data-feed-state={st} onClick={() => reg && openModal("feed", reg.id)}>
+                <tr key={c.url} data-feed-row={c.feedLabel} data-feed-state={st}>
                   <td className="ds-lead" data-label="Feed">
-                    <div style={{fontWeight:500}}>{c.label}</div>
+                    {/* FE-10 (A11Y-01): the feed name opens its detail; the row is no longer a mouse-only target. */}
+                    {reg
+                      ? <button type="button" className="row-btn" data-feed-open="" aria-label={`${c.label}: feed detail`} onClick={() => openModal("feed", reg.id)}>{c.label}</button>
+                      : <div style={{fontWeight:500}}>{c.label}</div>}
                     <div className="mono ds-url" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)"}}>{c.url.length > 56 ? c.url.slice(0,56)+"…" : c.url}</div>
                   </td>
                   <td data-label="Group"><span className="tag">{c.group}</span></td>
@@ -1480,9 +1538,11 @@ function PageSources() {
               {allFeeds.map(f => {
                 const c = checkByUrl.get(f.url);
                 return (
-                <tr key={f.id} onClick={() => f.group !== "Custom" && openModal("feed", f.id)}>
+                <tr key={f.id}>
                   <td className="ds-lead" data-label="Source">
-                    <div style={{fontWeight:500}}>{f.name}</div>
+                    {f.group !== "Custom"
+                      ? <button type="button" className="row-btn" data-feed-open="" aria-label={`${f.name}: feed detail`} onClick={() => openModal("feed", f.id)}>{f.name}</button>
+                      : <div style={{fontWeight:500}}>{f.name}</div>}
                     <div className="mono ds-url" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)"}}>{f.url.length > 56 ? f.url.slice(0,56)+"…" : f.url}</div>
                   </td>
                   <td data-label="Group"><span className="tag">{f.group}</span></td>
@@ -2014,7 +2074,7 @@ function ThreadRow({ t, byGuid, isLast }) {
   return (
     <div style={{padding:"12px 0", borderBottom: isLast ? 0 : "1px solid var(--line)"}}>
       <button onClick={() => setOpen(v => !v)} aria-expanded={open}
-        style={{display:"flex", alignItems:"center", flexWrap:"wrap", columnGap:12, rowGap:4, width:"100%", background:"none", border:"none", padding:0, cursor:"pointer", textAlign:"left", color:"inherit"}}>
+        style={{display:"flex", alignItems:"center", flexWrap:"wrap", columnGap:12, rowGap:4, width:"100%", minHeight:24, background:"none", border:"none", padding:0, cursor:"pointer", textAlign:"left", color:"inherit"}}>
         <Icon name="chevron" size={13} style={{flexShrink:0, transform: open ? "rotate(90deg)" : "none", transition:"transform .15s"}}/>
         <span style={{fontSize:"var(--t-body-sm)", fontWeight:600, color:"var(--ink)", whiteSpace:"nowrap"}}>{t.itemCount} items</span>
         <span className="mono" style={{fontSize:"var(--t-eyebrow)", color:"var(--ink-3)", whiteSpace:"nowrap"}}>{fmtSpanDate(t.firstSeenAt)} → {fmtSpanDate(t.lastSeenAt)}</span>
@@ -2133,7 +2193,9 @@ function PagePatterns() {
             return (
               <div key={q.when + q.who} className="g-qon-evidence" style={{display:"grid", gap:12, padding:"8px 0", borderBottom: i<qonItems.length-1 ? "1px solid var(--line)" : 0, alignItems:"start", fontSize:"var(--t-body-sm)"}}>
                 <div className="mono" style={{color:"var(--ink-3)"}}>{q.when}</div>
-                <div><span className={"tag brass" + (canOpen ? " clk" : "")} onClick={canOpen ? () => openModal("member", mid) : undefined} style={canOpen ? undefined : {opacity:.65, cursor:"not-allowed"}}>{q.who}</span></div>
+                <div>{canOpen
+                  ? <button type="button" className="tag brass clk" onClick={() => openModal("member", mid)}>{q.who}</button>
+                  : <span className="tag brass" style={{opacity:.65}}>{q.who}</span>}</div>
                 <div style={{color:"var(--ink-2)"}}>{q.q}</div>
                 <div style={{textAlign:"right"}}><span className="tag">{q.chamber}</span></div>
               </div>
@@ -2218,7 +2280,10 @@ function PageBriefings() {
               const id = briefId(b);
               const status = reviewedIds[id] ? "Reviewed" : b.status;
               return (
-              <div key={id} className="list-row" onClick={() => setSelId(id)} style={{cursor:"pointer", background: selectedId===id ? "var(--panel-hi)" : "transparent", borderLeft: selectedId===id ? "2px solid var(--brass)" : "2px solid transparent"}}>
+              <div key={id} className="list-row" role="button" tabIndex={0} aria-pressed={selectedId===id}
+                onClick={() => setSelId(id)}
+                onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelId(id); } }}
+                style={{cursor:"pointer", background: selectedId===id ? "var(--panel-hi)" : "transparent", borderLeft: selectedId===id ? "2px solid var(--brass)" : "2px solid transparent"}}>
                 <div style={{fontSize:"var(--t-body-sm)", fontWeight:500}}>{b.type}</div>
                 <div style={{fontSize:"var(--t-caption)", color:"var(--ink-3)"}}>For {b.for}</div>
                 <div className="mono t-label" style={{marginTop:4, color: status === "Reviewed" ? "var(--ok)" : status.startsWith("Copied") ? "var(--ink-3)" : "var(--ink-4)", textTransform:"uppercase", letterSpacing:".12em"}}>{status}</div>
@@ -2511,10 +2576,14 @@ function PageWatchlists() {
           const matchCount = watchlistMatches(w, matchSource).length;
           const keywordCount = watchlistKeywords(w).length;
           return (
-            <div key={w.name} className={"wl" + (selectedWl?.name === w.name ? " active" : "")} onClick={() => { setSelectedWl(w); openModal("watchlist", w.name); }} style={selectedWl?.name === w.name ? {borderColor:"var(--brass)"} : {}}>
+            <div key={w.name} className={"wl" + (selectedWl?.name === w.name ? " active" : "")} role="button" tabIndex={0}
+              aria-label={`${w.name}: ${matchCount} ${matchCount === 1 ? "match" : "matches"}, ${keywordCount} keywords. Open watchlist`}
+              onClick={() => { setSelectedWl(w); openModal("watchlist", w.name); }}
+              onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedWl(w); openModal("watchlist", w.name); } }}
+              style={selectedWl?.name === w.name ? {borderColor:"var(--brass)"} : {}}>
               <div style={{display:"flex", alignItems:"center", gap:8}}>
                 <span className="wl-name">{w.name}</span>
-                <span className="mono" data-wl-matches={matchCount} style={{fontSize:"var(--t-micro)", color: matchCount > 0 ? "var(--brass)" : "var(--ink-4)", background:"var(--panel-hi)", border: matchCount > 0 ? "1px solid var(--brass-soft)" : "1px solid var(--line-2)", padding:"1px 6px", borderRadius:4, marginLeft:"auto"}}>{matchCount} {matchCount === 1 ? "match" : "matches"}</span>
+                <span className="mono" data-wl-matches={matchCount} style={{fontSize:"var(--t-micro)", color: matchCount > 0 ? "var(--brass)" : "var(--ink-3)", background:"var(--panel-hi)", border: matchCount > 0 ? "1px solid var(--brass-soft)" : "1px solid var(--line-2)", padding:"1px 6px", borderRadius:4, marginLeft:"auto"}}>{matchCount} {matchCount === 1 ? "match" : "matches"}</span>
               </div>
               <div className="wl-meta"><span>{keywordCount} keywords</span></div>
               {/* No match history is held for any watchlist; the page sub-heading says so once
@@ -2787,7 +2856,7 @@ function PageSignals() {
       </div>
 
       {live.status === "loading" && !live.items ? (
-        <div aria-busy="true" aria-label="Loading signals">{[...Array(5)].map((_, i) => <SkeletonCard key={i} />)}</div>
+        <div role="status" aria-busy="true" aria-label="Loading signals">{[...Array(5)].map((_, i) => <SkeletonCard key={i} />)}</div>
       ) : visible.length === 0 ? (
         filter !== "all" ? (
           <EmptyState icon="signal" kicker="No matches"
