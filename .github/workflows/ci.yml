@@ -70,5 +70,5 @@ jobs:
       - name: Install Chromium for the pinned playwright
         run: npx playwright install --with-deps chromium
 
-      - name: Browser layout test
+      - name: Browser layout and routing tests
         run: npm run browser

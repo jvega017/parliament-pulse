@@ -11,23 +11,26 @@ export const BROWSER_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36";
 
 // Paths that must never be served. `local` is the repo file whose bytes a leak
-// would carry (null where the path has no single local counterpart).
+// would carry (null where the path has no single local counterpart). The five
+// internal files moved to docs/internal/ in FE-08 (ARCH-17); their root paths stay
+// denylisted because an older deploy served them there.
 export const DENYLIST = [
   { path: "/README.md", local: "README.md" },
   { path: "/app-tracker.md", local: "app-tracker.md" },
-  { path: "/REVIEW-BACKLOG-2026-05-31.md", local: "REVIEW-BACKLOG-2026-05-31.md" },
-  { path: "/REMEDIATION-PLAN.md", local: "REMEDIATION-PLAN.md" },
-  { path: "/CODEX-TASKS.md", local: "CODEX-TASKS.md" },
+  { path: "/REVIEW-BACKLOG-2026-05-31.md", local: "docs/internal/REVIEW-BACKLOG-2026-05-31.md" },
+  { path: "/REMEDIATION-PLAN.md", local: "docs/internal/REMEDIATION-PLAN.md" },
+  { path: "/CODEX-TASKS.md", local: "docs/internal/CODEX-TASKS.md" },
   { path: "/docs/licence-architecture.md", local: "docs/licence-architecture.md" },
   { path: "/pages.jsx", local: "pages.jsx" },
   { path: "/data.jsx", local: "data.jsx" },
-  { path: "/build.py", local: "build.py" },
+  { path: "/build.py", local: "docs/internal/build.py" },
   { path: "/verify.ps1", local: "verify.ps1" },
   { path: "/cf-list.ps1", local: "cf-list.ps1" },
   { path: "/proxy-server.js", local: "proxy-server.js" },
   { path: "/tests/release-gate.mjs", local: "tests/release-gate.mjs" },
-  { path: "/design-elevation-spec.json", local: "design-elevation-spec.json" },
+  { path: "/design-elevation-spec.json", local: "docs/internal/design-elevation-spec.json" },
   { path: "/.gitignore", local: ".gitignore" },
+  { path: "/docs/internal/REMEDIATION-PLAN.md", local: "docs/internal/REMEDIATION-PLAN.md" },
   { path: "/parliament-pulse-beta", local: "archive/parliament-pulse-beta-2026-06-01.html" },
   { path: "/parliament-pulse-updated", local: "archive/parliament-pulse-updated-2026-06-01.html" },
   { path: "/parliament-pulse", local: "archive/parliament-pulse.html" },

@@ -423,4 +423,4 @@ A1-A5 are disjoint by file and interface-frozen: fully parallel. B1 must be solo
 
 ---
 
-*Companion docs: `docs/live-wiring-spec.md` (data layer), `docs/licence-architecture.md` (display contract), `docs/state-contract.md` (payload shape). This spec supersedes the visual sections of `design-elevation-spec.json` where they conflict; that file remains the audit log of the June elevation round.*
+*Companion docs: `docs/live-wiring-spec.md` (data layer), `docs/licence-architecture.md` (display contract), `docs/state-contract.md` (payload shape). This spec supersedes the visual sections of `design-elevation-spec.json` where they conflict; that file (now `docs/internal/design-elevation-spec.json`) remains the audit log of the June elevation round.*

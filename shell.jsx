@@ -1093,6 +1093,12 @@ function SiteFooter() {
         <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank" rel="noopener noreferrer license">CC BY-NC-ND 4.0</a>.
         {" "}Titles reproduced unmodified; scores and summaries are Parliament Pulse analysis.
       </p>
+      {/* FE-08 (LEG-13): the legal surface is one click from every desk. */}
+      <nav className="site-foot-links" aria-label="Legal">
+        <a href="#/about/legal">Legal and disclaimer</a>
+        <a href="#/about/privacy">Privacy</a>
+        <a href="#/about/licence">Licence and attribution</a>
+      </nav>
     </footer>
   );
 }

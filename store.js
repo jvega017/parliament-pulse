@@ -1126,4 +1126,66 @@ function RadarDetail({ id, titleId, closeButtonRef }) {
   if (!r) return /* @__PURE__ */ React.createElement(ModalHead, { kicker: "Source group", title: "Not found", titleId, closeButtonRef });
   return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(ModalHead, { kicker: "Activity by source", title: r.group, titleId, closeButtonRef }), /* @__PURE__ */ React.createElement("div", { className: "modal-body" }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 12 } }, /* @__PURE__ */ React.createElement(Att, { level: r.att }), /* @__PURE__ */ React.createElement("span", { className: "tag" }, r.count, " items from ", r.sources, " feed", r.sources !== 1 ? "s" : "")), /* @__PURE__ */ React.createElement("p", { style: { color: "var(--ink-2)", marginTop: 0 } }, attentionDisclosure())));
 }
+const ABOUT_SECTIONS = ["legal", "privacy", "not-yet-available", "licence"];
+function routeDeskIds() {
+  return typeof NAV !== "undefined" && Array.isArray(NAV) ? NAV.map((n) => n.id) : [];
+}
+function decodeRoutePart(s) {
+  try {
+    return decodeURIComponent(s);
+  } catch (e) {
+    return null;
+  }
+}
+function parseRoute(hash) {
+  const h = String(hash == null ? "" : hash).replace(/^#/, "");
+  if (h === "" || h === "/") return { page: "overview" };
+  if (h.charAt(0) !== "/") return null;
+  const parts = h.slice(1).split("/");
+  const head = decodeRoutePart(parts[0]);
+  if (head === "signal") {
+    const guid = parts.length > 1 ? decodeRoutePart(parts.slice(1).join("/")) : null;
+    return guid ? { page: "signals", signal: guid } : { page: "notfound", path: h };
+  }
+  if (head === "about" && parts.length > 1 && parts[1] !== "") {
+    return ABOUT_SECTIONS.includes(parts[1]) && parts.length === 2 ? { page: "about", section: parts[1] } : { page: "notfound", path: h };
+  }
+  if (parts.length === 1 || parts.length === 2 && parts[1] === "") {
+    if (head && routeDeskIds().includes(head)) return { page: head };
+  }
+  return { page: "notfound", path: h };
+}
+function routeHash(route) {
+  if (!route || !route.page || route.page === "overview") return "#/overview";
+  if (route.signal) return "#/signal/" + encodeURIComponent(route.signal);
+  if (route.page === "about" && route.section) return "#/about/" + route.section;
+  if (route.page === "notfound") return "#/" + (route.path || "").replace(/^\//, "");
+  return "#/" + route.page;
+}
+function routeLabel(route) {
+  if (!route || route.page === "notfound") return "Page not found";
+  const n = routeDeskIds().length ? NAV.find((x) => x.id === route.page) : null;
+  return n ? n.label : "Page not found";
+}
+function routeTitle(route) {
+  return routeLabel(route) + " \xB7 Parliament Pulse";
+}
+function migrateLegacyPageQuery(loc, hist) {
+  if (!loc || !hist || typeof hist.replaceState !== "function") return null;
+  if (loc.hash && loc.hash !== "#" && loc.hash !== "#/") return null;
+  let params;
+  try {
+    params = new URLSearchParams(loc.search || "");
+  } catch (e) {
+    return null;
+  }
+  const legacy = params.get("page");
+  if (!legacy) return null;
+  params.delete("page");
+  const rest = params.toString();
+  const hash = "#/" + encodeURIComponent(legacy);
+  hist.replaceState(hist.state, "", (loc.pathname || "/") + (rest ? "?" + rest : "") + hash);
+  return hash;
+}
+Object.assign(window, { ABOUT_SECTIONS, parseRoute, routeHash, routeLabel, routeTitle, migrateLegacyPageQuery });
 Object.assign(window, { StoreProvider, useStore, DetailModal, watchlistKeywords, watchlistMatches, useLiveState, useLiveBills, selectCounts, useCounts, COMMITTEE_STRIP_LABELS, liveStateDegradation, mapWorkerSignalToCard, mapLiveBlocks, fmtFetchedAt, mapLiveFreshness, freshnessView, useFreshness, pollIsStale, configuredFeedCount, useFeedCount, feedHealthState, signalDateFields, fmtDayMonYear, fmtPollStamp, ATTENTION_DIMS_DEFAULT, scoringDims, attentionDisclosure, attentionWord, confidenceLabel, uniformScore, uniformScoreLine, buildSearchResults });

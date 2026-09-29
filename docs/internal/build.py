@@ -1,7 +1,13 @@
-"""Build parliament-pulse-updated.html and parliament-pulse-beta.html."""
+"""LEGACY (Babel era, before the esbuild build of June 2026). Kept as a record only.
+
+It built parliament-pulse-updated.html and parliament-pulse-beta.html by inlining
+the .jsx as text/babel scripts. The current index.html loads precompiled .js under
+a CSP with no unsafe-eval, so its output does not run. Deploys use build-dist.ps1.
+Moved to docs/internal/ on 29 Sep 2026 (FE-08, ARCH-17); BASE is the repo root.
+"""
 import os, re
 
-BASE = os.path.dirname(os.path.abspath(__file__))
+BASE = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 JSX_ORDER = ["data.jsx", "entities.jsx", "icons.jsx", "store.jsx", "shell.jsx", "pages.jsx", "app.jsx"]
 
 def read(name):

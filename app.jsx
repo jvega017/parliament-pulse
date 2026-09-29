@@ -24,13 +24,31 @@ class ErrorBoundary extends React.Component {
 }
 
 function App() {
-  const [page, setPage] = React.useState("overview");
+  // FE-08 (UX-06): the hash is the source of truth for the desk. navigate() writes
+  // it with history.pushState; the hashchange listener below reads it back, so
+  // Back, Forward, a typed address and an <a href="#/..."> link all drive the page.
+  const [route, setRoute] = React.useState(() => {
+    migrateLegacyPageQuery(window.location, window.history);
+    return parseRoute(window.location.hash) || { page: "overview" };
+  });
   const [mobileNavOpen, setMobileNavOpen] = React.useState(() => {
     return safeGetLocalStorage("pp-nav-open") === "true";
   });
+  const [announce, setAnnounce] = React.useState("");
   const navigate = React.useCallback((nextPage) => {
-    setPage(nextPage);
+    const next = typeof nextPage === "string" ? { page: nextPage } : (nextPage || { page: "overview" });
+    const hash = routeHash(next);
+    if (window.location.hash !== hash) window.history.pushState(null, "", hash);
+    setRoute(parseRoute(hash) || { page: "overview" });
     setMobileNavOpen(false);
+  }, []);
+  React.useEffect(() => {
+    const onHash = () => {
+      const r = parseRoute(window.location.hash);
+      if (r) setRoute(r);
+    };
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
   }, []);
   React.useEffect(() => {
     safeSetLocalStorage("pp-nav-open", String(mobileNavOpen));
@@ -40,6 +58,34 @@ function App() {
     if (saved) document.documentElement.dataset.theme = saved;
   }, []);
 
+  // A11Y-04: every route change sets the document title, moves focus to the
+  // page's h1 (or the named About section) and announces the desk politely. The
+  // first render sets the title only, so a fresh load does not steal focus.
+  const routeKey = routeHash(route);
+  const firstRouteRef = React.useRef(true);
+  React.useEffect(() => {
+    document.title = routeTitle(route);
+    const first = firstRouteRef.current;
+    firstRouteRef.current = false;
+    const raf = requestAnimationFrame(() => {
+      const section = route.page === "about" && route.section ? document.getElementById("about-" + route.section) : null;
+      if (section) {
+        section.setAttribute("tabindex", "-1");
+        section.scrollIntoView({ block: "start" });
+        if (!first) section.focus({ preventScroll: true });
+      } else if (!first) {
+        window.scrollTo(0, 0);
+        if (!route.signal) {
+          const h1 = document.querySelector("#pp-content h1");
+          if (h1) { h1.setAttribute("tabindex", "-1"); h1.focus({ preventScroll: true }); }
+        }
+      }
+      if (!first) setAnnounce(routeLabel(route));
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [routeKey]);
+
+  const page = route.page;
   const renderPage = () => {
     switch (page) {
       case "overview":   return <PageOverview />;
@@ -54,13 +100,24 @@ function App() {
       case "radar":      return <PageRadar />;
       case "signals":    return <PageSignals />;
       case "about":      return <PageAbout />;
-      default:           return <PageOverview />;
+      default:           return <PageNotFound path={route.path} />;
     }
+  };
+
+  // Skip link: focus the content landmark without writing #pp-content into the
+  // address bar, which would otherwise leave the router a non-route hash.
+  const skipToContent = e => {
+    const main = document.getElementById("pp-content");
+    if (!main) return;
+    e.preventDefault();
+    main.focus();
   };
 
   return (
     <StoreProvider navigate={navigate}>
-      <a className="skip-link" href="#pp-content">Skip to content</a>
+      <a className="skip-link" href="#pp-content" onClick={skipToContent}>Skip to content</a>
+      <RouteSignalSync route={route} setRoute={setRoute} />
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true" data-route-announcer="">{announce}</div>
       <div className="app">
         <div className={"drawer-back mobile-nav-back" + (mobileNavOpen ? " on" : "")} onClick={() => setMobileNavOpen(false)} aria-hidden="true" />
         <Sidebar page={page} onNavigate={navigate} mobileOpen={mobileNavOpen} />
@@ -75,6 +132,27 @@ function App() {
       </div>
     </StoreProvider>
   );
+}
+
+// #/signal/<guid> opens the drawer over the Signal inbox. When the reader closes
+// that drawer, the address returns to #/signals with replaceState, so a reload
+// does not reopen it and Back does not step through a closed drawer.
+function RouteSignalSync({ route, setRoute }) {
+  const { signalId, openSignal } = useStore();
+  const prevSignalRef = React.useRef(signalId);
+  React.useEffect(() => {
+    if (route.signal && route.signal !== signalId) openSignal(route.signal);
+  }, [route.signal]);
+  React.useEffect(() => {
+    const was = prevSignalRef.current;
+    prevSignalRef.current = signalId;
+    // Only a drawer opened from a #/signal/ address that has just closed.
+    if (signalId || !was || !route.signal) return;
+    if (!parseRoute(window.location.hash)?.signal) return;
+    window.history.replaceState(null, "", "#/signals");
+    setRoute({ page: "signals" });
+  }, [signalId]);
+  return null;
 }
 
 ReactDOM.createRoot(document.getElementById("root")).render(

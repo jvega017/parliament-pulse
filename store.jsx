@@ -1551,4 +1551,83 @@ function RadarDetail({ id, titleId, closeButtonRef }) {
   );
 }
 
+// ---------- Hash routing (FE-08: UX-06, A11Y-04, ARCH-14) ----------
+// Every desk has an address, so a link can be shared and Back and Forward work.
+//   #/<deskId>                     a NAV desk (an empty hash or "#/" is Overview)
+//   #/signal/<encodeURIComponent(guid)>  the signal drawer, opened over the Signal inbox
+//   #/about/<section>              About the data, scrolled to one section
+// Anything else that starts with "#/" is a real "Page not found" desk, never a
+// silent fall back to Overview. A hash that does not start with "#/" (the skip
+// link's #pp-content, for example) is an in-page anchor, not a route: parseRoute
+// returns null and the router leaves the current desk alone.
+// parseRoute and routeHash are pure; app.jsx owns the listener and the history writes.
+const ABOUT_SECTIONS = ["legal", "privacy", "not-yet-available", "licence"];
+
+function routeDeskIds() {
+  return (typeof NAV !== "undefined" && Array.isArray(NAV)) ? NAV.map(n => n.id) : [];
+}
+
+function decodeRoutePart(s) {
+  try { return decodeURIComponent(s); } catch (e) { return null; }
+}
+
+function parseRoute(hash) {
+  const h = String(hash == null ? "" : hash).replace(/^#/, "");
+  if (h === "" || h === "/") return { page: "overview" };
+  if (h.charAt(0) !== "/") return null;
+  const parts = h.slice(1).split("/");
+  const head = decodeRoutePart(parts[0]);
+  if (head === "signal") {
+    const guid = parts.length > 1 ? decodeRoutePart(parts.slice(1).join("/")) : null;
+    return guid ? { page: "signals", signal: guid } : { page: "notfound", path: h };
+  }
+  if (head === "about" && parts.length > 1 && parts[1] !== "") {
+    return ABOUT_SECTIONS.includes(parts[1]) && parts.length === 2
+      ? { page: "about", section: parts[1] }
+      : { page: "notfound", path: h };
+  }
+  if (parts.length === 1 || (parts.length === 2 && parts[1] === "")) {
+    if (head && routeDeskIds().includes(head)) return { page: head };
+  }
+  return { page: "notfound", path: h };
+}
+
+function routeHash(route) {
+  if (!route || !route.page || route.page === "overview") return "#/overview";
+  if (route.signal) return "#/signal/" + encodeURIComponent(route.signal);
+  if (route.page === "about" && route.section) return "#/about/" + route.section;
+  if (route.page === "notfound") return "#/" + (route.path || "").replace(/^\//, "");
+  return "#/" + route.page;
+}
+
+function routeLabel(route) {
+  if (!route || route.page === "notfound") return "Page not found";
+  const n = routeDeskIds().length ? NAV.find(x => x.id === route.page) : null;
+  return n ? n.label : "Page not found";
+}
+
+// "<Desk label> · Parliament Pulse": a middle dot (U+00B7), never an em dash.
+function routeTitle(route) {
+  return routeLabel(route) + " · Parliament Pulse";
+}
+
+// The pre-routing ?page=<desk> address maps to its hash once, with replaceState,
+// so an old bookmark lands on its desk and Back does not return to the query form.
+// Other query parameters (?debug) are kept. Returns the hash it wrote, or null.
+function migrateLegacyPageQuery(loc, hist) {
+  if (!loc || !hist || typeof hist.replaceState !== "function") return null;
+  if (loc.hash && loc.hash !== "#" && loc.hash !== "#/") return null;
+  let params;
+  try { params = new URLSearchParams(loc.search || ""); } catch (e) { return null; }
+  const legacy = params.get("page");
+  if (!legacy) return null;
+  params.delete("page");
+  const rest = params.toString();
+  const hash = "#/" + encodeURIComponent(legacy);
+  hist.replaceState(hist.state, "", (loc.pathname || "/") + (rest ? "?" + rest : "") + hash);
+  return hash;
+}
+
+Object.assign(window, { ABOUT_SECTIONS, parseRoute, routeHash, routeLabel, routeTitle, migrateLegacyPageQuery });
+
 Object.assign(window, { StoreProvider, useStore, DetailModal, watchlistKeywords, watchlistMatches, useLiveState, useLiveBills, selectCounts, useCounts, COMMITTEE_STRIP_LABELS, liveStateDegradation, mapWorkerSignalToCard, mapLiveBlocks, fmtFetchedAt, mapLiveFreshness, freshnessView, useFreshness, pollIsStale, configuredFeedCount, useFeedCount, feedHealthState, signalDateFields, fmtDayMonYear, fmtPollStamp, ATTENTION_DIMS_DEFAULT, scoringDims, attentionDisclosure, attentionWord, confidenceLabel, uniformScore, uniformScoreLine, buildSearchResults });

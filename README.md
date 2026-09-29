@@ -1,113 +1,146 @@
-# Parliament Pulse — Prometheus Policy Lab
+# Parliament Pulse
 
-High-fidelity interactive prototype built from the Claude Design handoff bundle (`parliament-pulse.tar.gz`, file `Civic Signal.html`). Rebranded to **Parliament Pulse** during design iteration.
+A free, public parliamentary-intelligence web app for the Australian federal Parliament, by
+Prometheus Policy Lab. It reads official Parliament of Australia (APH) feeds through a
+Cloudflare Worker, groups and scores the items, and links every item back to aph.gov.au.
+It is not affiliated with the Parliament of Australia.
 
-Operational note, 5 September 2026: the audited working public entry is
-https://parliament-pulse.pages.dev/. The documented custom domain
-https://pulse.prometheuspolicylab.com/ did not resolve in the audit and remains
-pending an owner-approved DNS repair. Use the pages.dev entry while that decision is open.
-The separate `C:/Users/jvega/parliament-pulse` checkout has a different architecture;
-confirm the deployed source identity before choosing a build or deployment command.
+- Public entry: https://parliament-pulse.pages.dev/ (the custom domain
+  pulse.prometheuspolicylab.com does not resolve; DNS is an open owner decision).
+- Worker: https://aph-proxy.jvega019.workers.dev, source in the separate monorepo
+  `C:\Users\jvega\parliament-pulse\workers\aph-proxy`.
 
-## What it is
+This file describes what the code does as at 29 September 2026 (FE-08). Where it states that a
+surface is honest, it names the gate that checks it.
 
-A browser-only policy-intelligence dashboard for Australian Parliament. Single-page React app (loaded via CDN Babel). No backend.
+## Architecture
 
-Modules:
-- Overview (today's signal, priority cards, change-log, briefing queue, source health, live strip)
-- Live parliament (real AUSParliamentLive YouTube embed, APH connectors panel, live RSS poller)
-- Attention radar, Committees, Bills intelligence, Parliament program, QON patterns
-- Briefings, Watchlists, Sources
+- Browser-only React app. `index.html` loads React and ReactDOM from `vendor/` (production
+  builds) and seven precompiled scripts in order: `data.js`, `entities.js`, `icons.js`,
+  `store.js`, `shell.js`, `pages.js`, `app.js`. There is no Babel in the browser.
+- The `.jsx` files are the source. `npm run build` (or `build-jsx.ps1`) compiles each one with
+  the pinned esbuild (`package.json`, no minification, so the shared top-level names survive).
+  The committed `.js` must match a fresh build; the release gate and CI both check it.
+- The CSP in `_headers` is `script-src 'self'`, with no `unsafe-eval` and no `unsafe-inline`.
+  `connect-src` allows only the Worker and the local dev proxy on port 3001.
+- Data comes from the Worker: `GET /state` (signals, connectors, threads and freshness,
+  refreshed every five minutes while the tab is visible), `GET /bills` (Bills Digests),
+  and `GET /rss?u=<feed>` for the Live page. On `localhost` the Live page uses the dev proxy
+  instead (see "Run locally").
+- Browser storage holds only the keys listed in `LOCAL_STORAGE_KEYS` (`pages.jsx`), which the
+  About page prints; `tests/unsourced-surfaces.test.mjs` fails if the bundle uses a key that is
+  not on that list.
 
-Interactive: global search (Ctrl+K), click-through detail modals for bills, committees, members, ministers, divisions, feeds, watchlists, radar issues, inquiries, hearings. Analyst feedback and notes persist via `localStorage`.
+## Routes
 
-## How to run
+Every desk has an address (`store.jsx` `parseRoute`, `app.jsx` `App`):
 
-**Preferred: serve the multi-file source over HTTP.** This is the only build that Cloudflare Pages serves and the only one that should be distributed.
+| Address | Opens |
+|---|---|
+| `#/<deskId>` (empty hash = `#/overview`) | a desk from `NAV` in `shell.jsx` |
+| `#/signal/<encodeURIComponent(guid)>` | the signal drawer over the Signal inbox; closing it leaves `#/signals` |
+| `#/about/legal`, `#/about/privacy`, `#/about/not-yet-available`, `#/about/licence` | About the data, scrolled to that section |
+| anything else under `#/` | a "Page not found" desk with links to Overview and About |
+| `?page=<deskId>` (old form) | rewritten once to `#/<deskId>` |
+
+Navigation writes the hash with `history.pushState` and a `hashchange` listener drives the page,
+so Back, Forward and shared links work. On each route change the document title becomes
+`<Desk label> · Parliament Pulse`, focus moves to the desk heading, and a polite live region
+announces the desk. The footer on every desk links to the legal, privacy and licence sections.
+`tests/browser/routing.test.mjs` checks all of this.
+
+## Desks
+
+The navigation (`NAV` in `shell.jsx`) holds twelve desks. Each renders live data or an honest
+empty state that says why and links to the official APH page.
+
+| Desk (id) | What it shows |
+|---|---|
+| Overview (`overview`) | Priority signals and counts from `/state` |
+| Live parliament (`live`) | Recent APH RSS items; a branded card that loads the APH YouTube live stream only when the reader presses "Load YouTube player"; ParlView links per chamber |
+| Signal inbox (`signals`) | Every live signal from `/state`, with triage, notes and archive held in browser storage |
+| Activity by source (`radar`) | Live signals counted by source group and feed |
+| Committees (`committees`) | Committee items from `/state` |
+| Bills intelligence (`bills`) | Bills Digests from `/bills` (the Digest series only, stated on the page) |
+| Daily program (`parliament`) | Chamber and division items derived from live signals |
+| Threads (`patterns`) | Threads the Worker derives from signals |
+| Briefings (`briefings`) | Briefs the reader generates from a signal, in the browser |
+| Watchlists (`watchlists`) | Twelve topic lists matched against live signal titles and tags in the browser |
+| Sources (`sources`) | One row per configured feed from `connectors.checks`, with poll health |
+| About the data (`about`) | Coverage, scoring disclosure, what is not yet available, privacy, terms and licence |
+
+Not yet available (`SITE_CONFIG.unavailable` in `data.jsx`, listed on About with a link to the
+official page): Questions on notice, Hansard, Member profiles, Alert rules and email digests,
+and Parliamentary lines.
+
+`SITE_CONFIG.showUnsourcedSurfaces` is `false` in every public build. Surfaces with no live
+source render only when it is true; `tests/unsourced-surfaces.test.mjs` fails the gate if one
+renders while it is false.
+
+## Run locally
+
+```sh
+npm ci                 # pinned esbuild and playwright
+npm run build          # compile the .jsx
+./build-dist.ps1       # PowerShell: build the deployable dist/
+python -m http.server 8080 --directory dist    # or any static server on dist/
 ```
-cd parliament-pulse
-python -m http.server 8080
-# then open http://localhost:8080/index.html
-```
-The multi-file version requires an HTTP origin because `<script type="text/babel" src="...">` is blocked under `file://`. The app also detects `file://` and shows guidance to serve over http.
 
-**Live RSS locally.** The Live page needs a CORS proxy in front of the APH feeds. In a second terminal:
-```
-node proxy-server.js
-# local CORS proxy at http://localhost:3001/proxy?url=...
-```
-In production the Live page calls the Cloudflare Worker instead (see "Production architecture" below). No local proxy is needed once deployed.
+Serve over HTTP: under `file://` the app does not fetch live data. For live RSS on `localhost`,
+also run the dev proxy: `node proxy-server.js` (a CORS proxy at
+`http://localhost:3001/proxy?url=...`). On `localhost`, or with `?debug` in the address, the Live
+page shows developer detail (proxy instructions, raw feed errors); elsewhere it shows a
+reconnecting message.
 
-**Single-file artefacts are not served and should not be distributed.** The stale single-file bundles now live under `archive/` (`archive/parliament-pulse-beta.html` is the production probe's pre-sweep canary specimen; do not edit or delete it). They embed a localhost-only proxy path and an outdated build. `build-dist.ps1` never copies them into `dist/`. If you ever need a single-file distribution, rebuild it with `python build.py` first, never hand it out as-is.
+## Tests and gates
 
-## Files
+- `npm run gate`: rebuild, then eleven local gates (fabrication-pattern self-test, release gate
+  with jsx/js sync and attribution, asset manifest, static a11y, beta wording, watchlist matching,
+  state contract, honest surfaces, unsourced surfaces, freshness, analytics honesty). Each
+  canary-proven gate seeds the defect it claims to catch and aborts if it misses it.
+- `npm run browser`: the Playwright layout test and the routing test, against a fresh `dist/`
+  served with the production CSP and fixture Worker responses.
+- `npm run probe`: the production probe (network): fabrication scan, deployed files against
+  `dist/build-info.json`, and denylisted internal paths answering 404.
 
-- `index.html` — multi-file entry, loads the `.jsx` modules (this is what Pages serves)
-- `data.jsx` — fixture: feeds, signals, bills, divisions, watchlists, radar, QON pattern, briefing queue
-- `entities.jsx` — committees, members, ministers, bills with full detail
-- `icons.jsx` — inline SVG icon set
-- `store.jsx` — React context store with localStorage persistence; detail modals
-- `shell.jsx` — sidebar, topbar with working global search, signal card, evidence drawer
-- `pages.jsx` — all page modules including the real RSS poller
-- `app.jsx` — page router
+Details and each gate's canaries: `tests/README.md`. CI (`.github/workflows/ci.yml`) runs
+`npm run gate`, the committed-js check and `npm run browser`.
 
-## Known limits (honest)
+## Deploy (owner step)
 
-1. **CORS.** APH feeds do not send `Access-Control-Allow-Origin`, so a proxy is mandatory. Locally the Live page uses `node proxy-server.js` at `localhost:3001`. In production it uses the Cloudflare Worker `aph-proxy` (see "Production architecture"). The third-party `r.jina.ai` dependency has been retired. If the proxy is offline or a feed fails, the Live panel surfaces the per-feed status and gives direct links to the raw feeds.
+Deploy only `dist/`, never the repo root. From a committed tree, in PowerShell:
 
-2. **YouTube live embed.** Uses `/embed/live_stream?channel=UCvO8Qfr3etT6khGA9Zln8WA` (@AUSParliamentLive). When no chamber is broadcasting, YouTube renders its own "offline" page inside the iframe which cannot be detected from outside. A manual "NO STREAM?" toggle in the top-right of the player exposes the fallback panel (ParlView archive, APH Watch/Read/Listen, Retry).
-
-3. **Data is fixture-backed for most modules.** Only the Live page polls real RSS. Bills, committees, members, ministers, divisions, radar, briefings, watchlists are sample data. Every URL referenced is real — clicking through opens the correct APH page — but the items shown are seeded examples, not a live pull. The scoring, provenance, and update logs are representative of what a production pipeline would record.
-
-4. **No backend.** No auth, no persistence beyond browser `localStorage` for analyst feedback, notes, owner assignments, and custom watchlists/feeds.
-
-## Production architecture
-
-The deployment mechanism is split:
-
-- **Cloudflare Pages** serves the multi-file frontend. Project `parliament-pulse`, account `ccc93b2330067a401bf57fc9ac736e7a`. There is no `wrangler.toml` for the Pages side; configuration is the dashboard plus `_headers` (MIME types for `.jsx`/`.js`, and security headers: CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy). Production origins are `https://parliament-pulse.pages.dev` and the custom domain `https://pulse.prometheuspolicylab.com`.
-- **Cloudflare Worker** `aph-proxy` (separate folder `C:\Users\jvega\parliament-pulse\workers\aph-proxy`, its own `wrangler.toml`) is the production proxy. It allowlists the exact verified APH feed URLs, adds the CORS headers the feeds lack, caches each feed 5 to 10 minutes, and injects the TheyVoteForYou key server-side. Its CORS `ALLOWED_ORIGINS` list must contain every origin that calls it: the two production origins above, plus `localhost:8080`/`127.0.0.1:8080` and `localhost:5173`/`127.0.0.1:5173` for development.
-
-The frontend calls the Worker at `https://aph-proxy.jvega019.workers.dev/rss?u=<feed-url>`. The `/rss?u=` path and parameter name are what the Worker serves; an earlier `/proxy?url=` mismatch was a deploy blocker and has been corrected in `pages.jsx`. [VERIFY] the `jvega019` workers.dev subdomain with `cf-worker-url.ps1` before relying on it.
-
-### Deploy steps
-
-Fix the two blockers before deploying or the Live page stays dark:
-1. Frontend route in `pages.jsx` must be `/rss?u=` (matches the Worker), handled in the frontend package.
-2. Worker `ALLOWED_ORIGINS` in `wrangler.toml` must include the production origins and `localhost:8080` (done).
-
-Frontend (Cloudflare Pages). Deploy ONLY the allowlisted `dist/` folder, never the repo root: deploying `.` published internal notes, JSX sources, build scripts and stale bundles (the probe measured 19 such paths live on 29 Sep 2026). From the repo root, on a committed tree, in PowerShell:
-```
-./build-dist.ps1; npx wrangler@4 pages deploy dist --project-name=parliament-pulse --branch=main --commit-hash=<sha>
+```powershell
+./build-dist.ps1
+npx wrangler@4 pages deploy dist --project-name=parliament-pulse --branch=main --commit-hash=<sha>
 node tests/production-probe.mjs
 ```
-`<sha>` is the `git_sha` that `build-dist.ps1` prints and writes to `dist/build-info.json` (the output of `git rev-parse HEAD`). `build-dist.ps1` recompiles the JSX, rebuilds `dist/` from scratch with only the allowlisted files, and adds `404.html`, `robots.txt` and `build-info.json` (git SHA, build time, sha256 per file). The probe then must exit 0: it re-runs the fabrication scan, compares every deployed file's sha256 with the local `dist/build-info.json`, and checks that 19 denylisted internal paths answer 404. Run it straight after the deploy, before any further commit, so the local manifest matches what was deployed.
 
-Worker (separate folder, its own wrangler.toml):
-```
-cd C:\Users\jvega\parliament-pulse\workers\aph-proxy
-npx wrangler d1 migrations apply parliament-pulse-archive --remote   # first deploy only
-npx wrangler secret put TVFY_KEY                                      # TheyVoteForYou key, server-side only
-npx wrangler secret put RESEND_API_KEY                               # optional, email digest only
-npx wrangler deploy
-```
+`build-dist.ps1` recompiles the JSX, rebuilds `dist/` from an explicit allowlist, and adds
+`404.html`, `robots.txt` and `build-info.json` (git SHA, build time, sha256 per file). `<sha>`
+is the SHA it prints. The Pages production branch is `main`; any other branch lands on a
+preview alias, and preview hostnames are not in the Worker's CORS allowlist. The probe must
+exit 0 straight after the deploy.
 
-Optional single-file rebuild (only if distributing the gitignored `.html` artefacts, which Pages does not serve):
-```
-python build.py
-```
+The Worker deploys from its own folder with its own `wrangler.toml`; see that repo's README.
 
-### Production-launch hardening (document only, do before public launch)
+## Repository layout
 
-These are not run by the deploy commands above. Acceptable to defer for a soft launch, mandatory for a public one:
-1. Switch the CDN React and ReactDOM from `react.development.js` / `react-dom.development.js` to `react.production.min.js` / `react-dom.production.min.js`, and regenerate the SRI `integrity` hashes for the new files (the current ones in `index.html` are for the development builds).
-2. Precompile JSX with Vite or esbuild so Babel standalone is no longer loaded in the browser. Once JSX is precompiled, tighten the `_headers` CSP `script-src` by dropping `'unsafe-eval'` and `'unsafe-inline'`.
-3. Confirm the deployed Pages origin matches both the Worker `ALLOWED_ORIGINS` list and the non-localhost branch in `pages.jsx`.
-4. Provision the TheyVoteForYou key as a Worker secret and confirm a real authenticated 200 before marking any TheyVoteForYou-backed module as live.
+- `index.html`, `_headers`, `manifest.webmanifest`, `favicon.ico`, `vendor/`, `assets/`: shipped.
+- `*.jsx`: source; `*.js`: generated from it and committed.
+- `scripts/`: build and gate runners. `tests/`: gates, fixtures and the browser harness.
+- `docs/`: specifications (`state-contract.md`, `licence-architecture.md`, `live-wiring-spec.md`,
+  `design-scale-uplift-spec.md`). `docs/internal/`: historical plans and backlogs, and the
+  legacy Babel-era `build.py`, kept as a record and not used by any build.
+- `proxy-server.js`: the local dev proxy. `archive/`: old single-file bundles; the production
+  probe uses `archive/parliament-pulse-beta.html` as a canary specimen, so do not edit it.
+- `build-dist.ps1`, `build-jsx.ps1`, `verify.ps1`, `cf-list.ps1`, `cf-worker-url.ps1`,
+  `check2.ps1`, `check3.ps1`: local PowerShell helpers; none ships.
 
-Remaining limitations (ETL pipeline for non-Live modules, auth for shared analyst feedback) are out of scope for a 90% deploy. Modules without a verified feed stay representative and carry a visible "Representative data" chip.
+## Licence and attribution
 
-## Source
-
-Handoff bundle: `C:\Users\jvega\civic-signal-design\parliament-pulse\`
-Chat transcripts showing iteration: `chats/chat1.md`, `chats/chat2.md`
+Source material is from the Parliament of Australia website under CC BY-NC-ND 4.0. Titles are
+reproduced unmodified with attribution and a link to the source; scores and summaries are
+Parliament Pulse analysis. `tests/attribution-check.mjs` (run by the release gate) fails if the
+attribution sentence leaves the footer, the CSV export or the brief templates. The display
+contract is `docs/licence-architecture.md`.

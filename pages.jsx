@@ -644,7 +644,7 @@ function PageOverview() {
 
       <div className="about-data-line" style={{marginTop:"var(--gap-section)", fontSize:12.5, color:"var(--ink-3)"}}>
         Every figure here links to its source. See what is live, what is derived, and what is coming:{" "}
-        <a href="#" onClick={e => { e.preventDefault(); goto && goto("about"); }} style={{color:"var(--teal)"}}>About the data</a>.
+        <a href="#/about" onClick={e => { e.preventDefault(); goto && goto("about"); }} style={{color:"var(--teal)"}}>About the data</a>.
       </div>
     </div>
   );
@@ -693,7 +693,7 @@ const legalP = { margin: "0 0 6px" };
 function NotYetAvailablePanel() {
   const items = (SITE_CONFIG && Array.isArray(SITE_CONFIG.unavailable)) ? SITE_CONFIG.unavailable : [];
   return (
-    <div className="panel" style={{ marginTop: "var(--gap-section)" }} data-section="not-yet-available">
+    <div className="panel" style={{ marginTop: "var(--gap-section)" }} data-section="not-yet-available" id="about-not-yet-available">
       <div className="panel-head">
         <h2 className="panel-title">Not yet available</h2>
         <span className="panel-kicker">No live source, so not shown here</span>
@@ -715,7 +715,7 @@ function NotYetAvailablePanel() {
 
 function LegalNoticePanel() {
   return (
-    <div className="panel" style={{ marginTop: "var(--gap-section)" }}>
+    <div className="panel" style={{ marginTop: "var(--gap-section)" }} id="about-legal">
       <div className="panel-head">
         <h2 className="panel-title">Privacy, terms and disclaimer</h2>
         <span className="panel-kicker">What this is, and what it does with your data</span>
@@ -724,7 +724,7 @@ function LegalNoticePanel() {
         <h3 style={legalH}>Independent, not affiliated</h3>
         <p style={legalP}>Parliament Pulse is an independent project by Prometheus Policy Lab. It is not affiliated with, endorsed by, or an official product of the Parliament of Australia, the Department of Parliamentary Services, or any government body. It reads publicly available RSS feeds published at aph.gov.au and links every item back to its official source.</p>
 
-        <h3 style={legalH}>Your privacy</h3>
+        <h3 style={legalH} id="about-privacy">Your privacy</h3>
         <p style={legalP}>No account, login, or email is required or collected through this site. We run no third-party analytics, advertising or tracking, and the site sets no cookies. Live parliamentary data is fetched from official APH feeds through the Parliament Pulse proxy for display and is not saved on your device.</p>
         <p style={legalP}>Your browser's local storage holds only the following, on this device, and none of it is sent to us:</p>
         <ul style={{ margin: "0 0 6px", paddingLeft: 18 }}>
@@ -738,7 +738,7 @@ function LegalNoticePanel() {
         <h3 style={legalH}>Not advice</h3>
         <p style={legalP}>Parliament Pulse is derived intelligence over public sources, provided for information only. It is not legal, parliamentary, or professional advice. Scoring, clustering and watchlist matching are the product's own analysis and can contain errors. Verify against the linked official source at aph.gov.au before relying on any item.</p>
 
-        <h3 style={legalH}>Use and content</h3>
+        <h3 style={legalH} id="about-licence">Use and content</h3>
         <p style={legalP}>The service is free and provided as-is, without warranty. Material published by the Australian Parliament remains subject to the Parliament's own copyright and terms of use; Parliament Pulse reproduces item titles unmodified, with attribution and a link to the official source, under the Parliament's {APH_LICENCE_NAME} licence; scores, summaries and clustering are Parliament Pulse's own analysis. Coverage and content may change without notice.</p>
 
         <h3 style={legalH}>Contact and corrections</h3>
@@ -810,6 +810,30 @@ function PageAbout() {
       <NotYetAvailablePanel />
 
       <LegalNoticePanel />
+    </div>
+  );
+}
+
+// ---------- PAGE NOT FOUND (FE-08, ARCH-14) ----------
+// An address that names no desk renders this, never a silent Overview. app.jsx
+// sets document.title to "Page not found · Parliament Pulse" for it.
+function PageNotFound({ path }) {
+  return (
+    <div className="page" data-page-not-found="">
+      <div className="page-head">
+        <div>
+          <div className="page-kicker">Address not recognised</div>
+          <h1 className="page-title">Page not found</h1>
+          <div className="page-sub">
+            {path ? <>Parliament Pulse has no page at <code className="mono">#/{String(path).replace(/^\//, "")}</code>. </> : null}
+            The link may be mistyped, or it may point to a page that has been removed.
+          </div>
+        </div>
+      </div>
+      <p style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+        <a className="btn primary" href="#/overview">Go to Overview</a>
+        <a className="btn" href="#/about">About the data</a>
+      </p>
     </div>
   );
 }
@@ -2809,4 +2833,4 @@ function PageSignals() {
   );
 }
 
-Object.assign(window, { PageOverview, PageLive, PageSources, PageCommittees, PageBills, PageParliament, PagePatterns, PageBriefings, PageWatchlists, PageRadar, PageSignals, PageAbout, OnboardingGuide });
+Object.assign(window, { PageOverview, PageLive, PageSources, PageCommittees, PageBills, PageParliament, PagePatterns, PageBriefings, PageWatchlists, PageRadar, PageSignals, PageAbout, PageNotFound, OnboardingGuide });

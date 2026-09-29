@@ -29,13 +29,13 @@ in `npm run gate` or CI. CI (`.github/workflows/ci.yml`) runs `npm ci`,
 | `state-contract.test.mjs` | Worker `GET /state` payload shape; a degraded block never fabricates content | No (assertion-based, not canary-based) |
 | `beta-contract.test.mjs` | No public-facing "demo" wording; beta-evidence UI elements are present | No (assertion-based, not canary-based) |
 | `asset-manifest.test.mjs` | Every asset `index.html` references exists on disk; zero external-origin references in functional `src`/`href`/`content` attributes or `_headers` directive values; `assets/fonts/fonts.css` URLs resolve relative to their own directory; the og image stays under 300KB | Yes |
-| `a11y.test.mjs` | **Static structural approximation only** (see the file's header comment; no local `playwright`/`axe-core` yet). Skip link, `<main id="pp-content">` landmark, toast container ARIA roles, image alt text, icon-only-button aria-labels, form-control labels, no positive tabindex | Yes |
+| `a11y.test.mjs` | **Static structural approximation only** (see the file's header comment; `playwright` is now pinned for the browser tests, `axe-core` is not installed). Skip link, `<main id="pp-content">` landmark, toast container ARIA roles, image alt text, icon-only-button aria-labels, form-control labels, no positive tabindex | Yes |
 
-## Browser harness and layout test (FE-07)
+## Browser harness, layout test (FE-07) and routing test (FE-08)
 
 ```sh
 npx playwright install chromium   # once; playwright itself is pinned in package.json
-npm run browser                   # node tests/browser/layout.test.mjs
+npm run browser                   # layout.test.mjs, then routing.test.mjs
 ```
 
 `tests/browser/harness.mjs` is the shared harness (FE-09 and FE-10 reuse it). It
@@ -56,8 +56,24 @@ heading and buttons unclipped at 390 and 320 px; the first Overview signal above
 `data-label` at 390 px and stay tables at 1280 px; Sources fits its panel with
 both Worker shapes; Live has no iframe and makes no YouTube request until
 "Load YouTube player", then embeds the verified channel with no `autoplay=1`.
-Ten scratch-copy canaries (served on 8081) each remove one control and must be
-caught. CI runs it as the `browser` job.
+Nine scratch-copy canaries (served on 8081) each remove one control and must be
+caught.
+
+`routing.test.mjs` (FE-08: UX-06, A11Y-04, ARCH-14, LEG-13) checks: a fresh
+load of `#/bills` renders Bills intelligence with its nav item current and its
+title; Overview, Bills, Sources by the nav, then Back to Bills and Overview and
+Forward to Bills, and a typed hash drives the desk; `#/signal/<encodeURIComponent(guid)>`
+for the first fixture signal opens its drawer over the Signal inbox, and closing
+it leaves `#/signals`; `#/no-such-desk` and `#/about/no-such-section` render
+"Page not found" with Overview and About links and the Not found title, and the
+skip link does not route; on every NAV desk the title is
+"<label> · Parliament Pulse" (no em or en dash, all distinct), focus is on the
+desk h1 and the live region names the desk; `?page=bills` becomes `#/bills`;
+the footer links to `#/about/legal`, `#/about/privacy` and `#/about/licence`,
+and the privacy link focuses its section. Six canaries: the `hashchange`
+listener removed (Back fails), the title write removed, the h1 focus removed,
+Not found replaced by Overview, the `?page=` migration removed, and a footer
+link removed. CI runs both files as the `browser` job.
 
 ## Real axe-core run: still owed
 
