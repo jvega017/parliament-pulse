@@ -6,3 +6,15 @@
 *.jsx  text eol=lf
 *.mjs  text eol=lf
 *.yml  text eol=lf
+
+# FE final: the dist-output planted-defect checks edit dist/_headers and
+# dist/index.html by exact LF-joined strings, and build-dist.mjs splices the
+# app-scripts block on "\n". With core.autocrlf=true a fresh Windows clone
+# checked these out as CRLF and the gate failed two canaries with nothing
+# changed. Every text file the build copies into dist/ stays LF.
+_headers        text eol=lf
+*.html          text eol=lf
+*.webmanifest   text eol=lf
+*.css           text eol=lf
+*.json          text eol=lf
+*.svg           text eol=lf

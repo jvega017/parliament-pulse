@@ -17,6 +17,13 @@
 //   6. fonts: every woff2 in dist is a url() in fonts.css, every @font-face keeps
 //      font-display: swap, and no two woff2 files are byte-identical (FE-11 found
 //      the IBM Plex Sans variable font shipped four times under four names).
+//   7. images (FE final): every image dist ships is referenced by index.html or
+//      manifest.webmanifest. An unreferenced assets/screenshot-signal-inbox.png,
+//      showing retired sample content and the owner's name, shipped this way.
+//   8. line endings (FE final): git checks out _headers and every .html as LF
+//      (.gitattributes). The planted-defect checks below edit those files by
+//      exact LF strings; a CRLF checkout on a fresh Windows clone
+//      (core.autocrlf=true) made two of them miss with nothing actually wrong.
 // When a real dist/ exists (after ./build-dist.ps1) the same checks run on it.
 //
 // Canary-first: each check runs against planted defects (an overlapping
@@ -145,6 +152,25 @@ try {
   console.log(`Scratch dist: ${servedPaths(scratch).length} served paths, each with at most one Cache-Control rule; brotli JS ${b.before.js} -> ${b.after.js} bytes, total ${b.before.total} -> ${b.after.total}.`);
 } finally {
   fs.rmSync(scratch, { recursive: true, force: true });
+}
+
+// 8. Line endings: the checkout rules that keep the planted-defect checks valid
+// on every clone. Canary: the same check reports a path with no eol rule.
+{
+  const { spawnSync } = await import("node:child_process");
+  const eolOf = files => {
+    const r = spawnSync("git", ["-C", root, "check-attr", "eol", "--", ...files], { encoding: "utf8" });
+    if (r.status !== 0) return null;
+    return Object.fromEntries(r.stdout.trim().split(/\r?\n/).map(l => { const m = l.match(/^(.*): eol: (\S+)$/); return m ? [m[1], m[2]] : [l, "?"]; }));
+  };
+  const need = ["_headers", "index.html", "404.html", "manifest.webmanifest", "assets/fonts/fonts.css"];
+  const got = eolOf([...need, "__canary__/no-rule.bin"]);
+  if (!got) console.log("SKIP  line endings: git is not available here, so .gitattributes could not be read.");
+  else {
+    if (got["__canary__/no-rule.bin"] === "lf") fail("line-endings canary: a path with no eol rule reported lf; the check cannot tell");
+    for (const f of need) if (got[f] !== "lf") fail(`line endings: ${f} has eol=${got[f]}, not lf; a Windows clone checks it out as CRLF and the planted-defect checks miss`);
+    if (!failures) console.log(`Line endings: ${need.length} dist source paths are eol=lf in .gitattributes (canary: an unruled path reads ${got["__canary__/no-rule.bin"]}).`);
+  }
 }
 
 // The dev copy keeps the local proxy origins.
