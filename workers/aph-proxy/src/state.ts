@@ -20,9 +20,9 @@ import type {
   ThreadsBlock,
   ThreadItem,
 } from "./stateContract";
+import { WORKER_VERSION } from "./version";
 
 const ORIGIN = "d1:parliament-pulse-archive";
-const WORKER_VERSION = "0.15.0";
 
 // SEC-11: a degraded block names the failure class only. The thrown message
 // (which can carry SQL, table names or binding detail) is logged, never served.

@@ -25,6 +25,7 @@ const { queryStateSignals, PER_FEED_QUOTA, STATE_SIGNAL_CAP } = await import("..
 const { buildState } = await import("../src/state.ts");
 const { APH_FEEDS } = await import("../src/feeds.ts");
 const { default: worker } = await import("../src/index.ts");
+const { STATE_CACHE_KEY } = await import("../src/version.ts");
 
 console.warn = () => {};
 console.log = () => {};
@@ -165,7 +166,7 @@ test("/state: a failed signals query omits signal_counts rather than claim zero"
   assert.equal(state.meta.signal_counts, undefined);
 });
 
-test("cache: a stale state:v1 body is never served; the response is cached under state:v2", async () => {
+test("cache: a stale state:v1 body is never served; the response is cached under the versioned state:v2 key", async () => {
   const e = env();
   seed(e, APH_FEEDS[0], 3);
   await e.CACHE.put("state:v1", JSON.stringify({ stale: "30-row body" }));
@@ -177,7 +178,8 @@ test("cache: a stale state:v1 body is never served; the response is cached under
   assert.equal(body.stale, undefined, "old v1 cache body not served");
   assert.equal(body.meta.schema, "state-v1");
   await Promise.all(ctx.pending);
-  assert.ok(await e.CACHE.get("state:v2"), "fresh body cached under state:v2");
+  assert.ok(await e.CACHE.get(STATE_CACHE_KEY), "fresh body cached under the versioned state:v2 key");
+  assert.equal(await e.CACHE.get("state:v2"), null, "no unversioned state:v2 body written");
   const again = await worker.fetch(new Request("https://w.test/state"), e, ctx);
   assert.equal(again.headers.get("x-cache"), "HIT");
 });

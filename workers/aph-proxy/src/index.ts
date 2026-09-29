@@ -20,6 +20,7 @@
 
 import { APH_REFERENCE_LINKS, APH_ALLOWED_HOSTS, APH_BROWSER_HEADERS, APH_FEEDS } from "./feeds";
 import { checkRateLimit, clientIp } from "./rateLimit";
+import { WORKER_VERSION, STATE_CACHE_KEY } from "./version";
 import {
   buildFeedAllowlist,
   canonicalFeedUrl,
@@ -183,7 +184,7 @@ export default {
       return jsonResponse({
         ok: true,
         ...freshness,
-        version: "0.15.0",
+        version: WORKER_VERSION,
         scoring_engine: "v1.1-deterministic",
         resend_wired: !!env.RESEND_API_KEY,
         digest_from: env.DIGEST_FROM_EMAIL ?? null,
@@ -472,7 +473,9 @@ export default {
       }
       // v2 (WK-04): bumped when the signals block moved from a global top 30
       // to per-feed quotas, so a cached 30-row body cannot outlive the deploy.
-      const cacheKey = "state:v2";
+      // The key also carries WORKER_VERSION (src/version.ts), so a body cached
+      // by the previous Worker never serves the old meta.worker_version.
+      const cacheKey = STATE_CACHE_KEY;
       const cached = await kvGetSafe(env.CACHE, cacheKey);
       if (cached) {
         return new Response(cached, {

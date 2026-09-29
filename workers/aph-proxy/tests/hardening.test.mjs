@@ -21,6 +21,7 @@ const { default: worker } = await import("../src/index.ts");
 const { checkRateLimit } = await import("../src/rateLimit.ts");
 const { APH_ALLOWED_HOSTS, APH_FEEDS } = await import("../src/feeds.ts");
 const { RSS_MAX_BYTES } = await import("../src/rssProxy.ts");
+const { STATE_CACHE_KEY } = await import("../src/version.ts");
 
 const FEED = "https://www.aph.gov.au/senate/rss/reports";
 const XML = `<?xml version="1.0"?><rss version="2.0"><channel><title>t</title></channel></rss>`;
@@ -239,14 +240,14 @@ test("limiter: KV put runs in waitUntil, off the request path", async () => {
 
 test("state: KV put that throws still returns 200", async () => {
   for (const kvOpts of [{ putThrows: true }, { putRejects: true }]) {
-    const kv = mockKv({ ...kvOpts, seed: { "state:v2": JSON.stringify({ ok: true }) } });
+    const kv = mockKv({ ...kvOpts, seed: { [STATE_CACHE_KEY]: JSON.stringify({ ok: true }) } });
     const res = await call("/state", env({ CACHE: kv }));
     assert.equal(res.status, 200, JSON.stringify(kvOpts));
   }
 });
 
 test("state: KV that throws on rate-limit keys still returns 200", async () => {
-  const kv = mockKv({ getThrows: (k) => k.startsWith("rl:"), seed: { "state:v2": JSON.stringify({ ok: true }) } });
+  const kv = mockKv({ getThrows: (k) => k.startsWith("rl:"), seed: { [STATE_CACHE_KEY]: JSON.stringify({ ok: true }) } });
   const res = await call("/state", env({ CACHE: kv }));
   assert.equal(res.status, 200);
 });
