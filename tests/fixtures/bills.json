@@ -1,0 +1,230 @@
+{
+ "rows": [
+  {
+   "guid": "https://parlinfo.aph.gov.au:443/parlInfo/search/display/display.w3p;query=Id%3A%22legislation%2Fbillsdgs%2Ffixture01%22",
+   "title": "Fixture Amendment (No. 01) Bill 2026",
+   "link": "https://parlinfo.aph.gov.au:443/parlInfo/search/display/display.w3p;query=Id%3A%22legislation%2Fbillsdgs%2Ffixture01%22",
+   "pub_date": "2026-09-28T04:00:00.000Z",
+   "description": null,
+   "attention": "high",
+   "confidence": 1
+  },
+  {
+   "guid": "https://parlinfo.aph.gov.au:443/parlInfo/search/display/display.w3p;query=Id%3A%22legislation%2Fbillsdgs%2Ffixture02%22",
+   "title": "Fixture Laws Amendment (Responsive Tables and Long Title Wrapping Across Narrow Viewports No. 1) (No. 02) Bill 2026 [and related Bill]",
+   "link": "https://parlinfo.aph.gov.au:443/parlInfo/search/display/display.w3p;query=Id%3A%22legislation%2Fbillsdgs%2Ffixture02%22",
+   "pub_date": "2026-09-27T08:00:00.000Z",
+   "description": null,
+   "attention": "med",
+   "confidence": 2
+  },
+  {
+   "guid": "https://parlinfo.aph.gov.au:443/parlInfo/search/display/display.w3p;query=Id%3A%22legislation%2Fbillsdgs%2Ffixture03%22",
+   "title": "Fixture (Layout Measures) (No. 03) Bill 2026",
+   "link": "https://parlinfo.aph.gov.au:443/parlInfo/search/display/display.w3p;query=Id%3A%22legislation%2Fbillsdgs%2Ffixture03%22",
+   "pub_date": "2026-09-26T12:00:00.000Z",
+   "description": null,
+   "attention": "low",
+   "confidence": 3
+  },
+  {
+   "guid": "https://parlinfo.aph.gov.au:443/parlInfo/search/display/display.w3p;query=Id%3A%22legislation%2Fbillsdgs%2Ffixture04%22",
+   "title": "Fixture Legislation Amendment (Reflow at Three Hundred and Twenty Pixels) (No. 04) Bill 2026",
+   "link": "https://parlinfo.aph.gov.au:443/parlInfo/search/display/display.w3p;query=Id%3A%22legislation%2Fbillsdgs%2Ffixture04%22",
+   "pub_date": "2026-09-25T16:00:00.000Z",
+   "description": null,
+   "attention": "high",
+   "confidence": 4
+  },
+  {
+   "guid": "https://parlinfo.aph.gov.au:443/parlInfo/search/display/display.w3p;query=Id%3A%22legislation%2Fbillsdgs%2Ffixture05%22",
+   "title": "Fixture Amendment (No. 05) Bill 2026",
+   "link": "https://parlinfo.aph.gov.au:443/parlInfo/search/display/display.w3p;query=Id%3A%22legislation%2Fbillsdgs%2Ffixture05%22",
+   "pub_date": "2026-09-24T20:00:00.000Z",
+   "description": null,
+   "attention": "med",
+   "confidence": 5
+  },
+  {
+   "guid": "https://parlinfo.aph.gov.au:443/parlInfo/search/display/display.w3p;query=Id%3A%22legislation%2Fbillsdgs%2Ffixture06%22",
+   "title": "Fixture Laws Amendment (Responsive Tables and Long Title Wrapping Across Narrow Viewports No. 1) (No. 06) Bill 2026 [and related Bill]",
+   "link": "https://parlinfo.aph.gov.au:443/parlInfo/search/display/display.w3p;query=Id%3A%22legislation%2Fbillsdgs%2Ffixture06%22",
+   "pub_date": "2026-09-24T00:00:00.000Z",
+   "description": null,
+   "attention": "low",
+   "confidence": 1
+  },
+  {
+   "guid": "https://parlinfo.aph.gov.au:443/parlInfo/search/display/display.w3p;query=Id%3A%22legislation%2Fbillsdgs%2Ffixture07%22",
+   "title": "Fixture (Layout Measures) (No. 07) Bill 2026",
+   "link": "https://parlinfo.aph.gov.au:443/parlInfo/search/display/display.w3p;query=Id%3A%22legislation%2Fbillsdgs%2Ffixture07%22",
+   "pub_date": "2026-09-23T04:00:00.000Z",
+   "description": null,
+   "attention": "high",
+   "confidence": 2
+  },
+  {
+   "guid": "https://parlinfo.aph.gov.au:443/parlInfo/search/display/display.w3p;query=Id%3A%22legislation%2Fbillsdgs%2Ffixture08%22",
+   "title": "Fixture Legislation Amendment (Reflow at Three Hundred and Twenty Pixels) (No. 08) Bill 2026",
+   "link": "https://parlinfo.aph.gov.au:443/parlInfo/search/display/display.w3p;query=Id%3A%22legislation%2Fbillsdgs%2Ffixture08%22",
+   "pub_date": "2026-09-22T08:00:00.000Z",
+   "description": null,
+   "attention": "med",
+   "confidence": 3
+  },
+  {
+   "guid": "https://parlinfo.aph.gov.au:443/parlInfo/search/display/display.w3p;query=Id%3A%22legislation%2Fbillsdgs%2Ffixture09%22",
+   "title": "Fixture Amendment (No. 09) Bill 2026",
+   "link": "https://parlinfo.aph.gov.au:443/parlInfo/search/display/display.w3p;query=Id%3A%22legislation%2Fbillsdgs%2Ffixture09%22",
+   "pub_date": "2026-09-21T12:00:00.000Z",
+   "description": null,
+   "attention": "low",
+   "confidence": 4
+  },
+  {
+   "guid": "https://parlinfo.aph.gov.au:443/parlInfo/search/display/display.w3p;query=Id%3A%22legislation%2Fbillsdgs%2Ffixture10%22",
+   "title": "Fixture Laws Amendment (Responsive Tables and Long Title Wrapping Across Narrow Viewports No. 1) (No. 10) Bill 2026 [and related Bill]",
+   "link": "https://parlinfo.aph.gov.au:443/parlInfo/search/display/display.w3p;query=Id%3A%22legislation%2Fbillsdgs%2Ffixture10%22",
+   "pub_date": "2026-09-20T16:00:00.000Z",
+   "description": null,
+   "attention": "high",
+   "confidence": 5
+  },
+  {
+   "guid": "https://parlinfo.aph.gov.au:443/parlInfo/search/display/display.w3p;query=Id%3A%22legislation%2Fbillsdgs%2Ffixture11%22",
+   "title": "Fixture (Layout Measures) (No. 11) Bill 2026",
+   "link": "https://parlinfo.aph.gov.au:443/parlInfo/search/display/display.w3p;query=Id%3A%22legislation%2Fbillsdgs%2Ffixture11%22",
+   "pub_date": "2026-09-19T20:00:00.000Z",
+   "description": null,
+   "attention": "med",
+   "confidence": 1
+  },
+  {
+   "guid": "https://parlinfo.aph.gov.au:443/parlInfo/search/display/display.w3p;query=Id%3A%22legislation%2Fbillsdgs%2Ffixture12%22",
+   "title": "Fixture Legislation Amendment (Reflow at Three Hundred and Twenty Pixels) (No. 12) Bill 2026",
+   "link": "https://parlinfo.aph.gov.au:443/parlInfo/search/display/display.w3p;query=Id%3A%22legislation%2Fbillsdgs%2Ffixture12%22",
+   "pub_date": "2026-09-19T00:00:00.000Z",
+   "description": null,
+   "attention": "low",
+   "confidence": 2
+  },
+  {
+   "guid": "https://parlinfo.aph.gov.au:443/parlInfo/search/display/display.w3p;query=Id%3A%22legislation%2Fbillsdgs%2Ffixture13%22",
+   "title": "Fixture Amendment (No. 13) Bill 2026",
+   "link": "https://parlinfo.aph.gov.au:443/parlInfo/search/display/display.w3p;query=Id%3A%22legislation%2Fbillsdgs%2Ffixture13%22",
+   "pub_date": "2026-09-18T04:00:00.000Z",
+   "description": null,
+   "attention": "high",
+   "confidence": 3
+  },
+  {
+   "guid": "https://parlinfo.aph.gov.au:443/parlInfo/search/display/display.w3p;query=Id%3A%22legislation%2Fbillsdgs%2Ffixture14%22",
+   "title": "Fixture Laws Amendment (Responsive Tables and Long Title Wrapping Across Narrow Viewports No. 1) (No. 14) Bill 2026 [and related Bill]",
+   "link": "https://parlinfo.aph.gov.au:443/parlInfo/search/display/display.w3p;query=Id%3A%22legislation%2Fbillsdgs%2Ffixture14%22",
+   "pub_date": "2026-09-17T08:00:00.000Z",
+   "description": null,
+   "attention": "med",
+   "confidence": 4
+  },
+  {
+   "guid": "https://parlinfo.aph.gov.au:443/parlInfo/search/display/display.w3p;query=Id%3A%22legislation%2Fbillsdgs%2Ffixture15%22",
+   "title": "Fixture (Layout Measures) (No. 15) Bill 2026",
+   "link": "https://parlinfo.aph.gov.au:443/parlInfo/search/display/display.w3p;query=Id%3A%22legislation%2Fbillsdgs%2Ffixture15%22",
+   "pub_date": "2026-09-16T12:00:00.000Z",
+   "description": null,
+   "attention": "low",
+   "confidence": 5
+  },
+  {
+   "guid": "https://parlinfo.aph.gov.au:443/parlInfo/search/display/display.w3p;query=Id%3A%22legislation%2Fbillsdgs%2Ffixture16%22",
+   "title": "Fixture Legislation Amendment (Reflow at Three Hundred and Twenty Pixels) (No. 16) Bill 2026",
+   "link": "https://parlinfo.aph.gov.au:443/parlInfo/search/display/display.w3p;query=Id%3A%22legislation%2Fbillsdgs%2Ffixture16%22",
+   "pub_date": "2026-09-15T16:00:00.000Z",
+   "description": null,
+   "attention": "high",
+   "confidence": 1
+  },
+  {
+   "guid": "https://parlinfo.aph.gov.au:443/parlInfo/search/display/display.w3p;query=Id%3A%22legislation%2Fbillsdgs%2Ffixture17%22",
+   "title": "Fixture Amendment (No. 17) Bill 2026",
+   "link": "https://parlinfo.aph.gov.au:443/parlInfo/search/display/display.w3p;query=Id%3A%22legislation%2Fbillsdgs%2Ffixture17%22",
+   "pub_date": "2026-09-14T20:00:00.000Z",
+   "description": null,
+   "attention": "med",
+   "confidence": 2
+  },
+  {
+   "guid": "https://parlinfo.aph.gov.au:443/parlInfo/search/display/display.w3p;query=Id%3A%22legislation%2Fbillsdgs%2Ffixture18%22",
+   "title": "Fixture Laws Amendment (Responsive Tables and Long Title Wrapping Across Narrow Viewports No. 1) (No. 18) Bill 2026 [and related Bill]",
+   "link": "https://parlinfo.aph.gov.au:443/parlInfo/search/display/display.w3p;query=Id%3A%22legislation%2Fbillsdgs%2Ffixture18%22",
+   "pub_date": "2026-09-14T00:00:00.000Z",
+   "description": null,
+   "attention": "low",
+   "confidence": 3
+  },
+  {
+   "guid": "https://parlinfo.aph.gov.au:443/parlInfo/search/display/display.w3p;query=Id%3A%22legislation%2Fbillsdgs%2Ffixture19%22",
+   "title": "Fixture (Layout Measures) (No. 19) Bill 2026",
+   "link": "https://parlinfo.aph.gov.au:443/parlInfo/search/display/display.w3p;query=Id%3A%22legislation%2Fbillsdgs%2Ffixture19%22",
+   "pub_date": "2026-09-13T04:00:00.000Z",
+   "description": null,
+   "attention": "high",
+   "confidence": 4
+  },
+  {
+   "guid": "https://parlinfo.aph.gov.au:443/parlInfo/search/display/display.w3p;query=Id%3A%22legislation%2Fbillsdgs%2Ffixture20%22",
+   "title": "Fixture Legislation Amendment (Reflow at Three Hundred and Twenty Pixels) (No. 20) Bill 2026",
+   "link": "https://parlinfo.aph.gov.au:443/parlInfo/search/display/display.w3p;query=Id%3A%22legislation%2Fbillsdgs%2Ffixture20%22",
+   "pub_date": "2026-09-12T08:00:00.000Z",
+   "description": null,
+   "attention": "med",
+   "confidence": 5
+  },
+  {
+   "guid": "https://parlinfo.aph.gov.au:443/parlInfo/search/display/display.w3p;query=Id%3A%22legislation%2Fbillsdgs%2Ffixture21%22",
+   "title": "Fixture Amendment (No. 21) Bill 2026",
+   "link": "https://parlinfo.aph.gov.au:443/parlInfo/search/display/display.w3p;query=Id%3A%22legislation%2Fbillsdgs%2Ffixture21%22",
+   "pub_date": "2026-09-11T12:00:00.000Z",
+   "description": null,
+   "attention": "low",
+   "confidence": 1
+  },
+  {
+   "guid": "https://parlinfo.aph.gov.au:443/parlInfo/search/display/display.w3p;query=Id%3A%22legislation%2Fbillsdgs%2Ffixture22%22",
+   "title": "Fixture Laws Amendment (Responsive Tables and Long Title Wrapping Across Narrow Viewports No. 1) (No. 22) Bill 2026 [and related Bill]",
+   "link": "https://parlinfo.aph.gov.au:443/parlInfo/search/display/display.w3p;query=Id%3A%22legislation%2Fbillsdgs%2Ffixture22%22",
+   "pub_date": "2026-09-10T16:00:00.000Z",
+   "description": null,
+   "attention": "high",
+   "confidence": 2
+  },
+  {
+   "guid": "https://parlinfo.aph.gov.au:443/parlInfo/search/display/display.w3p;query=Id%3A%22legislation%2Fbillsdgs%2Ffixture23%22",
+   "title": "Fixture (Layout Measures) (No. 23) Bill 2026",
+   "link": "https://parlinfo.aph.gov.au:443/parlInfo/search/display/display.w3p;query=Id%3A%22legislation%2Fbillsdgs%2Ffixture23%22",
+   "pub_date": "2026-09-09T20:00:00.000Z",
+   "description": null,
+   "attention": "med",
+   "confidence": 3
+  },
+  {
+   "guid": "https://parlinfo.aph.gov.au:443/parlInfo/search/display/display.w3p;query=Id%3A%22legislation%2Fbillsdgs%2Ffixture24%22",
+   "title": "Fixture Legislation Amendment (Reflow at Three Hundred and Twenty Pixels) (No. 24) Bill 2026",
+   "link": "https://parlinfo.aph.gov.au:443/parlInfo/search/display/display.w3p;query=Id%3A%22legislation%2Fbillsdgs%2Ffixture24%22",
+   "pub_date": "2026-09-09T00:00:00.000Z",
+   "description": null,
+   "attention": "low",
+   "confidence": 4
+  },
+  {
+   "guid": "https://parlinfo.aph.gov.au:443/parlInfo/search/display/display.w3p;query=Id%3A%22legislation%2Fbillsdgs%2Ffixture25%22",
+   "title": "Fixture Amendment (No. 25) Bill 2026",
+   "link": "https://parlinfo.aph.gov.au:443/parlInfo/search/display/display.w3p;query=Id%3A%22legislation%2Fbillsdgs%2Ffixture25%22",
+   "pub_date": "2026-09-08T04:00:00.000Z",
+   "description": null,
+   "attention": "high",
+   "confidence": 5
+  }
+ ],
+ "total": 25
+}

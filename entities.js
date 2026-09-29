@@ -154,10 +154,7 @@ window.ENTITIES = {
   bills: {}
 };
 window.PARL_STREAMS = [
-  { id: "house", label: "House of Representatives", channel: "UCzx6ti0rql6Q2Dc2zSAPmuA", desc: "Official Australian Parliament House channel" },
-  // [VERIFY] channel id
-  { id: "senate", label: "Senate chamber", channel: "UCzx6ti0rql6Q2Dc2zSAPmuA", desc: "Senate proceedings (shared APH channel)" }
-  // [VERIFY] channel id
+  { id: "aph", label: "APH live stream", channel: "UCzx6ti0rql6Q2Dc2zSAPmuA", desc: "Australian Parliament House Streaming Portal (AUSParliamentLive)" }
 ];
 Object.keys(window.ENTITIES).forEach((group) => {
   const bucket = window.ENTITIES[group];

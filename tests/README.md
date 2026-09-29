@@ -31,6 +31,34 @@ in `npm run gate` or CI. CI (`.github/workflows/ci.yml`) runs `npm ci`,
 | `asset-manifest.test.mjs` | Every asset `index.html` references exists on disk; zero external-origin references in functional `src`/`href`/`content` attributes or `_headers` directive values; `assets/fonts/fonts.css` URLs resolve relative to their own directory; the og image stays under 300KB | Yes |
 | `a11y.test.mjs` | **Static structural approximation only** (see the file's header comment; no local `playwright`/`axe-core` yet). Skip link, `<main id="pp-content">` landmark, toast container ARIA roles, image alt text, icon-only-button aria-labels, form-control labels, no positive tabindex | Yes |
 
+## Browser harness and layout test (FE-07)
+
+```sh
+npx playwright install chromium   # once; playwright itself is pinned in package.json
+npm run browser                   # node tests/browser/layout.test.mjs
+```
+
+`tests/browser/harness.mjs` is the shared harness (FE-09 and FE-10 reuse it). It
+runs `build-dist.ps1`, serves `dist/` on 127.0.0.1:8080 through `node:http` with
+the production CSP from `dist/_headers`, answers the Worker's `/state`, `/bills`,
+`/rss` (and the local dev proxy) and `/alerts` from `tests/fixtures/`, refuses
+every other external request, and pins the browser clock to the fixture time,
+so runs are deterministic and offline. `openDesk(page, id, { theme, width, firstVisit })`
+opens any NAV desk. `h.newPage({ stateFile: "state-legacy.json" })` serves the
+older Worker shape the deployed Worker still returns. Fixtures are synthetic
+("Fixture ..." titles) and regenerate with `node tests/fixtures/make-fixtures.mjs`;
+none ships (dist/ is an allowlist).
+
+`layout.test.mjs` checks: no horizontal scroll on every NAV desk at 320, 390,
+820, 1024 and 1280 px in both themes; the Live heading, chamber links, player
+heading and buttons unclipped at 390 and 320 px; the first Overview signal above
+700 px at 390 px (returning and first visit); Bills and Sources stack with
+`data-label` at 390 px and stay tables at 1280 px; Sources fits its panel with
+both Worker shapes; Live has no iframe and makes no YouTube request until
+"Load YouTube player", then embeds the verified channel with no `autoplay=1`.
+Ten scratch-copy canaries (served on 8081) each remove one control and must be
+caught. CI runs it as the `browser` job.
+
 ## Real axe-core run: still owed
 
 `a11y.test.mjs` is a source-level approximation, not a rendered-DOM or

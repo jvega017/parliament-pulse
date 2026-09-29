@@ -1,0 +1,658 @@
+{
+ "meta": {
+  "generated_at": "2026-09-29T00:00:00.000Z",
+  "worker_version": "fixture",
+  "schema": "state-v1",
+  "last_poll_at": "2026-09-29T00:00:00.000Z",
+  "last_new_item_at": "2026-09-28T23:00:00.000Z",
+  "stale": false,
+  "feeds": [
+   {
+    "feed_label": "Upcoming Senate hearings",
+    "last_seen_at": "2026-09-28T23:55:00.000Z"
+   },
+   {
+    "feed_label": "New Senate inquiries",
+    "last_seen_at": "2026-09-28T23:55:00.000Z"
+   },
+   {
+    "feed_label": "Senate committee reports",
+    "last_seen_at": "2026-09-27T22:00:00.000Z"
+   },
+   {
+    "feed_label": "House media releases",
+    "last_seen_at": "2026-09-28T23:55:00.000Z"
+   },
+   {
+    "feed_label": "House committee inquiries",
+    "last_seen_at": "2026-09-28T23:55:00.000Z"
+   },
+   {
+    "feed_label": "Joint committee inquiries",
+    "last_seen_at": "2026-09-28T23:55:00.000Z"
+   }
+  ],
+  "signal_counts": {
+   "Upcoming Senate hearings": {
+    "held": 5,
+    "available": 20
+   },
+   "New Senate inquiries": {
+    "held": 5,
+    "available": 20
+   },
+   "Senate committee reports": {
+    "held": 5,
+    "available": 20
+   },
+   "House media releases": {
+    "held": 5,
+    "available": 20
+   },
+   "House committee inquiries": {
+    "held": 5,
+    "available": 20
+   },
+   "Joint committee inquiries": {
+    "held": 5,
+    "available": 20
+   }
+  }
+ },
+ "blocks": {
+  "signals": {
+   "provenance": "live",
+   "fetched_at": "2026-09-29T00:00:00.000Z",
+   "origin": "fixture",
+   "items": [
+    {
+     "guid": "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Fixture_item_01_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "title": "Fixture inquiry into layout handling 01",
+     "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Fixture_item_01_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "pub_date": null,
+     "first_seen_at": "2026-09-28T23:10:00.000Z",
+     "feed_label": "Upcoming Senate hearings",
+     "source_group": "Senate",
+     "kind": "hearing",
+     "attention": "high",
+     "confidence": 1,
+     "scoring_explanation": "Fixture score explanation 01: deterministic source and keyword rules."
+    },
+    {
+     "guid": "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Fixture_item_02_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "title": "Fixture review of long-title wrapping across narrow phone viewports and dense tables in the Signal inbox 02",
+     "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Fixture_item_02_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "pub_date": "2026-09-28T22:26:00.000Z",
+     "first_seen_at": "2026-09-28T22:20:00.000Z",
+     "feed_label": "New Senate inquiries",
+     "source_group": "Senate",
+     "kind": "inquiry",
+     "attention": "med",
+     "confidence": 2,
+     "scoring_explanation": "Fixture score explanation 02: deterministic source and keyword rules."
+    },
+    {
+     "guid": "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Fixture_item_03_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "title": "Fixture hearing on the handling of very long parliamentary item titles that run past one hundred and thirty characters in length 03",
+     "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Fixture_item_03_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "pub_date": "2026-09-28T21:39:00.000Z",
+     "first_seen_at": "2026-09-28T21:30:00.000Z",
+     "feed_label": "Senate committee reports",
+     "source_group": "Senate",
+     "kind": "report",
+     "attention": "low",
+     "confidence": 3,
+     "scoring_explanation": "Fixture score explanation 03: deterministic source and keyword rules."
+    },
+    {
+     "guid": "https://www.aph.gov.au/Parliamentary_Business/Committees/House/Fixture_item_04_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "title": "Fixture report 04",
+     "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/House/Fixture_item_04_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "pub_date": "2026-09-28T20:52:00.000Z",
+     "first_seen_at": "2026-09-28T20:40:00.000Z",
+     "feed_label": "House media releases",
+     "source_group": "House",
+     "kind": "signal",
+     "attention": "high",
+     "confidence": 4,
+     "scoring_explanation": "Fixture score explanation 04: deterministic source and keyword rules."
+    },
+    {
+     "guid": "https://www.aph.gov.au/Parliamentary_Business/Committees/House/Fixture_item_05_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "title": "Fixture inquiry into responsive table labels and reflow at 320 CSS pixels 05",
+     "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/House/Fixture_item_05_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "pub_date": null,
+     "first_seen_at": "2026-09-28T19:50:00.000Z",
+     "feed_label": "House committee inquiries",
+     "source_group": "House",
+     "kind": "inquiry",
+     "attention": "med",
+     "confidence": 5,
+     "scoring_explanation": "Fixture score explanation 05: deterministic source and keyword rules."
+    },
+    {
+     "guid": "https://www.aph.gov.au/Parliamentary_Business/Committees/Custom/Fixture_item_06_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "title": "Fixture inquiry into layout handling 06",
+     "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/Custom/Fixture_item_06_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "pub_date": "2026-09-28T19:18:00.000Z",
+     "first_seen_at": "2026-09-28T19:00:00.000Z",
+     "feed_label": "Joint committee inquiries",
+     "source_group": "Custom",
+     "kind": "inquiry",
+     "attention": "low",
+     "confidence": 1,
+     "scoring_explanation": "Fixture score explanation 06: deterministic source and keyword rules."
+    },
+    {
+     "guid": "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Fixture_item_07_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "title": "Fixture review of long-title wrapping across narrow phone viewports and dense tables in the Signal inbox 07",
+     "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Fixture_item_07_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "pub_date": "2026-09-28T18:31:00.000Z",
+     "first_seen_at": "2026-09-28T18:10:00.000Z",
+     "feed_label": "Upcoming Senate hearings",
+     "source_group": "Senate",
+     "kind": "hearing",
+     "attention": "high",
+     "confidence": 2,
+     "scoring_explanation": "Fixture score explanation 07: deterministic source and keyword rules."
+    },
+    {
+     "guid": "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Fixture_item_08_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "title": "Fixture hearing on the handling of very long parliamentary item titles that run past one hundred and thirty characters in length 08",
+     "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Fixture_item_08_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "pub_date": "2026-09-28T17:44:00.000Z",
+     "first_seen_at": "2026-09-28T17:20:00.000Z",
+     "feed_label": "New Senate inquiries",
+     "source_group": "Senate",
+     "kind": "inquiry",
+     "attention": "med",
+     "confidence": 3,
+     "scoring_explanation": "Fixture score explanation 08: deterministic source and keyword rules."
+    },
+    {
+     "guid": "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Fixture_item_09_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "title": "Fixture report 09",
+     "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Fixture_item_09_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "pub_date": null,
+     "first_seen_at": "2026-09-28T16:30:00.000Z",
+     "feed_label": "Senate committee reports",
+     "source_group": "Senate",
+     "kind": "report",
+     "attention": "low",
+     "confidence": 4,
+     "scoring_explanation": "Fixture score explanation 09: deterministic source and keyword rules."
+    },
+    {
+     "guid": "https://www.aph.gov.au/Parliamentary_Business/Committees/House/Fixture_item_10_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "title": "Fixture inquiry into responsive table labels and reflow at 320 CSS pixels 10",
+     "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/House/Fixture_item_10_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "pub_date": "2026-09-28T16:10:00.000Z",
+     "first_seen_at": "2026-09-28T15:40:00.000Z",
+     "feed_label": "House media releases",
+     "source_group": "House",
+     "kind": "signal",
+     "attention": "high",
+     "confidence": 5,
+     "scoring_explanation": "Fixture score explanation 10: deterministic source and keyword rules."
+    },
+    {
+     "guid": "https://www.aph.gov.au/Parliamentary_Business/Committees/House/Fixture_item_11_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "title": "Fixture inquiry into layout handling 11",
+     "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/House/Fixture_item_11_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "pub_date": "2026-09-28T15:23:00.000Z",
+     "first_seen_at": "2026-09-28T14:50:00.000Z",
+     "feed_label": "House committee inquiries",
+     "source_group": "House",
+     "kind": "inquiry",
+     "attention": "med",
+     "confidence": 1,
+     "scoring_explanation": "Fixture score explanation 11: deterministic source and keyword rules."
+    },
+    {
+     "guid": "https://www.aph.gov.au/Parliamentary_Business/Committees/Custom/Fixture_item_12_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "title": "Fixture review of long-title wrapping across narrow phone viewports and dense tables in the Signal inbox 12",
+     "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/Custom/Fixture_item_12_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "pub_date": "2026-09-28T14:36:00.000Z",
+     "first_seen_at": "2026-09-28T14:00:00.000Z",
+     "feed_label": "Joint committee inquiries",
+     "source_group": "Custom",
+     "kind": "inquiry",
+     "attention": "low",
+     "confidence": 2,
+     "scoring_explanation": "Fixture score explanation 12: deterministic source and keyword rules."
+    },
+    {
+     "guid": "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Fixture_item_13_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "title": "Fixture hearing on the handling of very long parliamentary item titles that run past one hundred and thirty characters in length 13",
+     "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Fixture_item_13_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "pub_date": null,
+     "first_seen_at": "2026-09-28T13:10:00.000Z",
+     "feed_label": "Upcoming Senate hearings",
+     "source_group": "Senate",
+     "kind": "hearing",
+     "attention": "high",
+     "confidence": 3,
+     "scoring_explanation": "Fixture score explanation 13: deterministic source and keyword rules."
+    },
+    {
+     "guid": "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Fixture_item_14_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "title": "Fixture report 14",
+     "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Fixture_item_14_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "pub_date": "2026-09-28T13:02:00.000Z",
+     "first_seen_at": "2026-09-28T12:20:00.000Z",
+     "feed_label": "New Senate inquiries",
+     "source_group": "Senate",
+     "kind": "inquiry",
+     "attention": "med",
+     "confidence": 4,
+     "scoring_explanation": "Fixture score explanation 14: deterministic source and keyword rules."
+    },
+    {
+     "guid": "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Fixture_item_15_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "title": "Fixture inquiry into responsive table labels and reflow at 320 CSS pixels 15",
+     "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Fixture_item_15_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "pub_date": "2026-09-28T12:15:00.000Z",
+     "first_seen_at": "2026-09-28T11:30:00.000Z",
+     "feed_label": "Senate committee reports",
+     "source_group": "Senate",
+     "kind": "report",
+     "attention": "low",
+     "confidence": 5,
+     "scoring_explanation": "Fixture score explanation 15: deterministic source and keyword rules."
+    },
+    {
+     "guid": "https://www.aph.gov.au/Parliamentary_Business/Committees/House/Fixture_item_16_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "title": "Fixture inquiry into layout handling 16",
+     "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/House/Fixture_item_16_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "pub_date": "2026-09-28T11:28:00.000Z",
+     "first_seen_at": "2026-09-28T10:40:00.000Z",
+     "feed_label": "House media releases",
+     "source_group": "House",
+     "kind": "signal",
+     "attention": "high",
+     "confidence": 1,
+     "scoring_explanation": "Fixture score explanation 16: deterministic source and keyword rules."
+    },
+    {
+     "guid": "https://www.aph.gov.au/Parliamentary_Business/Committees/House/Fixture_item_17_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "title": "Fixture review of long-title wrapping across narrow phone viewports and dense tables in the Signal inbox 17",
+     "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/House/Fixture_item_17_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "pub_date": null,
+     "first_seen_at": "2026-09-28T09:50:00.000Z",
+     "feed_label": "House committee inquiries",
+     "source_group": "House",
+     "kind": "inquiry",
+     "attention": "med",
+     "confidence": 2,
+     "scoring_explanation": "Fixture score explanation 17: deterministic source and keyword rules."
+    },
+    {
+     "guid": "https://www.aph.gov.au/Parliamentary_Business/Committees/Custom/Fixture_item_18_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "title": "Fixture hearing on the handling of very long parliamentary item titles that run past one hundred and thirty characters in length 18",
+     "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/Custom/Fixture_item_18_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "pub_date": "2026-09-28T09:54:00.000Z",
+     "first_seen_at": "2026-09-28T09:00:00.000Z",
+     "feed_label": "Joint committee inquiries",
+     "source_group": "Custom",
+     "kind": "inquiry",
+     "attention": "low",
+     "confidence": 3,
+     "scoring_explanation": "Fixture score explanation 18: deterministic source and keyword rules."
+    },
+    {
+     "guid": "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Fixture_item_19_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "title": "Fixture report 19",
+     "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Fixture_item_19_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "pub_date": "2026-09-28T09:07:00.000Z",
+     "first_seen_at": "2026-09-28T08:10:00.000Z",
+     "feed_label": "Upcoming Senate hearings",
+     "source_group": "Senate",
+     "kind": "hearing",
+     "attention": "high",
+     "confidence": 4,
+     "scoring_explanation": "Fixture score explanation 19: deterministic source and keyword rules."
+    },
+    {
+     "guid": "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Fixture_item_20_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "title": "Fixture inquiry into responsive table labels and reflow at 320 CSS pixels 20",
+     "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Fixture_item_20_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "pub_date": "2026-09-28T08:20:00.000Z",
+     "first_seen_at": "2026-09-28T07:20:00.000Z",
+     "feed_label": "New Senate inquiries",
+     "source_group": "Senate",
+     "kind": "inquiry",
+     "attention": "med",
+     "confidence": 5,
+     "scoring_explanation": "Fixture score explanation 20: deterministic source and keyword rules."
+    },
+    {
+     "guid": "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Fixture_item_21_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "title": "Fixture inquiry into layout handling 21",
+     "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Fixture_item_21_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "pub_date": null,
+     "first_seen_at": "2026-09-28T06:30:00.000Z",
+     "feed_label": "Senate committee reports",
+     "source_group": "Senate",
+     "kind": "report",
+     "attention": "low",
+     "confidence": 1,
+     "scoring_explanation": "Fixture score explanation 21: deterministic source and keyword rules."
+    },
+    {
+     "guid": "https://www.aph.gov.au/Parliamentary_Business/Committees/House/Fixture_item_22_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "title": "Fixture review of long-title wrapping across narrow phone viewports and dense tables in the Signal inbox 22",
+     "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/House/Fixture_item_22_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "pub_date": "2026-09-28T06:46:00.000Z",
+     "first_seen_at": "2026-09-28T05:40:00.000Z",
+     "feed_label": "House media releases",
+     "source_group": "House",
+     "kind": "signal",
+     "attention": "high",
+     "confidence": 2,
+     "scoring_explanation": "Fixture score explanation 22: deterministic source and keyword rules."
+    },
+    {
+     "guid": "https://www.aph.gov.au/Parliamentary_Business/Committees/House/Fixture_item_23_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "title": "Fixture hearing on the handling of very long parliamentary item titles that run past one hundred and thirty characters in length 23",
+     "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/House/Fixture_item_23_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "pub_date": "2026-09-28T05:59:00.000Z",
+     "first_seen_at": "2026-09-28T04:50:00.000Z",
+     "feed_label": "House committee inquiries",
+     "source_group": "House",
+     "kind": "inquiry",
+     "attention": "med",
+     "confidence": 3,
+     "scoring_explanation": "Fixture score explanation 23: deterministic source and keyword rules."
+    },
+    {
+     "guid": "https://www.aph.gov.au/Parliamentary_Business/Committees/Custom/Fixture_item_24_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "title": "Fixture report 24",
+     "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/Custom/Fixture_item_24_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "pub_date": "2026-09-28T05:12:00.000Z",
+     "first_seen_at": "2026-09-28T04:00:00.000Z",
+     "feed_label": "Joint committee inquiries",
+     "source_group": "Custom",
+     "kind": "inquiry",
+     "attention": "low",
+     "confidence": 4,
+     "scoring_explanation": "Fixture score explanation 24: deterministic source and keyword rules."
+    },
+    {
+     "guid": "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Fixture_item_25_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "title": "Fixture inquiry into responsive table labels and reflow at 320 CSS pixels 25",
+     "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Fixture_item_25_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "pub_date": null,
+     "first_seen_at": "2026-09-28T03:10:00.000Z",
+     "feed_label": "Upcoming Senate hearings",
+     "source_group": "Senate",
+     "kind": "hearing",
+     "attention": "high",
+     "confidence": 5,
+     "scoring_explanation": "Fixture score explanation 25: deterministic source and keyword rules."
+    },
+    {
+     "guid": "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Fixture_item_26_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "title": "Fixture inquiry into layout handling 26",
+     "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Fixture_item_26_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "pub_date": "2026-09-28T03:38:00.000Z",
+     "first_seen_at": "2026-09-28T02:20:00.000Z",
+     "feed_label": "New Senate inquiries",
+     "source_group": "Senate",
+     "kind": "inquiry",
+     "attention": "med",
+     "confidence": 1,
+     "scoring_explanation": "Fixture score explanation 26: deterministic source and keyword rules."
+    },
+    {
+     "guid": "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Fixture_item_27_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "title": "Fixture review of long-title wrapping across narrow phone viewports and dense tables in the Signal inbox 27",
+     "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Fixture_item_27_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "pub_date": "2026-09-28T02:51:00.000Z",
+     "first_seen_at": "2026-09-28T01:30:00.000Z",
+     "feed_label": "Senate committee reports",
+     "source_group": "Senate",
+     "kind": "report",
+     "attention": "low",
+     "confidence": 2,
+     "scoring_explanation": "Fixture score explanation 27: deterministic source and keyword rules."
+    },
+    {
+     "guid": "https://www.aph.gov.au/Parliamentary_Business/Committees/House/Fixture_item_28_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "title": "Fixture hearing on the handling of very long parliamentary item titles that run past one hundred and thirty characters in length 28",
+     "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/House/Fixture_item_28_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "pub_date": "2026-09-28T02:04:00.000Z",
+     "first_seen_at": "2026-09-28T00:40:00.000Z",
+     "feed_label": "House media releases",
+     "source_group": "House",
+     "kind": "signal",
+     "attention": "high",
+     "confidence": 3,
+     "scoring_explanation": "Fixture score explanation 28: deterministic source and keyword rules."
+    },
+    {
+     "guid": "https://www.aph.gov.au/Parliamentary_Business/Committees/House/Fixture_item_29_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "title": "Fixture report 29",
+     "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/House/Fixture_item_29_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "pub_date": null,
+     "first_seen_at": "2026-09-27T23:50:00.000Z",
+     "feed_label": "House committee inquiries",
+     "source_group": "House",
+     "kind": "inquiry",
+     "attention": "med",
+     "confidence": 4,
+     "scoring_explanation": "Fixture score explanation 29: deterministic source and keyword rules."
+    },
+    {
+     "guid": "https://www.aph.gov.au/Parliamentary_Business/Committees/Custom/Fixture_item_30_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "title": "Fixture inquiry into responsive table labels and reflow at 320 CSS pixels 30",
+     "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/Custom/Fixture_item_30_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "pub_date": "2026-09-28T00:30:00.000Z",
+     "first_seen_at": "2026-09-27T23:00:00.000Z",
+     "feed_label": "Joint committee inquiries",
+     "source_group": "Custom",
+     "kind": "inquiry",
+     "attention": "low",
+     "confidence": 5,
+     "scoring_explanation": "Fixture score explanation 30: deterministic source and keyword rules."
+    }
+   ]
+  },
+  "connectors": {
+   "provenance": "live",
+   "fetched_at": "2026-09-29T00:00:00.000Z",
+   "origin": "fixture",
+   "checks": [
+    {
+     "url": "https://www.aph.gov.au/senate/rss/upcoming_hearings",
+     "feed_label": "Upcoming Senate hearings",
+     "kind": "hearing",
+     "checked_at": "2026-09-28T23:55:00.000Z",
+     "ok": 1,
+     "status": 200,
+     "error": null,
+     "last_http_status": 200,
+     "items_parsed": 5,
+     "parse_error": null,
+     "last_success_at": "2026-09-28T23:55:00.000Z"
+    },
+    {
+     "url": "https://www.aph.gov.au/senate/rss/new_inquiries",
+     "feed_label": "New Senate inquiries",
+     "kind": "inquiry",
+     "checked_at": "2026-09-28T23:55:00.000Z",
+     "ok": 1,
+     "status": 200,
+     "error": null,
+     "last_http_status": 200,
+     "items_parsed": 5,
+     "parse_error": null,
+     "last_success_at": "2026-09-28T23:55:00.000Z"
+    },
+    {
+     "url": "https://www.aph.gov.au/senate/rss/reports",
+     "feed_label": "Senate committee reports",
+     "kind": "report",
+     "checked_at": "2026-09-28T23:55:00.000Z",
+     "ok": 0,
+     "status": 500,
+     "error": "HTTP 500",
+     "last_http_status": 500,
+     "items_parsed": 0,
+     "parse_error": "HTTP 500",
+     "last_success_at": "2026-09-27T22:00:00.000Z"
+    },
+    {
+     "url": "https://www.aph.gov.au/house/rss/media_releases",
+     "feed_label": "House media releases",
+     "kind": "signal",
+     "checked_at": "2026-09-28T23:55:00.000Z",
+     "ok": 1,
+     "status": 200,
+     "error": null,
+     "last_http_status": 200,
+     "items_parsed": 5,
+     "parse_error": null,
+     "last_success_at": "2026-09-28T23:55:00.000Z"
+    },
+    {
+     "url": "https://www.aph.gov.au/house/rss/new_inquiries",
+     "feed_label": "House committee inquiries",
+     "kind": "inquiry",
+     "checked_at": "2026-09-28T23:55:00.000Z",
+     "ok": 1,
+     "status": 200,
+     "error": null,
+     "last_http_status": 200,
+     "items_parsed": 5,
+     "parse_error": null,
+     "last_success_at": "2026-09-28T23:55:00.000Z"
+    },
+    {
+     "url": "https://www.aph.gov.au/joint/rss/new_inquiries",
+     "feed_label": "Joint committee inquiries",
+     "kind": "inquiry",
+     "checked_at": "2026-09-28T23:55:00.000Z",
+     "ok": 1,
+     "status": 200,
+     "error": null,
+     "last_http_status": 200,
+     "items_parsed": 5,
+     "parse_error": null,
+     "last_success_at": "2026-09-28T23:55:00.000Z"
+    },
+    {
+     "url": "https://parlinfo.aph.gov.au/parlInfo/search/display/display.w3p;query=Id%3A%22legislation%2Fbillsdgs%2Ffixture%22",
+     "checked_at": "2026-09-28T23:55:00.000Z",
+     "ok": 0,
+     "status": 403,
+     "error": "HTTP 403"
+    },
+    {
+     "url": "https://parlwork.aph.gov.au/Senate/DynamicRed",
+     "checked_at": "2026-09-28T23:55:00.000Z",
+     "ok": 1,
+     "status": 200,
+     "error": null
+    },
+    {
+     "url": "https://www.aph.gov.au/About_Parliament/Parliamentary_departments/Parliamentary_Library/Research/FlagPost",
+     "checked_at": "2026-09-28T23:55:00.000Z",
+     "ok": 1,
+     "status": 200,
+     "error": null
+    },
+    {
+     "url": "https://www.aph.gov.au/News_and_Events/Watch_Read_Listen/ParlView/",
+     "checked_at": "2026-09-28T23:55:00.000Z",
+     "ok": 1,
+     "status": 200,
+     "error": null
+    },
+    {
+     "url": "https://www.aph.gov.au/Parliamentary_Business/Bills_Legislation/Bills_Search_Results",
+     "checked_at": "2026-09-28T23:55:00.000Z",
+     "ok": 1,
+     "status": 200,
+     "error": null
+    },
+    {
+     "url": "https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/HoR/House_Daily_Program",
+     "checked_at": "2026-09-28T23:55:00.000Z",
+     "ok": 1,
+     "status": 200,
+     "error": null
+    }
+   ],
+   "reference_links": [
+    "https://www.aph.gov.au/Help/RSS_feeds",
+    "https://www.aph.gov.au/Parliamentary_Business/Hansard",
+    "https://www.aph.gov.au/Senators_and_Members"
+   ]
+  },
+  "threads": {
+   "provenance": "derived",
+   "fetched_at": "2026-09-29T00:00:00.000Z",
+   "origin": "fixture",
+   "items": [
+    {
+     "thread_id": "thread:https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Fixture_item_01_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "title": "Fixture review of long-title wrapping across narrow phone viewports and dense tables in the Signal inbox thread 1",
+     "item_count": 3,
+     "first_seen_at": "2026-09-19T00:00:00.000Z",
+     "last_seen_at": "2026-09-28T23:00:00.000Z",
+     "signal_guids": [
+      "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Fixture_item_01_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+      "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Fixture_item_07_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings"
+     ]
+    },
+    {
+     "thread_id": "thread:https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Fixture_item_02_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "title": "Fixture hearing on the handling of very long parliamentary item titles that run past one hundred and thirty characters in length thread 2",
+     "item_count": 10,
+     "first_seen_at": "2026-09-18T00:00:00.000Z",
+     "last_seen_at": "2026-09-28T22:00:00.000Z",
+     "signal_guids": [
+      "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Fixture_item_02_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+      "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Fixture_item_08_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings"
+     ]
+    },
+    {
+     "thread_id": "thread:https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Fixture_item_03_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "title": "Fixture report thread 3",
+     "item_count": 17,
+     "first_seen_at": "2026-09-17T00:00:00.000Z",
+     "last_seen_at": "2026-09-28T21:00:00.000Z",
+     "signal_guids": [
+      "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Fixture_item_03_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+      "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Fixture_item_09_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings"
+     ]
+    },
+    {
+     "thread_id": "thread:https://www.aph.gov.au/Parliamentary_Business/Committees/House/Fixture_item_04_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+     "title": "Fixture inquiry into responsive table labels and reflow at 320 CSS pixels thread 4",
+     "item_count": 24,
+     "first_seen_at": "2026-09-16T00:00:00.000Z",
+     "last_seen_at": "2026-09-28T20:00:00.000Z",
+     "signal_guids": [
+      "https://www.aph.gov.au/Parliamentary_Business/Committees/House/Fixture_item_04_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings",
+      "https://www.aph.gov.au/Parliamentary_Business/Committees/House/Fixture_item_10_with_a_long_unbroken_path_segment_for_overflow_testing/Public_Hearings"
+     ]
+    }
+   ]
+  },
+  "alerts": {
+   "provenance": "fixture",
+   "fetched_at": "2026-09-29T00:00:00.000Z",
+   "origin": "fixture",
+   "events": [],
+   "note": "Fixture: no alert events."
+  },
+  "qons": {
+   "provenance": "fixture",
+   "fetched_at": "2026-09-29T00:00:00.000Z",
+   "origin": "fixture",
+   "items": [],
+   "note": "Fixture: no questions on notice."
+  }
+ }
+}

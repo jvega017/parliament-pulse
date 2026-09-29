@@ -833,6 +833,10 @@
   .g-3 { grid-template-columns: repeat(3, 1fr); }
   .g-4 { grid-template-columns: repeat(4, 1fr); }
   .g-overview { grid-template-columns: 2.4fr 1fr; }
+  /* FE-07 (UX-05): grid items default to min-width:auto, so one wide table
+     widened the whole page. min-width:0 lets each column shrink to its track and
+     a wide table scrolls inside its own .table-scroll instead. */
+  .g-overview > *, .g-briefings > *, .g-live-main > * { min-width: 0; }
   .g-onboarding { grid-template-columns: repeat(3,1fr); }
   .g-live-strip { grid-template-columns: auto 1fr auto auto auto; }
   .g-brief-row, .g-tracked-row, .g-threshold-row { grid-template-columns: 1fr auto; }
@@ -971,6 +975,9 @@
   table.ds tbody tr { cursor: pointer; }
   table.ds tbody tr:hover { background: var(--soft-surface); }
   table.ds td.num { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  /* FE-07 (UX-05): a long unbroken feed URL wraps instead of widening its table. */
+  .ds-url { overflow-wrap: anywhere; }
+  table.ds td.ds-lead { overflow-wrap: anywhere; min-width: 12rem; }
 
   /* ---------- Timeline ---------- */
   .timeline { position: relative; padding-left: 18px; }
@@ -1200,6 +1207,16 @@
 
   /* Responsive ish */
   @media (max-width: 1100px) {
+    /* FE-07 (reflow): between 781 and 1100 px the sidebar stays open and the
+       topbar's status chips and actions no longer fit one line; they wrap under
+       the search instead of widening the page (measured 1,024 px wide at 800). */
+    .topbar { flex-wrap: wrap; row-gap: 8px; }
+    .top-right { flex-wrap: wrap; justify-content: flex-end; min-width: 0; }
+    .page-head { flex-wrap: wrap; }
+    .page-head > div:last-child { flex-wrap: wrap; }
+    .g-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .live-strip.g-live-strip { display: flex !important; flex-wrap: wrap; }
+    .wl-name { overflow-wrap: anywhere; }
     .g-4 { grid-template-columns: repeat(2, 1fr); }
     .g-overview { grid-template-columns: 1fr; }
     .beta-ledger-grid { grid-template-columns: 1fr; }
@@ -1248,6 +1265,9 @@
     .command-strip, .live-strip { grid-template-columns: 1fr; }
     .content .grid { grid-template-columns: 1fr !important; }
     .page-head { flex-direction: column; align-items: stretch; gap: 12px; }
+    /* FE-07: panel headers wrap their actions on phones instead of overflowing. */
+    .panel-head { flex-wrap: wrap; row-gap: 8px; }
+    .live-head-actions { justify-content: flex-start; }
     .page-head > div:last-child { justify-content: flex-start !important; }
     .g-onboarding, .g-live-strip, .g-brief-row, .g-tracked-row, .g-threshold-row,
     .g-source-row, .g-live-main, .g-link-grid, .g-feed-form, .g-live-event,
@@ -1260,6 +1280,16 @@
     /* Mobile triage focus: lead with the priority hero + signals; defer secondary KPIs and the context rail. */
     .command-strip .cs-secondary { display: none; }
     .g-overview > div:last-child { display: none; }
+    /* FE-07 (UX-13): the first signal card starts inside the first 700 px on a
+       phone. The Overview stacks as a flex column so the source strip follows
+       the signals, and the priority hero is compacted. */
+    .page-overview { display: flex; flex-direction: column; }
+    .page-overview > .page-head { margin-bottom: 14px; }
+    .page-overview > .live-strip { order: 1; margin: var(--gap-section) 0 0 !important; }
+    .page-overview > .about-data-line { order: 2; }
+    .page-overview .command-strip { margin-bottom: 14px; }
+    .page-overview .cs-primary { padding: 12px 14px; }
+    .page-overview .cs-primary .cs-kpi { font-size: 40px; }
     /* Overlays go full width on phones (UX-3/UX-5). */
     .drawer { width: 100% !important; max-width: 100% !important; }
     .modal { max-width: 100% !important; }
@@ -1290,6 +1320,31 @@
     .coverage-row > span:nth-child(4), .coverage-row > button { grid-column: 1; }
   }
 
+  /* FE-07 (UX-15): at 640 px and below a .ds-stack table reads as one card per
+     row; every cell shows its column name from data-label, the lead cell spans
+     the card. The header row stays in the accessibility tree, visually hidden. */
+  @media (max-width: 640px) {
+    .table-scroll table.ds.ds-stack { min-width: 0; }
+    table.ds.ds-stack, table.ds.ds-stack tbody, table.ds.ds-stack tr { display: block; width: 100%; }
+    table.ds.ds-stack thead {
+      position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0;
+      overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+    }
+    table.ds.ds-stack tr { padding: 10px 14px; border-bottom: 1px solid var(--line); }
+    table.ds.ds-stack td {
+      display: grid; grid-template-columns: minmax(6.5rem, 36%) minmax(0, 1fr); gap: 10px; align-items: baseline;
+      padding: 3px 0; border-bottom: 0; text-align: left; min-width: 0; overflow-wrap: anywhere;
+    }
+    table.ds.ds-stack td::before {
+      content: attr(data-label);
+      font-family: var(--mono); font-size: var(--t-micro); color: var(--ink-4);
+      text-transform: uppercase; letter-spacing: .12em; font-weight: 600;
+    }
+    table.ds.ds-stack td > * { justify-self: start; }
+    table.ds.ds-stack td.ds-lead { display: block; padding-bottom: 6px; }
+    table.ds.ds-stack td.ds-lead::before { content: none; }
+  }
+
   /* ---- Modal ---- */
   .modal-back {
     position: fixed; inset: 0; background: var(--scrim-strong); backdrop-filter: blur(3px);
@@ -1309,11 +1364,25 @@
 
   /* ---- Live video ---- */
   .live-wrap {
-    position: relative; border-radius: var(--r-md); overflow: hidden;
-    background: #000; aspect-ratio: 16 / 9;
+    position: relative; border-radius: var(--r-md);
     border: 1px solid var(--line-2);
   }
-  .live-wrap iframe { width:100%; height:100%; border:0; display:block; }
+  .live-wrap.live-embed { overflow: hidden; background: #000; aspect-ratio: 16 / 9; }
+  .live-wrap iframe { position: absolute; inset: 0; width:100%; height:100%; border:0; display:block; }
+  /* FE-07 (UX-07): the pre-load card sits in normal flow with at least a 16:9
+     footprint, so its heading and buttons wrap instead of clipping at 320 px. */
+  .live-wrap.live-card {
+    aspect-ratio: 16 / 9; overflow: visible;   /* min-height stays auto: the box grows past 16:9 to fit its content */
+    background: linear-gradient(180deg, var(--panel-2), var(--bg));
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 24px; text-align: center; gap: 12px;
+  }
+  .live-card-head { display: flex; align-items: center; gap: 8px; max-width: 100%; }
+  .live-card-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--ink-4); }
+  .live-card-title { font-family: var(--serif); font-size: 22px; font-weight: 600; color: var(--ink); margin: 0; overflow-wrap: anywhere; }
+  .live-card-body { color: var(--ink-2); font-size: 13px; max-width: 460px; line-height: 1.5; margin: 0; }
+  .live-card-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; max-width: 100%; }
+  .live-head-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
   .live-badge {
     position: absolute; top: 10px; left: 10px; z-index: 2;
     font-family: var(--mono); font-size: var(--t-label); font-weight: 600; letter-spacing: .18em; text-transform: uppercase;

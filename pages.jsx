@@ -55,17 +55,16 @@ function copyText(text, toast, ok = "Copied to clipboard") {
     .catch(() => toast("Clipboard unavailable: content not copied", "error"));
 }
 
-function copyLiveActionNote(kind, chamber, toast) {
-  const label = chamber === "house" ? "House of Representatives" : chamber === "senate" ? "Senate" : "Federation Chamber";
+function copyLiveActionNote(kind, toast) {
   const note = [
     `# Parliament Pulse live action note`,
     `Type: ${kind}`,
-    `Chamber: ${label}`,
+    `Stream: APH live stream (AUSParliamentLive; one channel for every chamber)`,
     `Captured: ${new Date().toISOString()}`,
     ``,
     `Source links:`,
     `- AUSParliamentLive: https://www.youtube.com/@AUSParliamentLive/streams`,
-    `- ParlView archive: https://parlview.aph.gov.au/`,
+    `- ParlView: https://www.aph.gov.au/News_and_Events/Watch_Read_Listen/ParlView/`,
     `- Hansard: https://www.aph.gov.au/Parliamentary_Business/Hansard`,
   ].join("\n");
   return copyText(note, toast, `${kind} note copied`);
@@ -374,6 +373,12 @@ function OnboardingGuide({ onDismiss }) {
   );
 }
 
+// Phone layout breakpoint, matching the 780 px media query in index.html. False
+// wherever matchMedia is unavailable (tests, very old browsers).
+function isPhoneViewport() {
+  try { return typeof window.matchMedia === "function" && window.matchMedia("(max-width: 780px)").matches; } catch { return false; }
+}
+
 function PageOverview() {
   const { state, toast, navigate } = useStore();
   const goto = navigate;
@@ -391,7 +396,9 @@ function PageOverview() {
   // Auto-opens once for a genuinely new visitor (no pp-onboarded key yet) and never
   // again after OnboardingGuide's dismiss path writes that key. The "How it works"
   // button still opens it manually at any time regardless of the stored key.
-  const [showHelp, setShowHelp] = useState(() => !safeGetLocalStorage("pp-onboarded"));
+  // FE-07 (UX-13): never auto-opens on a phone, where the guide alone pushed the
+  // first signal about 1,250 px down; the button still opens it in place.
+  const [showHelp, setShowHelp] = useState(() => !safeGetLocalStorage("pp-onboarded") && !isPhoneViewport());
   const priority = sourceSignals.filter(s => s.attention === "high" && !state.archived[s.id]);
   let rest = sourceSignals.filter(s => s.attention !== "high" && !state.archived[s.id]);
   if (sortByAttention) {
@@ -483,7 +490,7 @@ function PageOverview() {
     copyText(handoff, toast, "Beta handoff copied");
   };
   return (
-    <div className="page">
+    <div className="page page-overview">
       <div className="page-head">
         <div>
           <div className="page-kicker">{live.items
@@ -726,7 +733,7 @@ function LegalNoticePanel() {
           ))}
         </ul>
         <p style={legalP}>Clearing this site's data in your browser removes all of it.</p>
-        <p style={legalP}>The Live parliament page opens on a branded card, not a video player. Your browser contacts YouTube (youtube-nocookie.com) only after you press "Load live stream"; from then on YouTube's own privacy policy applies to that player.</p>
+        <p style={legalP}>The Live parliament page opens on a branded card, not a video player. Your browser contacts YouTube (youtube-nocookie.com) only after you press "Load YouTube player"; from then on YouTube's own privacy policy applies to that player.</p>
 
         <h3 style={legalH}>Not advice</h3>
         <p style={legalP}>Parliament Pulse is derived intelligence over public sources, provided for information only. It is not legal, parliamentary, or professional advice. Scoring, clustering and watchlist matching are the product's own analysis and can contain errors. Verify against the linked official source at aph.gov.au before relying on any item.</p>
@@ -808,118 +815,90 @@ function PageAbout() {
 }
 
 // ---------- LIVE PARLIAMENT ----------
-// @AUSParliamentLive YouTube live embed. Channel ID asserted from project notes, not independently verified this session.
-// YouTube's live_stream endpoint auto-resolves to whatever stream is active on that channel.
-// When no stream is live, YouTube shows the channel's upcoming/latest placeholder.
-const APH_YT_CHANNEL = "UCzx6ti0rql6Q2Dc2zSAPmuA"; // @AUSParliamentLive, asserted, not independently verified this session
-const APH_LIVE = {
-  house:    { label: "House of Representatives", streamId: null, url: `https://www.youtube-nocookie.com/embed/live_stream?channel=${APH_YT_CHANNEL}&autoplay=1&mute=1` },
-  senate:   { label: "Senate",                    streamId: null, url: `https://www.youtube-nocookie.com/embed/live_stream?channel=${APH_YT_CHANNEL}&autoplay=1&mute=1` },
-  federation:{label: "Federation Chamber",        streamId: null, url: `https://www.youtube-nocookie.com/embed/live_stream?channel=${APH_YT_CHANNEL}&autoplay=1&mute=1` },
-};
+// APH live stream: the @AUSParliamentLive YouTube channel ("Australian Parliament
+// House Streaming Portal"). PR-15, verified 29 Sep 2026 by fetching
+// https://www.youtube.com/@AUSParliamentLive: the page's externalId, its
+// <link rel="canonical"> (/channel/UCzx6ti0rql6Q2Dc2zSAPmuA) and its
+// itemprop="identifier" all carry the id below.
+// YouTube's live_stream endpoint resolves to whatever that channel is streaming.
+// House, Senate and Federation Chamber all resolve to this ONE channel stream, so
+// the embed is labelled "APH live stream" and never as a chamber; each chamber
+// links to ParlView instead (FE-07, finding PR-15).
+const APH_YT_CHANNEL = "UCzx6ti0rql6Q2Dc2zSAPmuA"; // @AUSParliamentLive, verified 29 Sep 2026
+// LEG-05: no autoplay parameter. The player plays only when the viewer presses play.
+const APH_LIVE_EMBED_URL = `https://www.youtube-nocookie.com/embed/live_stream?channel=${APH_YT_CHANNEL}`;
+const APH_LIVE_LABEL = "APH live stream";
+// ParlView is APH's broadcast service for every chamber. parlview.aph.gov.au
+// redirects to this page (checked 29 Sep 2026); no per-chamber ParlView address
+// was verified, so each chamber link opens it.
+const PARLVIEW_URL = "https://www.aph.gov.au/News_and_Events/Watch_Read_Listen/ParlView/";
+const PARLVIEW_CHAMBERS = [
+  { id: "house", label: "House" },
+  { id: "senate", label: "Senate" },
+  { id: "federation", label: "Federation Chamber" },
+];
 
-function LiveBroadcast({ which, toast }) {
-  const [embedTarget, setEmbedTarget] = React.useState({ which, nonce: 0 });
-  const cfg = APH_LIVE[embedTarget.which] || APH_LIVE.house;
-  // mode: "embed" = YouTube live_stream iframe ; "offline" = branded entry card.
-  // Default OFFLINE: YouTube renders its own grey "video unavailable" page (which fires
-  // onLoad, so it cannot be auto-detected) when a chamber is not sitting. Leading with
-  // the branded card means a first-time viewer never lands on YouTube's error tile;
-  // they load the stream explicitly.
-  const [mode, setMode] = React.useState("offline");
-  const [nonce, setNonce] = React.useState(0); // bump to force reload
-  const embedReady = embedTarget.which === which && embedTarget.nonce === nonce;
-  // F9: a cross-origin iframe cannot expose true playback state, so we treat the
-  // stream as unconfirmed until the iframe fires onLoad. If no load arrives within
-  // the timeout we auto-switch to the offline panel. The LIVE badge is never shown
-  // until the iframe has at least loaded; we still label it "Signal" not a hard LIVE
-  // claim, because confirmed playback is not detectable from here.
+function LiveBroadcast() {
+  // mode: "card" = branded card, NO iframe in the DOM, so the browser has made no
+  // request to YouTube (LEG-05); "embed" = the viewer pressed "Load YouTube
+  // player". A cross-origin iframe cannot expose playback state, so a loaded
+  // player is reported as "status unverified" and never as LIVE.
+  const [mode, setMode] = React.useState("card");
+  const [nonce, setNonce] = React.useState(0);
   const [loaded, setLoaded] = React.useState(false);
 
-  // When chamber changes, return to the branded card (do not auto-embed); the embed
-  // loads only when the viewer explicitly requests it (or on retry, which bumps nonce).
+  // If the player has not loaded within the timeout, return to the card.
   React.useEffect(() => {
-    setMode("offline");
-    setLoaded(false);
-    const id = setTimeout(() => setEmbedTarget({ which, nonce }), 300);
+    if (mode !== "embed" || loaded) return;
+    const id = setTimeout(() => setMode("card"), 8000);
     return () => clearTimeout(id);
-  }, [which, nonce]);
+  }, [mode, loaded, nonce]);
 
-  // Auto-switch to offline if the embed has not loaded within the timeout window.
-  React.useEffect(() => {
-    if (mode !== "embed" || !embedReady) return;
-    const id = setTimeout(() => {
-      if (!loaded) setMode("offline");
-    }, 6000);
-    return () => clearTimeout(id);
-  }, [mode, loaded, embedReady]);
+  const loadPlayer = () => { setLoaded(false); setNonce(n => n + 1); setMode("embed"); };
+
+  if (mode === "card") {
+    return (
+      <div className="live-wrap live-card" data-live-player="card">
+        <div className="live-card-head">
+          <span className="live-card-dot" aria-hidden="true"/>
+          <h2 className="live-card-title">{APH_LIVE_LABEL}</h2>
+        </div>
+        <p className="live-card-body">
+          AUSParliamentLive, the official Australian Parliament House streaming channel on YouTube, carries the chamber broadcasts while Parliament sits. The player is not loaded until you ask for it: loading it connects your browser to YouTube (youtube-nocookie.com).
+        </p>
+        <div className="live-card-actions">
+          <button className="btn primary" onClick={loadPlayer} data-load-player=""><Icon name="signal" size={13}/> Load YouTube player</button>
+          <a href="https://www.youtube.com/@AUSParliamentLive/streams" target="_blank" rel="noopener noreferrer" className="btn" style={{textDecoration:"none"}}>YouTube <Icon name="ext" size={12}/></a>
+          <a href="https://www.aph.gov.au/News_and_Events/Watch_Read_Listen" target="_blank" rel="noopener noreferrer" className="btn" style={{textDecoration:"none"}}>APH Watch, Read, Listen <Icon name="ext" size={12}/></a>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="live-wrap" style={{background:"#000", aspectRatio:"16/9", position:"relative", overflow:"hidden", borderRadius:10, border:"1px solid var(--line-2)"}}>
-      {mode === "embed" && embedReady && (
-        <iframe
-          key={embedTarget.which + "-" + embedTarget.nonce}
-          src={cfg.url}
-          title={`AUSParliamentLive — ${cfg.label}`}
-          allow="autoplay; encrypted-media"
-          allowFullScreen
-          loading="lazy"
-          referrerPolicy="strict-origin-when-cross-origin"
-          onLoad={() => setLoaded(true)}
-          style={{position:"absolute", inset:0, width:"100%", height:"100%", border:0}}
-        />
-      )}
-
-      {/* Load badge — the iframe onLoad event proves the embed loaded, not that a
-          broadcast is playing; we cannot read playback state cross-origin, so this
-          reports "status unverified" and never asserts LIVE. */}
-      {mode === "embed" && loaded && (
-        <div className="live-badge" style={{position:"absolute", top:12, left:12, zIndex:3, display:"flex", alignItems:"center", gap:6, background:"rgba(0,0,0,0.6)", padding:"5px 10px", borderRadius:4, fontFamily:"var(--mono)", fontSize:11, color:"#fff", letterSpacing:".12em", border:"1px solid var(--line-bright)"}}>
-          <span style={{width:7, height:7, borderRadius:"50%", background:"var(--ink-3)"}}/>
-          Stream loaded · status unverified · {cfg.label.toUpperCase()}
-        </div>
-      )}
-
-      {/* Connecting state — shown while the embed is loading, before any LIVE claim */}
-      {mode === "embed" && !loaded && (
-        <div style={{position:"absolute", top:12, left:12, zIndex:3, display:"flex", alignItems:"center", gap:6, background:"rgba(0,0,0,0.6)", padding:"5px 10px", borderRadius:4, fontFamily:"var(--mono)", fontSize:11, color:"var(--ink-2)", letterSpacing:".12em", border:"1px solid var(--line-bright)"}}>
-          <span style={{width:7, height:7, borderRadius:"50%", background:"var(--ink-3)"}}/>
-          Connecting · {cfg.label.toUpperCase()}
-        </div>
-      )}
-
-      {/* Manual "No stream?" pill — always available in embed mode because YouTube's
-          offline state renders INSIDE the iframe and we can't detect it from here. */}
-      {mode === "embed" && (
-        <button
-          onClick={() => setMode("offline")}
-          style={{position:"absolute", top:12, right:12, zIndex:3, fontFamily:"var(--mono)", fontSize:"var(--t-label)", color:"#fff", background:"rgba(0,0,0,0.55)", border:"1px solid var(--line-bright)", padding:"4px 9px", borderRadius:4, cursor:"pointer", letterSpacing:".08em"}}
-          title="Show alternate sources if no stream is live"
-        >
-          NO STREAM?
-        </button>
-      )}
-
-      {/* Fallback for no-stream / blocked / user-toggled */}
-      {mode === "offline" && (
-        <div style={{position:"absolute", inset:0, background:"linear-gradient(180deg, var(--panel-2), var(--bg))", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24, textAlign:"center"}}>
-          <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:10}}>
-            <span style={{width:8, height:8, borderRadius:"50%", background:"var(--ink-4)"}}/>
-            <div style={{fontFamily:"var(--serif)", fontSize:22, color:"var(--ink)"}}>Official broadcast · status unverified · {cfg.label}</div>
-          </div>
-          <div style={{color:"var(--ink-2)", fontSize:13, maxWidth:460, lineHeight:1.5, marginBottom:18}}>
-            AUSParliamentLive streams <strong>{cfg.label}</strong> while the chamber is sitting. Load the live stream here, or open the official sources.
-          </div>
-          <div style={{display:"flex", gap:8, flexWrap:"wrap", justifyContent:"center"}}>
-            <button className="btn primary" onClick={() => { setNonce(n => n + 1); setMode("embed"); }}><Icon name="signal" size={13}/> Load live stream</button>
-            <a href="https://www.youtube.com/@AUSParliamentLive/streams" target="_blank" rel="noopener noreferrer" className="btn" style={{textDecoration:"none"}}>YouTube <Icon name="ext" size={12}/></a>
-            <a href="https://www.aph.gov.au/News_and_Events/Watch_Read_Listen" target="_blank" rel="noopener noreferrer" className="btn" style={{textDecoration:"none"}}>APH Watch / Read / Listen <Icon name="ext" size={12}/></a>
-            <a href="https://parlview.aph.gov.au/" target="_blank" rel="noopener noreferrer" className="btn" style={{textDecoration:"none"}}>ParlView archive <Icon name="ext" size={12}/></a>
-          </div>
-        </div>
-      )}
-
-      {/* @keyframes pulse defined globally in index.html */}
+    <div className="live-wrap live-embed" data-live-player="embed">
+      <iframe
+        key={nonce}
+        src={APH_LIVE_EMBED_URL}
+        title={`${APH_LIVE_LABEL} (AUSParliamentLive on YouTube)`}
+        allow="encrypted-media; picture-in-picture"
+        allowFullScreen
+        referrerPolicy="strict-origin-when-cross-origin"
+        onLoad={() => setLoaded(true)}
+      />
+      <div className="live-badge" style={{position:"absolute", top:12, left:12, zIndex:3, display:"flex", alignItems:"center", gap:6, background:"rgba(0,0,0,0.6)", padding:"5px 10px", borderRadius:4, fontFamily:"var(--mono)", fontSize:11, color: loaded ? "#fff" : "var(--ink-2)", letterSpacing:".12em", border:"1px solid var(--line-bright)"}}>
+        <span style={{width:7, height:7, borderRadius:"50%", background:"var(--ink-3)"}}/>
+        {loaded ? "Player loaded · status unverified" : "Connecting"}
+      </div>
+      {/* YouTube's own "not live" state renders inside the iframe and cannot be
+          detected from here, so closing the player is always available. */}
+      <button
+        onClick={() => setMode("card")}
+        style={{position:"absolute", top:12, right:12, zIndex:3, fontFamily:"var(--mono)", fontSize:"var(--t-label)", color:"#fff", background:"rgba(0,0,0,0.55)", border:"1px solid var(--line-bright)", padding:"4px 9px", borderRadius:4, cursor:"pointer", letterSpacing:".08em"}}
+        title="Close the player and show the official sources"
+      >
+        CLOSE PLAYER
+      </button>
     </div>
   );
 }
@@ -992,7 +971,6 @@ async function mapPool(items, limit, fn) {
 }
 
 function PageLive() {
-  const [which, setWhich] = useState("house");
   const { toast, consumeLiveRefresh } = useStore();
 
   const [events, setEvents] = useState([]);
@@ -1141,37 +1119,43 @@ function PageLive() {
         <div>
           <div className="page-kicker">Today · live</div>
           <h1 className="page-title">Live parliament</h1>
-          <div className="page-sub">Official broadcast embed, APH source links, and live RSS polling from configured official feeds.</div>
+          <div className="page-sub">The APH live stream, official APH source links, and live RSS polling from configured official feeds.</div>
         </div>
-        <div style={{display:"flex", gap:8}}>
-          <button className={"btn " + (which === "house" ? "primary" : "")} onClick={() => setWhich("house")}>House</button>
-          <button className={"btn " + (which === "senate" ? "primary" : "")} onClick={() => setWhich("senate")}>Senate</button>
-          <button className={"btn " + (which === "federation" ? "primary" : "")} onClick={() => setWhich("federation")}>Federation</button>
-          <button className="btn" title="Copy a timestamped live action note" onClick={() => copyLiveActionNote("Flag moment", which, toast)}><Icon name="flag" size={13}/> Flag moment</button>
+        <div className="live-head-actions" data-live-actions="">
+          {PARLVIEW_CHAMBERS.map(c => (
+            <a key={c.id} href={PARLVIEW_URL} target="_blank" rel="noopener noreferrer" className="btn" data-chamber-link={c.id}
+              title={`Watch the ${c.label === "House" ? "House of Representatives" : c.label} on ParlView (APH)`} style={{textDecoration:"none"}}>
+              {c.label} on ParlView <Icon name="ext" size={12}/>
+            </a>
+          ))}
+          <button className="btn" title="Copy a timestamped live action note" onClick={() => copyLiveActionNote("Flag moment", toast)}><Icon name="flag" size={13}/> Flag moment</button>
         </div>
       </div>
 
       <div className="grid g-live-main" style={{gap:16}}>
         <div>
-          <LiveBroadcast which={which} toast={toast} />
+          <LiveBroadcast />
           <div style={{display:"flex", gap:8, marginTop:12, alignItems:"center", flexWrap:"wrap"}}>
-            <span className="src-badge">AUSParliamentLive · YouTube embed</span>
+            <span className="src-badge">AUSParliamentLive · YouTube, loads on request</span>
             <a href="https://www.youtube.com/@AUSParliamentLive/streams" target="_blank" rel="noopener noreferrer" className="src-badge" style={{textDecoration:"none", color:"var(--teal)"}}><Icon name="ext" size={11}/> AUSParliamentLive</a>
-            <a href="https://parlview.aph.gov.au/" target="_blank" rel="noopener noreferrer" className="src-badge" style={{textDecoration:"none", color:"var(--teal)"}}><Icon name="ext" size={11}/> ParlView archive</a>
+            <a href={PARLVIEW_URL} target="_blank" rel="noopener noreferrer" className="src-badge" style={{textDecoration:"none", color:"var(--teal)"}}><Icon name="ext" size={11}/> ParlView archive</a>
             <a href="https://www.aph.gov.au/Parliamentary_Business/Hansard" target="_blank" rel="noopener noreferrer" className="src-badge" style={{textDecoration:"none", color:"var(--teal)"}}><Icon name="ext" size={11}/> Hansard</a>
-            <button className="btn sm ghost" style={{marginLeft:"auto"}} title="Copy a Hansard follow-up note" onClick={() => copyLiveActionNote("Transcript follow-up", which, toast)}>Request transcript</button>
-            <button className="btn sm" title="Copy a source-backed clip note" onClick={() => copyLiveActionNote("Clip to brief", which, toast)}><Icon name="brief" size={12}/> Clip to brief</button>
+            <button className="btn sm ghost" style={{marginLeft:"auto"}} title="Copy a Hansard follow-up note" onClick={() => copyLiveActionNote("Transcript follow-up", toast)}>Request transcript</button>
+            <button className="btn sm" title="Copy a source-backed clip note" onClick={() => copyLiveActionNote("Clip to brief", toast)}><Icon name="brief" size={12}/> Clip to brief</button>
           </div>
 
           <div className="panel" style={{marginTop:16}}>
             <div className="panel-head">
               <h2 className="panel-title">Daily program</h2>
-              <span className="panel-kicker">{which === "house" ? "House of Representatives" : which === "senate" ? "Senate" : "Federation Chamber"}</span>
-              <a href={which === "house" ? "https://www.aph.gov.au/Parliamentary_Business/Chamber_documents" : "https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/Senate_chamber_documents"} target="_blank" rel="noopener noreferrer" style={{marginLeft:"auto", fontSize:11.5, color:"var(--teal)", textDecoration:"none"}}>Open daily program <Icon name="ext" size={11}/></a>
+              <span className="panel-kicker">House and Senate</span>
+              <span style={{marginLeft:"auto", display:"flex", gap:12, flexWrap:"wrap"}}>
+                <a href="https://www.aph.gov.au/Parliamentary_Business/Chamber_documents" target="_blank" rel="noopener noreferrer" style={{fontSize:11.5, color:"var(--teal)", textDecoration:"none"}}>House program <Icon name="ext" size={11}/></a>
+                <a href="https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/Senate_chamber_documents" target="_blank" rel="noopener noreferrer" style={{fontSize:11.5, color:"var(--teal)", textDecoration:"none"}}>Senate program <Icon name="ext" size={11}/></a>
+              </span>
             </div>
             <div className="panel-body">
               <EmptyState icon="clock" kicker="No verified daily program held">
-                Parliament Pulse does not yet build a chamber-specific daily program on this page. Official House Daily Program items appear in the "Recent items · APH RSS" panel alongside this player when the feed returns them. Open the daily program above for the current official schedule.
+                Parliament Pulse does not yet build a chamber-specific daily program on this page. Official House Daily Program items appear in the "Recent items · APH RSS" panel alongside this player when the feed returns them. Open the House or Senate program above for the current official schedule.
               </EmptyState>
             </div>
           </div>
@@ -1416,7 +1400,7 @@ function PageSources() {
           )}
           {feedShape ? (
           <div className="table-scroll">
-          <table className="ds" data-feed-table="">
+          <table className="ds ds-stack" data-feed-table="">
             <thead><tr>
               <th>Feed</th><th>Group</th><th>Status</th><th className="num">HTTP</th>
               <th className="num">Items parsed</th><th>Last success</th><th>Parse error</th>
@@ -1427,30 +1411,30 @@ function PageSources() {
                 const st = feedHealthState(c);
                 return (
                 <tr key={c.url} data-feed-row={c.feedLabel} data-feed-state={st} onClick={() => reg && openModal("feed", reg.id)}>
-                  <td>
+                  <td className="ds-lead" data-label="Feed">
                     <div style={{fontWeight:500}}>{c.label}</div>
-                    <div className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)"}}>{c.url.length > 56 ? c.url.slice(0,56)+"…" : c.url}</div>
+                    <div className="mono ds-url" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)"}}>{c.url.length > 56 ? c.url.slice(0,56)+"…" : c.url}</div>
                   </td>
-                  <td><span className="tag">{c.group}</span></td>
-                  <td style={st === "failed" ? {color:"var(--escalate)"} : st === "pending" ? {color:"var(--ink-4)", fontStyle:"italic"} : undefined}>
+                  <td data-label="Group"><span className="tag">{c.group}</span></td>
+                  <td data-label="Status" style={st === "failed" ? {color:"var(--escalate)"} : st === "pending" ? {color:"var(--ink-4)", fontStyle:"italic"} : undefined}>
                     {st === "pending" ? "Not yet polled" : st === "ok" ? "OK" : "Failed"}
                   </td>
-                  <td className="num mono">{c.lastHttpStatus ?? "—"}</td>
-                  <td className="num">{c.itemsParsed ?? "—"}</td>
-                  <td className="mono" style={{fontSize:11.5, color:"var(--ink-3)"}}>{st === "pending" ? "—" : (fmtPollStamp(c.lastSuccessAt) || "Never")}</td>
-                  <td style={{fontSize:12, color: c.parseError ? "var(--ink-2)" : "var(--ink-4)"}} title={c.parseError || undefined}>{c.parseError ? (c.parseError.length > 60 ? c.parseError.slice(0,60)+"…" : c.parseError) : "—"}</td>
+                  <td className="num mono" data-label="HTTP">{c.lastHttpStatus ?? "—"}</td>
+                  <td className="num" data-label="Items parsed">{c.itemsParsed ?? "—"}</td>
+                  <td className="mono" data-label="Last success" style={{fontSize:11.5, color:"var(--ink-3)"}}>{st === "pending" ? "—" : (fmtPollStamp(c.lastSuccessAt) || "Never")}</td>
+                  <td data-label="Parse error" style={{fontSize:12, color: c.parseError ? "var(--ink-2)" : "var(--ink-4)", overflowWrap:"anywhere"}} title={c.parseError || undefined}>{c.parseError ? (c.parseError.length > 60 ? c.parseError.slice(0,60)+"…" : c.parseError) : "—"}</td>
                 </tr>
                 );
               })}
               {customFeeds.map(f => (
                 <tr key={f.id}>
-                  <td>
+                  <td className="ds-lead" data-label="Feed">
                     <div style={{fontWeight:500}}>{f.name}</div>
-                    <div className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)"}}>{f.url.length > 56 ? f.url.slice(0,56)+"…" : f.url}</div>
+                    <div className="mono ds-url" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)"}}>{f.url.length > 56 ? f.url.slice(0,56)+"…" : f.url}</div>
                   </td>
-                  <td><span className="tag">Custom</span></td>
-                  <td><span style={{color:"var(--ink-4)", fontStyle:"italic"}} title="Saved feeds are not polled">Not polled</span></td>
-                  <td className="num">—</td><td className="num">—</td><td>—</td><td>—</td>
+                  <td data-label="Group"><span className="tag">Custom</span></td>
+                  <td data-label="Status"><span style={{color:"var(--ink-4)", fontStyle:"italic"}} title="Saved feeds are not polled">Not polled</span></td>
+                  <td className="num" data-label="HTTP">—</td><td className="num" data-label="Items parsed">—</td><td data-label="Last success">—</td><td data-label="Parse error">—</td>
                 </tr>
               ))}
             </tbody>
@@ -1458,7 +1442,7 @@ function PageSources() {
           </div>
           ) : (
           <div className="table-scroll">
-          <table className="ds">
+          <table className="ds ds-stack">
             <thead><tr>
               <th>Source</th><th>Group</th><th>Status</th><th>Last</th>
               <th className="num">Today</th><th title="False-positive rate">FPR <span style={{fontWeight:400, textTransform:"none", letterSpacing:0}}>· {FPR_PENDING_NOTE.toLowerCase()}</span></th><th>Parser</th>
@@ -1468,37 +1452,37 @@ function PageSources() {
                 const c = checkByUrl.get(f.url);
                 return (
                 <tr key={f.id} onClick={() => f.group !== "Custom" && openModal("feed", f.id)}>
-                  <td>
+                  <td className="ds-lead" data-label="Source">
                     <div style={{fontWeight:500}}>{f.name}</div>
-                    <div className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)"}}>{f.url.length > 56 ? f.url.slice(0,56)+"…" : f.url}</div>
+                    <div className="mono ds-url" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)"}}>{f.url.length > 56 ? f.url.slice(0,56)+"…" : f.url}</div>
                   </td>
-                  <td><span className="tag">{f.group}</span></td>
-                  <td style={c && !c.ok ? {color:"var(--escalate)"} : undefined}>
+                  <td data-label="Group"><span className="tag">{f.group}</span></td>
+                  <td data-label="Status" style={c && !c.ok ? {color:"var(--escalate)"} : undefined}>
                     {f.group === "Custom"
                       ? <span style={{color:"var(--ink-4)", fontStyle:"italic"}} title="Saved feeds are not polled by the live feed poller">Not polled</span>
                       : (c
                         ? (c.ok ? "Live" : `Error ${c.httpStatus ?? ""}`.trim())
                         : (f.lastStatusCode != null ? (f.lastStatusCode >= 200 && f.lastStatusCode < 300 ? "Live" : "Error") : "—"))}
                   </td>
-                  <td className="mono" style={{fontSize:11.5, color:"var(--ink-3)"}}>{c ? fmtFetchedAt(c.checkedAt) : (f.last || "—")}</td>
-                  <td className="num">{f.lastItemCount ?? "—"}</td>
-                  <td title={FPR_PENDING_NOTE} style={{color:"var(--ink-4)"}}>—</td>
-                  <td>{f.parser || "—"}</td>
+                  <td className="mono" data-label="Last" style={{fontSize:11.5, color:"var(--ink-3)"}}>{c ? fmtFetchedAt(c.checkedAt) : (f.last || "—")}</td>
+                  <td className="num" data-label="Today">{f.lastItemCount ?? "—"}</td>
+                  <td data-label="FPR" title={FPR_PENDING_NOTE} style={{color:"var(--ink-4)"}}>—</td>
+                  <td data-label="Parser">{f.parser || "—"}</td>
                 </tr>
                 );
               })}
               {workerRows.map(c => (
                 <tr key={c.url}>
-                  <td>
+                  <td className="ds-lead" data-label="Source">
                     <div style={{fontWeight:500}}>{c.label}</div>
-                    <div className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)"}}>{c.url.length > 56 ? c.url.slice(0,56)+"…" : c.url}</div>
+                    <div className="mono ds-url" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)"}}>{c.url.length > 56 ? c.url.slice(0,56)+"…" : c.url}</div>
                   </td>
-                  <td><span className="tag">{c.group}</span></td>
-                  <td style={!c.ok ? {color:"var(--escalate)"} : undefined}>{c.ok ? "Live" : `Error ${c.httpStatus ?? ""}`.trim()}</td>
-                  <td className="mono" style={{fontSize:11.5, color:"var(--ink-3)"}}>{fmtFetchedAt(c.checkedAt)}</td>
-                  <td className="num">—</td>
-                  <td><span className="tag">—</span></td>
-                  <td>Worker-monitored</td>
+                  <td data-label="Group"><span className="tag">{c.group}</span></td>
+                  <td data-label="Status" style={!c.ok ? {color:"var(--escalate)"} : undefined}>{c.ok ? "Live" : `Error ${c.httpStatus ?? ""}`.trim()}</td>
+                  <td className="mono" data-label="Last" style={{fontSize:11.5, color:"var(--ink-3)"}}>{fmtFetchedAt(c.checkedAt)}</td>
+                  <td className="num" data-label="Today">—</td>
+                  <td data-label="FPR"><span className="tag">—</span></td>
+                  <td data-label="Parser">Worker-monitored</td>
                 </tr>
               ))}
             </tbody>
@@ -1536,7 +1520,7 @@ function PageSources() {
               <input id="new-feed-name" value={newName} onChange={e=>setNewName(e.target.value)} className="search" style={{padding:"8px 10px", marginTop:4, marginBottom:8, width:"100%"}}/>
               <label htmlFor="new-feed-url" className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em"}}>Paste RSS URL</label>
               <div style={{display:"flex", gap:8, marginTop:4}}>
-                <input id="new-feed-url" value={newUrl} onChange={e=>setNewUrl(e.target.value)} className="search" style={{flex:1, padding:"8px 10px"}}/>
+                <input id="new-feed-url" value={newUrl} onChange={e=>setNewUrl(e.target.value)} className="search" style={{flex:1, minWidth:0, padding:"8px 10px"}}/>
                 <button className="btn primary" onClick={startTest}>{testing && !testState ? "Testing…" : "Validate"}</button>
               </div>
 
@@ -1871,7 +1855,7 @@ function PageBills() {
             </div>
           )}
           <div className="table-scroll">
-          <table className="ds">
+          <table className="ds ds-stack" data-bills-table="">
             <thead><tr>
               <th>Title</th><th>Published</th>{showAtt && <th data-col="attention" title={disclosure}>Attention</th>}{showConf && <th data-col="confidence">Confidence</th>}
             </tr></thead>
@@ -1880,7 +1864,7 @@ function PageBills() {
                 const link = safeHttpUrl(b.link);
                 return (
                   <tr key={b.guid}>
-                    <td style={{fontWeight:500}}>
+                    <td className="ds-lead" data-label="Title" style={{fontWeight:500}}>
                       {link
                         ? <a href={link} target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)", textDecoration:"none"}} title="Opens the source at aph.gov.au">{b.title} <Icon name="ext" size={11} style={{verticalAlign:"-1px"}}/></a>
                         : b.title}
@@ -1888,9 +1872,9 @@ function PageBills() {
                           than an empty element, and never invent a summary. */}
                       {b.description && <div style={{fontSize:12, color:"var(--ink-3)", marginTop:2}}>{b.description}</div>}
                     </td>
-                    <td className="mono" style={{fontSize:11.5, color:"var(--ink-3)"}}>{fmtBillDate(b.pub_date)}</td>
-                    {showAtt && <td data-col="attention"><Att level={b.attention} disclosure={disclosure} /></td>}
-                    {showConf && <td data-col="confidence"><Conf n={b.confidence} /></td>}
+                    <td className="mono" data-label="Published" style={{fontSize:11.5, color:"var(--ink-3)"}}>{fmtBillDate(b.pub_date)}</td>
+                    {showAtt && <td data-col="attention" data-label="Attention"><Att level={b.attention} disclosure={disclosure} /></td>}
+                    {showConf && <td data-col="confidence" data-label="Confidence"><Conf n={b.confidence} /></td>}
                   </tr>
                 );
               })}
@@ -2223,7 +2207,7 @@ function PageBriefings() {
           <div className="panel-head">
             <h2 className="panel-title">{selected ? selected.type : "No brief"} · preview</h2>
             <span className="panel-kicker">{selected ? `For ${selected.for}` : "Queue empty"}</span>
-            <div style={{marginLeft:"auto", display:"flex", gap:6}}>
+            <div style={{marginLeft:"auto", display:"flex", gap:6, flexWrap:"wrap"}}>
               <button className="btn ghost sm" disabled={!selected} onClick={() => window.print()}><Icon name="download" size={12}/> Print</button>
               <button className="btn sm" disabled={!selected} title="Copy a send-ready handoff note" onClick={() => copyText(`# Brief handoff\nType: ${selected.type}\nFor: ${selected.for}\nStatus: ${reviewedIds[selectedId] ? "Reviewed" : selected.status}\nGenerated: ${new Date().toISOString()}`, toast, "Brief handoff copied")}>Copy handoff</button>
               <button className="btn ghost sm" disabled={!selected || reviewedIds[selectedId]} title="Mark this brief reviewed in the local queue" onClick={() => { setReviewedIds(r => ({ ...r, [selectedId]: true })); toast(`Marked reviewed: ${selected.type}`, "brass"); }}>{selected && reviewedIds[selectedId] ? "Reviewed" : "Mark reviewed"}</button>

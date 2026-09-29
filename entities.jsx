@@ -129,15 +129,13 @@ window.ENTITIES = {
   bills: {},
 };
 
-// Live Parliament YouTube channel IDs — @AUSParliamentLive
-// [VERIFY] Channel id UCzx6ti0rql6Q2Dc2zSAPmuA and APH_YT_CHANNEL (in pages.jsx) are
-// asserted in-code but were NOT verified against the live YouTube channel this session.
-// Confirm the channel id and that the live_stream embed still resolves before relying
-// on it. Do not treat this id as confirmed.
-// Using channel live embed; falls back to latest uploads if no live stream is active.
+// APH live stream: the @AUSParliamentLive YouTube channel. Channel id verified on
+// 29 Sep 2026 against https://www.youtube.com/@AUSParliamentLive (externalId,
+// canonical /channel/ URL and itemprop="identifier" all match; PR-15). Every
+// chamber streams through this one channel, so there is one entry, not one per
+// chamber. APH_YT_CHANNEL in pages.jsx carries the same id.
 window.PARL_STREAMS = [
-  { id: "house", label: "House of Representatives", channel: "UCzx6ti0rql6Q2Dc2zSAPmuA", desc: "Official Australian Parliament House channel" }, // [VERIFY] channel id
-  { id: "senate", label: "Senate chamber", channel: "UCzx6ti0rql6Q2Dc2zSAPmuA", desc: "Senate proceedings (shared APH channel)" }, // [VERIFY] channel id
+  { id: "aph", label: "APH live stream", channel: "UCzx6ti0rql6Q2Dc2zSAPmuA", desc: "Australian Parliament House Streaming Portal (AUSParliamentLive)" },
 ];
 
 // ---------- Honesty: representative-data flags on entities ----------

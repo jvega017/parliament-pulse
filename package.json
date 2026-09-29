@@ -10,9 +10,11 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "gate": "npm run build && node scripts/gate.mjs",
-    "probe": "node tests/production-probe.mjs"
+    "probe": "node tests/production-probe.mjs",
+    "browser": "node tests/browser/layout.test.mjs"
   },
   "devDependencies": {
-    "esbuild": "0.28.2"
+    "esbuild": "0.28.2",
+    "playwright": "1.63.0"
   }
 }

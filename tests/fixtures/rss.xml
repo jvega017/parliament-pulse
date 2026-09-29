@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+<channel>
+<title>Fixture feed</title>
+<link>{{FEED}}</link>
+<description>Synthetic RSS fixture for the Parliament Pulse browser harness.</description>
+<item>
+<title>Fixture hearing on the handling of very long parliamentary item titles that run past one hundred and thirty characters in length (RSS fixture 1)</title>
+<link>{{FEED}}/fixture-item-1</link>
+<guid>{{FEED}}/fixture-item-1</guid>
+<description>Fixture description 1 for layout testing only.</description>
+<pubDate>Mon, 28 Sep 2026 22:30:00 GMT</pubDate>
+</item>
+<item>
+<title>Fixture report (RSS fixture 2)</title>
+<link>{{FEED}}/fixture-item-2</link>
+<guid>{{FEED}}/fixture-item-2</guid>
+<description>Fixture description 2 for layout testing only.</description>
+<pubDate>Mon, 28 Sep 2026 21:00:00 GMT</pubDate>
+</item>
+<item>
+<title>Fixture inquiry into responsive table labels and reflow at 320 CSS pixels (RSS fixture 3)</title>
+<link>{{FEED}}/fixture-item-3</link>
+<guid>{{FEED}}/fixture-item-3</guid>
+<description>Fixture description 3 for layout testing only.</description>
+<pubDate>Mon, 28 Sep 2026 19:30:00 GMT</pubDate>
+</item>
+<item>
+<title>Fixture inquiry into layout handling (RSS fixture 4)</title>
+<link>{{FEED}}/fixture-item-4</link>
+<guid>{{FEED}}/fixture-item-4</guid>
+<description>Fixture description 4 for layout testing only.</description>
+<pubDate>Mon, 28 Sep 2026 18:00:00 GMT</pubDate>
+</item>
+</channel>
+</rss>

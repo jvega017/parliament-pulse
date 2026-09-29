@@ -245,7 +245,7 @@ function assertions(out) {
     else if (!about.includes(`>${k}<`)) f.push(`privacy text does not render the localStorage key "${k}"`);
   }
   if (/reading streak/i.test(readable(about))) f.push("privacy text still mentions a reading streak");
-  if (!/contacts YouTube \(youtube-nocookie\.com\) only after you press "Load live stream"/.test(readable(about))) f.push("privacy text does not state when the YouTube embed contacts YouTube");
+  if (!/contacts YouTube \(youtube-nocookie\.com\) only after you press "Load YouTube player"/.test(readable(about))) f.push("privacy text does not state when the YouTube embed contacts YouTube");
 
   // UX-17: with no live data, every desk says why and links to the APH source.
   for (const d of REQUIRED_DESKS) {

@@ -45,3 +45,30 @@ jobs:
 
       - name: Committed .js matches a fresh build
         run: git diff --exit-code -- '*.js'
+
+  # FE-07: browser layout test. Builds dist/ with build-dist.ps1 (pwsh ships on
+  # ubuntu-latest), serves it locally, answers every Worker call from
+  # tests/fixtures/, and drives headless Chromium through the pinned playwright.
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install pinned toolchain
+        run: npm ci
+
+      - name: Install Chromium for the pinned playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Browser layout test
+        run: npm run browser
