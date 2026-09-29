@@ -510,35 +510,18 @@ function PageNotFound({ path }) {
 function PageSources() {
   const { openModal, addFeed, state, toast } = useStore();
   const health = useLiveState("connectors");   // health.items is the mapped checks array
-  const [testing, setTesting] = useState(false);
-  const [testState, setTestState] = useState(null);
   // The form starts empty: example values are placeholders only, so no real
   // feed name or address is ever pre-filled as though the reader had typed it.
   const [newUrl, setNewUrl] = useState("");
   const [newName, setNewName] = useState("");
-  const startTest = () => {
-    if (!newUrl.trim()) { toast("Paste an RSS URL first"); document.getElementById("new-feed-url")?.focus(); return; }
-    setTesting(true); setTestState(null);
-    // Simulated only: no network request is made. The lines below illustrate the
-    // steps a real backend validator would run; they never report an actual result.
-    setTimeout(() => setTestState({
-      status: "warn",
-      simulated: true,
-      lines: [
-        { t: "warn", s: "Simulated example only · no request was sent to this URL" },
-        { t: "ok", s: "A real check would confirm the URL resolves · 200 OK" },
-        { t: "ok", s: "A real check would inspect Content-Type for XML or HTML" },
-        { t: "warn", s: "A real check would detect an <rss> root or attempt an HTML parse" },
-        { t: "ok", s: "A real check would count dated entries and extractable links" },
-        { t: "warn", s: "A real check would verify the latest item date and cadence" },
-        { t: "warn", s: "Mark as Needs validation before routing to modules" },
-      ],
-    }), 1100);
-  };
+  // No check runs. The earlier "Validate" button played a simulated check with
+  // no request behind it; a saved feed is stored on this device, never polled,
+  // and the table below labels it "Not polled" and "Not yet checked".
   const saveFeed = () => {
     if (!newName.trim() || !newUrl.trim()) { toast("Add a display name and an RSS URL"); return; }
+    if (!/^https?:\/\//i.test(newUrl.trim())) { toast("Enter a full address starting with https://"); document.getElementById("new-feed-url")?.focus(); return; }
     addFeed({ id: "custom-"+Date.now(), name: newName.trim(), url: newUrl.trim(), status:"review", group:"Custom" });
-    setTestState(null);
+    setNewName(""); setNewUrl("");
   };
 
   // Custom saved feeds are never polled: liveFeedList() (the Live page poller) reads
@@ -568,6 +551,10 @@ function PageSources() {
   const referenceLinks = health.referenceLinks || [];
   const registryByUrl = new Map((typeof SOURCE_REGISTRY !== "undefined" && Array.isArray(SOURCE_REGISTRY) ? SOURCE_REGISTRY : []).map(r => [r.url, r]));
   const customFeeds = state.feeds.map(f => ({ ...f, authority:"Custom" }));
+  // Source coverage not held, from the single SITE_CONFIG.unavailable record.
+  const NOT_CONNECTED_IDS = ["hansard", "qon", "members"];
+  const notConnected = ((typeof SITE_CONFIG !== "undefined" && Array.isArray(SITE_CONFIG.unavailable)) ? SITE_CONFIG.unavailable : [])
+    .filter(u => NOT_CONNECTED_IDS.includes(u.id));
 
   return (
     <div className="page">
@@ -744,7 +731,7 @@ function PageSources() {
           <div className="panel" style={{marginBottom:16}}>
             <div className="panel-head">
               <h2 className="panel-title">Add RSS feed</h2>
-              <span className="panel-kicker">Name, URL, validate, save</span>
+              <span className="panel-kicker">Kept on this device · not checked</span>
             </div>
             <div className="panel-body">
               <label htmlFor="new-feed-name" className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em"}}>Display name</label>
@@ -752,44 +739,28 @@ function PageSources() {
               <label htmlFor="new-feed-url" className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em"}}>Paste RSS URL</label>
               <div style={{display:"flex", gap:8, marginTop:4}}>
                 <input id="new-feed-url" type="url" inputMode="url" value={newUrl} onChange={e=>setNewUrl(e.target.value)} placeholder="https://example.org/feed.xml" autoComplete="off" className="search" style={{flex:1, minWidth:0, padding:"8px 10px"}}/>
-                <button className="btn primary" onClick={startTest}>{testing && !testState ? "Testing…" : "Validate"}</button>
+                <button className="btn primary" onClick={saveFeed} data-save-feed="">Save feed</button>
               </div>
-
-              {testState && (
-                <div className="feed-test" style={{marginTop:14}}>
-                  <div style={{marginBottom:6, letterSpacing:".1em", display:"flex", alignItems:"center", gap:7}} className="warn"><Icon name="flag" size={12} /> Example only · this feed has not been checked</div>
-                  <div style={{fontSize:"var(--t-eyebrow)", color:"var(--ink-4)", marginBottom:8}}>This preview is an example. Parliament Pulse made no request and verified nothing, so treat this feed as unchecked.</div>
-                  {testState.lines.map((l, i) => (
-                    <div key={i} className={"feed-test-line " + l.t}>
-                      <Icon name={l.t === "ok" ? "check" : l.t === "warn" ? "flag" : "close"} size={12} />
-                      <span>{l.s}</span>
-                    </div>
-                  ))}
-                  <button className="btn primary sm" style={{marginTop:10}} onClick={saveFeed}>Save as unvalidated feed</button>
-                </div>
-              )}
+              <p data-addfeed-note="" style={{margin:"10px 0 0", fontSize:"var(--t-caption)", color:"var(--ink-3)", lineHeight:1.5}}>Parliament Pulse does not fetch or check a feed you add. It is saved in this browser only and listed in the feed table as not polled.</p>
             </div>
           </div>
 
-          <div className="panel">
+          {/* Sources Parliament Pulse does not read yet, from SITE_CONFIG.unavailable
+              (the same record the About page lists), each with the official APH page
+              to use instead. No request button: there is no channel to send one to. */}
+          <div className="panel" data-not-connected="">
             <div className="panel-head">
               <h2 className="panel-title">Not yet connected</h2>
-              <span className="panel-kicker">No usable source yet</span>
+              <span className="panel-kicker">Use the official APH page instead</span>
             </div>
             <div className="panel-body">
-              {[
-                { name: "Hansard", note: "No machine-readable transcript feed yet" },
-                { name: "QON tracking", note: "Needs source or parliamentary export" },
-                { name: "Full bill progress", note: "Needs bills database beyond Digest RSS" },
-                { name: "News / media monitoring", note: "Optional bundle, later" },
-                { name: "Internal executive briefings", note: "Governance controls required" },
-              ].map(x => (
-                <div key={x.name} style={{display:"flex", justifyContent:"space-between", padding:"8px 0", borderBottom:"1px dashed var(--line-2)"}}>
-                  <div>
-                    <div style={{fontSize:"var(--t-body-sm)"}}>{x.name}</div>
-                    <div style={{fontSize:"var(--t-caption)", color:"var(--ink-3)"}}>{x.note}</div>
-                  </div>
-                  <button className="btn ghost sm" title="Copy a backlog request for this source" onClick={() => copyBacklogRequest(x.name, x.note, toast)}>Request</button>
+              {notConnected.map((u, i) => (
+                <div key={u.id} data-not-connected-row={u.id} style={{padding:"8px 0", borderBottom: i < notConnected.length - 1 ? "1px dashed var(--line-2)" : 0, display:"grid", gap:4}}>
+                  <div style={{fontSize:"var(--t-body-sm)"}}>{u.name}</div>
+                  <div style={{fontSize:"var(--t-caption)", color:"var(--ink-3)", lineHeight:1.5}}>{u.reason}</div>
+                  <a href={u.aphUrl} target="_blank" rel="noopener noreferrer" style={{fontSize:"var(--t-caption)", color:"var(--link)", display:"inline-flex", alignItems:"center", gap:6, minHeight:24}}>
+                    Open on aph.gov.au <Icon name="ext" size={11} />
+                  </a>
                 </div>
               ))}
             </div>

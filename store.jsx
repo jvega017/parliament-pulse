@@ -567,15 +567,28 @@ function mergeLiveBlocks(prev, next) {
 }
 
 // Shared fetched-at formatter: HH:MM in Brisbane time. Desks append "AEST"
-// themselves, so this returns only the clock component.
-function fmtFetchedAt(iso) {
-  if (!iso) return NOT_SUPPLIED;
+// themselves, so this returns only the clock component. Accepts an ISO string
+// (the Worker's fetched_at) or a millisecond epoch (the store's own fetchedAt:
+// the liveState and liveBills caches stamp Date.now()). Date.parse(number) is
+// NaN, which printed "fetched Not supplied AEST" on the Bills header.
+function fetchedAtMs(v) {
+  if (typeof v === "number") return Number.isFinite(v) && v > 0 ? v : NaN;
+  if (typeof v !== "string" || !v) return NaN;
+  return Date.parse(v);
+}
+function fmtFetchedAt(v) {
   try {
-    const t = Date.parse(iso);
+    const t = fetchedAtMs(v);
     return Number.isNaN(t) ? NOT_SUPPLIED : fmtClockHM(t);
   } catch {
     return NOT_SUPPLIED;
   }
+}
+// "fetched 14:05 AEST" when a fetch time is held, or "" when none is, so a
+// header never prints "fetched Not supplied AEST". Callers join it with " · ".
+function fetchedClause(v) {
+  const t = fetchedAtMs(v);
+  return Number.isNaN(t) ? "" : `fetched ${fmtClockHM(t)} AEST`;
 }
 
 // Explicit degradation state machine over the /state cache: loading | ready |
@@ -1065,7 +1078,7 @@ function StoreProvider({ children, navigate = () => {} }) {
   }, []);
   const addFeed = React.useCallback((feed) => {
     setState(s => ({ ...s, feeds: [...s.feeds, feed] }));
-    toast(`Feed added: ${feed.name}`, "brass");
+    toast(`Feed saved on this device: ${feed.name}`, "brass");
   }, [toast]);
   const saveNote = React.useCallback((signalId, text) => {
     setState(s => ({ ...s, notes: { ...s.notes, [signalId]: text } }));
@@ -1211,4 +1224,4 @@ function migrateLegacyPageQuery(loc, hist) {
 
 Object.assign(window, { ABOUT_SECTIONS, parseRoute, routeHash, routeLabel, routeTitle, migrateLegacyPageQuery });
 
-Object.assign(window, { StoreProvider, useStore, watchlistKeywords, watchlistMatches, useLiveState, useLiveBills, selectCounts, useCounts, COMMITTEE_STRIP_LABELS, liveStateDegradation, mapWorkerSignalToCard, mapLiveBlocks, fmtFetchedAt, mapLiveFreshness, freshnessView, useFreshness, pollIsStale, configuredFeedCount, useFeedCount, feedHealthState, signalDateFields, fmtDayMonYear, fmtPollStamp, ATTENTION_DIMS_DEFAULT, scoringDims, attentionDisclosure, attentionWord, confidenceLabel, uniformScore, uniformScoreLine, buildSearchResults });
+Object.assign(window, { StoreProvider, useStore, watchlistKeywords, watchlistMatches, useLiveState, useLiveBills, selectCounts, useCounts, COMMITTEE_STRIP_LABELS, liveStateDegradation, mapWorkerSignalToCard, mapLiveBlocks, fmtFetchedAt, fetchedClause, mapLiveFreshness, freshnessView, useFreshness, pollIsStale, configuredFeedCount, useFeedCount, feedHealthState, signalDateFields, fmtDayMonYear, fmtPollStamp, ATTENTION_DIMS_DEFAULT, scoringDims, attentionDisclosure, attentionWord, confidenceLabel, uniformScore, uniformScoreLine, buildSearchResults });

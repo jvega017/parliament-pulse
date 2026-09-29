@@ -60,15 +60,6 @@ function copyLiveActionNote(kind, toast) {
   ].join("\n");
   return copyText(note, toast, `${kind} note copied`);
 }
-function copyBacklogRequest(name, note, toast) {
-  const text = [
-    `# Parliament Pulse backlog request`,
-    `Capability: ${name}`,
-    `Reason: ${note}`,
-    `Requested: ${(/* @__PURE__ */ new Date()).toISOString()}`
-  ].join("\n");
-  return copyText(text, toast, "Backlog request copied");
-}
 function downloadBriefingQueue(briefs, toast) {
   const ok = exportRowsCSV(
     ["type", "for", "status"],

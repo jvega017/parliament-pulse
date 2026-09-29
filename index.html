@@ -977,10 +977,12 @@
   .signal:hover { border-color: var(--line-bright); box-shadow: 0 6px 24px -10px color-mix(in srgb, #000 56%, transparent), 0 0 0 1px color-mix(in srgb, #fff 7%, transparent) inset; }
   .signal + .signal { margin-top: 10px; }
 
-  .sig-head { display:flex; align-items:center; gap:10px; margin-bottom: 6px; }
+  /* The date never wraps inside itself ("16 / Sep"); the head wraps instead, so a
+     long label such as "Date not supplied" drops to its own line at 390 px. */
+  .sig-head { display:flex; flex-wrap: wrap; align-items:center; gap:4px 10px; margin-bottom: 6px; }
   .sig-id { font-family: var(--mono); font-size: var(--t-label); color: var(--ink-4); letter-spacing: .05em; font-variant-numeric: tabular-nums; }
   .sig-source { font-family: var(--mono); font-size: var(--t-label); color: var(--ink-3); }
-  .sig-time { font-family: var(--mono); font-size: var(--t-label); color: var(--ink-4); margin-left: auto; font-variant-numeric: tabular-nums; }
+  .sig-time { font-family: var(--mono); font-size: var(--t-label); color: var(--ink-4); margin-left: auto; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
   .sig-title {
     font-family: var(--serif); font-size: var(--t-subhead); font-weight: 600; line-height: 1.3;

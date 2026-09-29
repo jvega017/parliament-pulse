@@ -20,6 +20,7 @@ const GATES = [
   "tests/analytics-honesty.test.mjs",
   "tests/copy-gates.test.mjs",
   "tests/finalise.test.mjs",
+  "tests/product-truth.test.mjs",
   "tests/global-scope.test.mjs",
   "tests/dist-output.test.mjs",
 ];

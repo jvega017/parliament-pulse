@@ -165,7 +165,7 @@ function PageOverview() {
       <div className="page-head">
         <div>
           <div className="page-kicker">{live.items
-            ? `Live signals · fetched ${fmtFetchedAt(live.fetchedAt)} AEST · verify sitting status from the Live page`
+            ? ["Live signals", fetchedClause(live.fetchedAt), "verify sitting status from the Live page"].filter(Boolean).join(" · ")
             : "Live data is unavailable · Parliament Pulse shows nothing rather than an invented signal · see the Live page for feed health"}</div>
           <h1 className="page-title">Today's signals</h1>
         </div>
@@ -257,7 +257,7 @@ function PageOverview() {
             <div className="panel-section">
               <div className="panel-section-head">
                 <h2 className="panel-section-title">What changed</h2>
-                <span className="panel-kicker" style={{marginLeft:"auto"}}>{live.items ? `Live · fetched ${fmtFetchedAt(live.fetchedAt)} AEST` : "No live feed yet"}</span>
+                <span className="panel-kicker" style={{marginLeft:"auto"}}>{live.items ? ["Live", fetchedClause(live.fetchedAt)].filter(Boolean).join(" · ") : "No live feed yet"}</span>
               </div>
               <div style={{marginBottom:12, paddingBottom:12, borderBottom:"1px solid var(--rule-2)", fontSize:"var(--t-caption)", color:"var(--ink-3)"}}>
                 {Object.keys(state.archived).length > 0
@@ -630,7 +630,7 @@ function PageLive() {
             <a href="https://www.youtube.com/@AUSParliamentLive/streams" target="_blank" rel="noopener noreferrer" className="src-badge" style={{textDecoration:"none", color:"var(--link)"}}><Icon name="ext" size={11}/> AUSParliamentLive</a>
             <a href={PARLVIEW_URL} target="_blank" rel="noopener noreferrer" className="src-badge" style={{textDecoration:"none", color:"var(--link)"}}><Icon name="ext" size={11}/> ParlView archive</a>
             <a href="https://www.aph.gov.au/Parliamentary_Business/Hansard" target="_blank" rel="noopener noreferrer" className="src-badge" style={{textDecoration:"none", color:"var(--link)"}}><Icon name="ext" size={11}/> Hansard</a>
-            <button className="btn sm ghost" style={{marginLeft:"auto"}} title="Copy a Hansard follow-up note" onClick={() => copyLiveActionNote("Transcript follow-up", toast)}>Request transcript</button>
+            <button className="btn sm ghost" style={{marginLeft:"auto"}} title="Copy a Hansard follow-up note" onClick={() => copyLiveActionNote("Transcript follow-up", toast)}>Copy transcript note</button>
             <button className="btn sm" title="Copy a source-backed clip note" onClick={() => copyLiveActionNote("Clip to brief", toast)}><Icon name="brief" size={12}/> Clip to brief</button>
           </div>
 
@@ -684,7 +684,7 @@ function PageLive() {
         <div className="panel">
           <div className="panel-head">
             <h2 className="panel-title">Recent items · APH RSS</h2>
-            <span className="panel-kicker">{loading && events.length === 0 ? "Polling…" : `${events.length} tabled items · ${liveCount}/${totalFeeds} feeds${lastPoll ? " · as at " + fmtTime(lastPoll) + " AEST" : ""}`}</span>
+            <span className="panel-kicker">{loading && events.length === 0 ? "Polling…" : `${events.length} item${events.length !== 1 ? "s" : ""} · ${liveCount}/${totalFeeds} feeds${lastPoll ? " · as at " + fmtTime(lastPoll) + " AEST" : ""}`}</span>
           </div>
           <div className="panel-body" style={{maxHeight:720, overflowY:"auto"}}>
             {loading && events.length === 0 && (
@@ -868,6 +868,19 @@ function PageRadar() {
 // The signals-block mapper (mapWorkerSignalToCard) and the single /state fetch now
 // live in store.jsx. PageSignals reads the shared cache through useLiveState, so the
 // Drawer resolves a clicked live row against the same items the inbox renders.
+function signalPubMs(s) {
+  if (typeof s.pubAt === "number" && Number.isFinite(s.pubAt)) return s.pubAt;
+  return null;
+}
+function sortSignalsNewestFirst(sigs) {
+  return [...sigs].sort((a, b) => {
+    const ta = signalPubMs(a), tb = signalPubMs(b);
+    if (ta == null && tb == null) return 0;
+    if (ta == null) return 1;
+    if (tb == null) return -1;
+    return tb - ta;
+  });
+}
 function PageSignals() {
   const { state, setVisibleSignalOrder, signalSearchQuery, setSignalSearchQuery } = useStore();
   const [filter, setFilter] = useState("all");
@@ -889,6 +902,10 @@ function PageSignals() {
     );
     if (filter !== "all") sigs = sigs.filter(s => s.attention === filter);
     if (sort === "score") sigs = [...sigs].sort((a, b) => (b.score?.authority || 0) - (a.score?.authority || 0));
+    // "Newest first": the Worker sends score-then-recency order, so this sort is
+    // what makes the option true. Dated items by publication time, newest first;
+    // undated items after them, in the order received (Array sort is stable).
+    else if (sort === "time") sigs = sortSignalsNewestFirst(sigs);
     return sigs;
   }, [sourceSignals, state.archived, filter, sort, signalSearchQuery]);
 
@@ -973,7 +990,7 @@ function PageSignals() {
           <label htmlFor="sig-sort" className="sr-only">Sort signals</label>
           <span aria-hidden="true" style={{fontSize:"var(--t-caption)", color:"var(--ink-4)"}}>Sort:</span>
           <select id="sig-sort" className="select" value={sort} onChange={e => setSort(e.target.value)}>
-            <option value="time">Time</option>
+            <option value="time">Newest first</option>
             <option value="score">Authority score</option>
           </select>
         </div>

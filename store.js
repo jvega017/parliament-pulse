@@ -423,14 +423,22 @@ function mergeLiveBlocks(prev, next) {
   }
   return out;
 }
-function fmtFetchedAt(iso) {
-  if (!iso) return NOT_SUPPLIED;
+function fetchedAtMs(v) {
+  if (typeof v === "number") return Number.isFinite(v) && v > 0 ? v : NaN;
+  if (typeof v !== "string" || !v) return NaN;
+  return Date.parse(v);
+}
+function fmtFetchedAt(v) {
   try {
-    const t = Date.parse(iso);
+    const t = fetchedAtMs(v);
     return Number.isNaN(t) ? NOT_SUPPLIED : fmtClockHM(t);
   } catch (e) {
     return NOT_SUPPLIED;
   }
+}
+function fetchedClause(v) {
+  const t = fetchedAtMs(v);
+  return Number.isNaN(t) ? "" : `fetched ${fmtClockHM(t)} AEST`;
 }
 function liveStateDegradation(liveState, now = Date.now()) {
   if (!liveState) return "loading";
@@ -813,7 +821,7 @@ function StoreProvider({ children, navigate = () => {
   }, []);
   const addFeed = React.useCallback((feed) => {
     setState((s) => ({ ...s, feeds: [...s.feeds, feed] }));
-    toast(`Feed added: ${feed.name}`, "brass");
+    toast(`Feed saved on this device: ${feed.name}`, "brass");
   }, [toast]);
   const saveNote = React.useCallback((signalId2, text) => {
     setState((s) => ({ ...s, notes: { ...s.notes, [signalId2]: text } }));
@@ -972,4 +980,4 @@ function migrateLegacyPageQuery(loc, hist) {
   return hash;
 }
 Object.assign(window, { ABOUT_SECTIONS, parseRoute, routeHash, routeLabel, routeTitle, migrateLegacyPageQuery });
-Object.assign(window, { StoreProvider, useStore, watchlistKeywords, watchlistMatches, useLiveState, useLiveBills, selectCounts, useCounts, COMMITTEE_STRIP_LABELS, liveStateDegradation, mapWorkerSignalToCard, mapLiveBlocks, fmtFetchedAt, mapLiveFreshness, freshnessView, useFreshness, pollIsStale, configuredFeedCount, useFeedCount, feedHealthState, signalDateFields, fmtDayMonYear, fmtPollStamp, ATTENTION_DIMS_DEFAULT, scoringDims, attentionDisclosure, attentionWord, confidenceLabel, uniformScore, uniformScoreLine, buildSearchResults });
+Object.assign(window, { StoreProvider, useStore, watchlistKeywords, watchlistMatches, useLiveState, useLiveBills, selectCounts, useCounts, COMMITTEE_STRIP_LABELS, liveStateDegradation, mapWorkerSignalToCard, mapLiveBlocks, fmtFetchedAt, fetchedClause, mapLiveFreshness, freshnessView, useFreshness, pollIsStale, configuredFeedCount, useFeedCount, feedHealthState, signalDateFields, fmtDayMonYear, fmtPollStamp, ATTENTION_DIMS_DEFAULT, scoringDims, attentionDisclosure, attentionWord, confidenceLabel, uniformScore, uniformScoreLine, buildSearchResults });

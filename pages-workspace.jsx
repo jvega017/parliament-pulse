@@ -19,7 +19,7 @@ function LiveFeedStrip({ title, items, fetchedAt, emptyText }) {
       <div className="panel-head">
         <h2 className="panel-title">{title}</h2>
         <ProvenanceChip provenance="live" title="Live items from the official APH feeds" />
-        <span className="panel-kicker" style={{marginLeft:"auto"}}>fetched {fmtFetchedAt(fetchedAt)} AEST</span>
+        {fetchedClause(fetchedAt) && <span className="panel-kicker" style={{marginLeft:"auto"}}>{fetchedClause(fetchedAt)}</span>}
       </div>
       <div className="panel-body">
         {items.length === 0
@@ -266,7 +266,7 @@ function PageBills() {
       <div className="panel">
         <div className="panel-head">
           <h2 className="panel-title">Tracked bills</h2>
-          <span className="panel-kicker">{bills ? `${bills.length} bill${bills.length !== 1 ? "s" : ""} · fetched ${fmtFetchedAt(live.fetchedAt)} AEST` : (live.status === "loading" ? "Loading…" : NO_VALUE)}</span>
+          <span className="panel-kicker">{bills ? [`${bills.length} bill${bills.length !== 1 ? "s" : ""}`, fetchedClause(live.fetchedAt)].filter(Boolean).join(" · ") :(live.status === "loading" ? "Loading…" : NO_VALUE)}</span>
         </div>
         {live.status === "loading" && !bills ? <SkeletonTable rows={6} /> : !bills ? (
           <div className="panel-body">
@@ -496,7 +496,7 @@ function PagePatterns() {
           <div className="panel-head">
             <h2 className="panel-title">Signal threads</h2>
             <ProvenanceChip provenance={threads.displayProvenance} title="Parliament Pulse's own grouping of live signals (derived analysis)" />
-            <span className="panel-kicker" style={{marginLeft:"auto"}}>{threads.items.length} threads · fetched {fmtFetchedAt(threads.fetchedAt)} AEST</span>
+            <span className="panel-kicker" style={{marginLeft:"auto"}}>{[`${threads.items.length} threads`, fetchedClause(threads.fetchedAt)].filter(Boolean).join(" · ")}</span>
           </div>
           <div className="panel-body">
             {threads.items.length === 0
@@ -725,7 +725,7 @@ function renderMatchedAlertEvent(e, i) {
       {link
         ? <a href={link} target="_blank" rel="noopener noreferrer" style={{color:"var(--link)", textDecoration:"none", fontWeight:500, fontSize:"var(--t-body-sm)"}} title="Opens the source at aph.gov.au">{title} <Icon name="ext" size={11}/></a>
         : <span style={{fontWeight:500, fontSize:"var(--t-body-sm)"}}>{title}</span>}
-      {when && <div className="mono" style={{fontSize:"var(--t-eyebrow)", color:"var(--ink-4)", marginTop:2}}>{fmtFetchedAt(when)} AEST</div>}
+      {when && fmtFetchedAt(when) !== NOT_SUPPLIED && <div className="mono" style={{fontSize:"var(--t-eyebrow)", color:"var(--ink-4)", marginTop:2}}>{fmtFetchedAt(when)} AEST</div>}
     </div>
   );
 }
