@@ -13,7 +13,7 @@ function TopClock() {
     return () => clearInterval(id);
   }, []);
   return (
-    <span className="mono top-clock" aria-label="Local time" title="Local time" style={{fontSize:12, color:"var(--ink-3)", letterSpacing:".06em", fontVariantNumeric:"tabular-nums"}}>
+    <span className="mono top-clock" aria-label="Local time" title="Local time" style={{fontSize:"var(--t-caption)", color:"var(--ink-3)", letterSpacing:".06em", fontVariantNumeric:"tabular-nums"}}>
       {clock}
     </span>
   );
@@ -91,9 +91,9 @@ function SkeletonTable({ rows = 5 }) {
 // "{n}m" under 60m, else "{h}h". A missing timestamp reads as an em-dash so the
 // topbar never claims a freshness it cannot prove.
 function fmtDataAge(fetchedAt) {
-  if (fetchedAt == null) return "—";
+  if (fetchedAt == null) return NO_VALUE;
   const t = typeof fetchedAt === "number" ? fetchedAt : Date.parse(fetchedAt);
-  if (!t || Number.isNaN(t)) return "—";
+  if (!t || Number.isNaN(t)) return NO_VALUE;
   const secs = Math.max(0, Math.floor((Date.now() - t) / 1000));
   if (secs < 60) return "now";
   const mins = Math.floor(secs / 60);
@@ -119,6 +119,19 @@ const NAV = [
   { id: "about", label: "About the data", group: "Workspace" },
 ];
 
+// UX-16: the Live parliament nav badge follows the real freshness state (FE-05)
+// instead of a permanent red LIVE. "live" when a /state cache is loaded and the
+// Worker's poll is fresh, "stale" when the poll has stalled, "offline" when the
+// /state fetch failed and nothing has loaded, null (no badge) while loading.
+const LIVE_NAV_LABELS = { live: "Live", stale: "Stale", offline: "Offline" };
+function liveNavState(liveState, fresh) {
+  const ls = liveState || {};
+  if (ls.status === "error" && !ls.blocks) return "offline";
+  if (!ls.blocks) return null;
+  if (fresh && fresh.known && fresh.stale) return "stale";
+  return "live";
+}
+
 const ICONS = {
   overview: "overview", radar: "radar", committees: "committee", bills: "bill",
   parliament: "parliament", patterns: "pattern", briefings: "brief",
@@ -138,6 +151,7 @@ function Sidebar({ page, onNavigate, mobileOpen }) {
   // shared signal means it can never show "configured" while the topbar is
   // simultaneously showing an outage.
   const noLiveCache = !!(liveState && liveState.status === "error" && !liveState.blocks);
+  const liveNav = liveNavState(liveState, useFreshness());
   const navCount = React.useMemo(() => {
     const signalItems = (liveState && liveState.blocks && liveState.blocks.signals && liveState.blocks.signals.items) || null;
     const active = signalItems ? signalItems.filter(s => !state.archived[s.id]) : null;
@@ -159,29 +173,6 @@ function Sidebar({ page, onNavigate, mobileOpen }) {
     };
   }, [counts, liveState, state.archived, state.briefsGenerated, state.watchlistCreated]);
   const groups = [...new Set(NAV.map(n => n.group))];
-  // Streak: consecutive days the tool has been opened — reflection of practice, not gamification.
-  // Compute the display value without side effects so the lazy initialiser is pure if dev StrictMode is added.
-  const [streak, setStreak] = React.useState(() => {
-    const today = new Date().toISOString().slice(0, 10);
-    const last = safeGetLocalStorage("pp-last-open-date");
-    const count = parseInt(safeGetLocalStorage("pp-streak-count", "0") || "0");
-    if (last === today) return count || 1;
-    const yest = new Date(); yest.setDate(yest.getDate() - 1);
-    const yStr = yest.toISOString().slice(0, 10);
-    return (last === yStr) ? count + 1 : 1;
-  });
-  // F5: the localStorage WRITE runs after mount, so render itself cannot double-count or corrupt the streak.
-  React.useEffect(() => {
-    const today = new Date().toISOString().slice(0, 10);
-    if (safeGetLocalStorage("pp-last-open-date") === today) return;
-    const count = parseInt(safeGetLocalStorage("pp-streak-count", "0") || "0");
-    const yest = new Date(); yest.setDate(yest.getDate() - 1);
-    const yStr = yest.toISOString().slice(0, 10);
-    const newCount = (safeGetLocalStorage("pp-last-open-date") === yStr) ? count + 1 : 1;
-    safeSetLocalStorage("pp-streak-count", String(newCount));
-    safeSetLocalStorage("pp-last-open-date", today);
-    setStreak(newCount);
-  }, []);
   return (
     <aside className={"side" + (mobileOpen ? " mobile-open" : "")}>
       <div className="brand">
@@ -221,7 +212,7 @@ function Sidebar({ page, onNavigate, mobileOpen }) {
               >
                 <Icon name={ICONS[n.id]} size={15} className="ico" />
                 <span>{n.label}</span>
-                {n.live && <span className="count nav-live">LIVE</span>}
+                {n.live && liveNav && <span className="count nav-live" data-live-state={liveNav} title={liveNav === "live" ? "APH feeds polled recently" : liveNav === "stale" ? "The APH feed poll has stalled; items may be out of date" : "Live data is unavailable"}>{LIVE_NAV_LABELS[liveNav]}</span>}
                 {!n.live && typeof navCount[n.id] === "number" && navCount[n.id] > 0 && <span className="count" data-nav-count={n.id}>{navCount[n.id]}</span>}
               </div>
             ))}
@@ -235,15 +226,15 @@ function Sidebar({ page, onNavigate, mobileOpen }) {
               <span className="dot" style={{background:"var(--caution)", boxShadow:"none"}}/>
               <span>Live data unavailable</span>
             </div>
-            <div>Official RSS proxy did not respond at the last check; desks show an honest empty state rather than invented data. See Live for feed health.</div>
+            <div>The official APH feeds did not respond at the last check, so each desk says what is missing instead of showing invented data. See Sources for feed health.</div>
           </>
         ) : (
           <>
             <div className="side-status-head">
               <span className="dot" style={{background:"var(--ok)", boxShadow:"none"}}/>
-              <span>Feeds configured</span>
+              <span>Official feeds connected</span>
             </div>
-            <div>Official RSS proxy configured; runtime health appears on Live</div>
+            <div>Parliament Pulse reads the official APH feeds. Each feed's health is on Sources.</div>
           </>
         )}
       </div>
@@ -276,12 +267,12 @@ function ShortcutHelp() {
         <div style={{position:"absolute", top:"calc(100% + 8px)", right:0, background:"var(--panel-2)", border:"1px solid var(--line-bright)", borderRadius:"var(--r-md)", boxShadow:"var(--elev-2)", zIndex:40, width:320, padding:"12px 14px"}} role="dialog" aria-label="Keyboard shortcuts">
           <div className="mono" style={{fontSize:"var(--t-label)", color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginBottom:10}}>Keyboard shortcuts</div>
           {shortcuts.map(([k, d]) => (
-            <div key={k} style={{display:"flex", justifyContent:"space-between", alignItems:"center", padding:"5px 0", borderBottom:"1px solid var(--line)", fontSize:12.5}}>
+            <div key={k} style={{display:"flex", justifyContent:"space-between", alignItems:"center", padding:"5px 0", borderBottom:"1px solid var(--line)", fontSize:"var(--t-body-sm)"}}>
               <span style={{color:"var(--ink-2)"}}>{d}</span>
-              <kbd style={{fontFamily:"var(--mono)", fontSize:11, background:"var(--panel-hi)", border:"1px solid var(--line-2)", borderRadius:4, padding:"2px 7px", color:"var(--brass)", marginLeft:10, whiteSpace:"nowrap"}}>{k}</kbd>
+              <kbd style={{fontFamily:"var(--mono)", fontSize:"var(--t-eyebrow)", background:"var(--panel-hi)", border:"1px solid var(--line-2)", borderRadius:4, padding:"2px 7px", color:"var(--brass)", marginLeft:10, whiteSpace:"nowrap"}}>{k}</kbd>
             </div>
           ))}
-          <button style={{marginTop:10, background:"none", border:"none", color:"var(--ink-4)", cursor:"pointer", fontSize:12, padding:0}} onClick={() => setOpen(false)}>Close</button>
+          <button style={{marginTop:10, background:"none", border:"none", color:"var(--ink-4)", cursor:"pointer", fontSize:"var(--t-caption)", padding:0}} onClick={() => setOpen(false)}>Close</button>
         </div>
       )}
     </div>
@@ -324,7 +315,7 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
     const ageAtClick = fmtDataAge((liveState || {}).fetchedAt);
     if (typeof refreshLiveState === "function") {
       Promise.resolve(refreshLiveState()).catch(() => {
-        const msg = ageAtClick === "—"
+        const msg = ageAtClick === NO_VALUE
           ? "Live refresh failed - live data is unavailable"
           : `Live refresh failed - showing data from ${ageAtClick} ago`;
         toast(msg, "error");
@@ -526,12 +517,12 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
             <span className="dot" style={{background:"var(--caution)", boxShadow:"none"}}/> Stale · polling stalled
           </span>
         ) : (
-          <span className="chip clk" data-live-chip="live" onClick={() => navigate("live")} title={feedCount != null ? `${feedCount} official APH feeds polled by the Worker` : "Official APH feeds; live RSS polls on the Live page"} style={{borderColor:"color-mix(in srgb, var(--gold) 55%, transparent)", color:"var(--gold)", background:"transparent"}}>
+          <span className="chip clk" data-live-chip="live" onClick={() => navigate("live")} title={feedCount != null ? `${feedCount} official APH feeds checked every 30 minutes` : "Official APH feeds; the Live page reads them directly"} style={{borderColor:"color-mix(in srgb, var(--gold) 55%, transparent)", color:"var(--gold)", background:"transparent"}}>
             <span className="dot" style={{background:"var(--gold)", boxShadow:"none"}}/> Live beta{feedCount != null ? ` · ${feedCount} feeds` : ""}
           </span>
         )}
         {fresh.known && !noLiveCache && (
-          <span className="mono top-poll" data-poll-line="" title={fresh.stallText || "When the Worker last polled the APH feeds"} style={{fontSize:"var(--t-micro)", color: pollStalled ? "var(--caution)" : "var(--ink-3)", letterSpacing:".04em", whiteSpace:"nowrap"}}>{fresh.pollLine}</span>
+          <span className="mono top-poll" data-poll-line="" title={fresh.stallText || "When Parliament Pulse last checked the APH feeds"} style={{fontSize:"var(--t-micro)", color: pollStalled ? "var(--caution)" : "var(--ink-3)", letterSpacing:".04em", whiteSpace:"nowrap"}}>{fresh.pollLine}</span>
         )}
         <button className="btn ghost sm" aria-label="Refresh live data" aria-busy={isRefreshing} title={live.fetchedAt ? `Live data fetched ${dataAge} ago. Refresh now.` : "Refresh live data"} onClick={handleLiveRefresh}>
           <Icon name="refresh" size={14} style={isRefreshing ? {animation:"spin 800ms linear infinite"} : undefined} />
@@ -540,7 +531,7 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
         <button className="btn ghost sm" title="Show current priority count" aria-label="Alerts" onClick={() => {
           const source = liveSignals.items || SIGNALS;
           const count = source.filter(s => s.attention === "high").length;
-          toast(source.length === 0 ? "Live data is unavailable — no signals to review" : `${count} priority signals currently need review`, "brass");
+          toast(source.length === 0 ? "Live data is unavailable, so there are no signals to review" : `${count} priority signals currently need review`, "brass");
         }}><Icon name="bell" size={14} /></button>
         <button className="btn primary sm" onClick={() => navigate("briefings")}><Icon name="plus" size={13} /> New brief</button>
         <ShortcutHelp />
@@ -559,7 +550,7 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
     {(liveStale || pollStalled) && (
       <div className="stale-banner" role="status" data-stale-reason={pollStalled ? "poll" : "cache"} style={{
         display:"flex", alignItems:"center", gap:10, padding:"7px 16px",
-        fontSize:12.5, color:"var(--ink-2)", background:"var(--panel-2)",
+        fontSize:"var(--t-body-sm)", color:"var(--ink-2)", background:"var(--panel-2)",
         borderBottom:"1px solid var(--line)", boxShadow:"inset 3px 0 0 var(--caution)"
       }}>
         <Icon name="refresh" size={13} stroke="var(--caution)" />
@@ -598,14 +589,14 @@ function Att({ level, disclosure }) {
   // PR-11: every attention value carries the same short disclosure as its tooltip.
   const tip = disclosure || attentionDisclosure();
   // An absent attention value renders as an em-dash, never a fabricated tier.
-  if (!map[level]) return <span className="att" title={`Attention not scored. ${tip}`}>—</span>;
+  if (!map[level]) return <span className="att" title={`Attention not scored. ${tip}`} aria-label="Attention not scored">{NO_VALUE}</span>;
   return <span className={"att " + level} title={tip} data-att-disclosure="">{map[level]}</span>;
 }
 
 // UX-03: confidence reads "Confidence n of 5" in words, never a bare number or a
 // segmented bar that implies more precision than a kind-based rule carries.
 function Conf({ n }) {
-  return <span className="conf-text mono" data-conf="" style={{fontSize:11.5, color:"var(--ink-3)", whiteSpace:"nowrap"}}>{confidenceLabel(n)}</span>;
+  return <span className="conf-text mono" data-conf="" style={{fontSize:"var(--t-caption)", color:"var(--ink-3)", whiteSpace:"nowrap"}}>{confidenceLabel(n)}</span>;
 }
 
 function buildBriefSections(s, isLive = false) {
@@ -683,12 +674,12 @@ const SignalCardView = React.memo(function SignalCardView({ s, archived, feedbac
         {!hideConf && <span className="mono" data-conf="" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)", letterSpacing:".04em", whiteSpace:"nowrap"}}>{confidenceLabel(s.confidence)}</span>}
       </div>
       {feedback && (
-        <div style={{marginTop:8, fontSize:11.5, color:"var(--brass)"}}>
+        <div style={{marginTop:8, fontSize:"var(--t-caption)", color:"var(--brass)"}}>
           <Icon name="check" size={12} style={{verticalAlign:"-2px", marginRight:4}}/> Feedback: {feedback.label}
         </div>
       )}
       {watched && (
-        <div style={{marginTop:8, fontSize:11.5, color:"var(--brass)"}}>
+        <div style={{marginTop:8, fontSize:"var(--t-caption)", color:"var(--brass)"}}>
           <Icon name="watch" size={12} style={{verticalAlign:"-2px", marginRight:4}}/> On watchlist
         </div>
       )}
@@ -704,10 +695,10 @@ function generateBriefMarkdown(s, isLive = false) {
   // source label so verbatim APH prose is never emitted as standalone heading text.
   const titleMd = brief.isLive ? (brief.link ? `[${brief.title}](${brief.link})` : brief.meta.source) : brief.title;
   return [
-    `> BETA DRAFT — generated from the current Parliament Pulse signal record. Verify source links before distribution.`,
+    `> Beta draft, generated from the current Parliament Pulse signal record. Verify source links before distribution.`,
     ``,
-    `# Executive Brief — ${titleMd}`,
-    `Date: ${brief.meta.date} | Source: ${brief.meta.source} | Priority: ${(brief.meta.attention || "—").toUpperCase()}`,
+    `# Executive brief: ${titleMd}`,
+    `Date: ${brief.meta.date} | Source: ${brief.meta.source} | Priority: ${(brief.meta.attention || NOT_SUPPLIED).toUpperCase()}`,
     ``,
     `## Summary`,
     brief.summary,
@@ -855,7 +846,7 @@ function Drawer() {
         if (s) {
           copyToClipboard(generateBriefMarkdown(s, isLive))
             .then(() => { generateBrief(s.id, "Executive brief"); toast("Brief copied to clipboard", "brass", { label: "Open briefings", fn: () => navigate("briefings") }); })
-            .catch(() => toast("Clipboard unavailable — brief not copied", "error"));
+            .catch(() => toast("Clipboard unavailable, so the brief was not copied", "error"));
         }
       }
       if (e.key === "w" && signalId) {
@@ -893,9 +884,9 @@ function Drawer() {
             <div className="drawer-head">
               <div>
                 <div className="mono" style={{fontSize:"var(--t-label)", color:"var(--ink-4)", letterSpacing:".16em", textTransform:"uppercase", display:"flex", alignItems:"center", gap:8}}>
-                  <span>{s.id} · {s.date}</span>
+                  <span style={{minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>{isLive || /^https?:/.test(s.id || "") ? (s.source || "APH") : s.id} · {s.date}</span>
                   <ProvenanceChip provenance={itemProvenance}
-                    title={isLive ? "This item is from the Worker's live /state endpoint (D1 archive)" : "This item has no live source"} />
+                    title={isLive ? "This item is from an official APH feed" : "This item has no live source"} />
                 </div>
                 {/* Licence rule: a live APH title renders only inside an anchor to its
                     APH link; a live row with no link shows the source label. Fixture
@@ -924,7 +915,7 @@ function Drawer() {
                   <h3>Recommended action</h3>
                   <div style={{padding:"10px 14px", borderLeft:"3px solid var(--brass)", borderRadius:"0 6px 6px 0", background:"var(--panel-2)"}}>
                     <div style={{fontWeight:600, color:"var(--ink)"}}>{s.action}</div>
-                    {s.actionReason && <div style={{color:"var(--ink-2)", fontSize:13, marginTop:4}}>{s.actionReason}</div>}
+                    {s.actionReason && <div style={{color:"var(--ink-2)", fontSize:"var(--t-body-sm)", marginTop:4}}>{s.actionReason}</div>}
                   </div>
                 </div>
               )}
@@ -934,22 +925,22 @@ function Drawer() {
                   facts when it is one, so a live item with identical text collapses to a
                   single honestly-labelled section instead of duplicating it. */}
               {isLive && s.summary && s.summary === s.attentionReason ? (
-                <div className="drawer-section"><h3>Scoring explanation</h3><p>{s.summary || "—"}</p></div>
+                <div className="drawer-section"><h3>Scoring explanation</h3><p>{s.summary || NOT_SUPPLIED}</p></div>
               ) : (
                 <>
-                  <div className="drawer-section"><h3>Summary</h3><p>{s.summary || "—"}</p></div>
-                  <div className="drawer-section"><h3>Why it matters</h3><p>{s.attentionReason || "—"}</p></div>
+                  <div className="drawer-section"><h3>Summary</h3><p>{s.summary || NOT_SUPPLIED}</p></div>
+                  <div className="drawer-section"><h3>Why it matters</h3><p>{s.attentionReason || NOT_SUPPLIED}</p></div>
                 </>
               )}
               <div className="drawer-section">
                 <h3>Signal metadata</h3>
                 <dl className="kv">
-                  <dt>Source</dt><dd>{s.source || "—"}</dd>
-                  <dt>Source group</dt><dd>{s.sourceGroup || "—"}</dd>
-                  <dt>Authority</dt><dd>{s.sourceAuthority || "—"}</dd>
+                  <dt>Source</dt><dd>{s.source || NOT_SUPPLIED}</dd>
+                  <dt>Source group</dt><dd>{s.sourceGroup || NOT_SUPPLIED}</dd>
+                  <dt>Authority</dt><dd>{s.sourceAuthority || NOT_SUPPLIED}</dd>
                   <dt>Attention</dt><dd><Att level={s.attention} /></dd>
-                  <dt>Confidence</dt><dd><Conf n={s.confidence} />{!isLive && <span style={{color:"var(--ink-3)", marginLeft:8, fontFamily:"var(--mono)", fontSize:11}}>Representative</span>}</dd>
-                  <dt>Human review</dt><dd>{s.humanReview ? `Review status: ${s.humanReview === "Required" ? "Not reviewed · policy officer must verify source links before use" : "Optional for internal triage; required before external distribution"}` : "—"}</dd>
+                  <dt>Confidence</dt><dd><Conf n={s.confidence} />{!isLive && <span style={{color:"var(--ink-3)", marginLeft:8, fontFamily:"var(--mono)", fontSize:"var(--t-eyebrow)"}}>Representative</span>}</dd>
+                  <dt>Human review</dt><dd>{s.humanReview ? `Review status: ${s.humanReview === "Required" ? "Not reviewed · policy officer must verify source links before use" : "Optional for internal triage; required before external distribution"}` : NOT_SUPPLIED}</dd>
                 </dl>
               </div>
               {/* FE-04: unsourced surface. Only an example signal carries a score
@@ -957,14 +948,14 @@ function Drawer() {
               {SITE_CONFIG.showUnsourcedSurfaces && !isLive && s.score && (
                 <div className="drawer-section">
                   <h3>Attention score breakdown <span className="chip-fixture" style={{verticalAlign:"middle", marginLeft:6}}>Sample data</span></h3>
-                  <div style={{color:"var(--ink-4)", fontSize:12, marginBottom:6}}>Illustrative five-factor breakdown for an example signal, not a computed score.</div>
+                  <div style={{color:"var(--ink-4)", fontSize:"var(--t-caption)", marginBottom:6}}>Illustrative five-factor breakdown for an example signal, not a computed score.</div>
                   {Object.entries(s.score).map(([k,v]) => {
                     const lab = {authority:"Source authority", portfolio:"Portfolio relevance", novelty:"Novelty", momentum:"Momentum", time:"Time sensitivity", scrutiny:"Scrutiny relevance", ops:"Operational impact"};
                     return (
                       <div key={k} style={{display:"grid", gridTemplateColumns:"160px 1fr 40px", gap:10, alignItems:"center", padding:"4px 0"}}>
-                        <div style={{fontSize:12.5, color:"var(--ink-2)"}}>{lab[k]}</div>
+                        <div style={{fontSize:"var(--t-body-sm)", color:"var(--ink-2)"}}>{lab[k]}</div>
                         <div className="bar"><div className="fill" style={{width:`${v*100}%`}} /></div>
-                        <div className="mono" style={{fontSize:11, color:"var(--ink-3)", textAlign:"right"}}>{Math.round(v*100)}</div>
+                        <div className="mono" style={{fontSize:"var(--t-eyebrow)", color:"var(--ink-3)", textAlign:"right"}}>{Math.round(v*100)}</div>
                       </div>
                     );
                   })}
@@ -976,14 +967,14 @@ function Drawer() {
                   <a key={i} href={e.url} target="_blank" rel="noopener noreferrer" style={{
                     display:"flex", alignItems:"center", gap:10, padding:"10px 12px",
                     border:"1px solid var(--line-2)", borderRadius:8, color:"var(--ink)",
-                    textDecoration:"none", marginBottom:6, fontSize:13,
+                    textDecoration:"none", marginBottom:6, fontSize:"var(--t-body-sm)",
                   }}>
-                    <Icon name="link" size={14} stroke="var(--teal)" />
-                    <span>{e.label}</span>
-                    <span className="mono" style={{color:"var(--ink-4)", fontSize:11, marginLeft:"auto", maxWidth:240, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>{e.url.replace(/^https?:\/\//,"")}</span>
-                    <Icon name="ext" size={12} stroke="var(--ink-3)" />
+                    <Icon name="link" size={14} stroke="var(--link)" style={{flexShrink:0}} />
+                    <span style={{flex:"1 1 auto", minWidth:0}}>{e.label}</span>
+                    <span className="mono" style={{color:"var(--ink-4)", fontSize:"var(--t-eyebrow)", marginLeft:"auto", maxWidth:240, minWidth:0, flex:"0 1 auto", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>{e.url.replace(/^https?:\/\//,"")}</span>
+                    <Icon name="ext" size={12} stroke="var(--ink-3)" style={{flexShrink:0}} />
                   </a>
-                )) : <div style={{color:"var(--ink-4)", fontSize:13}}>— No source link recorded for this item.</div>}
+                )) : <div style={{color:"var(--ink-4)", fontSize:"var(--t-body-sm)"}}>No source link recorded for this item.</div>}
               </div>
 
               {/* FE-04: unsourced surface. Parliament Pulse records no per-signal
@@ -998,7 +989,7 @@ function Drawer() {
                     </div>
                     <div style={{border:"1px solid var(--line-2)", borderRadius:8, overflow:"hidden"}}>
                       {s.provenance.map((p,i) => (
-                        <div key={i} style={{display:"grid", gridTemplateColumns:"78px 90px 1fr", gap:10, padding:"8px 12px", fontSize:12, borderBottom: i<s.provenance.length-1 ? "1px solid var(--line)" : 0, background: i%2 ? "var(--panel-hi)" : "transparent"}}>
+                        <div key={i} style={{display:"grid", gridTemplateColumns:"78px 90px 1fr", gap:10, padding:"8px 12px", fontSize:"var(--t-caption)", borderBottom: i<s.provenance.length-1 ? "1px solid var(--line)" : 0, background: i%2 ? "var(--panel-hi)" : "transparent"}}>
                           <div className="mono" style={{color:"var(--ink-4)", fontSize:"var(--t-micro)"}}>{p.ts}</div>
                           <div><span className="tag" style={{fontSize:"var(--t-micro)", padding:"1px 6px"}}>{p.by}</span></div>
                           <div style={{color:"var(--ink-2)"}}>{p.event}</div>
@@ -1018,8 +1009,8 @@ function Drawer() {
                 <div className="drawer-section">
                   <h3>Updates to this signal · who / what / when</h3>
                   {s.updates.map((u,i) => (
-                    <div key={i} style={{display:"grid", gridTemplateColumns:"60px 140px 1fr", gap:10, padding:"8px 0", borderBottom: i<s.updates.length-1 ? "1px solid var(--line)" : 0, fontSize:12.5}}>
-                      <div className="mono" style={{color:"var(--ink-4)", fontSize:11}}>{u.ts}</div>
+                    <div key={i} style={{display:"grid", gridTemplateColumns:"60px 140px 1fr", gap:10, padding:"8px 0", borderBottom: i<s.updates.length-1 ? "1px solid var(--line)" : 0, fontSize:"var(--t-body-sm)"}}>
+                      <div className="mono" style={{color:"var(--ink-4)", fontSize:"var(--t-eyebrow)"}}>{u.ts}</div>
                       <div style={{color:"var(--brass)"}}>{u.who}</div>
                       <div style={{color:"var(--ink-2)"}}>{u.what}</div>
                     </div>
@@ -1044,7 +1035,7 @@ function Drawer() {
                 <textarea value={note} onChange={e=>setNote(e.target.value)} onBlur={flushNote}
                   aria-label="Analyst note for this signal, saved privately in this browser"
                   placeholder="Private notes (auto-saved)" rows={3}
-                  style={{width:"100%", background:"var(--panel)", border:"1px solid var(--line-2)", borderRadius:8, color:"var(--ink)", padding:"8px 10px", fontFamily:"var(--sans)", fontSize:13, resize:"vertical"}}/>
+                  style={{width:"100%", background:"var(--panel)", border:"1px solid var(--line-2)", borderRadius:8, color:"var(--ink)", padding:"8px 10px", fontFamily:"var(--sans)", fontSize:"var(--t-body-sm)", resize:"vertical"}}/>
               </div>
               <div className="drawer-section">
                 <h3>Analyst feedback · is this right?</h3>
@@ -1062,7 +1053,7 @@ function Drawer() {
               <button className="btn primary" onClick={() => {
                 copyToClipboard(generateBriefMarkdown(s, isLive))
                   .then(() => { generateBrief(s.id, "Executive brief"); toast("Brief copied to clipboard", "brass", { label: "Open briefings", fn: () => navigate("briefings") }); })
-                  .catch(() => toast("Clipboard unavailable — brief not copied", "error"));
+                  .catch(() => toast("Clipboard unavailable, so the brief was not copied", "error"));
               }}><Icon name="brief" size={13} /> Generate brief</button>
               <button className="btn" onClick={() => addWatchlist(s.id)} style={watched ? {borderColor:"var(--brass)", color:"var(--brass)"} : undefined}><Icon name="watch" size={13} /> {watched ? "Watching" : "Watchlist"}</button>
               <button className="btn ghost" onClick={() => {
@@ -1103,4 +1094,4 @@ function SiteFooter() {
   );
 }
 
-Object.assign(window, { Sidebar, Topbar, TopClock, SignalCard, Drawer, Att, Conf, ProvenanceChip, BetaNotice, EmptyState, SkeletonRow, SkeletonCard, SkeletonTable, fmtDataAge, buildBriefSections, SiteFooter, generateBriefMarkdown });
+Object.assign(window, { liveNavState, Sidebar, Topbar, TopClock, SignalCard, Drawer, Att, Conf, ProvenanceChip, BetaNotice, EmptyState, SkeletonRow, SkeletonCard, SkeletonTable, fmtDataAge, buildBriefSections, SiteFooter, generateBriefMarkdown });

@@ -13,11 +13,11 @@ function exportSignalsCSV(signals) {
   const source = Array.isArray(signals) ? signals : SIGNALS;
   const headers = ["id","date","source","attention","title","link","action","confidence"];
   const rows = source.map(s => [
-    s.id, s.date, s.source, s.attention || "—",
+    s.id, s.date, s.source, s.attention || NOT_SUPPLIED,
     s.title,
     s.link || "",
     s.action,
-    s.confidence ?? "—",
+    s.confidence ?? NOT_SUPPLIED,
   ]);
   exportRowsCSV(headers, rows, `parliament-pulse-signals-${new Date().toISOString().slice(0,10)}.csv`);
 }
@@ -92,15 +92,15 @@ function downloadBriefingQueue(briefs, toast) {
 const BETA_READINESS_ROWS = [
   {
     state: "Configured",
-    title: "Official feed spine",
-    detail: "Six APH RSS sources are configured and polled through the local or Cloudflare proxy. The Live page shows runtime feed state and direct source links.",
+    title: "Official APH feeds",
+    detail: "Six official APH RSS feeds are checked every 30 minutes. The Live page shows each feed's current state and links to the source.",
     action: "Open Live",
     page: "live",
   },
   {
     state: "Derived",
     title: "Parliament Pulse analysis",
-    detail: "Attention and confidence come from the Worker's deterministic scoring; threads, radar groups and watchlist matches are computed over the live signal stream. All of it is Parliament Pulse's own analysis, labelled as such.",
+    detail: "Attention and confidence come from fixed, published scoring rules; threads, source groups and watchlist matches are worked out from the live signals. All of it is Parliament Pulse's own analysis, labelled as such.",
     action: "Review signals",
     page: "signals",
   },
@@ -116,26 +116,26 @@ const BETA_READINESS_ROWS = [
 const PROVENANCE_STACK = [
   {
     label: "Official source",
-    title: "APH RSS + direct source links",
-    detail: "Live feed rows retain the official APH URL and expose Hansard, ParlView, YouTube or source-page links before any interpretation.",
+    title: "APH feeds with their source links",
+    detail: "Every live item keeps its official APH link, and the Live page links to Hansard, ParlView and YouTube, before any analysis is added.",
     state: "Configured",
   },
   {
     label: "Transport",
-    title: "CORS proxy with constrained feed list",
-    detail: "Local beta uses proxy-server.js. Production uses the Cloudflare Worker route documented in the repo.",
+    title: "Fetched from a fixed list of APH feeds",
+    detail: "Parliament Pulse reads only the official APH feeds on its list, so nothing else enters the signal stream.",
     state: "Configured",
   },
   {
     label: "Enrichment",
     title: "Attention and confidence scoring",
-    detail: "The Worker scores each live item with a deterministic rule set. Scores are Parliament Pulse's analysis, not APH content, and each item keeps its official source link.",
+    detail: "Parliament Pulse scores each live item with fixed rules that give the same result every time. Scores are Parliament Pulse's analysis, not APH content, and each item keeps its official source link.",
     state: "Derived",
   },
   {
     label: "Analyst action",
     title: "Briefs, exports, notes and watchlists",
-    detail: "Current controls create local artefacts, copy handoff notes, export CSVs or persist browser-local review state.",
+    detail: "You can draft briefs, copy handoff notes, export CSV files and keep notes. All of it stays in this browser.",
     state: "Beta",
   },
 ];
@@ -152,23 +152,23 @@ const COVERAGE_MATRIX = [
     source: "signals",
     fallback: "Configured",
     evidence: "Six official APH RSS feeds plus chamber program and broadcast links.",
-    activation: "Add a sitting-status check before claiming current chamber activity.",
+    activation: "Show whether each chamber is sitting, from an official source.",
     page: "live",
   },
   {
     module: "Sources",
     source: "connectors",
     fallback: "Configured",
-    evidence: "Official source register; the Worker health-checks each endpoint.",
-    activation: "Connect custom-feed validation to a backend parser.",
+    evidence: "Official feed register; each feed is health-checked on every poll.",
+    activation: "Check feeds you add yourself before they join the signal stream.",
     page: "sources",
   },
   {
     module: "Overview signals",
     source: "signals",
     fallback: "Unavailable",
-    evidence: "Signals from the Worker's /state archive, each linked to its APH source.",
-    activation: "Add entity extraction; keep scores labelled as Parliament Pulse analysis.",
+    evidence: "Signals from the official APH feeds, each linked to its source.",
+    activation: "Recognise people, portfolios and bills in each item; keep scores labelled as Parliament Pulse analysis.",
     page: "signals",
   },
   {
@@ -176,40 +176,40 @@ const COVERAGE_MATRIX = [
     source: "committees",
     fallback: "Unavailable",
     evidence: "Items from the Senate, House and joint committee feeds.",
-    activation: "Add a curated registry for chairs, dates and hearing status.",
+    activation: "Add committee chairs, hearing dates and hearing status.",
     page: "committees",
   },
   {
     module: "Bills intelligence",
     source: "bills",
     fallback: "Unavailable",
-    evidence: "Bills register served by the Worker's /bills endpoint.",
-    activation: "Add amendment tracking and portfolio routing.",
+    evidence: "Bills with a Bills Digest in the Parliamentary Library feed.",
+    activation: "Track amendments and show which portfolio each bill belongs to.",
     page: "bills",
   },
   {
     module: "Briefings",
     source: null,
-    fallback: "Local beta",
-    evidence: "Clipboard export, CSV export and browser-local queue state.",
-    activation: "Add shared persistence, reviewer assignment and approval workflow.",
+    fallback: "In this browser",
+    evidence: "Briefs are copied to the clipboard or exported as CSV; the queue stays in this browser.",
+    activation: "Share briefs with a team, assign a reviewer and record approval.",
     page: "briefings",
   },
   {
     module: "Threads",
     source: "threads",
     fallback: "Unavailable",
-    evidence: "The Worker's own clustering of live signals into threads.",
-    activation: "Add Hansard and Questions on Notice extraction once a feed can be reached.",
+    evidence: "Parliament Pulse groups related live signals into threads.",
+    activation: "Add Hansard and questions on notice once a feed for them can be reached.",
     page: "patterns",
   },
   {
-    module: "Watchlists/radar",
+    module: "Watchlists",
     source: "signals",
     derivedFrom: true,
     fallback: "Unavailable",
-    evidence: "Word-boundary keyword matching over the live signal stream.",
-    activation: "Alert delivery needs sign-in before rules run server-side.",
+    evidence: "Whole-word keyword matching over the live signals.",
+    activation: "Sending alerts needs a sign-in, which this release does not have.",
     page: "watchlists",
   },
 ];
@@ -287,10 +287,10 @@ function ProvenanceMetricsBand({ navigate }) {
   // FE-05 (DATA-16): the feed count is the Worker's configured feeds, never the
   // frontend registry length.
   const feedCount = useFeedCount();
-  const dash = v => (typeof v === "number" ? v : "—");
+  const dash = v => (typeof v === "number" ? v : NO_VALUE);
   const metrics = [
-    { label: "Official feeds", value: dash(feedCount), detail: feedCount == null ? "Appears once the Worker reports its feeds" : "APH feeds polled by the Worker", icon: "rss", page: "sources" },
-    { label: "Signals", value: dash(counts.signals), detail: counts.signals == null ? "Live signal stream unavailable" : "Live signals in the current /state cache", icon: "signal", page: "signals" },
+    { label: "Official feeds", value: dash(feedCount), detail: feedCount == null ? "Appears once the feed list loads" : "Official APH feeds checked every 30 minutes", icon: "rss", page: "sources" },
+    { label: "Signals", value: dash(counts.signals), detail: counts.signals == null ? "Live signals are unavailable" : "Live signals held right now", icon: "signal", page: "signals" },
     { label: "Committee items", value: dash(counts.committees), detail: "From the live committee feeds", icon: "committee", page: "committees" },
     { label: "Human review", value: "On", detail: "Verify before publication", icon: "check" },
   ];
@@ -314,17 +314,17 @@ function ProvenanceMetricsBand({ navigate }) {
 function CoverageActivationMatrix({ navigate, copyPlan }) {
   const rows = coverageRows(useCounts());
   return (
-    <div className="coverage-matrix" aria-label="Module coverage and activation matrix">
+    <div className="coverage-matrix" aria-label="Desk coverage and what comes next">
       <div className="coverage-head">
         <div>
-          <div className="panel-section-title">Module coverage and activation matrix</div>
-          <h2>What is operational, what is derived, and what needs wiring next</h2>
+          <div className="panel-section-title">Desk coverage</div>
+          <h2>What each desk shows today, and what comes next</h2>
         </div>
-        <button className="btn ghost sm" onClick={copyPlan}><Icon name="brief" size={12}/> Copy activation plan</button>
+        <button className="btn ghost sm" onClick={copyPlan}><Icon name="brief" size={12}/> Copy coverage table</button>
       </div>
       <div className="coverage-grid">
         <div className="coverage-row coverage-labels" aria-hidden="true">
-          <span>Module</span><span>Status</span><span>Evidence basis</span><span>Activation needed</span><span>Open</span>
+          <span>Desk</span><span>Status</span><span>Based on</span><span>Next step</span><span>Open</span>
         </div>
         {rows.map(row => (
           <div key={row.module} className="coverage-row" data-module={row.module}>
@@ -354,7 +354,7 @@ function OnboardingGuide({ onDismiss }) {
         <Icon name="signal" size={14} stroke="var(--brass)" />
         <span className="mono t-label" style={{color:"var(--brass)", textTransform:"uppercase", letterSpacing:".18em"}}>Getting started</span>
         <button onClick={dismiss}
-          style={{marginLeft:"auto", background:"none", border:"none", color:"var(--ink-4)", cursor:"pointer", fontSize:16, lineHeight:1, padding:"0 4px"}}
+          style={{marginLeft:"auto", background:"none", border:"none", color:"var(--ink-4)", cursor:"pointer", fontSize:"var(--t-body)", lineHeight:1, padding:"0 4px"}}
           aria-label="Dismiss guide">×</button>
       </div>
       <div className="g-onboarding" style={{display:"grid", gap:14}}>
@@ -363,8 +363,8 @@ function OnboardingGuide({ onDismiss }) {
           ["2. Take action", "Open a signal, read the recommended action, then archive, generate a brief, or add to a watchlist. Use j/k to navigate, Esc to close."],
           ["3. Generate briefs", "Press b or click Generate brief to copy a structured brief to the clipboard. Completed briefs appear in the Briefings queue."],
         ].map(([h, b]) => (
-          <div key={h} style={{fontSize:12.5, color:"var(--ink-2)"}}>
-            <div style={{fontWeight:600, color:"var(--brass)", marginBottom:4, fontSize:12}}>{h}</div>
+          <div key={h} style={{fontSize:"var(--t-body-sm)", color:"var(--ink-2)"}}>
+            <div style={{fontWeight:600, color:"var(--brass)", marginBottom:4, fontSize:"var(--t-caption)"}}>{h}</div>
             {b}
           </div>
         ))}
@@ -431,7 +431,7 @@ function PageOverview() {
   const overviewBriefs = Object.entries(state.briefsGenerated || {}).map(([sid, v]) => {
     const sig = sourceSignals.find(s => s.id === sid) || SIGNALS.find(s => s.id === sid);
     const label = sig ? (sig.isLive ? sig.source : (sig.title.slice(0, 40) + "…")) : sid;
-    return { type: v.type || "Executive Brief", for: label, ts: v.ts };
+    return { type: v.type || "Executive brief", for: label, ts: v.ts };
   }).sort((a, b) => b.ts - a.ts).slice(0, 4);
 
   const generateDailyBrief = () => {
@@ -454,7 +454,7 @@ function PageOverview() {
       return `- [${brief.meta.id}] ${briefTitleMd(brief)}${brief.recommendedAction ? ` - ${brief.recommendedAction.label}` : ""}`;
     });
     const lines = [
-      `# Parliamentary Daily Signal Brief — ${today}`,
+      `# Parliamentary daily signal brief: ${today}`,
       `Generated: ${new Date().toISOString()}`,
       `Total signals: ${priority.length + rest.length} · Priority: ${priority.length}`,
       ``,
@@ -475,7 +475,7 @@ function PageOverview() {
       "",
       "## Live in this beta",
       "- Six official APH RSS feeds are configured.",
-      "- Live page polls through the local or Cloudflare proxy.",
+      "- The Live page reads the official APH feeds.",
       "- Source register, direct APH links, CSV exports, clipboard briefs and local review state are operational.",
       "",
       "## Representative until pipeline activation",
@@ -500,7 +500,7 @@ function PageOverview() {
         </div>
         <div style={{display:"flex", gap:8, alignItems:"center", flexWrap:"wrap", justifyContent:"flex-end"}}>
           <ProvenanceChip provenance={live.displayProvenance}
-            title={live.displayProvenance === "live" ? "Signals from the Worker's composed /state endpoint (D1 archive)" : "Signal counts and tiles are representative; the Live page polls official RSS feeds"} />
+            title={live.displayProvenance === "live" ? "Signals from the official APH feeds" : "Live signals are unavailable; the Live page links to the official APH feeds"} />
           <button className="btn ghost sm" aria-expanded={showHelp} onClick={() => setShowHelp(v => !v)}><Icon name="signal" size={12}/> How it works</button>
           <button className="btn ghost sm" onClick={() => exportSignalsCSV(sourceSignals)}><Icon name="ext" size={12}/> Export CSV</button>
           <button className="btn ghost sm" onClick={copyBetaHandoff}><Icon name="brief" size={12}/> Copy beta handoff</button>
@@ -522,16 +522,16 @@ function PageOverview() {
         </div>
         <div className="cs-secondary" title="Counted from the live Senate, House and joint committee feeds">
           <div className="cs-stat-label" style={{display:"flex", alignItems:"center", gap:8}}>Committee activity {live.items && <ProvenanceChip provenance="live" title="Counted from the live committee feeds" />}</div>
-          <div className="cs-stat">{counts.committees == null ? "—" : counts.committees}<span className="unit">items</span></div>
+          <div className="cs-stat">{counts.committees == null ? NO_VALUE : counts.committees}<span className="unit">items</span></div>
           <div className="stat-meta">{committeeHearingCount} hearing{committeeHearingCount !== 1 ? "s" : ""} · {committeeInquiryCount} inquir{committeeInquiryCount !== 1 ? "ies" : "y"} · {committeeReportCount} report{committeeReportCount !== 1 ? "s" : ""}</div>
         </div>
         <div className="cs-secondary" data-source-health="">
           <div className="cs-stat-label">Source health</div>
-          <div className="cs-stat">{feedCount == null ? "—" : feedCount}<span className="unit">feeds</span></div>
+          <div className="cs-stat">{feedCount == null ? NO_VALUE : feedCount}<span className="unit">feeds</span></div>
           <div className="stat-meta" data-poll-line="" style={fresh.stale ? {color:"var(--caution)"} : undefined}>
             {fresh.known
               ? (fresh.stale ? fresh.stallText : fresh.pollLine)
-              : (feedCount == null ? "Feed count appears once the Worker reports its feeds" : "Official feeds polled by the Worker")}
+              : (feedCount == null ? "Feed count appears once the feed list loads" : "Official APH feeds checked every 30 minutes")}
           </div>
         </div>
       </div>
@@ -542,7 +542,7 @@ function PageOverview() {
           <span style={{width:7, height:7, borderRadius:"50%", background:"var(--ok)"}}/>
           <span className="mono" style={{fontSize:"var(--t-label)", letterSpacing:".16em", color:"var(--ok)", fontWeight:600}}>LATEST CONFIGURED SOURCES</span>
         </div>
-        <div style={{display:"flex", gap:18, fontSize:12.5, color:"var(--ink-2)", alignItems:"center"}}>
+        <div style={{display:"flex", gap:18, fontSize:"var(--t-body-sm)", color:"var(--ink-2)", alignItems:"center"}}>
           <div><strong style={{color:"var(--ink)"}}>House:</strong> program links available</div>
           <div style={{width:1, height:16, background:"var(--line-2)"}}/>
           <div><strong style={{color:"var(--ink)"}}>Senate:</strong> verify hearing status from APH before action</div>
@@ -557,23 +557,24 @@ function PageOverview() {
           <div className="panel" id="priority-panel" style={{marginBottom:"var(--gap-section)"}}>
             <div className="panel-head">
               <h2 className="panel-title">Priority signals</h2>
-              <span className="panel-kicker">{priority.length} items · human review required</span>
+              <span className="panel-kicker">{priority.length} high-attention items · check each before use</span>
             </div>
             <div className="panel-body">
               {live.status === "loading" && !live.items
                 ? [...Array(3)].map((_, i) => <SkeletonCard key={i} />)
                 : !live.items ? (
                     <EmptyState icon="signal" kicker="Live data unavailable" variant="error">
-                      Live data is unavailable. Parliament Pulse shows nothing rather than showing something invented. <a href="https://www.aph.gov.au" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>Go to aph.gov.au</a>.
+                      Live data is unavailable. Parliament Pulse shows nothing rather than showing something invented. <a href="https://www.aph.gov.au" target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>Go to aph.gov.au</a>.
                     </EmptyState>
                   ) : <>
-                    {priority.map(s => <SignalCard key={s.id} s={s} />)}
+                    {/* Every card here is high attention, so the panel kicker says it once (UX-03 pattern). */}
+                    {priority.map(s => <SignalCard key={s.id} s={s} hideAtt />)}
                     {priority.length === 0 && <EmptyState icon="check" kicker="Priority clear">All priority signals actioned.</EmptyState>}
                   </>}
             </div>
             {rest.length > 0 && (
               <div className="panel-foot">
-                <span style={{color:"var(--ink-3)", fontSize:13}}>{rest.length} more signal{rest.length !== 1 ? "s" : ""} in the last 24h</span>
+                <span style={{color:"var(--ink-3)", fontSize:"var(--t-body-sm)"}}>{rest.length} more signal{rest.length !== 1 ? "s" : ""} in the last 24h</span>
                 <button className="btn ghost sm" style={{marginLeft:"auto"}} onClick={() => goto && goto("signals")}>Open Signal inbox →</button>
               </div>
             )}
@@ -587,7 +588,7 @@ function PageOverview() {
                 <h2 className="panel-section-title">What changed</h2>
                 <span className="panel-kicker" style={{marginLeft:"auto"}}>{live.items ? `Live · fetched ${fmtFetchedAt(live.fetchedAt)} AEST` : "No live feed yet"}</span>
               </div>
-              <div style={{marginBottom:12, paddingBottom:12, borderBottom:"1px solid var(--rule-2)", fontSize:12, color:"var(--ink-3)"}}>
+              <div style={{marginBottom:12, paddingBottom:12, borderBottom:"1px solid var(--rule-2)", fontSize:"var(--t-caption)", color:"var(--ink-3)"}}>
                 {Object.keys(state.archived).length > 0
                   ? `You actioned ${Object.keys(state.archived).length} signal${Object.keys(state.archived).length !== 1 ? "s" : ""} this session.`
                   : "No signals actioned yet this session."}{" "}
@@ -604,7 +605,7 @@ function PageOverview() {
                       <div className="tl-time">{s.when ?? s.time} · {s.source}</div>
                       <div className="tl-body">
                         {s.link
-                          ? <a href={s.link} target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)", textDecoration:"none"}} title="Opens the source at aph.gov.au">{s.title}</a>
+                          ? <a href={s.link} target="_blank" rel="noopener noreferrer" style={{color:"var(--link)", textDecoration:"none"}} title="Opens the source at aph.gov.au">{s.title}</a>
                           : s.title}
                       </div>
                     </div>
@@ -612,7 +613,7 @@ function PageOverview() {
                 </div>
               ) : (
                 <EmptyState icon="signal" kicker="No live timeline held">
-                  Parliament Pulse holds no verified live changes for this window: the /state signals block is not currently live. This timeline populates from the same feed as the Signal inbox once it connects.
+                  Parliament Pulse holds no verified live changes for this window: live signals are unavailable right now. This timeline fills from the same feeds as the Signal inbox once they respond.
                 </EmptyState>
               )}
             </div>
@@ -628,11 +629,11 @@ function PageOverview() {
               ) : overviewBriefs.map((b,i) => (
                 <div key={b.for + i} className="data-row g-brief-row" style={{display:"grid", gap:10, padding:"10px 0", borderBottom: i < overviewBriefs.length-1 ? "1px solid var(--rule-2)" : 0}}>
                   <div>
-                    <div style={{fontSize:13, fontWeight:500}}>{b.type}</div>
-                    <div style={{fontSize:11.5, color:"var(--ink-3)"}}>For {b.for}</div>
+                    <div style={{fontSize:"var(--t-body-sm)", fontWeight:500}}>{b.type}</div>
+                    <div style={{fontSize:"var(--t-caption)", color:"var(--ink-3)"}}>For {b.for}</div>
                   </div>
                   <div style={{display:"flex", alignItems:"center", gap:8}}>
-                    <span className="mono" style={{fontSize:"var(--t-label)", color:"var(--ok)", textTransform:"uppercase", letterSpacing:".12em"}}>Copied · clipboard</span>
+                    <span className="mono" style={{fontSize:"var(--t-label)", color:"var(--ok)", textTransform:"uppercase", letterSpacing:".12em"}}>Copied to clipboard</span>
                     <button className="btn sm ghost" title="Open the briefings queue" aria-label="Open briefings queue" onClick={() => goto && goto("briefings")}><Icon name="chevron" size={13}/></button>
                   </div>
                 </div>
@@ -642,9 +643,9 @@ function PageOverview() {
         </div>
       </div>
 
-      <div className="about-data-line" style={{marginTop:"var(--gap-section)", fontSize:12.5, color:"var(--ink-3)"}}>
+      <div className="about-data-line" style={{marginTop:"var(--gap-section)", fontSize:"var(--t-body-sm)", color:"var(--ink-3)"}}>
         Every figure here links to its source. See what is live, what is derived, and what is coming:{" "}
-        <a href="#/about" onClick={e => { e.preventDefault(); goto && goto("about"); }} style={{color:"var(--teal)"}}>About the data</a>.
+        <a href="#/about" onClick={e => { e.preventDefault(); goto && goto("about"); }} style={{color:"var(--link)"}}>About the data</a>.
       </div>
     </div>
   );
@@ -659,7 +660,7 @@ function PageOverview() {
 // collected through the site, no analytics, local-only preferences, and links to
 // official sources rather than republishing them. Placed on the About page so it
 // travels with the honest account of coverage.
-const legalH = { fontSize: 12.5, fontWeight: 600, color: "var(--ink-1)", margin: "14px 0 4px" };
+const legalH = { fontSize:"var(--t-body-sm)", fontWeight: 600, color: "var(--ink)", margin: "14px 0 4px" };
 
 // FE-04 (LEG-10): every localStorage key the code reads or writes, so the privacy
 // text states exactly what is held. tests/unsourced-surfaces.test.mjs fails if a
@@ -670,8 +671,6 @@ const LOCAL_STORAGE_KEYS = [
   { key: "pp-nav-open", holds: "whether the mobile navigation was left open" },
   { key: "pp-beta-ack", holds: "that you dismissed the beta notice" },
   { key: "pp-onboarded", holds: "that you dismissed the How it works guide" },
-  { key: "pp-last-open-date", holds: "the date you last opened the app" },
-  { key: "pp-streak-count", holds: "a count of consecutive days you opened the app (not displayed)" },
 ];
 
 // FE-04 (PR-07, LEG-04): the contact channel is read from SITE_CONFIG only. An
@@ -680,10 +679,10 @@ const LOCAL_STORAGE_KEYS = [
 function ContactLine() {
   const c = SITE_CONFIG.contact;
   if (typeof c === "string" && /^https:\/\//i.test(c)) {
-    return <>To report a correction or ask a privacy question, contact Prometheus Policy Lab at <a href={c} target="_blank" rel="noopener noreferrer" style={{ color: "var(--teal)" }}>{c.replace(/^https:\/\//i, "")}</a>.</>;
+    return <>To report a correction or ask a privacy question, contact Prometheus Policy Lab at <a href={c} target="_blank" rel="noopener noreferrer" style={{ color: "var(--link)" }}>{c.replace(/^https:\/\//i, "")}</a>.</>;
   }
   if (typeof c === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c)) {
-    return <>To report a correction or ask a privacy question, email Prometheus Policy Lab at <a href={"mailto:" + c} style={{ color: "var(--teal)" }}>{c}</a>.</>;
+    return <>To report a correction or ask a privacy question, email Prometheus Policy Lab at <a href={"mailto:" + c} style={{ color: "var(--link)" }}>{c}</a>.</>;
   }
   return <>A public corrections address is being set up. Until it is published, check any item against the linked official APH source.</>;
 }
@@ -701,9 +700,9 @@ function NotYetAvailablePanel() {
       <div className="panel-body">
         {items.map((u, i) => (
           <div key={u.id} data-unavailable={u.id} style={{ padding: "10px 0", borderBottom: i < items.length - 1 ? "1px solid var(--line)" : 0, display: "grid", gap: 4 }}>
-            <strong style={{ fontSize: 13.5, color: "var(--ink)" }}>{u.name}</strong>
-            <span style={{ fontSize: 13, color: "var(--ink-2)", lineHeight: 1.5 }}>{u.reason}</span>
-            <a href={u.aphUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12.5, color: "var(--teal)", display: "inline-flex", alignItems: "center", gap: 6 }}>
+            <strong style={{ fontSize:"var(--t-body-sm)", color: "var(--ink)" }}>{u.name}</strong>
+            <span style={{ fontSize:"var(--t-body-sm)", color: "var(--ink-2)", lineHeight: 1.5 }}>{u.reason}</span>
+            <a href={u.aphUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize:"var(--t-body-sm)", color: "var(--link)", display: "inline-flex", alignItems: "center", gap: 6 }}>
               Use the official page on aph.gov.au <Icon name="ext" size={11} />
             </a>
           </div>
@@ -720,16 +719,16 @@ function LegalNoticePanel() {
         <h2 className="panel-title">Privacy, terms and disclaimer</h2>
         <span className="panel-kicker">What this is, and what it does with your data</span>
       </div>
-      <div className="panel-body" style={{ fontSize: 13, lineHeight: 1.65, color: "var(--ink-2)", maxWidth: 820 }}>
+      <div className="panel-body" style={{ fontSize:"var(--t-body-sm)", lineHeight: 1.65, color: "var(--ink-2)", maxWidth: 820 }}>
         <h3 style={legalH}>Independent, not affiliated</h3>
         <p style={legalP}>Parliament Pulse is an independent project by Prometheus Policy Lab. It is not affiliated with, endorsed by, or an official product of the Parliament of Australia, the Department of Parliamentary Services, or any government body. It reads publicly available RSS feeds published at aph.gov.au and links every item back to its official source.</p>
 
         <h3 style={legalH} id="about-privacy">Your privacy</h3>
-        <p style={legalP}>No account, login, or email is required or collected through this site. We run no third-party analytics, advertising or tracking, and the site sets no cookies. Live parliamentary data is fetched from official APH feeds through the Parliament Pulse proxy for display and is not saved on your device.</p>
+        <p style={legalP}>No account, login, or email is required or collected through this site. We run no third-party analytics, advertising or tracking, and the site sets no cookies. Live parliamentary data is fetched from official APH feeds by the Parliament Pulse service for display and is not saved on your device.</p>
         <p style={legalP}>Your browser's local storage holds only the following, on this device, and none of it is sent to us:</p>
         <ul style={{ margin: "0 0 6px", paddingLeft: 18 }}>
           {LOCAL_STORAGE_KEYS.map(k => (
-            <li key={k.key}><code className="mono" style={{ fontSize: 11.5 }}>{k.key}</code>: {k.holds}</li>
+            <li key={k.key}><code className="mono" style={{ fontSize:"var(--t-caption)" }}>{k.key}</code>: {k.holds}</li>
           ))}
         </ul>
         <p style={legalP}>Clearing this site's data in your browser removes all of it.</p>
@@ -744,7 +743,7 @@ function LegalNoticePanel() {
         <h3 style={legalH}>Contact and corrections</h3>
         <p style={legalP}><ContactLine /></p>
 
-        <p className="mono" style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 14 }}>Last updated 23 July 2026.</p>
+        <p className="mono" style={{ fontSize:"var(--t-eyebrow)", color: "var(--ink-4)", marginTop: 14 }}>Last updated 23 July 2026.</p>
       </div>
     </div>
   );
@@ -760,13 +759,13 @@ function PageAbout() {
       "# Parliament Pulse activation plan",
       `Generated: ${new Date().toISOString()}`,
       "",
-      "| Module | Current coverage | Evidence basis | Activation needed |",
+      "| Desk | Current coverage | Based on | Next step |",
       "| --- | --- | --- | --- |",
       table,
       "",
       "## Immediate priorities",
       "1. Keep official feed polling visible in Live and avoid current-sitting claims until verified.",
-      "2. Connect backend validation for custom feeds before routing them as production sources.",
+      "2. Check feeds you add yourself before they join the signal stream.",
       "3. Wire production enrichment for scoring, entity extraction, watchlist matching, Hansard/QON extraction and briefing persistence.",
       "4. Keep every module without a live source off the public build until it has verified item-level evidence.",
     ].join("\n");
@@ -782,16 +781,16 @@ function PageAbout() {
         </div>
       </div>
 
-      <p style={{color:"var(--ink-2)", fontSize:13.5, lineHeight:1.6, maxWidth:760, marginBottom:"var(--gap-section)"}}>
-        Parliament Pulse is a live beta. Official APH feeds poll through the Parliament Pulse proxy,
-        and every live item links back to its source at aph.gov.au. Signal scoring, thread and radar
+      <p style={{color:"var(--ink-2)", fontSize:"var(--t-body-sm)", lineHeight:1.6, maxWidth:760, marginBottom:"var(--gap-section)"}}>
+        Parliament Pulse is a live beta. It checks the official APH feeds every 30 minutes,
+        and every live item links back to its source at aph.gov.au. Signal scoring, threads, source
         grouping and watchlist matching are Parliament Pulse's own analysis over those live items.
         No sample content is shown anywhere: a desk with nothing to show says so and links to the
         official source. This page is the honest account of that split.
       </p>
 
       {/* PR-11: the About paragraph behind the tooltip on every attention value. */}
-      <p data-att-about="" style={{color:"var(--ink-2)", fontSize:13.5, lineHeight:1.6, maxWidth:760, marginBottom:"var(--gap-section)"}}>
+      <p data-att-about="" style={{color:"var(--ink-2)", fontSize:"var(--t-body-sm)", lineHeight:1.6, maxWidth:760, marginBottom:"var(--gap-section)"}}>
         <strong>How attention and confidence are scored.</strong> {attentionDisclosure(scoringDims((liveSignals.items || []).map(s => s.attentionReason)))} Confidence
         is shown as "Confidence n of 5" and reflects the kind of source only: inquiry, report and hearing
         items score 3, Bills Digests and divisions score 2, and everything else scores 1. When every item on a
@@ -910,7 +909,7 @@ function LiveBroadcast() {
         referrerPolicy="strict-origin-when-cross-origin"
         onLoad={() => setLoaded(true)}
       />
-      <div className="live-badge" style={{position:"absolute", top:12, left:12, zIndex:3, display:"flex", alignItems:"center", gap:6, background:"rgba(0,0,0,0.6)", padding:"5px 10px", borderRadius:4, fontFamily:"var(--mono)", fontSize:11, color: loaded ? "#fff" : "var(--ink-2)", letterSpacing:".12em", border:"1px solid var(--line-bright)"}}>
+      <div className="live-badge" style={{position:"absolute", top:12, left:12, zIndex:3, display:"flex", alignItems:"center", gap:6, background:"rgba(0,0,0,0.6)", padding:"5px 10px", borderRadius:4, fontFamily:"var(--mono)", fontSize:"var(--t-eyebrow)", color: loaded ? "#fff" : "var(--ink-2)", letterSpacing:".12em", border:"1px solid var(--line-bright)"}}>
         <span style={{width:7, height:7, borderRadius:"50%", background:"var(--ink-3)"}}/>
         {loaded ? "Player loaded · status unverified" : "Connecting"}
       </div>
@@ -1118,7 +1117,7 @@ function PageLive() {
   }, []);
 
   const fmtTime = (d) => {
-    if (!d) return "—";
+    if (!d) return NOT_SUPPLIED;
     const now = new Date();
     const sameDay = d.toDateString() === now.toDateString();
     if (sameDay) return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
@@ -1143,7 +1142,7 @@ function PageLive() {
         <div>
           <div className="page-kicker">Today · live</div>
           <h1 className="page-title">Live parliament</h1>
-          <div className="page-sub">The APH live stream, official APH source links, and live RSS polling from configured official feeds.</div>
+          <div className="page-sub">The APH live stream, links to the official chamber pages, and the latest items from the official APH feeds.</div>
         </div>
         <div className="live-head-actions" data-live-actions="">
           {PARLVIEW_CHAMBERS.map(c => (
@@ -1161,9 +1160,9 @@ function PageLive() {
           <LiveBroadcast />
           <div style={{display:"flex", gap:8, marginTop:12, alignItems:"center", flexWrap:"wrap"}}>
             <span className="src-badge">AUSParliamentLive · YouTube, loads on request</span>
-            <a href="https://www.youtube.com/@AUSParliamentLive/streams" target="_blank" rel="noopener noreferrer" className="src-badge" style={{textDecoration:"none", color:"var(--teal)"}}><Icon name="ext" size={11}/> AUSParliamentLive</a>
-            <a href={PARLVIEW_URL} target="_blank" rel="noopener noreferrer" className="src-badge" style={{textDecoration:"none", color:"var(--teal)"}}><Icon name="ext" size={11}/> ParlView archive</a>
-            <a href="https://www.aph.gov.au/Parliamentary_Business/Hansard" target="_blank" rel="noopener noreferrer" className="src-badge" style={{textDecoration:"none", color:"var(--teal)"}}><Icon name="ext" size={11}/> Hansard</a>
+            <a href="https://www.youtube.com/@AUSParliamentLive/streams" target="_blank" rel="noopener noreferrer" className="src-badge" style={{textDecoration:"none", color:"var(--link)"}}><Icon name="ext" size={11}/> AUSParliamentLive</a>
+            <a href={PARLVIEW_URL} target="_blank" rel="noopener noreferrer" className="src-badge" style={{textDecoration:"none", color:"var(--link)"}}><Icon name="ext" size={11}/> ParlView archive</a>
+            <a href="https://www.aph.gov.au/Parliamentary_Business/Hansard" target="_blank" rel="noopener noreferrer" className="src-badge" style={{textDecoration:"none", color:"var(--link)"}}><Icon name="ext" size={11}/> Hansard</a>
             <button className="btn sm ghost" style={{marginLeft:"auto"}} title="Copy a Hansard follow-up note" onClick={() => copyLiveActionNote("Transcript follow-up", toast)}>Request transcript</button>
             <button className="btn sm" title="Copy a source-backed clip note" onClick={() => copyLiveActionNote("Clip to brief", toast)}><Icon name="brief" size={12}/> Clip to brief</button>
           </div>
@@ -1173,8 +1172,8 @@ function PageLive() {
               <h2 className="panel-title">Daily program</h2>
               <span className="panel-kicker">House and Senate</span>
               <span style={{marginLeft:"auto", display:"flex", gap:12, flexWrap:"wrap"}}>
-                <a href="https://www.aph.gov.au/Parliamentary_Business/Chamber_documents" target="_blank" rel="noopener noreferrer" style={{fontSize:11.5, color:"var(--teal)", textDecoration:"none"}}>House program <Icon name="ext" size={11}/></a>
-                <a href="https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/Senate_chamber_documents" target="_blank" rel="noopener noreferrer" style={{fontSize:11.5, color:"var(--teal)", textDecoration:"none"}}>Senate program <Icon name="ext" size={11}/></a>
+                <a href="https://www.aph.gov.au/Parliamentary_Business/Chamber_documents" target="_blank" rel="noopener noreferrer" style={{fontSize:"var(--t-caption)", color:"var(--link)", textDecoration:"none"}}>House program <Icon name="ext" size={11}/></a>
+                <a href="https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/Senate_chamber_documents" target="_blank" rel="noopener noreferrer" style={{fontSize:"var(--t-caption)", color:"var(--link)", textDecoration:"none"}}>Senate program <Icon name="ext" size={11}/></a>
               </span>
             </div>
             <div className="panel-body">
@@ -1204,8 +1203,8 @@ function PageLive() {
                 ].map((c,i) => (
                   <a key={i} href={c.url} target="_blank" rel="noopener noreferrer" style={{display:"flex", alignItems:"center", gap:10, padding:"10px 12px", border:"1px solid var(--line-2)", borderRadius:6, textDecoration:"none", color:"var(--ink)", background:"var(--panel-2)"}}>
                     <div style={{flex:1, minWidth:0}}>
-                      <div style={{fontSize:12.5, fontWeight:500}}>{c.name}</div>
-                      <div style={{fontSize:11, color:"var(--ink-3)", marginTop:2}}>{c.desc}</div>
+                      <div style={{fontSize:"var(--t-body-sm)", fontWeight:500}}>{c.name}</div>
+                      <div style={{fontSize:"var(--t-eyebrow)", color:"var(--ink-3)", marginTop:2}}>{c.desc}</div>
                     </div>
                     <Icon name="ext" size={12} stroke="var(--ink-3)"/>
                   </a>
@@ -1237,21 +1236,21 @@ function PageLive() {
                 {isFileGuard ? (
                   <>
                     <p style={{margin:"0 0 8px"}}>This page was opened from the file system, so the browser cannot reach the feed proxy.</p>
-                    <p style={{margin:"0 0 8px", fontFamily:"var(--mono)", fontSize:11, background:"var(--panel-2)", padding:"6px 8px", borderRadius:4}}>
+                    <p style={{margin:"0 0 8px", fontFamily:"var(--mono)", fontSize:"var(--t-eyebrow)", background:"var(--panel-2)", padding:"6px 8px", borderRadius:4}}>
                       Serve over http, for example: <strong>python -m http.server 8080</strong>
                     </p>
                   </>
                 ) : isLocalHost ? (
                   <>
                     <p style={{margin:"0 0 8px"}}>The local CORS proxy did not return data. Either the proxy is not running or APH rejected the request.</p>
-                    <p style={{margin:"0 0 8px", fontFamily:"var(--mono)", fontSize:11, background:"var(--panel-2)", padding:"6px 8px", borderRadius:4}}>
+                    <p style={{margin:"0 0 8px", fontFamily:"var(--mono)", fontSize:"var(--t-eyebrow)", background:"var(--panel-2)", padding:"6px 8px", borderRadius:4}}>
                       Start the proxy: <strong>node proxy-server.js</strong>
                     </p>
                   </>
                 ) : (
                   <>
                     <p style={{margin:"0 0 8px"}}>Worker returned no items. Confirm the Cloudflare Worker is deployed and this origin is on its CORS allowlist.</p>
-                    <p style={{margin:"0 0 8px", fontFamily:"var(--mono)", fontSize:11, background:"var(--panel-2)", padding:"6px 8px", borderRadius:4, wordBreak:"break-all"}}>
+                    <p style={{margin:"0 0 8px", fontFamily:"var(--mono)", fontSize:"var(--t-eyebrow)", background:"var(--panel-2)", padding:"6px 8px", borderRadius:4, wordBreak:"break-all"}}>
                       Worker: <strong>https://aph-proxy.jvega019.workers.dev/rss?u=</strong>
                     </p>
                   </>
@@ -1260,7 +1259,7 @@ function PageLive() {
                   <div style={{margin:"0 0 8px"}}>
                     <div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".18em", marginBottom:4}}>Feed errors</div>
                     {feedErrors.slice(0, 8).map((e, i) => (
-                      <div key={i} style={{fontSize:11, color:"var(--ink-3)", display:"flex", gap:8, padding:"2px 0"}}>
+                      <div key={i} style={{fontSize:"var(--t-eyebrow)", color:"var(--ink-3)", display:"flex", gap:8, padding:"2px 0"}}>
                         <Icon name="close" size={12} stroke="var(--ember-flash)" />
                         <span style={{flex:1, minWidth:0}}>{e.label}</span>
                         <span className="mono" style={{color:"var(--ink-4)"}}>{e.error}</span>
@@ -1286,18 +1285,18 @@ function PageLive() {
                 <div className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)", paddingTop:2}}>{fmtTime(e.date)}</div>
                 <div style={{paddingTop:3}}>
                   {e.kind === "division" && <Icon name="flag" size={13} stroke="var(--escalate)"/>}
-                  {e.kind === "hearing" && <Icon name="signal" size={13} stroke="var(--teal)"/>}
+                  {e.kind === "hearing" && <Icon name="signal" size={13} stroke="var(--ink-4)"/>}
                   {e.kind === "inquiry" && <Icon name="pattern" size={13} stroke="var(--brass)"/>}
                   {e.kind === "digest" && <Icon name="brief" size={13} stroke="var(--brass)"/>}
                   {e.kind === "program" && <Icon name="clock" size={13} stroke="var(--ink-3)"/>}
-                  {e.kind === "report" && <Icon name="brief" size={13} stroke="var(--teal)"/>}
+                  {e.kind === "report" && <Icon name="brief" size={13} stroke="var(--ink-4)"/>}
                   {e.kind === "signal" && <Icon name="signal" size={13} stroke="var(--ink-3)"/>}
                 </div>
                 <div>
-                  <div style={{fontSize:13, color:"var(--ink)", lineHeight:1.4}}>{e.title}</div>
+                  <div style={{fontSize:"var(--t-body-sm)", color:"var(--ink)", lineHeight:1.4}}>{e.title}</div>
                   <div style={{display:"flex", gap:8, marginTop:6, alignItems:"center", flexWrap:"wrap"}}>
                     <span className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".12em"}}>{e.kind}</span>
-                    <span style={{fontSize:"var(--t-micro)", color:"var(--teal)", fontFamily:"var(--mono)", display:"inline-flex", alignItems:"center", gap:3}}>
+                    <span style={{fontSize:"var(--t-micro)", color:"var(--link)", fontFamily:"var(--mono)", display:"inline-flex", alignItems:"center", gap:3}}>
                       <Icon name="ext" size={10}/> {e.sourceLabel}
                     </span>
                   </div>
@@ -1306,8 +1305,8 @@ function PageLive() {
             ))}
           </div>
           <div className="panel-foot" style={{flexDirection:"column", alignItems:"flex-start", gap:4}}>
-            <span className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-3)"}}>Live RSS · aph.gov.au via {isLocalHost ? "local CORS proxy (proxy-server.js)" : "Cloudflare Worker proxy"} · refreshes every 2 min</span>
-            <span className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)"}}>Last poll: {lastPoll ? fmtTime(lastPoll) : "—"} · Click any item to open source</span>
+            <span className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-3)"}}>Official APH RSS feeds · refreshes every 2 min</span>
+            <span className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)"}}>Last poll: {lastPoll ? fmtTime(lastPoll) : NOT_SUPPLIED} · Click any item to open source</span>
           </div>
         </div>
       </div>
@@ -1351,7 +1350,7 @@ function PageSources() {
   // only SOURCE_REGISTRY, so a feed saved here never fetches. "Not polled" replaces
   // any invented "just now" freshness claim so the row cannot be mistaken for a
   // monitored feed.
-  const allFeeds = [...APH_FEEDS, ...state.feeds.map(f => ({ ...f, last:"Not polled", today:0, modules:["Custom"], parser:"Needs validation", authority:"Custom", confidence:"—" }))];
+  const allFeeds = [...APH_FEEDS, ...state.feeds.map(f => ({ ...f, last:"Not polled", today:0, modules:["Custom"], parser:"Not yet checked", authority:"Custom", confidence:NOT_SUPPLIED }))];
 
   // Feed-health from the Worker's connector checks, joined to the registry by url.
   const checkByUrl = new Map((health.items || []).map(c => [c.url, c]));
@@ -1381,44 +1380,50 @@ function PageSources() {
         <div>
           <div className="page-kicker">Admin</div>
           <h1 className="page-title">Sources</h1>
-          <div className="page-sub">Official APH feed register{health.items ? " with live health checks from the Worker" : "; feed health appears once the Worker check runs"}. Custom-feed validation remains a prototype workflow.</div>
+          <div className="page-sub">The official APH feeds Parliament Pulse reads{health.items ? ", with the result of the latest health check for each" : "; each feed's health appears after the next check"}. Feeds you add yourself are kept on this device and are not yet checked.</div>
         </div>
         <div style={{display:"flex", gap:10}}>
-          <button className="btn" title="Re-polls the live RSS feeds if the Live page poller is mounted" onClick={() => { if (typeof window.__refreshLiveFeeds === "function") { window.__refreshLiveFeeds(); toast("Live feeds re-polled"); } else { toast("Open the Live page to start the feed poller"); } }}><Icon name="refresh" size={13}/> Refresh all</button>
+          <button className="btn" title="Refreshes the live RSS feeds shown on Live parliament" onClick={() => { if (typeof window.__refreshLiveFeeds === "function") { window.__refreshLiveFeeds(); toast("Live feeds re-polled"); } else { toast("Open Live parliament to refresh the feeds"); } }}><Icon name="refresh" size={13}/> Refresh all</button>
           <button className="btn primary" onClick={() => document.getElementById("new-feed-url")?.focus()}><Icon name="plus" size={13}/> Add feed</button>
         </div>
       </div>
 
-      <div className="grid g-4" style={{marginBottom:18}}>
+      <div className={"grid " + (feedShape ? "g-3" : "g-2")} style={{marginBottom:18}}>
         <div className="panel stat" data-stat="feeds"><div className="stat-label">Active feeds</div>
           {feedShape
-            ? <><div className="stat-value">{feedChecks.length}</div><div className="stat-meta">APH feeds the Worker is configured to poll</div></>
-            : <><div className="stat-value" style={{fontSize:18, color:"var(--ink-3)"}}>—</div><div className="stat-meta">{health.items ? health.items.length + " endpoints health-checked; feed list appears once the Worker reports it" : "Appears once the Worker reports its feeds"}</div></>}
+            ? <><div className="stat-value">{feedChecks.length}</div><div className="stat-meta">official APH feeds checked every 30 minutes</div></>
+            : <><div className="stat-value" style={{fontSize:"var(--t-subhead)", color:"var(--ink-3)"}}>{NOT_SUPPLIED}</div><div className="stat-meta">{health.items ? health.items.length + " sources health-checked; this version of the service does not list feeds one by one" : "Appears once the feed list loads"}</div></>}
         </div>
         <div className="panel stat" data-stat="healthy"><div className="stat-label">Healthy</div>
           {feedShape
             ? <><div className="stat-value">{feedOk}/{feedPolled}</div><div className="stat-meta">polled feeds OK{feedPending ? ` · ${feedPending} not yet polled` : ""} · as at {fmtFetchedAt(health.fetchedAt)} AEST</div></>
             : health.items
             ? <><div className="stat-value">{healthyCount}/{health.items.length}</div><div className="stat-meta">as at {fmtFetchedAt(health.fetchedAt)} AEST</div></>
-            : <><div className="stat-value" style={{fontSize:18, color:"var(--ink-3)"}}>—</div><div className="stat-meta">Available after live poll</div></>}
+            : <><div className="stat-value" style={{fontSize:"var(--t-subhead)", color:"var(--ink-3)"}}>{NOT_SUPPLIED}</div><div className="stat-meta">Available after live poll</div></>}
         </div>
-        <div className="panel stat"><div className="stat-label">Items ingested · today</div><div className="stat-value" style={{fontSize:18, color:"var(--ink-3)"}}>—</div><div className="stat-meta">Available after live poll</div></div>
-        <div className="panel stat"><div className="stat-label">False positive rate</div><div className="stat-value" style={{fontSize:18, color:"var(--ink-3)"}}>—</div><div className="stat-meta">Available after 30 days' operation</div></div>
+        {/* FE-09: the "items ingested today" and "false positive rate" tiles showed
+            nothing but a placeholder, so they are replaced by the one count the
+            latest health check does supply. */}
+        {feedShape && (
+          <div className="panel stat" data-stat="items"><div className="stat-label">Items at last check</div>
+            <div className="stat-value">{feedChecks.reduce((n, c) => n + (c.itemsParsed || 0), 0)}</div><div className="stat-meta">across {feedPolled} checked feed{feedPolled === 1 ? "" : "s"}</div>
+          </div>
+        )}
       </div>
 
-      <div className="grid g-overview">
+      <div className="grid g-overview" style={{alignItems:"start"}}>
         {health.status === "loading" && !health.items ? <SkeletonTable rows={6} /> : (
         <div className="panel">
           <div className="panel-head">
-            <h2 className="panel-title">Official APH Feed Bundle</h2>
-            <span className="panel-kicker">{feedShape ? `${feedChecks.length} feeds configured · one row per feed` : "Official APH feeds · click a row for detail"}</span>
+            <h2 className="panel-title">Official APH feeds</h2>
+            <span className="panel-kicker">{feedShape ? `${feedChecks.length} feeds configured · one row per feed` : "Select a row for detail"}</span>
             <ProvenanceChip provenance={health.displayProvenance}
-              title={health.displayProvenance === "live" ? "Feed health from the Worker's connector checks" : "Health appears after the Worker check runs"} />
+              title={health.displayProvenance === "live" ? "Feed health from the latest check" : "Health appears after the next check"} />
           </div>
           {health.status === "error" && !health.items && (
             <div className="panel-body">
               <EmptyState icon="sources" kicker="Feed status unavailable" variant="error">
-                The status service did not respond, so no feed health is shown. The official feed addresses are listed below, and APH publishes every feed on its <a href="https://www.aph.gov.au/Help/Rss_feeds" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>RSS feeds page</a>.
+                The status service did not respond, so no feed health is shown. The official feed addresses are listed below, and APH publishes every feed on its <a href="https://www.aph.gov.au/Help/Rss_feeds" target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>RSS feeds page</a>.
               </EmptyState>
             </div>
           )}
@@ -1443,10 +1448,10 @@ function PageSources() {
                   <td data-label="Status" style={st === "failed" ? {color:"var(--escalate)"} : st === "pending" ? {color:"var(--ink-4)", fontStyle:"italic"} : undefined}>
                     {st === "pending" ? "Not yet polled" : st === "ok" ? "OK" : "Failed"}
                   </td>
-                  <td className="num mono" data-label="HTTP">{c.lastHttpStatus ?? "—"}</td>
-                  <td className="num" data-label="Items parsed">{c.itemsParsed ?? "—"}</td>
-                  <td className="mono" data-label="Last success" style={{fontSize:11.5, color:"var(--ink-3)"}}>{st === "pending" ? "—" : (fmtPollStamp(c.lastSuccessAt) || "Never")}</td>
-                  <td data-label="Parse error" style={{fontSize:12, color: c.parseError ? "var(--ink-2)" : "var(--ink-4)", overflowWrap:"anywhere"}} title={c.parseError || undefined}>{c.parseError ? (c.parseError.length > 60 ? c.parseError.slice(0,60)+"…" : c.parseError) : "—"}</td>
+                  <td className="num mono" data-label="HTTP">{c.lastHttpStatus ?? NO_VALUE}</td>
+                  <td className="num" data-label="Items parsed">{c.itemsParsed ?? NO_VALUE}</td>
+                  <td className="mono" data-label="Last success" style={{fontSize:"var(--t-caption)", color:"var(--ink-3)"}}>{st === "pending" ? NO_VALUE : (fmtPollStamp(c.lastSuccessAt) || "Never")}</td>
+                  <td data-label="Parse error" style={{fontSize:"var(--t-caption)", color: c.parseError ? "var(--ink-2)" : "var(--ink-4)", overflowWrap:"anywhere"}} title={c.parseError || undefined}>{c.parseError ? (c.parseError.length > 60 ? c.parseError.slice(0,60)+"…" : c.parseError) : NO_VALUE}</td>
                 </tr>
                 );
               })}
@@ -1458,7 +1463,7 @@ function PageSources() {
                   </td>
                   <td data-label="Group"><span className="tag">Custom</span></td>
                   <td data-label="Status"><span style={{color:"var(--ink-4)", fontStyle:"italic"}} title="Saved feeds are not polled">Not polled</span></td>
-                  <td className="num" data-label="HTTP">—</td><td className="num" data-label="Items parsed">—</td><td data-label="Last success">—</td><td data-label="Parse error">—</td>
+                  <td className="num" data-label="HTTP">{NO_VALUE}</td><td className="num" data-label="Items parsed">{NO_VALUE}</td><td data-label="Last success">{NO_VALUE}</td><td data-label="Parse error">{NO_VALUE}</td>
                 </tr>
               ))}
             </tbody>
@@ -1469,7 +1474,7 @@ function PageSources() {
           <table className="ds ds-stack">
             <thead><tr>
               <th>Source</th><th>Group</th><th>Status</th><th>Last</th>
-              <th className="num">Today</th><th title="False-positive rate">FPR <span style={{fontWeight:400, textTransform:"none", letterSpacing:0}}>· {FPR_PENDING_NOTE.toLowerCase()}</span></th><th>Parser</th>
+              <th className="num">Today</th><th title="False-positive rate">False positives <span style={{fontWeight:400, textTransform:"none", letterSpacing:0}}>· {FPR_PENDING_NOTE.toLowerCase()}</span></th><th>Check</th>
             </tr></thead>
             <tbody>
               {allFeeds.map(f => {
@@ -1486,12 +1491,12 @@ function PageSources() {
                       ? <span style={{color:"var(--ink-4)", fontStyle:"italic"}} title="Saved feeds are not polled by the live feed poller">Not polled</span>
                       : (c
                         ? (c.ok ? "Live" : `Error ${c.httpStatus ?? ""}`.trim())
-                        : (f.lastStatusCode != null ? (f.lastStatusCode >= 200 && f.lastStatusCode < 300 ? "Live" : "Error") : "—"))}
+                        : (f.lastStatusCode != null ? (f.lastStatusCode >= 200 && f.lastStatusCode < 300 ? "Live" : "Error") : NO_VALUE))}
                   </td>
-                  <td className="mono" data-label="Last" style={{fontSize:11.5, color:"var(--ink-3)"}}>{c ? fmtFetchedAt(c.checkedAt) : (f.last || "—")}</td>
-                  <td className="num" data-label="Today">{f.lastItemCount ?? "—"}</td>
-                  <td data-label="FPR" title={FPR_PENDING_NOTE} style={{color:"var(--ink-4)"}}>—</td>
-                  <td data-label="Parser">{f.parser || "—"}</td>
+                  <td className="mono" data-label="Last" style={{fontSize:"var(--t-caption)", color:"var(--ink-3)"}}>{c ? fmtFetchedAt(c.checkedAt) : (f.last || NO_VALUE)}</td>
+                  <td className="num" data-label="Today">{f.lastItemCount ?? NO_VALUE}</td>
+                  <td data-label="False positives" title={FPR_PENDING_NOTE} style={{color:"var(--ink-4)"}}>{NO_VALUE}</td>
+                  <td data-label="Check">{f.parser || NO_VALUE}</td>
                 </tr>
                 );
               })}
@@ -1503,10 +1508,10 @@ function PageSources() {
                   </td>
                   <td data-label="Group"><span className="tag">{c.group}</span></td>
                   <td data-label="Status" style={!c.ok ? {color:"var(--escalate)"} : undefined}>{c.ok ? "Live" : `Error ${c.httpStatus ?? ""}`.trim()}</td>
-                  <td className="mono" data-label="Last" style={{fontSize:11.5, color:"var(--ink-3)"}}>{fmtFetchedAt(c.checkedAt)}</td>
-                  <td className="num" data-label="Today">—</td>
-                  <td data-label="FPR"><span className="tag">—</span></td>
-                  <td data-label="Parser">Worker-monitored</td>
+                  <td className="mono" data-label="Last" style={{fontSize:"var(--t-caption)", color:"var(--ink-3)"}}>{fmtFetchedAt(c.checkedAt)}</td>
+                  <td className="num" data-label="Today">{NO_VALUE}</td>
+                  <td data-label="False positives"><span className="tag">{NO_VALUE}</span></td>
+                  <td data-label="Check">Checked every 30 minutes</td>
                 </tr>
               ))}
             </tbody>
@@ -1526,7 +1531,7 @@ function PageSources() {
               <div className="panel-body">
                 <ul style={{listStyle:"none", margin:0, padding:0}}>
                   {referenceLinks.map(u => (
-                    <li key={u} data-reference-link="" style={{padding:"6px 0", borderBottom:"1px dashed var(--line-2)", fontSize:12.5, overflowWrap:"anywhere"}}>
+                    <li key={u} data-reference-link="" style={{padding:"6px 0", borderBottom:"1px dashed var(--line-2)", fontSize:"var(--t-body-sm)", overflowWrap:"anywhere"}}>
                       <a href={u} target="_blank" rel="noopener noreferrer" style={{color:"var(--ink-2)"}}>{u.replace(/^https?:\/\/(www\.)?/, "")}</a>
                     </li>
                   ))}
@@ -1550,8 +1555,8 @@ function PageSources() {
 
               {testState && (
                 <div className="feed-test" style={{marginTop:14}}>
-                  <div style={{marginBottom:6, letterSpacing:".1em", display:"flex", alignItems:"center", gap:7}} className="warn"><Icon name="flag" size={12} /> Simulated example · parser needs validation</div>
-                  <div style={{fontSize:11, color:"var(--ink-4)", marginBottom:8}}>This preview is illustrative. No network request was made and no result was verified. Connect backend validation before treating any feed as checked.</div>
+                  <div style={{marginBottom:6, letterSpacing:".1em", display:"flex", alignItems:"center", gap:7}} className="warn"><Icon name="flag" size={12} /> Example only · this feed has not been checked</div>
+                  <div style={{fontSize:"var(--t-eyebrow)", color:"var(--ink-4)", marginBottom:8}}>This preview is an example. Parliament Pulse made no request and verified nothing, so treat this feed as unchecked.</div>
                   {testState.lines.map((l, i) => (
                     <div key={i} className={"feed-test-line " + l.t}>
                       <Icon name={l.t === "ok" ? "check" : l.t === "warn" ? "flag" : "close"} size={12} />
@@ -1567,11 +1572,11 @@ function PageSources() {
           <div className="panel">
             <div className="panel-head">
               <h2 className="panel-title">Not yet connected</h2>
-              <span className="panel-kicker">Needs parser or source</span>
+              <span className="panel-kicker">No usable source yet</span>
             </div>
             <div className="panel-body">
               {[
-                { name: "Hansard extraction", note: "Needs transcript parser" },
+                { name: "Hansard", note: "No machine-readable transcript feed yet" },
                 { name: "QON tracking", note: "Needs source or parliamentary export" },
                 { name: "Full bill progress", note: "Needs bills database beyond Digest RSS" },
                 { name: "News / media monitoring", note: "Optional bundle, later" },
@@ -1579,8 +1584,8 @@ function PageSources() {
               ].map(x => (
                 <div key={x.name} style={{display:"flex", justifyContent:"space-between", padding:"8px 0", borderBottom:"1px dashed var(--line-2)"}}>
                   <div>
-                    <div style={{fontSize:13}}>{x.name}</div>
-                    <div style={{fontSize:11.5, color:"var(--ink-3)"}}>{x.note}</div>
+                    <div style={{fontSize:"var(--t-body-sm)"}}>{x.name}</div>
+                    <div style={{fontSize:"var(--t-caption)", color:"var(--ink-3)"}}>{x.note}</div>
                   </div>
                   <button className="btn ghost sm" title="Copy a backlog request for this source" onClick={() => copyBacklogRequest(x.name, x.note, toast)}>Request</button>
                 </div>
@@ -1606,7 +1611,7 @@ function LiveFeedStrip({ title, items, fetchedAt, emptyText }) {
     <div className="panel" style={{marginBottom:16}}>
       <div className="panel-head">
         <h2 className="panel-title">{title}</h2>
-        <ProvenanceChip provenance="live" title="Live items from the Worker's composed /state feed" />
+        <ProvenanceChip provenance="live" title="Live items from the official APH feeds" />
         <span className="panel-kicker" style={{marginLeft:"auto"}}>fetched {fmtFetchedAt(fetchedAt)} AEST</span>
       </div>
       <div className="panel-body">
@@ -1617,13 +1622,13 @@ function LiveFeedStrip({ title, items, fetchedAt, emptyText }) {
               {/* Licence rule: the live APH title renders only inside an anchor to its
                   APH link; with no valid link it falls back to the source label. */}
               {s.link
-                ? <a href={s.link} target="_blank" rel="noopener noreferrer" style={{display:"inline-flex", alignItems:"center", gap:6, color:"var(--teal)", textDecoration:"none", fontSize:13, fontWeight:500}} title="Opens the source at aph.gov.au">
+                ? <a href={s.link} target="_blank" rel="noopener noreferrer" style={{display:"inline-flex", alignItems:"center", gap:6, color:"var(--link)", textDecoration:"none", fontSize:"var(--t-body-sm)", fontWeight:500}} title="Opens the source at aph.gov.au">
                     {s.title} <Icon name="ext" size={11}/>
                   </a>
-                : <span style={{fontSize:13, fontWeight:500, color:"var(--ink-2)"}}>{s.source}</span>}
+                : <span style={{fontSize:"var(--t-body-sm)", fontWeight:500, color:"var(--ink-2)"}}>{s.source}</span>}
               <div style={{display:"flex", gap:10, alignItems:"center", flexWrap:"wrap"}}>
                 <span className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".12em"}}>{(s.tags && s.tags[0] && s.tags[0].l) || "item"}</span>
-                <span style={{fontSize:11.5, color:"var(--ink-3)"}}>{s.source}</span>
+                <span style={{fontSize:"var(--t-caption)", color:"var(--ink-3)"}}>{s.source}</span>
                 <span className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)"}}>{s.date}</span>
               </div>
             </div>
@@ -1645,8 +1650,8 @@ function LiveFeedStrip({ title, items, fetchedAt, emptyText }) {
 function recessEmptyText(chamber, feedNoun, url, linkLabel) {
   return (
     <>
-      No {feedNoun.toLowerCase()} records are available in this app for {chamber}. This does not establish whether the chamber is sitting. Check the official source for current proceedings.{" "}
-      <a href={url} target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>{linkLabel} <Icon name="ext" size={11} style={{verticalAlign:"-1px"}}/></a>.
+      No {feedNoun} records are available in this app for {chamber}. This does not establish whether the chamber is sitting. Check the official source for current proceedings.{" "}
+      <a href={url} target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>{linkLabel} <Icon name="ext" size={11} style={{verticalAlign:"-1px"}}/></a>.
     </>
   );
 }
@@ -1658,11 +1663,11 @@ function LiveSignalRow({ s, isLast }) {
   return (
     <div className="data-row" style={{padding:"10px 0", borderBottom: isLast ? 0 : "1px solid var(--line)"}}>
       {s.link
-        ? <a href={s.link} target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)", textDecoration:"none", fontSize:13, fontWeight:500}} title="Opens the source at aph.gov.au">{s.title} <Icon name="ext" size={11}/></a>
-        : <span style={{fontSize:13, fontWeight:500, color:"var(--ink-2)"}}>{s.source}</span>}
+        ? <a href={s.link} target="_blank" rel="noopener noreferrer" style={{color:"var(--link)", textDecoration:"none", fontSize:"var(--t-body-sm)", fontWeight:500}} title="Opens the source at aph.gov.au">{s.title} <Icon name="ext" size={11}/></a>
+        : <span style={{fontSize:"var(--t-body-sm)", fontWeight:500, color:"var(--ink-2)"}}>{s.source}</span>}
       <div style={{display:"flex", gap:10, alignItems:"center", flexWrap:"wrap", marginTop:4}}>
         <span className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".12em"}}>{s.source}</span>
-        <span className="mono" style={{fontSize:11, color:"var(--ink-4)"}}>{s.date}</span>
+        <span className="mono" style={{fontSize:"var(--t-eyebrow)", color:"var(--ink-4)"}}>{s.date}</span>
       </div>
     </div>
   );
@@ -1699,9 +1704,9 @@ function DivisionsLiveList() {
   return (
     <SittingDeskList
       rows={rows} emptyIcon="flag"
-      unavailableText={<>Parliament Pulse holds no verified division results right now because the live signal feed is unavailable. <a href="https://www.aph.gov.au/Parliamentary_Business/Chamber_documents" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>Open division results on aph.gov.au</a>.</>}
+      unavailableText={<>Parliament Pulse holds no verified division results right now because the live signal feed is unavailable. <a href="https://www.aph.gov.au/Parliamentary_Business/Chamber_documents" target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>Open division results on aph.gov.au</a>.</>}
       emptyKicker="No verified divisions held"
-      emptyBody={recessEmptyText("The House", "Divisions", "https://www.aph.gov.au/Parliamentary_Business/Chamber_documents", "Open division results on aph.gov.au")}
+      emptyBody={recessEmptyText("the House", "division", "https://www.aph.gov.au/Parliamentary_Business/Chamber_documents", "Open division results on aph.gov.au")}
     />
   );
 }
@@ -1719,9 +1724,9 @@ function TodaysHearingsPanel() {
       <div className="panel-body">
         <SittingDeskList
           rows={rows} emptyIcon="clock"
-          unavailableText={<>Parliament Pulse holds no verified hearing schedule right now because the live signal feed is unavailable. <a href="https://www.aph.gov.au/Parliamentary_Business/Committees" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>Open committee hearings on aph.gov.au</a>.</>}
+          unavailableText={<>Parliament Pulse holds no verified hearing schedule right now because the live signal feed is unavailable. <a href="https://www.aph.gov.au/Parliamentary_Business/Committees" target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>Open committee hearings on aph.gov.au</a>.</>}
           emptyKicker="No verified hearings held"
-          emptyBody={recessEmptyText("Parliament", "Hearings", "https://www.aph.gov.au/Parliamentary_Business/Committees", "Open committee hearings on aph.gov.au")}
+          emptyBody={recessEmptyText("Parliament", "hearing", "https://www.aph.gov.au/Parliamentary_Business/Committees", "Open committee hearings on aph.gov.au")}
         />
       </div>
     </div>
@@ -1746,7 +1751,6 @@ const COMMITTEE_RECENT_LABELS = new Set([
 function PageCommittees() {
   const liveSignalsState = useLiveState("signals");
   const items = liveSignalsState.items;
-  const committeeLive = items ? items.filter(s => COMMITTEE_STRIP_LABELS.has(s.source)) : null;
   const upcomingHearings = items ? items.filter(s => s.source === "Upcoming Senate hearings") : null;
   const recentItems = items ? items.filter(s => COMMITTEE_RECENT_LABELS.has(s.source)) : null;
   const { toast } = useStore();
@@ -1768,19 +1772,16 @@ function PageCommittees() {
         <div>
           <div className="page-kicker">Parliament</div>
           <h1 className="page-title">Committees</h1>
-          <div className="page-sub">Live from the Worker's composed signal feed: Senate, House and joint committee reports, inquiries and hearings.</div>
+          <div className="page-sub">Senate, House and joint committee hearings, inquiries and reports from the official APH committee feeds, each linked to its page on aph.gov.au.</div>
         </div>
         <button className="btn ghost" title="Export the current live committee rows" onClick={exportPrepPack}><Icon name="brief" size={13}/> Export prep pack</button>
       </div>
 
-      {committeeLive && committeeLive.length > 0 && (
-        <LiveFeedStrip title="Latest committee activity · live feed" items={committeeLive} fetchedAt={liveSignalsState.fetchedAt}
-          emptyText="No committee items in the current live window." />
-      )}
-
+      {/* UX-14: one list per kind. The combined "latest activity" strip repeated
+          every row of the two lists below, so it is gone. */}
       <div className="grid g-3" style={{marginBottom:18}}>
         <div className="panel stat"><div className="stat-label">Upcoming Senate hearings</div><div className="stat-value">{(upcomingHearings || []).length}</div></div>
-        <div className="panel stat"><div className="stat-label">Reports & inquiries · live</div><div className="stat-value">{(recentItems || []).length}</div></div>
+        <div className="panel stat"><div className="stat-label">Inquiries and reports</div><div className="stat-value">{(recentItems || []).length}</div></div>
         <div className="panel stat"><div className="stat-label">Official committee feeds</div><div className="stat-value">{COMMITTEE_STRIP_LABELS.size}<span className="unit">tracked</span></div></div>
       </div>
 
@@ -1788,24 +1789,24 @@ function PageCommittees() {
 
       <div className="grid g-2">
         <div className="panel">
-          <div className="panel-head"><h2 className="panel-title">Upcoming Senate hearings</h2><span className="panel-kicker">Live feed</span></div>
+          <div className="panel-head"><h2 className="panel-title">Upcoming Senate hearings</h2><span className="panel-kicker">{(upcomingHearings || []).length} from the APH feed</span></div>
           <div className="panel-body">
             <SittingDeskList
               rows={upcomingHearings} emptyIcon="signal"
-              unavailableText={<>Parliament Pulse holds no verified upcoming Senate hearings right now because the live signal feed is unavailable. <a href="https://www.aph.gov.au/Parliamentary_Business/Committees" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>Open committee hearings on aph.gov.au</a>.</>}
+              unavailableText={<>Parliament Pulse holds no verified upcoming Senate hearings right now because the live signal feed is unavailable. <a href="https://www.aph.gov.au/Parliamentary_Business/Committees" target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>Open committee hearings on aph.gov.au</a>.</>}
               emptyKicker="No verified upcoming hearings held"
-              emptyBody={<>Parliament Pulse holds no verified upcoming Senate hearings in the current live window. <a href="https://www.aph.gov.au/Parliamentary_Business/Committees" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>Open committee hearings on aph.gov.au</a>.</>}
+              emptyBody={<>Parliament Pulse holds no verified upcoming Senate hearings in the current live window. <a href="https://www.aph.gov.au/Parliamentary_Business/Committees" target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>Open committee hearings on aph.gov.au</a>.</>}
             />
           </div>
         </div>
         <div className="panel">
-          <div className="panel-head"><h2 className="panel-title">Recently tabled & opened</h2><span className="panel-kicker">Live feed</span></div>
+          <div className="panel-head"><h2 className="panel-title">Inquiries and reports</h2><span className="panel-kicker">{(recentItems || []).length} from the APH feeds</span></div>
           <div className="panel-body">
             <SittingDeskList
               rows={recentItems} emptyIcon="signal"
-              unavailableText={<>Parliament Pulse holds no verified committee reports or inquiries right now because the live signal feed is unavailable. <a href="https://www.aph.gov.au/Parliamentary_Business/Committees" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>Open committee reports on aph.gov.au</a>.</>}
+              unavailableText={<>Parliament Pulse holds no verified committee reports or inquiries right now because the live signal feed is unavailable. <a href="https://www.aph.gov.au/Parliamentary_Business/Committees" target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>Open committee reports on aph.gov.au</a>.</>}
               emptyKicker="No verified reports or inquiries held"
-              emptyBody={<>Parliament Pulse holds no verified committee reports or inquiries in the current live window. <a href="https://www.aph.gov.au/Parliamentary_Business/Committees" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>Open committee reports on aph.gov.au</a>.</>}
+              emptyBody={<>Parliament Pulse holds no verified committee reports or inquiries in the current live window. <a href="https://www.aph.gov.au/Parliamentary_Business/Committees" target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>Open committee reports on aph.gov.au</a>.</>}
             />
           </div>
         </div>
@@ -1820,9 +1821,9 @@ function PageBills() {
   const bills = live.items; // null = nothing has ever loaded; array (maybe empty) once live
 
   const fmtBillDate = (iso) => {
-    if (!iso) return "—";
+    if (!iso) return NOT_SUPPLIED;
     try { return new Date(iso).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" }); }
-    catch { return "—"; }
+    catch { return NOT_SUPPLIED; }
   };
 
   // UX-03: a column in which every bill shares one value separates nothing, so it
@@ -1845,10 +1846,10 @@ function PageBills() {
         <div>
           <div className="page-kicker">Parliament · Bills Intelligence</div>
           <h1 className="page-title">Bills intelligence</h1>
-          <div className="page-sub" data-bills-scope="">Lists bills that have a Bills Digest in the Parliamentary Library feed, not every bill before Parliament. Each title links to its ParlInfo record; attention and confidence are Parliament Pulse's own scoring. For every bill, <a href="https://www.aph.gov.au/Parliamentary_Business/Bills_Legislation/Bills_Search_Results" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>search bills on aph.gov.au</a>.</div>
+          <div className="page-sub" data-bills-scope="">Lists bills that have a Bills Digest in the Parliamentary Library feed, not every bill before Parliament. Each title links to its ParlInfo record; attention and confidence are Parliament Pulse's own scoring. For every bill, <a href="https://www.aph.gov.au/Parliamentary_Business/Bills_Legislation/Bills_Search_Results" target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>search bills on aph.gov.au</a>.</div>
         </div>
         <div style={{display:"flex", gap:10, alignItems:"center"}}>
-          {bills && <ProvenanceChip provenance="live" title="Rows from the Worker's /bills endpoint" />}
+          {bills && <ProvenanceChip provenance="live" title="Bills from the Parliamentary Library Bills Digest feed" />}
           <button className="btn" disabled={!bills || bills.length === 0} onClick={exportBills}><Icon name="download" size={13}/> Export register</button>
         </div>
       </div>
@@ -1856,24 +1857,24 @@ function PageBills() {
       <div className="panel">
         <div className="panel-head">
           <h2 className="panel-title">Tracked bills</h2>
-          <span className="panel-kicker">{bills ? `${bills.length} bill${bills.length !== 1 ? "s" : ""} · fetched ${fmtFetchedAt(live.fetchedAt)} AEST` : (live.status === "loading" ? "Loading…" : "—")}</span>
+          <span className="panel-kicker">{bills ? `${bills.length} bill${bills.length !== 1 ? "s" : ""} · fetched ${fmtFetchedAt(live.fetchedAt)} AEST` : (live.status === "loading" ? "Loading…" : NO_VALUE)}</span>
         </div>
         {live.status === "loading" && !bills ? <SkeletonTable rows={6} /> : !bills ? (
           <div className="panel-body">
             <EmptyState icon="bill" kicker="Live data unavailable" variant="error">
-              Parliament Pulse could not reach the Worker's /bills endpoint just now, so nothing renders rather than an invented bill list. <a href="https://www.aph.gov.au/Parliamentary_Business/Bills_Legislation" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>Open Bills Legislation on aph.gov.au</a>.
+              Parliament Pulse could not load the bills list just now, so it shows nothing rather than an invented list. <a href="https://www.aph.gov.au/Parliamentary_Business/Bills_Legislation" target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>Open Bills Legislation on aph.gov.au</a>.
             </EmptyState>
           </div>
         ) : bills.length === 0 ? (
           <div className="panel-body">
             <EmptyState icon="bill" kicker="No bills returned">
-              The live /bills endpoint returned no rows just now. <a href="https://www.aph.gov.au/Parliamentary_Business/Bills_Legislation" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>Open Bills Legislation on aph.gov.au</a>.
+              The Bills Digest feed returned no bills just now. <a href="https://www.aph.gov.au/Parliamentary_Business/Bills_Legislation" target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>Open Bills Legislation on aph.gov.au</a>.
             </EmptyState>
           </div>
         ) : (
           <>
           {(!showAtt || !showConf) && (
-            <div className="panel-body score-uniform" style={{fontSize:12.5, color:"var(--ink-3)", paddingBottom:0}}>
+            <div className="panel-body score-uniform" style={{fontSize:"var(--t-body-sm)", color:"var(--ink-3)", paddingBottom:0}}>
               {!showAtt && <div data-uniform="attention">{uniformScoreLine(bills.length, "attention", attAll)}</div>}
               {!showConf && <div data-uniform="confidence">{uniformScoreLine(bills.length, "confidence", confAll)}</div>}
             </div>
@@ -1890,13 +1891,13 @@ function PageBills() {
                   <tr key={b.guid}>
                     <td className="ds-lead" data-label="Title" style={{fontWeight:500}}>
                       {link
-                        ? <a href={link} target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)", textDecoration:"none"}} title="Opens the source at aph.gov.au">{b.title} <Icon name="ext" size={11} style={{verticalAlign:"-1px"}}/></a>
+                        ? <a href={link} target="_blank" rel="noopener noreferrer" style={{color:"var(--link)", textDecoration:"none"}} title="Opens the source at aph.gov.au">{b.title} <Icon name="ext" size={11} style={{verticalAlign:"-1px"}}/></a>
                         : b.title}
                       {/* description is null on every row today: render nothing rather
                           than an empty element, and never invent a summary. */}
-                      {b.description && <div style={{fontSize:12, color:"var(--ink-3)", marginTop:2}}>{b.description}</div>}
+                      {b.description && <div style={{fontSize:"var(--t-caption)", color:"var(--ink-3)", marginTop:2}}>{b.description}</div>}
                     </td>
-                    <td className="mono" data-label="Published" style={{fontSize:11.5, color:"var(--ink-3)"}}>{fmtBillDate(b.pub_date)}</td>
+                    <td className="mono" data-label="Published" style={{fontSize:"var(--t-caption)", color:"var(--ink-3)"}}>{fmtBillDate(b.pub_date)}</td>
                     {showAtt && <td data-col="attention" data-label="Attention"><Att level={b.attention} disclosure={disclosure} /></td>}
                     {showConf && <td data-col="confidence" data-label="Confidence"><Conf n={b.confidence} /></td>}
                   </tr>
@@ -1905,7 +1906,7 @@ function PageBills() {
             </tbody>
           </table>
           </div>
-          <div className="panel-body score-disclosure" data-att-disclosure-line="" style={{fontSize:12, color:"var(--ink-4)"}}>{disclosure}</div>
+          <div className="panel-body score-disclosure" data-att-disclosure-line="" style={{fontSize:"var(--t-caption)", color:"var(--ink-4)"}}>{disclosure}</div>
           </>
         )}
       </div>
@@ -1937,8 +1938,8 @@ function PageParliament() {
       <div className="page-head">
         <div>
           <div className="page-kicker">Parliament</div>
-          <h1 className="page-title">Today in Parliament</h1>
-          <div className="page-sub">Daily program, divisions, hearings and House news from official APH feeds.</div>
+          <h1 className="page-title">Daily program</h1>
+          <div className="page-sub">The chamber program, divisions, hearings and House news from the official APH feeds.</div>
         </div>
       </div>
 
@@ -1948,9 +1949,9 @@ function PageParliament() {
           <div className="panel-body">
             <SittingDeskList
               rows={dailyProgramLive} emptyIcon="clock"
-              unavailableText={<>Parliament Pulse holds no verified daily program right now because the live signal feed is unavailable. <a href="https://www.aph.gov.au/Parliamentary_Business/Chamber_documents" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>Open the House daily program on aph.gov.au</a>.</>}
+              unavailableText={<>Parliament Pulse holds no verified daily program right now because the live signal feed is unavailable. <a href="https://www.aph.gov.au/Parliamentary_Business/Chamber_documents" target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>Open the House daily program on aph.gov.au</a>.</>}
               emptyKicker="No verified daily program held"
-              emptyBody={recessEmptyText("The House", "The daily program", "https://www.aph.gov.au/Parliamentary_Business/Chamber_documents", "Open the House daily program on aph.gov.au")}
+              emptyBody={recessEmptyText("the House", "daily program", "https://www.aph.gov.au/Parliamentary_Business/Chamber_documents", "Open the House daily program on aph.gov.au")}
             />
           </div>
         </div>
@@ -1973,9 +1974,9 @@ function PageParliament() {
           <div className="panel-body">
             <SittingDeskList
               rows={newsLive} emptyIcon="signal"
-              unavailableText={<>Parliament Pulse holds no verified House news right now because the live signal feed is unavailable. <a href="https://www.aph.gov.au/house/rss/house_news" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>Open House news on aph.gov.au</a>.</>}
+              unavailableText={<>Parliament Pulse holds no verified House news right now because the live signal feed is unavailable. <a href="https://www.aph.gov.au/house/rss/house_news" target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>Open House news on aph.gov.au</a>.</>}
               emptyKicker="No verified items held"
-              emptyBody={<>Parliament Pulse holds no verified House news or media releases in the current live window. <a href="https://www.aph.gov.au/house/rss/house_news" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>Open House news on aph.gov.au</a>.</>}
+              emptyBody={<>Parliament Pulse holds no verified House news or media releases in the current live window. <a href="https://www.aph.gov.au/house/rss/house_news" target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>Open House news on aph.gov.au</a>.</>}
             />
           </div>
         </div>
@@ -1983,7 +1984,7 @@ function PageParliament() {
         <div className="panel">
           <div className="panel-head"><h2 className="panel-title">Parliamentary lines</h2><span className="chip-fixture" style={{marginLeft:"auto"}}>Sample data</span></div>
           <div className="panel-body">
-            <div style={{padding:12, border:"1px dashed var(--line-2)", borderRadius:8, fontSize:13, color:"var(--ink-3)", lineHeight:1.6, fontStyle:"italic"}}>
+            <div style={{padding:12, border:"1px dashed var(--line-2)", borderRadius:8, fontSize:"var(--t-body-sm)", color:"var(--ink-3)", lineHeight:1.6, fontStyle:"italic"}}>
               <div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em", marginBottom:8, fontStyle:"normal"}}>No lines drafted yet</div>
               Lines will appear here once generated by an analyst. Use "Generate brief" from a signal to start the drafting workflow.
             </div>
@@ -1998,9 +1999,9 @@ function PageParliament() {
 // ---------- PATTERNS ----------
 // Format a thread span date (day + month) from an ISO timestamp.
 function fmtSpanDate(iso) {
-  if (!iso) return "—";
+  if (!iso) return NOT_SUPPLIED;
   try { return new Date(iso).toLocaleDateString("en-AU", { day: "numeric", month: "short" }); }
-  catch { return "—"; }
+  catch { return NOT_SUPPLIED; }
 }
 
 // One live thread row. The product-owned facts (item count, first/last seen) lead;
@@ -2013,15 +2014,15 @@ function ThreadRow({ t, byGuid, isLast }) {
   return (
     <div style={{padding:"12px 0", borderBottom: isLast ? 0 : "1px solid var(--line)"}}>
       <button onClick={() => setOpen(v => !v)} aria-expanded={open}
-        style={{display:"flex", alignItems:"center", gap:12, width:"100%", background:"none", border:"none", padding:0, cursor:"pointer", textAlign:"left", color:"inherit"}}>
-        <Icon name="chevron" size={13} style={{transform: open ? "rotate(90deg)" : "none", transition:"transform .15s"}}/>
-        <span style={{fontSize:13.5, fontWeight:600, color:"var(--ink)"}}>{t.itemCount} items</span>
-        <span className="mono" style={{fontSize:11, color:"var(--ink-3)"}}>{fmtSpanDate(t.firstSeenAt)} → {fmtSpanDate(t.lastSeenAt)}</span>
+        style={{display:"flex", alignItems:"center", flexWrap:"wrap", columnGap:12, rowGap:4, width:"100%", background:"none", border:"none", padding:0, cursor:"pointer", textAlign:"left", color:"inherit"}}>
+        <Icon name="chevron" size={13} style={{flexShrink:0, transform: open ? "rotate(90deg)" : "none", transition:"transform .15s"}}/>
+        <span style={{fontSize:"var(--t-body-sm)", fontWeight:600, color:"var(--ink)", whiteSpace:"nowrap"}}>{t.itemCount} items</span>
+        <span className="mono" style={{fontSize:"var(--t-eyebrow)", color:"var(--ink-3)", whiteSpace:"nowrap"}}>{fmtSpanDate(t.firstSeenAt)} → {fmtSpanDate(t.lastSeenAt)}</span>
         {/* The thread title is the product's own clustering label, not APH-sourced
             prose. It is framed with a "Cluster" tag so it reads unambiguously as the
             product's analysis (threads carry no link; spec 4.3). */}
-        <span className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".1em", marginLeft:4}}>Cluster</span>
-        <span className="mono" style={{color:"var(--ink-2)", fontSize:12.5}}>{t.title}</span>
+        <span className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".1em", marginLeft:4}}>Thread</span>
+        <span style={{color:"var(--ink-2)", fontSize:"var(--t-body-sm)", fontWeight:500, flex:"1 1 18rem", minWidth:0}}>{t.title}</span>
       </button>
       {open && (
         <div style={{marginTop:10, marginLeft:25, display:"grid", gap:8}}>
@@ -2031,19 +2032,19 @@ function ThreadRow({ t, byGuid, isLast }) {
                   valid APH link; with no link it falls back to the source label,
                   never a bare title inside a "#" anchor. */}
               {s.link
-                ? <a href={s.link} target="_blank" rel="noopener noreferrer" style={{display:"inline-flex", alignItems:"center", gap:6, color:"var(--teal)", textDecoration:"none", fontSize:12.5, fontWeight:500}} title="Opens the source at aph.gov.au">
+                ? <a href={s.link} target="_blank" rel="noopener noreferrer" style={{display:"inline-flex", alignItems:"center", gap:6, color:"var(--link)", textDecoration:"none", fontSize:"var(--t-body-sm)", fontWeight:500}} title="Opens the source at aph.gov.au">
                     {s.title} <Icon name="ext" size={11}/>
                   </a>
-                : <span style={{fontSize:12.5, fontWeight:500, color:"var(--ink-2)"}}>{s.source}</span>}
+                : <span style={{fontSize:"var(--t-body-sm)", fontWeight:500, color:"var(--ink-2)"}}>{s.source}</span>}
               <div style={{display:"flex", gap:10, alignItems:"center", flexWrap:"wrap"}}>
                 <span className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".12em"}}>{(s.tags && s.tags[0] && s.tags[0].l) || "item"}</span>
-                <span style={{fontSize:11, color:"var(--ink-3)"}}>{s.source}</span>
+                <span style={{fontSize:"var(--t-eyebrow)", color:"var(--ink-3)"}}>{s.source}</span>
                 <span className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)"}}>{s.date}</span>
               </div>
             </div>
           ))}
           {unresolved > 0 && (
-            <div className="mono" style={{fontSize:11, color:"var(--ink-4)"}}>{unresolved} further item{unresolved !== 1 ? "s" : ""} in the archive</div>
+            <div className="mono" style={{fontSize:"var(--t-eyebrow)", color:"var(--ink-4)"}}>{unresolved} further item{unresolved !== 1 ? "s" : ""} in the archive</div>
           )}
         </div>
       )}
@@ -2068,16 +2069,16 @@ function PagePatterns() {
         <div>
           <div className="page-kicker">Parliament · Scrutiny</div>
           <h1 className="page-title">Threads</h1>
-          <div className="page-sub">Related live signals grouped into threads by the Worker's clustering. Questions on Notice join these threads once a QON feed can be connected.</div>
+          <div className="page-sub">Related live signals grouped into threads. Questions on notice will join these threads once a feed for them can be connected.</div>
         </div>
       </div>
 
       {!threads.items && (
         <div className="panel" style={{marginBottom:16}}>
-          <div className="panel-head"><h2 className="panel-title">Signal threads · cluster analysis</h2></div>
+          <div className="panel-head"><h2 className="panel-title">Signal threads</h2></div>
           <div className="panel-body">
             <EmptyState icon="pattern" kicker="No threads held">
-              Parliament Pulse holds no signal threads right now, because the live archive returned none or could not be reached. Threads group live APH items; the items themselves are published through the <a href="https://www.aph.gov.au/Help/Rss_feeds" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>APH RSS feeds</a>.
+              Parliament Pulse holds no signal threads right now, because the live archive returned none or could not be reached. Threads group live APH items; the items themselves are published through the <a href="https://www.aph.gov.au/Help/Rss_feeds" target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>APH RSS feeds</a>.
             </EmptyState>
           </div>
         </div>
@@ -2086,8 +2087,8 @@ function PagePatterns() {
       {threads.items && (
         <div className="panel" style={{marginBottom:16}}>
           <div className="panel-head">
-            <h2 className="panel-title">Signal threads · cluster analysis</h2>
-            <ProvenanceChip provenance={threads.displayProvenance} title="The Worker's own clustering of live signals (derived analysis)" />
+            <h2 className="panel-title">Signal threads</h2>
+            <ProvenanceChip provenance={threads.displayProvenance} title="Parliament Pulse's own grouping of live signals (derived analysis)" />
             <span className="panel-kicker" style={{marginLeft:"auto"}}>{threads.items.length} threads · fetched {fmtFetchedAt(threads.fetchedAt)} AEST</span>
           </div>
           <div className="panel-body">
@@ -2100,9 +2101,9 @@ function PagePatterns() {
         </div>
       )}
 
-      <div style={{padding:"10px 14px", background:"var(--panel-hi)", border:"1px solid var(--line-bright)", borderRadius:8, marginBottom:16, display:"flex", gap:10, alignItems:"center", color:"var(--ink-2)", fontSize:12.5}}>
+      <div style={{padding:"10px 14px", background:"var(--panel-hi)", border:"1px solid var(--line-bright)", borderRadius:8, marginBottom:16, display:"flex", gap:10, alignItems:"center", color:"var(--ink-2)", fontSize:"var(--t-body-sm)"}}>
         <Icon name="flag" size={14} stroke="var(--info)"/>
-        <span><strong>Questions on notice not connected</strong>: ParlInfo's search refuses automated access, so no questions on notice are held. {threads.items ? "Thread clustering above is live from the archive. " : ""}<a href="https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/Senate_chamber_documents/qon" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>Search questions on notice on aph.gov.au</a>.</span>
+        <span><strong>Questions on notice not connected</strong>: ParlInfo's search refuses automated access, so no questions on notice are held. {threads.items ? "The threads above are built from live signals. " : ""}<a href="https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/Senate_chamber_documents/qon" target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>Search questions on notice on aph.gov.au</a>.</span>
       </div>
 
       {/* FE-04: the QON_PATTERN block (and its Draft Estimates monitor note button)
@@ -2110,18 +2111,18 @@ function PagePatterns() {
       {SITE_CONFIG.showUnsourcedSurfaces && qonItems.length > 0 ? (
       <div className="pattern">
         <div className="ribbon">Clustered pattern · moderate confidence</div>
-        <div className="serif" style={{fontSize:22, fontWeight:500, marginBottom:6, paddingRight:200}}>Clustered scrutiny pattern{QON_PATTERN.topic ? ` on ${QON_PATTERN.topic}` : ""}</div>
+        <div className="serif" style={{fontSize:"var(--t-headline)", fontWeight:500, marginBottom:6, paddingRight:200}}>Clustered scrutiny pattern{QON_PATTERN.topic ? ` on ${QON_PATTERN.topic}` : ""}</div>
         {QON_PATTERN.trigger && (
-          <div style={{color:"var(--ink-2)", fontSize:13.5, maxWidth:720}}>
+          <div style={{color:"var(--ink-2)", fontSize:"var(--t-body-sm)", maxWidth:720}}>
             {qonItems.length} related question{qonItems.length !== 1 ? "s" : ""} lodged by {qonMemberCount} member{qonMemberCount !== 1 ? "s" : ""}{QON_PATTERN.window ? ` within ${QON_PATTERN.window}` : ""}. Trigger likely: {QON_PATTERN.trigger}.
           </div>
         )}
 
         <div className="grid g-4" style={{marginTop:16, marginBottom:18}}>
-          <div><div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em"}}>Members</div><div style={{fontSize:18, marginTop:4}}>{qonMemberCount}</div></div>
-          <div><div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em"}}>Questions</div><div style={{fontSize:18, marginTop:4}}>{qonItems.length}</div></div>
-          <div><div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em"}}>Window</div><div style={{fontSize:18, marginTop:4}}>{QON_PATTERN.window || "—"}</div></div>
-          <div><div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em"}}>Target</div><div style={{fontSize:13, marginTop:4, lineHeight:1.25}}>{QON_PATTERN.target || "—"}</div></div>
+          <div><div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em"}}>Members</div><div style={{fontSize:"var(--t-subhead)", marginTop:4}}>{qonMemberCount}</div></div>
+          <div><div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em"}}>Questions</div><div style={{fontSize:"var(--t-subhead)", marginTop:4}}>{qonItems.length}</div></div>
+          <div><div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em"}}>Window</div><div style={{fontSize:"var(--t-subhead)", marginTop:4}}>{QON_PATTERN.window || NOT_SUPPLIED}</div></div>
+          <div><div className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".14em"}}>Target</div><div style={{fontSize:"var(--t-body-sm)", marginTop:4, lineHeight:1.25}}>{QON_PATTERN.target || NOT_SUPPLIED}</div></div>
         </div>
 
         <div style={{borderTop:"1px dashed var(--line-2)", paddingTop:14}}>
@@ -2130,7 +2131,7 @@ function PagePatterns() {
             const mid = q.memberId;
             const canOpen = !!(mid && ENTITIES.members[mid]);
             return (
-              <div key={q.when + q.who} className="g-qon-evidence" style={{display:"grid", gap:12, padding:"8px 0", borderBottom: i<qonItems.length-1 ? "1px solid var(--line)" : 0, alignItems:"start", fontSize:12.5}}>
+              <div key={q.when + q.who} className="g-qon-evidence" style={{display:"grid", gap:12, padding:"8px 0", borderBottom: i<qonItems.length-1 ? "1px solid var(--line)" : 0, alignItems:"start", fontSize:"var(--t-body-sm)"}}>
                 <div className="mono" style={{color:"var(--ink-3)"}}>{q.when}</div>
                 <div><span className={"tag brass" + (canOpen ? " clk" : "")} onClick={canOpen ? () => openModal("member", mid) : undefined} style={canOpen ? undefined : {opacity:.65, cursor:"not-allowed"}}>{q.who}</span></div>
                 <div style={{color:"var(--ink-2)"}}>{q.q}</div>
@@ -2153,7 +2154,7 @@ function PagePatterns() {
         <div className="panel-head"><h2 className="panel-title">Clustered scrutiny pattern</h2></div>
         <div className="panel-body">
           <EmptyState icon="pattern" kicker="No questions on notice held">
-            Parliament Pulse holds no questions on notice to find a scrutiny pattern in, because ParlInfo's search refuses automated access. <a href="https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/Senate_chamber_documents/qon" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>Search questions on notice on aph.gov.au</a>, or <a href="https://www.aph.gov.au/Parliamentary_Business/Senate_estimates" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>open Senate Estimates</a>.
+            Parliament Pulse holds no questions on notice to find a scrutiny pattern in, because ParlInfo's search refuses automated access. <a href="https://www.aph.gov.au/Parliamentary_Business/Chamber_documents/Senate_chamber_documents/qon" target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>Search questions on notice on aph.gov.au</a>, or <a href="https://www.aph.gov.au/Parliamentary_Business/Senate_estimates" target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>open Senate Estimates</a>.
           </EmptyState>
         </div>
       </div>
@@ -2188,7 +2189,7 @@ function PageBriefings() {
     // A live signal's queue label uses its source, never the raw APH title as
     // standalone product prose; fixture briefs keep their title label.
     const label = sig ? (sig.isLive ? sig.source : (sig.title.slice(0, 40) + "…")) : sid;
-    return { type: v.type || "Executive Brief", for: label, status: "Copied · clipboard", _sid: sid, _ts: v.ts };
+    return { type: v.type || "Executive brief", for: label, status: "Copied to clipboard", _sid: sid, _ts: v.ts };
   }).sort((a, b) => b._ts - a._ts);
   const briefId = (b) => b._sid;
   const selected = briefs.find(b => briefId(b) === selId) || briefs[0];
@@ -2203,7 +2204,7 @@ function PageBriefings() {
         </div>
         <div style={{display:"flex", gap:8, flexWrap:"wrap", justifyContent:"flex-end"}}>
           <button className="btn" disabled={briefs.length === 0} onClick={() => downloadBriefingQueue(briefs, toast)}><Icon name="download" size={13}/> Export queue</button>
-          <button className="btn primary" title="Open signals to generate a brief" onClick={() => { setSignalSearchQuery(""); navigate("signals"); }}><Icon name="plus" size={13}/> New brief</button>
+          <button className="btn" title="Open signals to generate a brief" onClick={() => { setSignalSearchQuery(""); navigate("signals"); }}><Icon name="plus" size={13}/> Choose a signal</button>
         </div>
       </div>
 
@@ -2218,8 +2219,8 @@ function PageBriefings() {
               const status = reviewedIds[id] ? "Reviewed" : b.status;
               return (
               <div key={id} className="list-row" onClick={() => setSelId(id)} style={{cursor:"pointer", background: selectedId===id ? "var(--panel-hi)" : "transparent", borderLeft: selectedId===id ? "2px solid var(--brass)" : "2px solid transparent"}}>
-                <div style={{fontSize:13, fontWeight:500}}>{b.type}</div>
-                <div style={{fontSize:11.5, color:"var(--ink-3)"}}>For {b.for}</div>
+                <div style={{fontSize:"var(--t-body-sm)", fontWeight:500}}>{b.type}</div>
+                <div style={{fontSize:"var(--t-caption)", color:"var(--ink-3)"}}>For {b.for}</div>
                 <div className="mono t-label" style={{marginTop:4, color: status === "Reviewed" ? "var(--ok)" : status.startsWith("Copied") ? "var(--ink-3)" : "var(--ink-4)", textTransform:"uppercase", letterSpacing:".12em"}}>{status}</div>
               </div>
               );
@@ -2276,6 +2277,8 @@ function PageBriefings() {
                 </>}
                 <h5>Provenance</h5>
                 <div>{brief.provenance}</div>
+                {/* PR-13: the licence attribution travels with the brief, on screen and in print. */}
+                <div className="brief-attrib" data-brief-attribution="">{APH_ATTRIBUTION}</div>
               </div>
               );
             })()}
@@ -2308,9 +2311,9 @@ function renderMatchedAlertEvent(e, i) {
   return (
     <div key={e.id || i} style={{padding:"8px 0", borderBottom:"1px solid var(--line)"}}>
       {link
-        ? <a href={link} target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)", textDecoration:"none", fontWeight:500, fontSize:13}} title="Opens the source at aph.gov.au">{title} <Icon name="ext" size={11}/></a>
-        : <span style={{fontWeight:500, fontSize:13}}>{title}</span>}
-      {when && <div className="mono" style={{fontSize:11, color:"var(--ink-4)", marginTop:2}}>{fmtFetchedAt(when)} AEST</div>}
+        ? <a href={link} target="_blank" rel="noopener noreferrer" style={{color:"var(--link)", textDecoration:"none", fontWeight:500, fontSize:"var(--t-body-sm)"}} title="Opens the source at aph.gov.au">{title} <Icon name="ext" size={11}/></a>
+        : <span style={{fontWeight:500, fontSize:"var(--t-body-sm)"}}>{title}</span>}
+      {when && <div className="mono" style={{fontSize:"var(--t-eyebrow)", color:"var(--ink-4)", marginTop:2}}>{fmtFetchedAt(when)} AEST</div>}
     </div>
   );
 }
@@ -2372,14 +2375,14 @@ function AlertRulesPanel() {
       <div className="panel-head">
         <h2 className="panel-title">Alert rules</h2>
         <span className="panel-kicker">{rules ? `${rules.length} rule${rules.length !== 1 ? "s" : ""} configured` : "Loading…"}</span>
-        {rules && rules.length > 0 && <ProvenanceChip provenance="live" title="Rules are read from the Worker's /alerts endpoint" />}
+        {rules && rules.length > 0 && <ProvenanceChip provenance="live" title="Rules are read from the Parliament Pulse service" />}
       </div>
       <div className="panel-body">
-        <p style={{margin:"0 0 14px", fontSize:12.5, color:"var(--ink-3)", lineHeight:1.6}}>
+        <p style={{margin:"0 0 14px", fontSize:"var(--t-body-sm)", color:"var(--ink-3)", lineHeight:1.6}}>
           The alerts engine evaluates each configured rule against every 30-minute feed poll, whether or not
           this tab is open. A rule matches on its keyword terms, and can optionally require a minimum
           attention level, a source group, or a signal kind.
-          {!ALERTS_WRITABLE && " Creating and removing rules from the browser is closed in this release: the server-side write endpoint requires authentication that is not yet in place."}
+          {!ALERTS_WRITABLE && " You cannot yet create or remove rules here: that needs a sign-in, which this release does not have."}
         </p>
 
         {ALERTS_WRITABLE && (
@@ -2421,9 +2424,9 @@ function AlertRulesPanel() {
           loadFailed ? (
             <EmptyState icon="bell" kicker="Alert rules unavailable" variant="error"
               action={<button className="btn ghost sm" onClick={loadRules}>Retry</button>}>
-              Parliament Pulse could not reach the Worker's /alerts endpoint just now.
+              Parliament Pulse could not load alert rules just now.
             </EmptyState>
-          ) : <div className="mono" style={{fontSize:11.5, color:"var(--ink-4)"}}>Loading alert rules…</div>
+          ) : <div className="mono" style={{fontSize:"var(--t-caption)", color:"var(--ink-4)"}}>Loading alert rules…</div>
         ) : rules.length === 0 ? (
           <EmptyState icon="bell" kicker="No alert rules configured yet">
             No alert rules are configured yet. Matches appear here within thirty minutes of creating one.
@@ -2433,8 +2436,8 @@ function AlertRulesPanel() {
             {rules.map(r => (
               <div key={r.id} style={{display:"flex", alignItems:"center", gap:10, padding:"8px 12px", border:"1px solid var(--line-2)", borderRadius:8}}>
                 <div style={{flex:1, minWidth:0}}>
-                  <div style={{fontSize:13, fontWeight:500}}>{r.name}</div>
-                  <div style={{fontSize:11.5, color:"var(--ink-3)", marginTop:2}}>
+                  <div style={{fontSize:"var(--t-body-sm)", fontWeight:500}}>{r.name}</div>
+                  <div style={{fontSize:"var(--t-caption)", color:"var(--ink-3)", marginTop:2}}>
                     {(Array.isArray(r.terms) ? r.terms : String(r.terms || "").split(",").map(t=>t.trim()).filter(Boolean)).join(", ")}
                     {r.attention_min && <> · min {r.attention_min}</>}
                     {r.source_group && <> · {r.source_group}</>}
@@ -2447,7 +2450,7 @@ function AlertRulesPanel() {
           </div>
         )}
 
-        <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:8, marginBottom:8}}>Matched events</h3>
+        <h3 className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:8, marginBottom:8}}>Matched events</h3>
         {!matched.items ? (
           <div className="empty">
             {rules && rules.length > 0
@@ -2487,7 +2490,7 @@ function PageWatchlists() {
         <div>
           <div className="page-kicker">Workflow</div>
           <h1 className="page-title">Watchlists</h1>
-          <div className="page-sub">Keyword matching over the live signal stream, run in your browser. Click any watchlist for its matches and keywords. Alert rules and email digests are not yet available.</div>
+          <div className="page-sub">Keyword matching over the live signal stream, run in your browser. Select a watchlist to see its matches and keywords. Match history over time, alert rules and email digests are not yet available.</div>
         </div>
         <div style={{display:"flex", gap:8, alignItems:"center"}}>
           <ProvenanceChip provenance={derived ? "derived" : "fixture"}
@@ -2511,14 +2514,11 @@ function PageWatchlists() {
             <div key={w.name} className={"wl" + (selectedWl?.name === w.name ? " active" : "")} onClick={() => { setSelectedWl(w); openModal("watchlist", w.name); }} style={selectedWl?.name === w.name ? {borderColor:"var(--brass)"} : {}}>
               <div style={{display:"flex", alignItems:"center", gap:8}}>
                 <span className="wl-name">{w.name}</span>
-                <span className="mono" style={{fontSize:"var(--t-micro)", color:"var(--brass)", background:"var(--panel-hi)", border:"1px solid var(--brass-soft)", padding:"1px 6px", borderRadius:4, marginLeft:"auto"}}>{matchCount} matches</span>
+                <span className="mono" data-wl-matches={matchCount} style={{fontSize:"var(--t-micro)", color: matchCount > 0 ? "var(--brass)" : "var(--ink-4)", background:"var(--panel-hi)", border: matchCount > 0 ? "1px solid var(--brass-soft)" : "1px solid var(--line-2)", padding:"1px 6px", borderRadius:4, marginLeft:"auto"}}>{matchCount} {matchCount === 1 ? "match" : "matches"}</span>
               </div>
               <div className="wl-meta"><span>{keywordCount} keywords</span></div>
-              {/* Parliament Pulse holds no real match history for any watchlist (the
-                  previous six-invented-zero-days-plus-today's-real-count spark line was
-                  still an invented history, just with one true point buried in it), so
-                  every card states that plainly rather than drawing a trend line. */}
-              <div className="mono" style={{marginTop:6, color:"var(--ink-4)", fontSize:11}}>No trend history held</div>
+              {/* No match history is held for any watchlist; the page sub-heading says so once
+                  instead of repeating it on every card (FE-09). */}
             </div>
           );
         })}
@@ -2541,7 +2541,7 @@ function PageWatchlists() {
           ) : trackedItems.map(item => (
             <div key={item.key} className="g-tracked-row" style={{display:"grid", gap:12, padding:"10px 0", borderBottom:"1px solid var(--line)", alignItems:"center"}}>
               <div>
-                <div style={{fontSize:13, fontWeight:500}}>{item.title}</div>
+                <div style={{fontSize:"var(--t-body-sm)", fontWeight:500}}>{item.title}</div>
                 <div className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)", marginTop:2}}>{item.meta}</div>
               </div>
               <button className="btn sm ghost" onClick={() => removeWatchlist(item.key)}>Remove</button>
@@ -2565,7 +2565,7 @@ function PageWatchlists() {
               rendered here as static blocks identical for all 12 watchlists (only the
               keywords above are genuinely per-watchlist). They have been removed rather
               than left to imply a per-watchlist configuration that does not exist. */}
-          <div className="empty" style={{marginTop:14}}>Parliament Pulse does not yet hold linked committees, attention thresholds, or an audit log for watchlists. These configuration surfaces need a backend before they can show real per-watchlist data.</div>
+          <div className="empty" style={{marginTop:14}}>Parliament Pulse does not yet hold linked committees, attention thresholds, or an audit log for watchlists. These settings need a server-side store before they can show real per-watchlist data.</div>
         </div>
       </div>
     </div>
@@ -2626,11 +2626,11 @@ function PageRadar() {
         <div className="panel-body">
           {rows.length === 0 ? (
             <EmptyState icon="radar" kicker="Live data unavailable" variant="error">
-              Live data is unavailable. Parliament Pulse shows nothing rather than an invented tally. <a href="https://www.aph.gov.au" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>Go to aph.gov.au</a>.
+              Live data is unavailable. Parliament Pulse shows nothing rather than an invented tally. <a href="https://www.aph.gov.au" target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>Go to aph.gov.au</a>.
             </EmptyState>
           ) : (
           <>
-          {!showAtt && <div className="score-uniform" data-uniform="attention" style={{fontSize:12.5, color:"var(--ink-3)", marginBottom:10}}>{uniformScoreLine(rows.length, "attention", attAll)}</div>}
+          {!showAtt && <div className="score-uniform" data-uniform="attention" style={{fontSize:"var(--t-body-sm)", color:"var(--ink-3)", marginBottom:10}}>{uniformScoreLine(rows.length, "attention", attAll)}</div>}
           <div className="radar-row radar-head g-radar-table" style={{display:"grid", gridTemplateColumns:cols, padding:"4px 0 10px", borderBottom:"1px solid var(--line)", alignItems:"center", gap:14}}>
             <div className="mono t-label" style={head}>Source group</div>
             <div className="mono t-label" style={{...head, textAlign:"right"}}>Items</div>
@@ -2639,13 +2639,13 @@ function PageRadar() {
           </div>
           {rows.map((r,i) => (
             <div key={r.group} className="radar-row g-radar-table" style={{display:"grid", gridTemplateColumns:cols, padding:"14px 8px", borderBottom: i<rows.length-1 ? "1px solid var(--line)" : 0, gap:14, alignItems:"center", borderRadius:6}}>
-              <div style={{fontSize:14, fontWeight:500}}>{r.group}</div>
+              <div style={{fontSize:"var(--t-body)", fontWeight:500}}>{r.group}</div>
               <div className="mono radar-num" style={{textAlign:"right", color:"var(--ink-2)"}}>{r.count}<span className="radar-mlabel"> item{r.count !== 1 ? "s" : ""}</span></div>
               <div className="mono radar-num" style={{textAlign:"right", color:"var(--ink-2)"}}>{r.sources}<span className="radar-mlabel"> feed{r.sources !== 1 ? "s" : ""}</span></div>
               {showAtt && <div data-col="attention"><Att level={r.att} disclosure={disclosure}/></div>}
             </div>
           ))}
-          <div className="score-disclosure" data-att-disclosure-line="" style={{fontSize:12, color:"var(--ink-4)", marginTop:12}}>{disclosure}</div>
+          <div className="score-disclosure" data-att-disclosure-line="" style={{fontSize:"var(--t-caption)", color:"var(--ink-4)", marginTop:12}}>{disclosure}</div>
           </>
           )}
         </div>
@@ -2759,9 +2759,9 @@ function PageSignals() {
         </div>
         <div style={{display:"flex", gap:8, alignItems:"center"}}>
           <ProvenanceChip provenance={live.displayProvenance}
-            title={live.displayProvenance === "live" ? "Signals from the Worker's composed /state endpoint (D1 archive)" : "Live data is unavailable — the /state signals block is not live"} />
+            title={live.displayProvenance === "live" ? "Signals from the official APH feeds" : "Live data is unavailable, so these signals are not live"} />
           <label htmlFor="sig-sort" className="sr-only">Sort signals</label>
-          <span aria-hidden="true" style={{fontSize:12, color:"var(--ink-4)"}}>Sort:</span>
+          <span aria-hidden="true" style={{fontSize:"var(--t-caption)", color:"var(--ink-4)"}}>Sort:</span>
           <select id="sig-sort" className="select" value={sort} onChange={e => setSort(e.target.value)}>
             <option value="time">Time</option>
             <option value="score">Authority score</option>
@@ -2801,7 +2801,7 @@ function PageSignals() {
           </EmptyState>
         ) : !live.items ? (
           <EmptyState icon="signal" kicker="Live data unavailable" variant="error">
-            Live data is unavailable. Parliament Pulse shows nothing rather than showing something invented. <a href="https://www.aph.gov.au" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>Go to aph.gov.au</a>.
+            Live data is unavailable. Parliament Pulse shows nothing rather than showing something invented. <a href="https://www.aph.gov.au" target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>Go to aph.gov.au</a>.
           </EmptyState>
         ) : (
           <EmptyState icon="check" kicker="Inbox zero">
@@ -2811,13 +2811,13 @@ function PageSignals() {
       ) : (
         <div>
           {(hideAtt || hideConf) && (
-            <div className="score-uniform" style={{fontSize:12.5, color:"var(--ink-3)", marginBottom:12}}>
+            <div className="score-uniform" style={{fontSize:"var(--t-body-sm)", color:"var(--ink-3)", marginBottom:12}}>
               {hideAtt && <div data-uniform="attention">{uniformScoreLine(inView.length, "attention", attAll)}</div>}
               {hideConf && <div data-uniform="confidence">{uniformScoreLine(inView.length, "confidence", confAll)}</div>}
             </div>
           )}
           {shown.map(s => <SignalCard key={s.id} s={s} hideAtt={hideAtt} hideConf={hideConf} />)}
-          <div className="score-disclosure" data-att-disclosure-line="" style={{fontSize:12, color:"var(--ink-4)", marginTop:12}}>{disclosure}</div>
+          <div className="score-disclosure" data-att-disclosure-line="" style={{fontSize:"var(--t-caption)", color:"var(--ink-4)", marginTop:12}}>{disclosure}</div>
           {moreToShow && <div ref={sentinelRef} className="list-sentinel" aria-hidden="true" />}
           {progressive && (
             <div className="list-progress" style={{display:"flex", alignItems:"center", gap:12, padding:"14px 4px 4px"}}>

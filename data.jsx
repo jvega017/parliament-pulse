@@ -21,6 +21,13 @@
 // Cloudflare Worker base URL — single canonical constant so any endpoint
 // consumer (the /state poller, the RSS poller, etc.) points at the same
 // place instead of re-hardcoding the Worker hostname per call site.
+// Missing-value sentinels (UX-18). A value the source did not supply reads as
+// "Not supplied" in prose and as a middle dot in a dense table cell or tile,
+// never as an em dash. tests/copy-gates.test.mjs fails on any em dash in a
+// string literal of the built bundle.
+const NOT_SUPPLIED = "Not supplied";
+const NO_VALUE = "·";
+
 const WORKER_BASE_URL = "https://aph-proxy.jvega019.workers.dev";
 
 // Licence attribution (LEG-03). APH web content is published under CC BY-NC-ND 4.0.

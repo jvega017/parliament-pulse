@@ -15,7 +15,7 @@ class ErrorBoundary extends React.Component {
     return (
       <div className="panel" role="alert" style={{margin:18, padding:18, borderColor:"var(--ember-flash)"}}>
         <div className="page-kicker">Render error</div>
-        <h1 className="page-title" style={{fontSize:24, marginTop:6}}>Parliament Pulse could not render this view</h1>
+        <h1 className="page-title" style={{fontSize:"var(--t-headline)", marginTop:6}}>Parliament Pulse could not render this view</h1>
         <p style={{color:"var(--ink-2)", maxWidth:640}}>Reload the page to reset the current browser state. If the problem repeats, capture the page and action that caused it.</p>
         <button className="btn primary" onClick={() => location.reload()}><Icon name="refresh" size={13}/> Reload</button>
       </div>

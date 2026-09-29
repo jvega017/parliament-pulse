@@ -1,3 +1,5 @@
+const NOT_SUPPLIED = "Not supplied";
+const NO_VALUE = "\xB7";
 const WORKER_BASE_URL = "https://aph-proxy.jvega019.workers.dev";
 const APH_LICENCE_NAME = "CC BY-NC-ND 4.0";
 const APH_LICENCE_URL = "https://creativecommons.org/licenses/by-nc-nd/4.0/";

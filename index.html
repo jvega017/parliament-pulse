@@ -1,7 +1,9 @@
+<!-- register: b -->
 <!doctype html>
 <html lang="en">
 <head>
-<!-- register: product-owned brand (Parliament Pulse, Prometheus Policy Lab) - decoupled from the Fire House / QLD Government register; full rationale in the :root token comment below in <style>. -->
+<!-- Register b (Fire House editorial-terminal), Parliament desk, Dashboard surface. Tokens: 04_Templates/brand-tokens.json v2.6.4, see the tokens:begin block below. -->
+<!-- Design review: juan-design-critic, Claude pass, 29 Sep 2026 (FE-09): 28 Pass, 0 Concern, 0 Fail. Pending Juan's visual sign-off (his standing rule routes design to GPT with visuals). -->
 <meta charset="utf-8" />
 <title>Parliament Pulse · Prometheus Policy Lab</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -18,20 +20,20 @@
 <link rel="preload" href="assets/fonts/IBMPlexSans-400.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="assets/fonts/IBMPlexSans-600.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="assets/fonts/IBMPlexMono-400.woff2" as="font" type="font/woff2" crossorigin>
-<meta name="theme-color" content="#07080e" media="(prefers-color-scheme: dark)" />
-<meta name="theme-color" content="#f3eee2" media="(prefers-color-scheme: light)" />
-<meta name="description" content="Parliament Pulse — Australian parliamentary intelligence for policy officers. Official APH feed monitoring, signal triage, committee tracking, and brief generation." />
+<meta name="theme-color" content="#06070d" media="(prefers-color-scheme: dark)" />
+<meta name="theme-color" content="#F1ECE0" media="(prefers-color-scheme: light)" />
+<meta name="description" content="Parliament Pulse: Australian federal parliamentary intelligence for policy officers. It watches official APH feeds, sorts the signals, tracks committees and bills, and drafts briefs." />
 <meta name="author" content="Prometheus Policy Lab" />
-<meta property="og:title" content="Parliament Pulse — Prometheus Policy Lab" />
-<meta property="og:description" content="A working beta: Australian parliamentary intelligence — official APH RSS feed monitoring, signal triage, committee and bills tracking, and one-click brief generation." />
+<meta property="og:title" content="Parliament Pulse · Prometheus Policy Lab" />
+<meta property="og:description" content="A free beta: Australian federal parliamentary intelligence from official APH feeds, with signal triage, committee and bills tracking, and brief drafting." />
 <meta property="og:type" content="website" />
 <meta property="og:url" content="https://parliament-pulse.pages.dev/" />
 <meta property="og:image" content="https://parliament-pulse.pages.dev/assets/og.png" />
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="630" />
 <meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:title" content="Parliament Pulse — Prometheus Policy Lab" />
-<meta name="twitter:description" content="A working prototype: Australian parliamentary intelligence with live APH feeds, signal triage and brief generation." />
+<meta name="twitter:title" content="Parliament Pulse · Prometheus Policy Lab" />
+<meta name="twitter:description" content="A free beta: Australian federal parliamentary intelligence from official APH feeds, with signal triage, committee and bills tracking, and brief drafting." />
 <meta name="twitter:image" content="https://parliament-pulse.pages.dev/assets/og.png" />
 <link rel="icon" href="/favicon.ico" sizes="any" />
 <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
@@ -47,152 +49,200 @@
     descent-override: 28%;
     line-gap-override: 0%;
   }
+  /* tokens:begin
+     ============================================================
+     Parliament Pulse tokens: register b (Fire House editorial-terminal),
+     Parliament desk. Every colour literal in this block is a value from
+     04_Templates/brand-tokens.json v2.6.4; tests/copy-gates.test.mjs checks
+     each one against tests/brand-hex-allowlist.json (generated from that file
+     by scripts/sync-brand-hex.mjs) and fails on any hex outside this block,
+     #fff and #000 excepted. Everything else derives from these with
+     color-mix(), so no other literal ships. FE-09 executes DS-018: the
+     off-token oranges and the teal retire; the desk accent is
+     accent.parliament and healthy or verified states use status.active.
+
+     WCAG 2.x contrast, measured 29 Sep 2026 (sRGB relative luminance).
+     Dark:  token            value     bg.primary  bg.panel  panel-2
+            ink              #f5f0e1   17.66       16.75     15.92
+            ink-3 (label)    #a0a4b4    8.11        7.69      7.31
+            ink-4 (subtle)   #8a8e9e    6.17        5.86      5.57
+            brass (parl.)    #b9712e    5.23        4.97      4.72
+            brass-2 (policy) #c98a4e    6.92        6.57      6.24
+            gold / link      #d9b779   10.54       10.00      9.50
+            ember-flash      #e0534b    5.28        5.01      4.76
+            escalate         #f87171    7.27        6.90      6.56
+            caution          #d4a017    8.47        8.03      7.64
+            info             #9aa6b0    8.10        7.68      7.30
+            ok (active)      #4ade80   11.54       10.95     10.41
+            control-edge     #626476    3.45        3.28      3.11  (non-text, 3:1)
+            primary button: bg.primary on brass 5.23
+     Light: ground paper.panel #F1ECE0, panel paper.base #F8F5EE, bg-2 panel-3 #ECE6D8
+            ink.primary      #1B1812   15.02 on bg, 16.26 on panel
+            ink.tertiary     #5C5547    6.26 / 6.78
+            ink.quaternary   #6E6757    4.76 / 5.16 (4.51 on bg-2)
+            ember.accent     #A23B1C    5.60 / 6.07
+            ember.oxide      #7C2E18    7.88 / 8.53 (link)
+            semantic warn    #8A5E14    4.83 / 5.22
+            semantic neg     #B23A2A    5.04 / 5.46
+            semantic pos     #1B5E40    6.55 / 7.09
+            slate.rail       #4A515C    6.79 / 7.35
+            primary button: paper.base on ember.accent 6.07
+     ============================================================ */
   :root {
-    /* ============================================================
-       Parliament Pulse brand v1.0 (product-owned).
-       Formalised from the Fire House warm near-black, ember-sovereign
-       identity and decoupled as this product's own commercial brand.
-       No dependency on 04_Templates/brand-tokens.json. The QLD navy
-       palette does not apply here: this is a personal-capacity product.
-       One ink, three-tier elevation, one sovereign ember accent.
-       Teal is verification-only.
+    /* brand-tokens.json literals (dark) */
+    --t-bg-primary:   #06070d;
+    --t-bg-panel-alt: #0a0c14;
+    --t-bg-panel:     #0d0f1a;
+    --t-bg-border:    #1c1e2a;
+    --t-panel-2:      #111525;
+    --t-edge:         #1c2030;
+    --t-control-edge: #626476;
+    --t-text-primary: #f5f0e1;
+    --t-text-secondary: #d8d4c5;
+    --t-text-label:   #a0a4b4;
+    --t-text-subtle:  #8a8e9e;
+    --t-parliament:   #b9712e;
+    --t-policy:       #c98a4e;
+    --t-market:       #d9b779;
+    --t-geopolitics:  #9aa6b0;
+    --t-oxide:        #7C2E18;
+    --t-active:       #4ade80;
+    --t-warm:         #d4a017;
+    --t-risk:         #f87171;
+    --t-flash:        #e0534b;
+    /* brand-tokens.json literals (light paper, and the brief preview) */
+    --t-paper-base:   #F8F5EE;
+    --t-paper-panel:  #F1ECE0;
+    --t-paper-panel-3: #ECE6D8;
+    --t-paper-hair:   #D7CFBE;
+    --t-paper-rule:   #B7AF9C;
+    --t-ink-primary:  #1B1812;
+    --t-ink-secondary: #433E35;
+    --t-ink-tertiary: #5C5547;
+    --t-ink-quaternary: #6E6757;
+    --t-ember-accent: #A23B1C;
+    --t-light-warn:   #8A5E14;
+    --t-light-neg:    #B23A2A;
+    --t-light-pos:    #1B5E40;
+    --t-slate-rail:   #4A515C;
 
-       Verified WCAG AA contrast baseline (computed this session,
-       WCAG 2.x relative-luminance; --bg #07080e, --panel #11131f).
-       Any NEW colour must be checked against --bg and --panel and
-       appended here before use.
+    /* Surfaces */
+    --bg:           var(--t-bg-primary);
+    --bg-2:         var(--t-bg-panel-alt);
+    --panel:        var(--t-bg-panel);
+    --panel-2:      var(--t-panel-2);
+    --panel-hi:     color-mix(in srgb, var(--t-bg-border) 45%, transparent);
+    --line:         color-mix(in srgb, #fff 5%, transparent);
+    --line-2:       color-mix(in srgb, #fff 9%, transparent);
+    --line-bright:  color-mix(in srgb, #fff 16%, transparent);
+    --control-edge: var(--t-control-edge);
 
-       Token            Value      on --bg    on --panel   AA
-       --brass (ember)  #f08a3c    8.00:1     7.39:1       Pass all sizes
-       --brass-2        #ff9d4f    9.70:1     -            Pass
-       --gold           #d9b779    10.47:1    9.68:1       Pass
-       --teal           #45b3a4    7.84:1     7.25:1       Pass
-       --ink            #f5f0e1    17.55:1    -            Pass
-       --ink-2          #d8d4c5    -          12.44:1      Pass
-       --ink-3          #a0a4b4    8.06:1     7.45:1       Pass
-       --ink-4          #8a8e9e    6.14:1     5.67:1       Pass (4.5 floor)
-       --caution        #d4a017    8.42:1     7.78:1       Pass
-       --info           #9aa6b0    8.05:1     7.44:1       Pass
-       --escalate       #f87171    -          6.68:1       Pass
-       .att.high text   #ef6a5e    -          6.06:1       Pass (5.83 on gradient head)
-       --ember-flash    #e0534b    5.25:1     -            Pass (12px+ only)
-       --live-red bg    #c4382f    5.31:1 (white on it)    Pass
-       .btn.primary txt #160b03 on #f08a3c    7.76:1       Pass
-       Light --brass    #9a5219 on #f3eee2    5.05:1       Pass
-       Light --teal     #1f7068 on #f3eee2    5.07:1       Pass
-       Light --ink-3    #5a5044 on #fdfaf2    7.55:1       Pass
-       Light .att.high  #b02a20 on #f3eee2    5.67:1       Pass
-       ============================================================ */
+    /* Ink ramp (warm cream, never pure white) */
+    --ink:          var(--t-text-primary);
+    --ink-2:        var(--t-text-secondary);
+    --ink-3:        var(--t-text-label);
+    --ink-4:        var(--t-text-subtle);
 
-    --bg:           #07080e;
-    --bg-2:         #0a0c14;
-    --panel:        #11131f;
-    --panel-2:      #161826;
-    --panel-hi:     #20223440;
-    --line:         #ffffff0c;
-    --line-2:       #ffffff16;
-    --line-bright:  #ffffff2a;
+    /* Desk accent: accent.parliament. Sanctioned uses (DESIGN-2): brand mark and
+       active-nav rule, the single primary action per surface, focus and
+       selection, live and high-priority accents, the topbar scanline. */
+    --brass:        var(--t-parliament);
+    --brass-2:      var(--t-policy);
+    --brass-soft:   color-mix(in srgb, var(--t-parliament) 30%, transparent);
+    --brass-ink:    var(--t-bg-primary);
+    --gold:         var(--t-market);
+    --ember-flash:  var(--t-flash);
+    --link:         var(--t-market);
 
-    --ink:          #f5f0e1;   /* warm cream, never pure white */
-    --ink-2:        #d8d4c5;
-    --ink-3:        #a0a4b4;
-    --ink-4:        #8a8e9e;
+    /* Status: status.active for healthy and verified, warm for caution, risk and
+       flash for degraded and breaking, geopolitics steel-ash for information. */
+    --ok:           var(--t-active);
+    --teal:         var(--ok);   /* legacy name: verified and healthy states only */
+    --teal-soft:    color-mix(in srgb, var(--ok) 45%, var(--bg));
+    --info:         var(--t-geopolitics);
+    --caution:      var(--t-warm);
+    --escalate:     var(--t-risk);
+    --att-high:     var(--t-risk);
+    /* Live state (UX-16): a neutral outline that follows real freshness. */
+    --live-state:   var(--ok);
 
-    /* PRIMARY ACCENT — incandescent ember, sovereign. Brand, priority, live.
-       Sanctioned ember inventory (DESIGN-2) — ember (--brass) appears ONLY as:
-         1. brand mark + sidebar active-nav left-border
-         2. the single primary action per surface (.btn.primary)
-         3. active selection / focus ring (--accent-ring, --accent-glow)
-         4. live + high-priority signal accents (escalates to --ember-flash)
-         5. topbar underglow scanline (--topbar-underglow)
-       Everything else (fixture pills, match counts, .tag.brass non-primary) is
-       neutral ink/line. ember-flash is reserved strictly for LIVE/breaking/high. */
-    --brass:        #f08a3c;   /* ~8.0:1 on #07080e, ~7.4:1 on panel — AA */
-    --brass-2:      #ff9d4f;   /* hover/glow */
-    --brass-soft:   #7a4420;
-    --brass-ink:    #160b03;
-    --gold:         #d9b779;   /* secondary numerics, brief accent, ~10:1 */
-    --ember-flash:  #e0534b;   /* reserved: LIVE, breaking, high attention only */
-
-    /* SECONDARY ACCENT — verification only, never decorative. */
-    --teal:         #45b3a4;   /* connected, healthy, verified */
-    --teal-soft:    #2e7068;
-
-    /* Functional status — the true five: ink-scale + ember + gold + teal + one risk.
-       Positive/affirmative (agreed, ready, success) folds into the teal verification
-       family so no standalone green sixth hue survives (DESIGN-9). Caution-gold and
-       steel-ash are the only sanctioned counterpoints; ember-flash is the sole risk red. */
-    --info:         #9aa6b0;   /* steel-ash — the single sanctioned cool counterpoint */
-    --caution:      #d4a017;   /* warm */
-    --escalate:     #f87171;   /* risk */
-    --ok:           #45b3a4;   /* positive/affirmative = teal-verified family (no green) */
-
-    --side-start:   #0c0d16;
+    --side-start:   var(--bg-2);
     --side-end:     var(--bg);
-    --topbar-bg:    #0a0c14cc;
-    --scrim:        #000000a0;
-    --scrim-strong: #000000b0;
-    --overlay-shadow: #00000080;
-    --search-shadow: #000000a0;
-    --brand-core:   #0d0806;
-    --brand-glow:   #3a2410;
-    --accent-ring:  #f08a3c33;
-    --accent-glow:  #f08a3c55;
-    --topbar-underglow: #f08a3c1a;   /* ember scanline under the command bar (DESIGN-7) */
-    --rule-1:       #ffffff14;   /* visible hairline: panel + section boundaries */
-    --rule-2:       #ffffff08;   /* whisper hairline: sub-rows inside a panel */
-    --gap-section:  28px;        /* big between sections */
-    --gap-intra:    8px;         /* tight within a section */
-    --signal-high-bg: linear-gradient(160deg, #1f1614 0%, var(--panel) 100%);
-    --live-red:     #c4382f;     /* nav live count background (white text, AA) */
-    --hover-surface: #ffffff06;
-    --active-surface: #ffffff0c;
-    --soft-surface: #ffffff03;
+    --topbar-bg:    color-mix(in srgb, var(--bg-2) 80%, transparent);
+    --scrim:        color-mix(in srgb, #000 63%, transparent);
+    --scrim-strong: color-mix(in srgb, #000 69%, transparent);
+    --overlay-shadow: color-mix(in srgb, #000 50%, transparent);
+    --search-shadow: color-mix(in srgb, #000 63%, transparent);
+    --brand-core:   color-mix(in srgb, var(--brass) 8%, var(--bg));
+    --brand-glow:   color-mix(in srgb, var(--brass) 25%, var(--bg));
+    --accent-ring:  color-mix(in srgb, var(--brass) 20%, transparent);
+    --accent-glow:  color-mix(in srgb, var(--brass) 33%, transparent);
+    --topbar-underglow: color-mix(in srgb, var(--brass) 10%, transparent);
+    --rule-1:       color-mix(in srgb, #fff 8%, transparent);
+    --rule-2:       color-mix(in srgb, #fff 3%, transparent);
+    --gap-section:  28px;
+    --gap-intra:    8px;
+    --signal-high-bg: linear-gradient(160deg, color-mix(in srgb, var(--ember-flash) 7%, var(--panel)) 0%, var(--panel) 100%);
+    --ember-wash:   color-mix(in srgb, var(--brass) 7%, var(--bg));
+    --hover-surface: color-mix(in srgb, #fff 2%, transparent);
+    --active-surface: color-mix(in srgb, #fff 5%, transparent);
+    --soft-surface: color-mix(in srgb, #fff 1%, transparent);
+    --scroll-thumb: color-mix(in srgb, var(--control-edge) 70%, transparent);
+    --toast-err-bg: color-mix(in srgb, var(--escalate) 8%, var(--panel));
+
+    /* Brief preview: light paper in both themes (ppl-press literals). */
+    --brief-bg:     var(--t-paper-base);
+    --brief-ink:    var(--t-ink-primary);
+    --brief-accent: var(--t-light-warn);
+    --brief-link:   var(--t-oxide);
 
     /* Native form controls, scrollbars and inputs follow the app theme. */
     color-scheme: dark;
 
     --r-sm: 4px;
-    --r:    8px;
-    --r-md: 10px;
+    --r:    6px;     /* register.b.radius.control */
+    --r-md: 10px;    /* register.b.radius.panel */
     --r-lg: 14px;
-    --r-pill: 999px;
+    --r-pill: 999px; /* register.b.radius.pill */
 
-    --shadow: 0 1px 0 #00000060, 0 20px 50px -28px #00000090;
+    --shadow: 0 1px 0 color-mix(in srgb, #000 38%, transparent), 0 20px 50px -28px color-mix(in srgb, #000 56%, transparent);
 
     /* Elevation: three named tiers (resident / floating / modal) */
-    --elev-1: inset 0 1px 0 #ffffff08;                                     /* resident panel: tonal lift */
-    --elev-2: 0 20px 50px -28px #00000090, 0 1px 0 #00000060;              /* floating: drawer body, search results, popover, toast */
-    --elev-3: 0 50px 100px var(--scrim-strong), inset 0 0 0 1px #ffffff08; /* modal */
+    --elev-1: inset 0 1px 0 color-mix(in srgb, #fff 3%, transparent);
+    --elev-2: 0 20px 50px -28px color-mix(in srgb, #000 56%, transparent), 0 1px 0 color-mix(in srgb, #000 38%, transparent);
+    --elev-3: 0 50px 100px var(--scrim-strong), inset 0 0 0 1px color-mix(in srgb, #fff 3%, transparent);
 
     --sans: "IBM Plex Sans", "IBM Plex Sans Fallback", system-ui, sans-serif;
     --serif: "IBM Plex Serif", Georgia, serif;
     --mono: "IBM Plex Mono", ui-monospace, monospace;
 
-    /* Type scale. Raised micro floor: no rendered text below 10px. */
+    /* Type scale (brand-tokens type.size; micro floor raised to 10px). */
     --t-display:  56px;
-    --t-masthead: clamp(24px, 2.2vw + 16px, 30px);   /* fluid page titles; was fixed 30px */
+    --t-masthead: clamp(24px, 2.2vw + 16px, 30px);
     --t-headline: 23px;
     --t-subhead:  18px;
     --t-body:     15px;
     --t-body-sm:  13px;
+    --t-caption:  12px;
+    --t-eyebrow:  11px;
     --t-stat:     28px;
     --t-kpi:      48px;
-    --t-label:    10.5px;   /* was 10px; uppercase mono kickers, nav groups, table headers */
-    --t-micro:    10px;     /* was 9px; chips, provenance labels, timestamps */
+    --t-label:    10.5px;
+    --t-micro:    10px;
     --lh-tight:   1.25;
     --lh-body:    1.5;
 
+    /* Spacing (brand-tokens spacing, plus the 20 and 28 steps the grid uses). */
     --sp-1: 4px;
     --sp-2: 8px;
     --sp-3: 12px;
     --sp-4: 16px;
     --sp-5: 20px;
     --sp-6: 24px;
-    --sp-7: 28px;   /* equals --gap-section */
+    --sp-7: 28px;
     --sp-8: 32px;
 
-    /* Motion tokens — Fire House tier model */
+    /* Motion tokens: Fire House tier model */
     --ease-functional: cubic-bezier(0.2,0,0,1);
     --ease-entrance:   cubic-bezier(0.22,1,0.36,1);
     --ease-textural:   cubic-bezier(0.34,1.56,0.64,1);
@@ -202,47 +252,54 @@
   }
 
   :root[data-theme="light"] {
-    /* Warm paper light register. */
+    /* Warm paper light theme: the ppl-press paper and ink literals. */
     color-scheme: light;
-    --bg:       #f3eee2;
-    --bg-2:     #ebe4d4;
-    --panel:    #fdfaf2;
-    --panel-2:  #f3eee2;
-    --panel-hi: rgba(120,70,20,.05);
-    --ink:      #1a140c;
-    --ink-2:    #3a3026;
-    --ink-3:    #5a5044;   /* ~4.9:1 AA */
-    --ink-4:    #685c4d;   /* ~5.7:1 AA */
-    --line:     rgba(80,50,20,.12);
-    --line-2:   rgba(80,50,20,.08);
-    --line-bright: rgba(80,50,20,.20);
-    --shadow:   0 1px 0 rgba(60,40,20,.05), 0 12px 36px -20px rgba(60,40,20,.20);
-    /* Accent colours recalibrated for warm paper — dark theme ember fails AA here */
-    --brass:    #9a5219;  /* ~5.0:1 on warm paper, ~5.6:1 on panel */
-    --brass-2:  #b5611f;
-    --gold:     #766019;  /* secondary numerics, ~5.3:1 on bg */
-    --ember-flash: #c0392f;  /* LIVE/high — ~4.7:1 on bg */
-    --teal:     #1f7068;  /* verification only — ~5.1:1 */
-    --ok:       #1f7068;  /* positive/affirmative = teal-verified family (DESIGN-9), ~5.1:1 */
-    --escalate: #b03028;  /* ~5.5:1 */
-    --caution:  #7a570d;  /* ~5.7:1 */
-    --info:     #5a5e68;  /* steel-ash — ~5.6:1 */
-    --side-start: #efe7d6;
-    --side-end: #e6dcc8;
-    --topbar-bg: rgba(243,238,226,.9);
-    --scrim: rgba(70,45,20,.36);
-    --scrim-strong: rgba(70,45,20,.46);
-    --overlay-shadow: rgba(60,40,20,.22);
-    --search-shadow: rgba(60,40,20,.16);
-    --brand-core: #efe2cc;
-    --brand-glow: #f8ead4;
-    --accent-ring: rgba(154,82,25,.22);
-    --accent-glow: rgba(154,82,25,.24);
-    --topbar-underglow: rgba(154,82,25,.14);   /* ember scanline, warm-paper register (DESIGN-7) */
-    --hover-surface: rgba(80,50,20,.05);
-    --active-surface: rgba(80,50,20,.07);
-    --soft-surface: rgba(80,50,20,.03);
+    --bg:       var(--t-paper-panel);
+    --bg-2:     var(--t-paper-panel-3);
+    --panel:    var(--t-paper-base);
+    --panel-2:  var(--t-paper-panel);
+    --panel-hi: color-mix(in srgb, var(--t-ink-primary) 4%, transparent);
+    --ink:      var(--t-ink-primary);
+    --ink-2:    var(--t-ink-secondary);
+    --ink-3:    var(--t-ink-tertiary);
+    --ink-4:    var(--t-ink-quaternary);
+    --line:     color-mix(in srgb, var(--t-ink-primary) 11%, transparent);
+    --line-2:   color-mix(in srgb, var(--t-ink-primary) 7%, transparent);
+    --line-bright: color-mix(in srgb, var(--t-ink-primary) 18%, transparent);
+    --control-edge: var(--t-paper-rule);
+    --shadow:   0 1px 0 color-mix(in srgb, var(--t-ink-primary) 5%, transparent), 0 12px 36px -20px color-mix(in srgb, var(--t-ink-primary) 20%, transparent);
+    --brass:    var(--t-ember-accent);
+    --brass-2:  var(--t-oxide);
+    --brass-soft: color-mix(in srgb, var(--t-ember-accent) 22%, transparent);
+    --brass-ink: var(--t-paper-base);
+    --gold:     var(--t-light-warn);
+    --link:     var(--t-oxide);
+    --ember-flash: var(--t-light-neg);
+    --ok:       var(--t-light-pos);
+    --escalate: var(--t-light-neg);
+    --att-high: var(--t-light-neg);
+    --caution:  var(--t-light-warn);
+    --info:     var(--t-slate-rail);
+    --side-start: var(--t-paper-panel-3);
+    --side-end: var(--t-paper-panel-3);
+    --topbar-bg: color-mix(in srgb, var(--t-paper-panel) 90%, transparent);
+    --scrim: color-mix(in srgb, var(--t-ink-primary) 36%, transparent);
+    --scrim-strong: color-mix(in srgb, var(--t-ink-primary) 46%, transparent);
+    --overlay-shadow: color-mix(in srgb, var(--t-ink-primary) 22%, transparent);
+    --search-shadow: color-mix(in srgb, var(--t-ink-primary) 16%, transparent);
+    --brand-core: color-mix(in srgb, var(--brass) 10%, var(--panel));
+    --brand-glow: color-mix(in srgb, var(--brass) 6%, var(--panel));
+    --accent-ring: color-mix(in srgb, var(--brass) 22%, transparent);
+    --accent-glow: color-mix(in srgb, var(--brass) 24%, transparent);
+    --topbar-underglow: color-mix(in srgb, var(--brass) 14%, transparent);
+    --ember-wash: color-mix(in srgb, var(--brass) 6%, var(--panel));
+    --hover-surface: color-mix(in srgb, var(--t-ink-primary) 5%, transparent);
+    --active-surface: color-mix(in srgb, var(--t-ink-primary) 7%, transparent);
+    --soft-surface: color-mix(in srgb, var(--t-ink-primary) 3%, transparent);
+    --scroll-thumb: var(--t-paper-rule);
+    --toast-err-bg: color-mix(in srgb, var(--escalate) 6%, var(--panel));
   }
+  /* tokens:end */
   /* Light theme structural overrides — hardcoded dark values in base CSS */
   [data-theme="light"] body {
     background: var(--bg);
@@ -251,59 +308,61 @@
     background: var(--panel);
   }
   [data-theme="light"] .drawer {
-    background: linear-gradient(180deg, var(--panel), #f5efe2);
+    background: linear-gradient(180deg, var(--panel), var(--panel-2));
   }
   [data-theme="light"] .pattern {
-    background: linear-gradient(180deg, #fdf6e9, #fbf0df);
+    background: linear-gradient(180deg, var(--panel), var(--ember-wash));
   }
   [data-theme="light"] .nav-item .count {
-    background: rgba(80,50,20,.07);
+    background: var(--active-surface);
   }
   /* Active nav count: a darker brown on light paper so the badge clears AA
      (the shared brass over a translucent-orange fill measured 3.98:1). */
-  [data-theme="light"] .nav-item.active .count { color: #6f3a0e; background: rgba(154,82,25,.14); }
+  [data-theme="light"] .nav-item.active .count { color: var(--brass-2); background: color-mix(in srgb, var(--brass) 12%, transparent); }
   [data-theme="light"] table.ds th {
-    background: rgba(80,50,20,.03);
+    background: var(--soft-surface);
   }
   [data-theme="light"] table.ds tbody tr:hover {
-    background: rgba(80,50,20,.03);
+    background: var(--soft-surface);
   }
   [data-theme="light"] .wl {
-    background: rgba(80,50,20,.03);
+    background: var(--soft-surface);
   }
   [data-theme="light"] .toast {
     background: var(--panel);
-    border-color: rgba(80,50,20,.16);
-    box-shadow: 0 4px 20px rgba(60,40,20,.14);
+    border-color: var(--line-bright);
+    box-shadow: 0 4px 20px var(--search-shadow);
   }
   [data-theme="light"] .toast.toast-err {
-    background: #fbf0ee;
+    background: var(--toast-err-bg);
     border-color: color-mix(in srgb, var(--ember-flash) 27%, transparent);
   }
   [data-theme="light"] .clk:hover {
-    background: rgba(80,50,20,.05);
+    background: var(--hover-surface);
   }
   [data-theme="light"] .live-strip {
-    background: linear-gradient(90deg, #fdf0e2 0%, var(--bg) 60%, var(--bg) 100%);
+    background: linear-gradient(90deg, var(--ember-wash) 0%, var(--bg) 60%, var(--bg) 100%);
   }
-  [data-theme="light"] ::-webkit-scrollbar-thumb { background: #cdbfa6; }
+  [data-theme="light"] ::-webkit-scrollbar-thumb { background: var(--scroll-thumb); }
   [data-theme="light"] .nav-item.active {
-    background: rgba(80,50,20,.06);
+    background: var(--active-surface);
   }
   [data-theme="light"] .sr-item.active {
-    background: rgba(80,50,20,.07);
+    background: var(--active-surface);
   }
   /* High-attention signal card: base rule hardcodes a dark gradient; warm-paper override (design bug). */
   [data-theme="light"] .signal[data-att="high"] {
-    background: linear-gradient(160deg, #fbe9dc 0%, var(--panel) 100%);
+    background: linear-gradient(160deg, color-mix(in srgb, var(--ember-flash) 7%, var(--panel)) 0%, var(--panel) 100%);
   }
 
   * { box-sizing: border-box; }
+  /* Icons never squash to a dot inside a flex row (FE-09: empty states, evidence rows, thread rows). */
+  svg[aria-hidden="true"] { flex-shrink: 0; }
   html, body { margin:0; padding:0; }
   body {
     background:
-      radial-gradient(1600px 900px at 8% -8%, #14100a 0%, transparent 55%),
-      radial-gradient(1100px 760px at 96% 112%, #1a1108 0%, transparent 55%),
+      radial-gradient(1600px 900px at 8% -8%, var(--ember-wash) 0%, transparent 55%),
+      radial-gradient(1100px 760px at 96% 112%, var(--ember-wash) 0%, transparent 55%),
       var(--bg);
     background-attachment: fixed;
     color: var(--ink);
@@ -353,8 +412,8 @@
     border: 1px solid var(--line-2);
     display: flex; align-items: center; justify-content: center;
   }
-  .brand-name { font-family: var(--serif); font-weight: 600; font-size: 18px; letter-spacing: -0.01em; }
-  .brand-sub  { font-family: var(--mono); color: var(--ink-4); font-size: 10px; text-transform: uppercase; letter-spacing: .18em; margin-top: 2px; }
+  .brand-name { font-family: var(--serif); font-weight: 600; font-size: var(--t-subhead); letter-spacing: -0.01em; }
+  .brand-sub  { font-family: var(--mono); color: var(--ink-4); font-size: var(--t-micro); text-transform: uppercase; letter-spacing: .18em; margin-top: 2px; }
 
   .nav {
     padding: 10px 8px;
@@ -370,7 +429,7 @@
     display: flex; align-items: center; gap: 10px;
     padding: 8px 12px; border-radius: 6px;
     color: var(--ink-2); cursor: pointer;
-    font-size: 13px;
+    font-size: var(--t-body-sm);
     user-select: none;
     position: relative;
   }
@@ -386,12 +445,15 @@
   }
   .nav-item .ico { width:16px; height:16px; opacity:.85; flex:none; }
   .nav-item .count {
-    margin-left: auto; font-family: var(--mono); font-size: 10px; color: var(--ink-3);
+    margin-left: auto; font-family: var(--mono); font-size: var(--t-micro); color: var(--ink-3);
     background: var(--active-surface); padding: 1px 6px; border-radius: 10px;
     font-variant-numeric: tabular-nums;
   }
   .nav-item.active .count { color: var(--brass); background: color-mix(in srgb, var(--brass) 12%, transparent); }
-  .nav-item .count.nav-live { color: #fff; background: var(--live-red); font-weight: 600; }
+  /* UX-16: neutral live-state outline that follows real freshness, never a permanent red badge. */
+  .nav-item .count.nav-live, .nav-item.active .count.nav-live { color: var(--live-state); background: transparent; border: 1px solid color-mix(in srgb, var(--live-state) 45%, transparent); font-weight: 500; }
+  .nav-item .count.nav-live[data-live-state="stale"] { --live-state: var(--caution); }
+  .nav-item .count.nav-live[data-live-state="offline"] { --live-state: var(--ink-4); }
 
   .side-foot {
     border-top: 1px solid var(--line);
@@ -406,7 +468,7 @@
     background:
       radial-gradient(180px 80px at 0% 0%, color-mix(in srgb, var(--brass) 8%, transparent), transparent),
       var(--panel-hi);
-    font-size: 11.5px;
+    font-size: var(--t-caption);
     color: var(--ink-3);
     line-height: 1.45;
   }
@@ -421,7 +483,7 @@
     width: 30px; height: 30px; border-radius: 50%;
     background: linear-gradient(135deg, var(--brass-soft), var(--brass));
     display: grid; place-items: center;
-    font-family: var(--mono); font-size: 11px; color: var(--brass-ink); font-weight: 600;
+    font-family: var(--mono); font-size: var(--t-eyebrow); color: var(--brass-ink); font-weight: 600;
   }
 
   /* ---------- Top bar ---------- */
@@ -449,15 +511,15 @@
   }
   .search input {
     background: transparent; border: 0; outline: 0;
-    color: var(--ink); font-family: var(--sans); font-size: 13px; width: 100%;
+    color: var(--ink); font-family: var(--sans); font-size: var(--t-body-sm); width: 100%;
   }
   /* Topbar command-bar live clock + status cluster */
   .top-clock {
-    font-family: var(--mono); font-size: 12px; color: var(--ink-2);
+    font-family: var(--mono); font-size: var(--t-caption); color: var(--ink-2);
     font-variant-numeric: tabular-nums; letter-spacing: .04em;
   }
   .kbd {
-    font-family: var(--mono); font-size: 10px; color: var(--ink-3);
+    font-family: var(--mono); font-size: var(--t-micro); color: var(--ink-3);
     padding: 2px 6px; border: 1px solid var(--line-2); border-radius: 4px;
     background: var(--soft-surface);
   }
@@ -470,27 +532,29 @@
     border: 1px solid var(--line-2); color: var(--ink-3); background: var(--soft-surface);
     display: inline-flex; align-items: center; gap: 6px;
   }
-  .chip .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 3px #4ade8022; }
+  .chip .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 13%, transparent); }
   .chip.warn .dot { background: var(--caution); box-shadow: 0 0 0 3px color-mix(in srgb, var(--caution) 13%, transparent);}
   .chip.bad .dot { background: var(--escalate); box-shadow: 0 0 0 3px color-mix(in srgb, var(--escalate) 13%, transparent);}
   .btn {
-    font-family: var(--sans); font-size: 12.5px;
+    font-family: var(--sans); font-size: var(--t-body-sm);
     padding: 6px 12px; border-radius: 6px; cursor: pointer;
     min-height: 32px;
-    border: 1px solid var(--line-2); background: var(--panel); color: var(--ink-2);
+    border: 1px solid var(--control-edge); background: var(--panel); color: var(--ink-2);
     display: inline-flex; align-items: center; gap: 6px;
     transition: background var(--dur-micro) var(--ease-functional), color var(--dur-micro) var(--ease-functional);
   }
   .btn:hover { background: var(--panel-2); color: var(--ink); }
+  /* A disabled control reads as unavailable (FE-09). */
+  .btn:disabled, .btn:disabled:hover { opacity: .45; cursor: not-allowed; background: var(--panel); color: var(--ink-3); }
   .btn.primary {
-    background: linear-gradient(180deg, #f5934a, #e07d33);
-    color: var(--brass-ink); border: 1px solid #c4661e;
+    background: linear-gradient(180deg, var(--brass-2), var(--brass));
+    color: var(--brass-ink); border: 1px solid color-mix(in srgb, var(--brass) 80%, #000);
     font-weight: 600;
   }
   .btn.primary:hover { box-shadow: 0 0 0 1px color-mix(in srgb, var(--brass) 40%, transparent), 0 0 14px -4px var(--brass-2); }
   .btn.ghost { background: transparent; border-color: transparent; }
   .btn.ghost:hover { border-color: var(--line-2); }
-  .btn.sm { padding: 4px 9px; font-size: 12px; min-height: 28px; }
+  .btn.sm { padding: 4px 9px; font-size: var(--t-caption); min-height: 28px; }
 
   /* Coarse pointer (touch): WCAG 2.2 target-size 44px (40px for compact). */
   @media (pointer: coarse) {
@@ -501,7 +565,7 @@
   /* Native select: token-driven, mirrors the inline PageSignals style so it can be swept. */
   .select {
     background: var(--panel); border: 1px solid var(--line-2); color: var(--ink);
-    border-radius: 6px; padding: 5px 8px; font-size: 12px; cursor: pointer;
+    border-radius: 6px; padding: 5px 8px; font-size: var(--t-caption); cursor: pointer;
   }
 
   /* Skip link: visually hidden until keyboard focus, then a panel pill top-left. */
@@ -538,16 +602,16 @@
     padding: 14px 20px 18px;
     max-width: 1500px;
     border-top: 1px solid var(--line);
-    font-size: 11.5px; line-height: 1.5;
+    font-size: var(--t-caption); line-height: 1.5;
     color: var(--ink-3);
   }
   .site-foot p { margin: 0; max-width: 820px; }
-  .site-foot a { color: var(--teal); }
+  .site-foot a { color: var(--link); }
   /* FE-08 (LEG-13): legal, privacy and licence links on every desk. */
   .site-foot-links { display: flex; flex-wrap: wrap; gap: 0 18px; margin-top: 6px; }
   .site-foot-links a { display: inline-block; padding: 4px 0; min-height: 24px; }
   .page-title:focus { outline: none; }
-  .page-title:focus-visible { outline: 2px solid var(--teal); outline-offset: 4px; }
+  .page-title:focus-visible { outline: 1px solid var(--accent-glow); outline-offset: 6px; border-radius: 2px; }
   .page-head {
     display: flex; align-items: flex-end; justify-content: space-between;
     margin-bottom: 22px; gap: 24px;
@@ -559,14 +623,14 @@
     font-family: var(--mono); font-size: var(--t-label); font-weight: 600; color: var(--ink-4);
     text-transform: uppercase; letter-spacing: .18em; margin-bottom: 6px;
   }
-  .page-sub { color: var(--ink-3); font-size: 13.5px; margin-top: 6px; max-width: 620px; }
+  .page-sub { color: var(--ink-3); font-size: var(--t-body-sm); margin-top: 6px; max-width: 620px; }
 
   /* ---------- Command-strip hero ---------- */
   .command-strip {
     display: grid; grid-template-columns: 2fr 1fr 1fr; gap: var(--gap-intra); align-items: stretch;
     margin-bottom: var(--gap-section);
   }
-  .cs-primary .unit, .cs-secondary .unit { font-family: var(--mono); font-size: 13px; color: var(--ink-3); margin-left: 8px; font-weight: 400; }
+  .cs-primary .unit, .cs-secondary .unit { font-family: var(--mono); font-size: var(--t-body-sm); color: var(--ink-3); margin-left: 8px; font-weight: 400; }
   .cs-primary {
     background:
       radial-gradient(420px 140px at 0% 0%, color-mix(in srgb, var(--brass) 8%, transparent), transparent),
@@ -582,7 +646,7 @@
     font-family: var(--sans); font-weight: 600; font-size: var(--t-kpi); line-height: 1;
     letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--ink);
   }
-  .cs-primary .cs-kpi .unit { font-family: var(--mono); font-size: 13px; color: var(--ink-3); margin-left: 8px; font-weight: 400; }
+  .cs-primary .cs-kpi .unit { font-family: var(--mono); font-size: var(--t-body-sm); color: var(--ink-3); margin-left: 8px; font-weight: 400; }
   .cs-secondary {
     background: linear-gradient(180deg, var(--panel) 0%, var(--bg-2) 100%);
     border: 1px solid var(--rule-1); border-radius: var(--r);
@@ -617,7 +681,7 @@
   .beta-ledger-head h2 {
     margin: 5px 0 0;
     font-family: var(--serif);
-    font-size: 19px;
+    font-size: var(--t-subhead);
     line-height: 1.2;
     letter-spacing: -.006em;
     color: var(--ink);
@@ -639,8 +703,8 @@
   }
   .beta-ledger-row:last-child { border-right: 0; }
   .beta-ledger-row:hover { background: color-mix(in srgb, #fff 2%, transparent); }
-  .beta-ledger-row strong { display: block; color: var(--ink); font-size: 13.5px; margin-bottom: 5px; }
-  .beta-ledger-row span span { display: block; font-size: 12.5px; line-height: 1.5; color: var(--ink-3); }
+  .beta-ledger-row strong { display: block; color: var(--ink); font-size: var(--t-body-sm); margin-bottom: 5px; }
+  .beta-ledger-row span span { display: block; font-size: var(--t-body-sm); line-height: 1.5; color: var(--ink-3); }
   .beta-state {
     align-self: start;
     width: fit-content;
@@ -661,7 +725,7 @@
     grid-column: 2;
     align-self: end;
     font-family: var(--mono);
-    font-size: 10.5px;
+    font-size: var(--t-label);
     color: var(--brass);
     letter-spacing: .05em;
   }
@@ -671,7 +735,7 @@
     border: 1px solid var(--rule-1);
     border-radius: var(--r);
     background:
-      linear-gradient(90deg, #1a1108 0%, transparent 16%),
+      linear-gradient(90deg, var(--ember-wash) 0%, transparent 16%),
       linear-gradient(180deg, var(--panel) 0%, var(--bg-2) 100%);
     overflow: hidden;
   }
@@ -683,7 +747,7 @@
   .provenance-head h2 {
     margin: 5px 0 0;
     font-family: var(--serif);
-    font-size: 18px;
+    font-size: var(--t-subhead);
     line-height: 1.2;
     color: var(--ink);
   }
@@ -718,7 +782,7 @@
     border: 1px solid color-mix(in srgb, var(--brass) 45%, transparent);
     color: var(--brass);
     font-family: var(--mono);
-    font-size: 10px;
+    font-size: var(--t-micro);
     font-weight: 700;
     background: var(--panel);
   }
@@ -731,8 +795,8 @@
     letter-spacing: .16em;
     margin: 2px 0 7px;
   }
-  .provenance-step strong { display:block; color:var(--ink); font-size:13px; line-height:1.25; }
-  .provenance-step p { margin:7px 0 12px; color:var(--ink-3); font-size:12px; line-height:1.5; }
+  .provenance-step strong { display:block; color:var(--ink); font-size:var(--t-body-sm); line-height:1.25; }
+  .provenance-step p { margin:7px 0 12px; color:var(--ink-3); font-size:var(--t-caption); line-height:1.5; }
   .provenance-step .beta-state { grid-column: 2; align-self: end; }
 
   .provenance-metrics {
@@ -740,7 +804,7 @@
     border: 1px solid color-mix(in srgb, var(--brass) 34%, var(--rule-1));
     border-radius: var(--r);
     background:
-      linear-gradient(90deg, #1a1108 0%, transparent 26%),
+      linear-gradient(90deg, var(--ember-wash) 0%, transparent 26%),
       linear-gradient(180deg, var(--panel) 0%, var(--bg-2) 100%);
     padding: 13px 16px 15px;
   }
@@ -768,9 +832,9 @@
   }
   .prov-metric + .prov-metric { border-left: 1px solid var(--rule-1); padding-left: 18px; }
   .prov-metric svg { grid-area: icon; color: var(--brass); }
-  .prov-metric strong { grid-area: value; color: var(--ink); font-size: 20px; line-height: 1; font-variant-numeric: tabular-nums; }
-  .prov-metric span { grid-area: label; color: var(--ink); font-size: 12.5px; font-weight: 600; margin-top: 3px; }
-  .prov-metric small { grid-area: detail; color: var(--ink-4); font-size: 11px; line-height: 1.35; }
+  .prov-metric strong { grid-area: value; color: var(--ink); font-size: var(--t-subhead); line-height: 1; font-variant-numeric: tabular-nums; }
+  .prov-metric span { grid-area: label; color: var(--ink); font-size: var(--t-body-sm); font-weight: 600; margin-top: 3px; }
+  .prov-metric small { grid-area: detail; color: var(--ink-4); font-size: var(--t-eyebrow); line-height: 1.35; }
 
   .coverage-matrix {
     margin: 0 0 var(--gap-section);
@@ -787,7 +851,7 @@
   .coverage-head h2 {
     margin: 5px 0 0;
     font-family: var(--sans);
-    font-size: 15px;
+    font-size: var(--t-body);
     line-height: 1.3;
     color: var(--ink);
   }
@@ -799,11 +863,11 @@
     align-items: center;
     padding: 10px 16px;
     border-bottom: 1px solid var(--rule-1);
-    font-size: 12.5px;
+    font-size: var(--t-body-sm);
     color: var(--ink-3);
   }
   .coverage-row:last-child { border-bottom: 0; }
-  .coverage-row strong { color: var(--ink); font-size: 13px; }
+  .coverage-row strong { color: var(--ink); font-size: var(--t-body-sm); }
   .coverage-labels {
     font-family: var(--mono);
     font-size: var(--t-label);
@@ -827,7 +891,7 @@
     color: var(--ink-2);
   }
   .coverage-state.state-live { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, transparent); background: color-mix(in srgb, var(--ok) 8%, transparent); }
-  .coverage-state.state-partial-live, .coverage-state.state-local-beta { color: var(--brass); border-color: color-mix(in srgb, var(--brass) 45%, transparent); background: color-mix(in srgb, var(--brass) 8%, transparent); }
+  .coverage-state.state-partial-live, .coverage-state.state-local-beta, .coverage-state.state-in-this-browser { color: var(--brass); border-color: color-mix(in srgb, var(--brass) 45%, transparent); background: color-mix(in srgb, var(--brass) 8%, transparent); }
   .coverage-state.state-derived { color: var(--teal); border-color: color-mix(in srgb, var(--teal) 45%, transparent); background: color-mix(in srgb, var(--teal) 8%, transparent); }
   .coverage-state.state-unavailable { color: var(--ink-3); border-color: var(--line-2); background: transparent; }
   .coverage-state.state-representative { color: var(--gold); border-color: color-mix(in srgb, var(--gold) 45%, transparent); background: color-mix(in srgb, var(--gold) 8%, transparent); }
@@ -865,10 +929,10 @@
     padding: 14px 16px;
     border-bottom: 1px solid var(--rule-1);
   }
-  .panel-title { font-weight: 600; font-size: 14px; margin: 0; color: var(--ink); letter-spacing: .005em; }
-  .h-drawer { font-family: var(--serif); font-size: 22px; font-weight: 600; line-height: 1.25; letter-spacing: -0.01em; }
+  .panel-title { font-weight: 600; font-size: var(--t-body); margin: 0; color: var(--ink); letter-spacing: .005em; }
+  .h-drawer { font-family: var(--serif); font-size: var(--t-headline); font-weight: 600; line-height: 1.25; letter-spacing: -0.01em; }
   .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
-  .panel-kicker { font-family: var(--mono); font-size: 11px; font-weight: 500; color: var(--ink-3); letter-spacing: .02em; }
+  .panel-kicker { font-family: var(--mono); font-size: var(--t-eyebrow); font-weight: 500; color: var(--ink-3); letter-spacing: .02em; }
   .panel-body { padding: 14px 16px; }
   .panel-foot { padding: 10px 16px; border-top: 1px solid var(--line); display:flex; align-items:center; gap:10px; }
   /* one cohesive rail: sections inside a single panel, hairline-separated */
@@ -883,8 +947,8 @@
   }
   .stat-label { font-family: var(--mono); font-size: var(--t-label); font-weight: 600; color: var(--ink-4); text-transform: uppercase; letter-spacing: .18em; }
   .stat-value { font-family: var(--sans); font-size: var(--t-kpi); font-weight: 600; margin-top: 6px; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
-  .stat-value .unit { font-size: 13px; color: var(--ink-3); margin-left: 6px; font-family: var(--mono); }
-  .stat-meta { margin-top: 6px; font-size: 12px; color: var(--ink-3); display:flex; align-items:center; gap: 8px; }
+  .stat-value .unit { font-size: var(--t-body-sm); color: var(--ink-3); margin-left: 6px; font-family: var(--mono); }
+  .stat-meta { margin-top: 6px; font-size: var(--t-caption); color: var(--ink-3); display:flex; align-items:center; gap: 8px; }
   /* optional trend slot — ember up, steel-ash down */
   .stat-trend.up { color: var(--brass); }
   .stat-trend.down { color: var(--info); }
@@ -904,19 +968,19 @@
   .signal + .signal { margin-top: 10px; }
 
   .sig-head { display:flex; align-items:center; gap:10px; margin-bottom: 6px; }
-  .sig-id { font-family: var(--mono); font-size: 10.5px; color: var(--ink-4); letter-spacing: .05em; font-variant-numeric: tabular-nums; }
-  .sig-source { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); }
-  .sig-time { font-family: var(--mono); font-size: 10.5px; color: var(--ink-4); margin-left: auto; font-variant-numeric: tabular-nums; }
+  .sig-id { font-family: var(--mono); font-size: var(--t-label); color: var(--ink-4); letter-spacing: .05em; font-variant-numeric: tabular-nums; }
+  .sig-source { font-family: var(--mono); font-size: var(--t-label); color: var(--ink-3); }
+  .sig-time { font-family: var(--mono); font-size: var(--t-label); color: var(--ink-4); margin-left: auto; font-variant-numeric: tabular-nums; }
 
   .sig-title {
-    font-family: var(--serif); font-size: 18px; font-weight: 600; line-height: 1.3;
+    font-family: var(--serif); font-size: var(--t-subhead); font-weight: 600; line-height: 1.3;
     color: var(--ink); margin: 2px 0 6px;
   }
   .sig-sum { color: var(--ink-2); font-size: var(--t-body-sm); }
 
   .sig-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
   .tag {
-    font-family: var(--mono); font-size: 10.5px;
+    font-family: var(--mono); font-size: var(--t-label);
     padding: 3px 8px; border-radius: 4px;
     background: var(--hover-surface); border: 1px solid var(--line-2); color: var(--ink-3);
     text-transform: none;
@@ -945,15 +1009,15 @@
     display: inline-flex; align-items: center; gap: 6px;
   }
   .att::before { content:""; width:6px; height:6px; border-radius:50%; }
-  .att.high { color: #ef6a5e; background: color-mix(in srgb, var(--ember-flash) 10%, transparent); border: 1px solid color-mix(in srgb, var(--ember-flash) 25%, transparent); }
-  .att.high::before { background: #ef6a5e; }
+  .att.high { color: var(--att-high); background: color-mix(in srgb, var(--ember-flash) 10%, transparent); border: 1px solid color-mix(in srgb, var(--ember-flash) 25%, transparent); }
+  .att.high::before { background: var(--att-high); }
   .att.med { color: var(--caution); background: color-mix(in srgb, var(--caution) 10%, transparent); border: 1px solid color-mix(in srgb, var(--caution) 25%, transparent); }
   .att.med::before { background: var(--caution); }
   .att.low { color: var(--info); background: color-mix(in srgb, var(--info) 10%, transparent); border: 1px solid color-mix(in srgb, var(--info) 25%, transparent); }
   .att.low::before { background: var(--info); }
-  /* Light theme: the dark coral #ef6a5e fails AA on warm paper (~2.8:1); darken to ~6:1 (A11Y-9). */
-  [data-theme="light"] .att.high { color: #b02a20; background: rgba(192,57,47,.10); border-color: rgba(192,57,47,.30); }
-  [data-theme="light"] .att.high::before { background: #b02a20; }
+  /* Light theme: --att-high is semantic-light.neg on paper (5.04:1 on bg, A11Y-9). */
+  [data-theme="light"] .att.high { color: var(--att-high); background: color-mix(in srgb, var(--att-high) 10%, transparent); border-color: color-mix(in srgb, var(--att-high) 30%, transparent); }
+  [data-theme="light"] .att.high::before { background: var(--att-high); }
 
   /* confidence bar — 5-segment ember-to-gold gradient */
   .conf {
@@ -969,7 +1033,7 @@
   .conf span.on:nth-child(5) { opacity: 1; }
 
   /* ---------- Table ---------- */
-  table.ds { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+  table.ds { width: 100%; border-collapse: collapse; font-size: var(--t-body-sm); font-variant-numeric: tabular-nums; }
   table.ds th, table.ds td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--line); }
   table.ds th {
     font-family: var(--mono); font-size: var(--t-label); color: var(--ink-4);
@@ -997,7 +1061,7 @@
   .tl-item.teal::before { border-color: var(--teal); }
   .tl-item.info::before { border-color: var(--info); }
   .tl-time { font-family: var(--mono); font-size: var(--t-label); color: var(--ink-4); text-transform: uppercase; letter-spacing: .14em; }
-  .tl-body { color: var(--ink-2); font-size: 13px; margin-top: 2px; }
+  .tl-body { color: var(--ink-2); font-size: var(--t-body-sm); margin-top: 2px; }
 
   /* ---------- Drawer ---------- */
   .drawer-back {
@@ -1011,37 +1075,33 @@
     border-left: 1px solid var(--line-2);
     transform: translateX(100%); transition: transform var(--dur-page) var(--ease-entrance);
     z-index: 50; display: flex; flex-direction: column;
-    box-shadow: -20px 0 60px var(--overlay-shadow);
+    box-shadow: none;
   }
-  .drawer.on { transform: translateX(0); }
-  .drawer-head { padding: 16px 20px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 12px; }
+  /* The shadow only while open: a closed drawer cast it over the right edge of every light-theme page. */
+  .drawer.on { transform: translateX(0); box-shadow: -20px 0 60px var(--overlay-shadow); }
+  .drawer-head { padding: 16px 20px; border-bottom: 1px solid var(--line); display: flex; align-items: flex-start; gap: 12px; }
+  .drawer-head > div:first-child { min-width: 0; flex: 1 1 auto; }
+  .drawer-head .h-drawer { overflow-wrap: anywhere; }
   .drawer-body { padding: 18px 20px; overflow-y: auto; flex: 1; overscroll-behavior: contain; }
   .drawer-foot { padding: 12px 20px; border-top: 1px solid var(--line); display: flex; gap: 10px; background: var(--bg); }
 
   .drawer-section { margin-bottom: 26px; }
   .drawer-section h3 {
-    font-family: var(--mono); font-size: 11px; font-weight: 500; color: var(--ink-3);
+    font-family: var(--mono); font-size: var(--t-eyebrow); font-weight: 500; color: var(--ink-3);
     letter-spacing: .04em; margin: 0 0 10px;
     padding-bottom: 6px; border-bottom: 1px solid var(--rule-2);
   }
   .drawer-section p { margin: 0; color: var(--ink-2); font-size: var(--t-body-sm); line-height: 1.55; }
   .kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 20px; font-size: var(--t-body-sm); }
-  .kv dt { font-family: var(--mono); font-size: 10.5px; color: var(--ink-4); text-transform: uppercase; letter-spacing: .1em; padding-top: 2px; }
+  .kv dt { font-family: var(--mono); font-size: var(--t-label); color: var(--ink-4); text-transform: uppercase; letter-spacing: .1em; padding-top: 2px; }
   .kv dd { margin: 0; color: var(--ink); }
 
   .feedback-row { display: flex; flex-wrap: wrap; gap: 6px; }
-  .fb.affirmative {
-    border-color: color-mix(in srgb, var(--teal) 55%, transparent);
-    color: var(--teal);
-    background: color-mix(in srgb, var(--teal) 12%, transparent);
-  }
-  .fb.affirmative.on {
-    background: var(--teal);
-    border-color: var(--teal);
-    color: var(--bg);
-  }
+  /* Unselected, "Correct priority" is an ordinary chip with a green tick, so it
+     never reads as already chosen (FE-09); selected, it fills. */
+  .fb.affirmative svg { stroke: var(--ok); }
   .fb {
-    font-family: var(--sans); font-size: 12px;
+    font-family: var(--sans); font-size: var(--t-caption);
     padding: 5px 10px; border-radius: 6px; cursor: pointer;
     border: 1px solid var(--line-2); background: var(--soft-surface); color: var(--ink-2);
     transition: background .1s, border-color .1s, color .1s;
@@ -1049,10 +1109,11 @@
   .fb:hover { background: var(--hover-surface); color: var(--ink); }
   .fb.on { background: color-mix(in srgb, var(--brass) 8%, transparent); border-color: color-mix(in srgb, var(--brass) 33%, transparent); color: var(--brass); animation: fbSelect 180ms ease-out; }
   .fb.affirmative.on {
-    background: var(--teal);
-    border-color: var(--teal);
+    background: var(--ok);
+    border-color: var(--ok);
     color: var(--bg);
   }
+  .fb.affirmative.on svg { stroke: var(--bg); }
   @keyframes fbSelect { 0%, 100% { transform: scale(1); } 40% { transform: scale(1.06); } }
 
   /* ---------- Radar ---------- */
@@ -1076,7 +1137,7 @@
   }
   .pattern .ribbon {
     position: absolute; top: 12px; right: 12px;
-    font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: .18em; text-transform: uppercase;
+    font-family: var(--mono); font-size: var(--t-micro); font-weight: 600; letter-spacing: .18em; text-transform: uppercase;
     color: var(--brass); background: color-mix(in srgb, var(--brass) 8%, transparent); border: 1px solid color-mix(in srgb, var(--brass) 33%, transparent);
     padding: 3px 8px; border-radius: 4px;
   }
@@ -1089,8 +1150,8 @@
     cursor: pointer;
   }
   .wl:hover { border-color: var(--line-bright); }
-  .wl-name { font-weight: 500; font-size: 13.5px; }
-  .wl-meta { font-size: 11.5px; color: var(--ink-3); display:flex; gap: 10px; font-family: var(--mono); }
+  .wl-name { font-weight: 500; font-size: var(--t-body-sm); }
+  .wl-meta { font-size: var(--t-caption); color: var(--ink-3); display:flex; gap: 10px; font-family: var(--mono); }
 
   /* Progress ring placeholder */
   .ring {
@@ -1102,28 +1163,29 @@
     content: attr(data-p)"%"; color: var(--ink);
     width: 30px; height: 30px; border-radius: 50%;
     background: var(--panel); display: grid; place-items: center;
-    font-family: var(--mono); font-size: 10px;
+    font-family: var(--mono); font-size: var(--t-micro);
   }
 
   /* ---------- Brief preview — warm paper, gold accent ---------- */
-  :root { --brief-bg: #f4efe4; --brief-ink: #1a1208; --brief-accent: #6f5418; --brief-link: #5a4310; }
-  :root[data-theme="light"] { --brief-bg: #f4efe4; --brief-ink: #1a1208; --brief-accent: #6f5418; --brief-link: #5a4310; }
+  /* --brief-* are defined in the token block. */
   .brief {
     background: var(--brief-bg); color: var(--brief-ink);
     border-radius: var(--r-md); padding: 18px 20px;
-    font-family: var(--serif); font-size: 13.5px; line-height: 1.55;
+    font-family: var(--serif); font-size: var(--t-body-sm); line-height: 1.55;
+    overflow-wrap: anywhere;
     box-shadow: inset 0 0 0 1px color-mix(in srgb, #000 8%, transparent);
   }
-  .brief h5 { margin: 12px 0 4px; font-family: var(--mono); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .18em; color: var(--brief-accent); }
-  .brief h3 { margin: 0 0 4px; font-family: var(--serif); font-size: 20px; font-weight: 600; }
-  .brief .meta { font-family: var(--mono); font-size: 10.5px; color: var(--brief-accent); }
+  .brief h5 { margin: 12px 0 4px; font-family: var(--mono); font-size: var(--t-eyebrow); font-weight: 600; text-transform: uppercase; letter-spacing: .18em; color: var(--brief-accent); }
+  .brief h3 { margin: 0 0 4px; font-family: var(--serif); font-size: var(--t-subhead); font-weight: 600; }
+  .brief .meta { font-family: var(--mono); font-size: var(--t-label); color: var(--brief-accent); }
   .brief ul { margin: 4px 0 0; padding-left: 18px; }
+  .brief-attrib { margin-top: 14px; padding-top: 8px; border-top: 1px solid color-mix(in srgb, var(--brief-ink) 15%, transparent); font-family: var(--sans); font-size: var(--t-caption); line-height: 1.45; color: var(--brief-accent); }
 
   .linklike {
     appearance: none; background: none; border: 0; padding: 0;
     color: inherit; font: inherit; text-decoration: underline; cursor: pointer;
   }
-  .linklike:hover { color: var(--teal); }
+  .linklike:hover { color: var(--link); }
 
   /* source health dot */
   .hdot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; vertical-align: middle; }
@@ -1159,7 +1221,7 @@
   .search input:focus-visible { outline: none; }
 
   /* Signal card attention-level left border — status spine */
-  .signal[data-att="high"] { border-left: 4px solid var(--ember-flash); background: linear-gradient(160deg, #1f1614 0%, var(--panel) 100%); }
+  .signal[data-att="high"] { border-left: 4px solid var(--ember-flash); background: var(--signal-high-bg); }
   .signal[data-att="med"]  { border-left: 4px solid var(--caution); }
   .signal[data-att="low"]  { border-left: 4px solid var(--info); }
 
@@ -1170,7 +1232,7 @@
   /* Modal-ish tester */
   .feed-test {
     background: var(--bg); border: 1px solid var(--line-2); border-radius: var(--r-md);
-    padding: 14px; font-family: var(--mono); font-size: 12px; color: var(--ink-2);
+    padding: 14px; font-family: var(--mono); font-size: var(--t-caption); color: var(--ink-2);
   }
   .feed-test-line { display: flex; align-items: center; gap: 7px; padding: 2px 0; }
   .feed-test .ok { color: var(--ok); }
@@ -1197,18 +1259,6 @@
   }
   .empty-body { font-size: var(--t-body-sm); color: var(--ink-2); margin-top: 2px; }
   .empty-action { margin-left: auto; }
-
-  /* Print — brief only */
-  @media print {
-    .side, .topbar, .drawer-back, .drawer, .modal-back, .toast-wrap { display: none !important; }
-    .main { display: block; }
-    .content { padding: 0; max-width: 100%; }
-    body { background: #fff; color: #1a1814; font-size: 12pt; }
-    .brief { background: #fff; color: #1a1814; box-shadow: none; border: 1px solid #ccc; }
-    .brief h3 { font-size: 16pt; }
-    .brief h5 { font-size: 9pt; }
-    a { color: #1a1814; }
-  }
 
   /* Responsive ish */
   @media (max-width: 1100px) {
@@ -1275,8 +1325,11 @@
     .live-head-actions { justify-content: flex-start; }
     .page-head > div:last-child { justify-content: flex-start !important; }
     .g-onboarding, .g-live-strip, .g-brief-row, .g-tracked-row, .g-threshold-row,
-    .g-source-row, .g-live-main, .g-link-grid, .g-feed-form, .g-live-event,
+    .g-source-row, .g-live-main, .g-link-grid, .g-feed-form,
     .g-qon-evidence, .g-briefings { grid-template-columns: 1fr !important; }
+    /* FE-09: a live item keeps its time beside the title on a phone; the kind icon drops. */
+    .g-live-event { grid-template-columns: 44px minmax(0, 1fr) !important; }
+    .g-live-event > :nth-child(2) { display: none; }
     .radar-row { grid-template-columns: 1fr !important; gap: 4px !important; }
     /* FE-06: on phones the Activity-by-source header row hides and each value carries its own label. */
     .radar-head { display: none !important; }
@@ -1284,7 +1337,10 @@
     .radar-mlabel { display: inline !important; }
     /* Mobile triage focus: lead with the priority hero + signals; defer secondary KPIs and the context rail. */
     .command-strip .cs-secondary { display: none; }
-    .g-overview > div:last-child { display: none; }
+    /* Only the Overview defers its context rail. Sources and Daily program reuse
+       .g-overview, and on a phone this rule used to hide their second column:
+       the Add feed form, Reference pages and Recent divisions (FE-09). */
+    .page-overview .g-overview > div:last-child { display: none; }
     /* FE-07 (UX-13): the first signal card starts inside the first 700 px on a
        phone. The Overview stacks as a flex column so the source strip follows
        the signals, and the priority hero is compacted. */
@@ -1294,14 +1350,14 @@
     .page-overview > .about-data-line { order: 2; }
     .page-overview .command-strip { margin-bottom: 14px; }
     .page-overview .cs-primary { padding: 12px 14px; }
-    .page-overview .cs-primary .cs-kpi { font-size: 40px; }
+    .page-overview .cs-primary .cs-kpi { font-size: var(--t-kpi); }
     /* Overlays go full width on phones (UX-3/UX-5). */
     .drawer { width: 100% !important; max-width: 100% !important; }
     .modal { max-width: 100% !important; }
     .modal-back { padding: 12px !important; }
     .chip.live-chip { display: none !important; }
     .search { max-width: none; min-width: 0; width: 100%; padding: 7px 8px; }
-    .search input { font-size: 12px; min-width: 0; }
+    .search input { font-size: var(--t-caption); min-width: 0; }
     .search .kbd { display: none; }
     .top-clock { display: none !important; }
     .top-right { grid-column: 1 / -1; justify-content: flex-end; flex-wrap: wrap; gap: 6px; }
@@ -1384,8 +1440,8 @@
   }
   .live-card-head { display: flex; align-items: center; gap: 8px; max-width: 100%; }
   .live-card-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--ink-4); }
-  .live-card-title { font-family: var(--serif); font-size: 22px; font-weight: 600; color: var(--ink); margin: 0; overflow-wrap: anywhere; }
-  .live-card-body { color: var(--ink-2); font-size: 13px; max-width: 460px; line-height: 1.5; margin: 0; }
+  .live-card-title { font-family: var(--serif); font-size: var(--t-headline); font-weight: 600; color: var(--ink); margin: 0; overflow-wrap: anywhere; }
+  .live-card-body { color: var(--ink-2); font-size: var(--t-body-sm); max-width: 460px; line-height: 1.5; margin: 0; }
   .live-card-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; max-width: 100%; }
   .live-head-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
   .live-badge {
@@ -1413,7 +1469,7 @@
 
   /* Live now strip — ember-lit, static spine (no perpetual pulse; one pulse per viewport lives in the topbar) */
   .live-strip {
-    background: linear-gradient(90deg, #1a1108 0%, var(--panel) 40%, var(--panel) 100%);
+    background: linear-gradient(90deg, var(--ember-wash) 0%, var(--panel) 40%, var(--panel) 100%);
     border: 1px solid var(--line-2);
     border-left: 3px solid var(--ember-flash);
     border-radius: var(--r-md);
@@ -1431,8 +1487,8 @@
   @keyframes toastIn { from { opacity: 0; transform: translateY(8px); } to { opacity:1; transform:translateY(0); } }
   .toast .tok { color: var(--ok); }
   .toast .tbr { color: var(--brass); }
-  .toast.toast-err { border-color: color-mix(in srgb, var(--escalate) 33%, transparent); background: #1a1110; }
-  .toast-act { background: none; border: 1px solid var(--line-bright); color: var(--brass); border-radius: 5px; padding: 3px 9px; font-size: 12px; cursor: pointer; font-family: var(--sans); margin-left: 6px; }
+  .toast.toast-err { border-color: color-mix(in srgb, var(--escalate) 33%, transparent); background: var(--toast-err-bg); }
+  .toast-act { background: none; border: 1px solid var(--line-bright); color: var(--brass); border-radius: 5px; padding: 3px 9px; font-size: var(--t-caption); cursor: pointer; font-family: var(--sans); margin-left: 6px; }
   .toast-act:hover { background: color-mix(in srgb, var(--brass) 10%, transparent); }
 
   /* Global search results */
@@ -1443,9 +1499,9 @@
     max-height: 420px; overflow-y: auto;
   }
   .sr-group { font-family: var(--mono); font-size: var(--t-label); font-weight: 600; color: var(--ink-4); text-transform: uppercase; letter-spacing: .18em; padding: 10px 14px 4px; }
-  .sr-item { padding: 8px 14px; cursor: pointer; border-top: 1px solid var(--line); font-size: 13px; display:flex; gap:10px; align-items:center; }
+  .sr-item { padding: 8px 14px; cursor: pointer; border-top: 1px solid var(--line); font-size: var(--t-body-sm); display:flex; gap:10px; align-items:center; }
   .sr-item:hover, .sr-item.active { background: color-mix(in srgb, #fff 4%, transparent); }
-  .sr-item .k { font-family: var(--mono); font-size: 10.5px; color: var(--ink-4); }
+  .sr-item .k { font-family: var(--mono); font-size: var(--t-label); color: var(--ink-4); }
   .search { position: relative; }
 
   /* Active press states — tactile confirmation */
@@ -1458,7 +1514,7 @@
 
   /* Unified filter chip — replaces inline styles in PageSignals */
   .filter-chip {
-    font-family: var(--mono); font-size: 11px; padding: 4px 12px;
+    font-family: var(--mono); font-size: var(--t-eyebrow); padding: 4px 12px;
     border-radius: 20px; border: 1px solid var(--line-2);
     background: transparent; color: var(--ink-3); cursor: pointer;
     transition: background .12s, border-color .12s, color .08s;
@@ -1480,7 +1536,7 @@
   .design-banner > span { min-width:0; }   /* the message flexes within the ribbon */
   .design-banner strong { font-weight:600; color:var(--ink); }
   .design-banner + .design-banner { border-top:0; }   /* stacked notices become one ribbon */
-  .design-banner button { margin-left:auto; flex:none; background:none; border:none; color:var(--ink-4); cursor:pointer; font-size:16px; line-height:1; padding:0 4px; }
+  .design-banner button { margin-left:auto; flex:none; background:none; border:none; color:var(--ink-4); cursor:pointer; font-size:var(--t-body); line-height:1; padding:0 4px; }
   .design-banner button:hover { color:var(--ink); }
 
   /* Fixture / Representative-data chip on signal cards */
@@ -1499,16 +1555,72 @@
   }
 
   /* scrollbar */
-  * { scrollbar-width: thin; scrollbar-color: #3a3328 transparent; }   /* Firefox */
-  [data-theme="light"] * { scrollbar-color: #cdbfa6 transparent; }
+  * { scrollbar-width: thin; scrollbar-color: var(--scroll-thumb) transparent; }   /* Firefox */
+  [data-theme="light"] * { scrollbar-color: var(--scroll-thumb) transparent; }
   ::-webkit-scrollbar { width: 10px; height: 10px; }
-  ::-webkit-scrollbar-thumb { background: #3a3328; border-radius: 10px; border: 2px solid transparent; background-clip: padding-box; }
+  ::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 10px; border: 2px solid transparent; background-clip: padding-box; }
   ::-webkit-scrollbar-track { background: transparent; }
+
+  /* ---------- Print (PR-13) ----------
+     A generated brief and the Briefings desk print as black ink on white
+     paper: the app chrome, controls and overlays drop out, every external
+     source link prints its address after the link text, and the APH licence
+     attribution (the site footer and the line inside each brief) stays on the
+     page. Only #fff and #000 are used here, so print needs no extra token. */
+  @media print {
+    @page { margin: 16mm 14mm; }
+    :root, :root[data-theme="light"] {
+      color-scheme: light;
+      --bg: #fff; --bg-2: #fff; --panel: #fff; --panel-2: #fff; --panel-hi: transparent;
+      --ink: #000;
+      --ink-2: color-mix(in srgb, #000 85%, #fff);
+      --ink-3: color-mix(in srgb, #000 72%, #fff);
+      --ink-4: color-mix(in srgb, #000 65%, #fff);
+      --line: color-mix(in srgb, #000 18%, #fff);
+      --line-2: color-mix(in srgb, #000 12%, #fff);
+      --line-bright: color-mix(in srgb, #000 30%, #fff);
+      --rule-1: color-mix(in srgb, #000 18%, #fff);
+      --rule-2: color-mix(in srgb, #000 10%, #fff);
+      --link: #000; --brass: #000; --brass-2: #000; --gold: #000;
+      --brief-bg: #fff; --brief-ink: #000; --brief-accent: #000; --brief-link: #000;
+      --signal-high-bg: #fff;
+    }
+    html, body { background: #fff !important; color: #000; }
+    body { font-size: 11pt; }
+    .side, .topbar, .stale-banner, .design-banner, .drawer-back, .drawer, .modal-back,
+    .toast-wrap, .skip-link, .nav-toggle, .page-head > div:last-child, .panel-head .btn,
+    .site-foot-links, button { display: none !important; }
+    .app, .main { display: block !important; }
+    .content { padding: 0 !important; max-width: 100% !important; }
+    .page { animation: none !important; }
+    .panel, .signal, .stat, .brief {
+      background: #fff !important; box-shadow: none !important;
+      border: 1px solid color-mix(in srgb, #000 22%, #fff) !important;
+      break-inside: avoid;
+    }
+    .signal { content-visibility: visible !important; border-left-width: 1px !important; }
+    .g-briefings { display: block !important; }
+    .g-briefings > .panel + .panel { margin-top: 12pt; }
+    .page-title { font-size: 20pt; outline: none !important; }
+    .brief { padding: 0 !important; border: 0 !important; font-size: 11pt; }
+    .brief h3 { font-size: 16pt; }
+    .brief h5 { font-size: 8.5pt; letter-spacing: .12em; }
+    .brief-attrib { border-top: 1px solid #000; }
+    a { color: #000 !important; text-decoration: underline; }
+    a[href^="http"]::after {
+      content: " (" attr(href) ")";
+      font-family: var(--mono); font-size: 8pt; font-weight: 400;
+      overflow-wrap: anywhere; word-break: break-all;
+    }
+    a[href^="http"] svg { display: none; }
+    .site-foot { display: block !important; border-top: 1px solid #000; margin-top: 14pt; padding: 8pt 0 0; color: #000; }
+    .att, .tag, .chip-fixture { border: 1px solid #000 !important; background: #fff !important; color: #000 !important; }
+  }
 </style>
 </head>
 <body>
 <noscript>
-  <div style="font-family:system-ui,sans-serif;padding:40px;text-align:center;color:#1a1814;">
+  <div style="font-family:var(--sans);padding:40px;text-align:center;color:#000;">
     <h2>Parliament Pulse requires JavaScript</h2>
     <p>Please enable JavaScript in your browser to use this application.</p>
   </div>

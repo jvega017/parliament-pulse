@@ -535,11 +535,11 @@ function mergeLiveBlocks(prev, next) {
 // Shared fetched-at formatter: HH:MM in Brisbane time. Desks append "AEST"
 // themselves, so this returns only the clock component.
 function fmtFetchedAt(iso) {
-  if (!iso) return "—";
+  if (!iso) return NOT_SUPPLIED;
   try {
     return new Date(iso).toLocaleTimeString("en-AU", { hour: "2-digit", minute: "2-digit", timeZone: "Australia/Brisbane" });
   } catch {
-    return "—";
+    return NOT_SUPPLIED;
   }
 }
 
@@ -1164,7 +1164,7 @@ function DetailModal() {
         aria-labelledby={titleId}
         style={{
           border: "1px solid var(--line-bright)",
-          boxShadow: "0 1px 0 #00000060, 0 40px 90px -32px #000000bf, inset 0 0 0 1px #ffffff08",
+          boxShadow: "0 1px 0 color-mix(in srgb, #000 38%, transparent), 0 40px 90px -32px color-mix(in srgb, #000 75%, transparent), inset 0 0 0 1px color-mix(in srgb, #fff 3%, transparent)",
         }}
       >
         {React.cloneElement(render(), { titleId, closeButtonRef })}
@@ -1181,14 +1181,14 @@ function ModalHead({ kicker, title, right, onClose, representative = false, titl
   return (
     <div className="modal-head">
       <div style={{flex:1}}>
-        <div className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", display:"flex", alignItems:"center", gap:8, flexWrap:"wrap"}}>
+        <div className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", display:"flex", alignItems:"center", gap:8, flexWrap:"wrap"}}>
           <span>{kicker}</span>
           {/* FE-04: a sample-data chip can only appear behind the unsourced-surfaces
               flag, which is false in every public build. Entities that remain in the
               public build hold only public facts (names, chambers, APH URLs). */}
           {representative && SITE_CONFIG.showUnsourcedSurfaces && <span className="chip-fixture">Sample data</span>}
         </div>
-        <h2 id={titleId} className="serif" style={{fontSize:22, margin:"4px 0 0", fontWeight:500, lineHeight:1.25}}>{title}</h2>
+        <h2 id={titleId} className="serif" style={{fontSize:"var(--t-headline)", margin:"4px 0 0", fontWeight:500, lineHeight:1.25}}>{title}</h2>
       </div>
       {right}
       <button ref={closeButtonRef} className="btn ghost sm" aria-label="Close detail" onClick={onClose || closeModal} style={{flex:"none"}}><Icon name="close" size={14}/></button>
@@ -1219,16 +1219,16 @@ function CommitteeDetail({ id, titleId, closeButtonRef }) {
           <dt>Portfolio</dt><dd>{c.portfolio ?? NOT_HELD}</dd>
           <dt>Active inquiries</dt><dd>{c.active ?? NOT_HELD}</dd>
           <dt>Reports (30d)</dt><dd>{c.recentReports ?? NOT_HELD}</dd>
-          <dt>Source</dt><dd className="mono" style={{fontSize:11, color:"var(--ink-3)"}}>{c.url}</dd>
+          <dt>Source</dt><dd className="mono" style={{fontSize:"var(--t-eyebrow)", color:"var(--ink-3)"}}>{c.url}</dd>
         </dl>
 
-        <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:22, marginBottom:8}}>Upcoming & today's hearings</h3>
+        <h3 className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:22, marginBottom:8}}>Upcoming & today's hearings</h3>
         <div className="empty">
           Parliament Pulse holds no verified hearing schedule for this committee, because APH publishes hearing programmes on the committee page rather than as a machine-readable feed. See the current schedule at{" "}
-          <a href="https://www.aph.gov.au/Parliamentary_Business/Committees" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>aph.gov.au/Parliamentary_Business/Committees <Icon name="ext" size={11} style={{verticalAlign:"-1px"}}/></a>.
+          <a href="https://www.aph.gov.au/Parliamentary_Business/Committees" target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>aph.gov.au/Parliamentary_Business/Committees <Icon name="ext" size={11} style={{verticalAlign:"-1px"}}/></a>.
         </div>
 
-        <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:22, marginBottom:8}}>Open inquiries</h3>
+        <h3 className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:22, marginBottom:8}}>Open inquiries</h3>
         {c.inquiries.length > 0 ? (
           <div style={{display:"flex", flexWrap:"wrap", gap:6}}>
             {c.inquiries.map((q, i) => (
@@ -1263,12 +1263,12 @@ function HearingDetail({ data, titleId, closeButtonRef }) {
           <dt>Committee</dt><dd>{data.committee}</dd>
           <dt>When</dt><dd>{data.when}</dd>
           <dt>Room</dt><dd>{data.room}</dd>
-          <dt>Broadcast</dt><dd><a href="https://parlview.aph.gov.au/" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>ParlView <Icon name="ext" size={11} style={{verticalAlign:"-1px"}}/></a></dd>
+          <dt>Broadcast</dt><dd><a href="https://parlview.aph.gov.au/" target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>ParlView <Icon name="ext" size={11} style={{verticalAlign:"-1px"}}/></a></dd>
         </dl>
-        <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:8}}>Witnesses</h3>
+        <h3 className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:8}}>Witnesses</h3>
         <div className="empty">
           Parliament Pulse holds no verified witness list for this hearing, because APH publishes witness lists as hearing programmes on the committee page rather than as a machine-readable feed. See the real hearing programme at{" "}
-          <a href="https://www.aph.gov.au/Parliamentary_Business/Committees" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>aph.gov.au/Parliamentary_Business/Committees <Icon name="ext" size={11} style={{verticalAlign:"-1px"}}/></a>.
+          <a href="https://www.aph.gov.au/Parliamentary_Business/Committees" target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>aph.gov.au/Parliamentary_Business/Committees <Icon name="ext" size={11} style={{verticalAlign:"-1px"}}/></a>.
         </div>
       </div>
       <div className="modal-foot">
@@ -1294,14 +1294,14 @@ function InquiryDetail({ id, titleId, closeButtonRef }) {
       <div className="modal-body">
         <div className="empty">
           Parliament Pulse holds no verified detail for this inquiry, because APH publishes no machine-readable feed of inquiry terms of reference. See the real committee page at{" "}
-          <a href="https://www.aph.gov.au/Parliamentary_Business/Committees" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>aph.gov.au/Parliamentary_Business/Committees <Icon name="ext" size={11} style={{verticalAlign:"-1px"}}/></a>.
+          <a href="https://www.aph.gov.au/Parliamentary_Business/Committees" target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>aph.gov.au/Parliamentary_Business/Committees <Icon name="ext" size={11} style={{verticalAlign:"-1px"}}/></a>.
         </div>
-        <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:8}}>Assign owner</h3>
+        <h3 className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:8}}>Assign owner</h3>
         <div style={{display:"flex", gap:8}}>
           <input aria-label="Owner name" value={owner} onChange={e=>setOwner(e.target.value)} placeholder="Owner name" className="search" style={{padding:"7px 10px", flex:1}}/>
           <button className="btn primary" onClick={() => { if (owner.trim()) { assignOwner(name, owner.trim()); } }}>Assign</button>
         </div>
-        {state.owners[name] && <div style={{marginTop:8, fontSize:12.5, color:"var(--ok)"}}><Icon name="check" size={13} style={{verticalAlign:"-2px", marginRight:4}}/>Owner: <strong>{state.owners[name]}</strong></div>}
+        {state.owners[name] && <div style={{marginTop:8, fontSize:"var(--t-body-sm)", color:"var(--ok)"}}><Icon name="check" size={13} style={{verticalAlign:"-2px", marginRight:4}}/>Owner: <strong>{state.owners[name]}</strong></div>}
       </div>
       <div className="modal-foot">
         <button className="btn primary" onClick={() => copyModalText(`# Submission starter\nInquiry: ${name}\nOwner: ${state.owners[name] || owner || "Unassigned"}\nGenerated: ${new Date().toISOString()}`, toast, "Submission starter copied")}><Icon name="brief" size={13}/> Start submission</button>
@@ -1314,7 +1314,7 @@ function InquiryDetail({ id, titleId, closeButtonRef }) {
 function BillDetail({ id, titleId, closeButtonRef }) {
   const b = ENTITIES.bills[id];
   const { closeModal, toast, state, assignOwner, openModal, addWatchlist, isWatched } = useStore();
-  const [owner, setOwner] = React.useState(state.owners[id] || (b?.owner === "—" ? "" : b?.owner || ""));
+  const [owner, setOwner] = React.useState(state.owners[id] || (b?.owner || ""));
   if (!b) return <ModalHead kicker="Bill" title="Not found" titleId={titleId} closeButtonRef={closeButtonRef} />;
   const min = ENTITIES.ministers[b.minister];
   const watchKey = `bill:${id}`;
@@ -1329,16 +1329,16 @@ function BillDetail({ id, titleId, closeButtonRef }) {
           <span className="tag teal">{b.stage}</span>
           {b.digest === "Published" && <span className="tag teal">Digest published</span>}
         </div>
-        <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginBottom:6}}>Purpose</h3>
+        <h3 className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginBottom:6}}>Purpose</h3>
         <p style={{margin:0, color:"var(--ink-2)"}}>{b.purpose}</p>
 
         {b.provisions.length > 0 && <>
-          <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:6}}>Key provisions</h3>
+          <h3 className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:6}}>Key provisions</h3>
           <ul style={{margin:0, paddingLeft:18, color:"var(--ink-2)"}}>{b.provisions.map((p,i) => <li key={i}>{p}</li>)}</ul>
         </>}
 
         {b.stageHistory.length > 0 && <>
-          <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:6}}>Timeline</h3>
+          <h3 className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:6}}>Timeline</h3>
           <div className="timeline">
             {b.stageHistory.map((h,i) => (
               <div key={i} className="tl-item">
@@ -1350,19 +1350,19 @@ function BillDetail({ id, titleId, closeButtonRef }) {
         </>}
 
         {min && <>
-          <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:6}}>Responsible minister</h3>
+          <h3 className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:6}}>Responsible minister</h3>
           <span className="tag clk brass" onClick={() => openModal("minister", b.minister)}>{min.name}</span>
         </>}
 
-        <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:6}}>Matching watchlists</h3>
+        <h3 className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:6}}>Matching watchlists</h3>
         <div style={{display:"flex", gap:6, flexWrap:"wrap"}}>{b.watchlists.map(w => <span key={w} className="tag brass">{w}</span>)}</div>
 
-        <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:6}}>Assign policy owner</h3>
+        <h3 className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:6}}>Assign policy owner</h3>
         <div style={{display:"flex", gap:8}}>
           <input aria-label="Owner name" value={owner} onChange={e=>setOwner(e.target.value)} placeholder="Owner name" className="search" style={{padding:"7px 10px", flex:1}}/>
           <button className="btn primary" onClick={() => { if (owner.trim()) assignOwner(id, owner.trim()); }}>Assign</button>
         </div>
-        {state.owners[id] && <div style={{marginTop:8, fontSize:12.5, color:"var(--ok)"}}><Icon name="check" size={13} style={{verticalAlign:"-2px", marginRight:4}}/>Owner: <strong>{state.owners[id]}</strong></div>}
+        {state.owners[id] && <div style={{marginTop:8, fontSize:"var(--t-body-sm)", color:"var(--ok)"}}><Icon name="check" size={13} style={{verticalAlign:"-2px", marginRight:4}}/>Owner: <strong>{state.owners[id]}</strong></div>}
       </div>
       <div className="modal-foot">
         <button className="btn primary" onClick={() => {
@@ -1387,7 +1387,7 @@ function MemberDetail({ id, titleId, closeButtonRef }) {
       <div className="modal-body">
         <div className="empty">
           Parliament Pulse holds no senator or member profiles, because no live source of member records is connected. Look up current senators and members at{" "}
-          <a href="https://www.aph.gov.au/Senators_and_Members" target="_blank" rel="noopener noreferrer" style={{color:"var(--teal)"}}>aph.gov.au/Senators_and_Members <Icon name="ext" size={11} style={{verticalAlign:"-1px"}}/></a>.
+          <a href="https://www.aph.gov.au/Senators_and_Members" target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>aph.gov.au/Senators_and_Members <Icon name="ext" size={11} style={{verticalAlign:"-1px"}}/></a>.
         </div>
       </div>
       <div className="modal-foot">
@@ -1406,7 +1406,7 @@ function MinisterDetail({ id, titleId, closeButtonRef }) {
       <ModalHead kicker={m.role} title={m.name} representative={!!m.representative} titleId={titleId} closeButtonRef={closeButtonRef} />
       <div className="modal-body">
         <p style={{color:"var(--ink-2)", marginTop:0}}>{m.bio}</p>
-        <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:14, marginBottom:6}}>Recent signals</h3>
+        <h3 className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:14, marginBottom:6}}>Recent signals</h3>
         <ul style={{margin:0, paddingLeft:18, color:"var(--ink-2)"}}>{m.recent.map((r,i) => <li key={i}>{r}</li>)}</ul>
       </div>
       <div className="modal-foot"><button className="btn ghost" style={{marginLeft:"auto"}} onClick={closeModal}>Close</button></div>
@@ -1427,15 +1427,15 @@ function DivisionDetail({ id, titleId, closeButtonRef }) {
           <dt>Result</dt><dd style={{color: d.result.startsWith("Agreed") ? "var(--ok)" : "var(--escalate)"}}>{d.result}</dd>
           <dt>Related bill</dt><dd><span className="tag clk brass" onClick={() => openModal("bill", d.bill)}>{d.bill}</span></dd>
         </dl>
-        <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:16, marginBottom:8}}>Vote breakdown</h3>
+        <h3 className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:16, marginBottom:8}}>Vote breakdown</h3>
         <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:10}}>
           <div style={{padding:12, border:"1px solid var(--line-2)", borderRadius:8}}>
-            <div className="mono" style={{fontSize:10, color:"var(--ok)"}}>AYES</div>
-            <div style={{fontSize:22, fontFamily:"var(--serif)"}}>{d.result.match(/\d+/)?.[0] || "—"}</div>
+            <div className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ok)"}}>AYES</div>
+            <div style={{fontSize:"var(--t-headline)", fontFamily:"var(--serif)"}}>{d.result.match(/\d+/)?.[0] || NO_VALUE}</div>
           </div>
           <div style={{padding:12, border:"1px solid var(--line-2)", borderRadius:8}}>
-            <div className="mono" style={{fontSize:10, color:"var(--escalate)"}}>NOES</div>
-            <div style={{fontSize:22, fontFamily:"var(--serif)"}}>{d.result.match(/\d+/g)?.[1] || "—"}</div>
+            <div className="mono" style={{fontSize:"var(--t-micro)", color:"var(--escalate)"}}>NOES</div>
+            <div style={{fontSize:"var(--t-headline)", fontFamily:"var(--serif)"}}>{d.result.match(/\d+/g)?.[1] || NO_VALUE}</div>
           </div>
         </div>
       </div>
@@ -1447,34 +1447,41 @@ function DivisionDetail({ id, titleId, closeButtonRef }) {
 function FeedDetail({ id, titleId, closeButtonRef }) {
   const f = APH_FEEDS.find(x => x.id === id);
   const { closeModal, toast } = useStore();
+  // The modal reads the same latest health check as the Sources table row it
+  // opens from, so the two can never disagree (FE-09).
+  const health = useLiveState("connectors");
   if (!f) return <ModalHead kicker="Feed" title="Not found" titleId={titleId} closeButtonRef={closeButtonRef} />;
-  const status = f.lastStatusCode != null ? (f.lastStatusCode >= 200 && f.lastStatusCode < 300 ? "Live" : "Error") : "—";
-  const parser = f.parser || "—";
-  const last = f.last || "—";
+  const c = (health.items || []).find(x => x && x.isFeed && x.url === f.url) || null;
+  const st = c ? feedHealthState(c) : null;
+  const status = st === "ok" ? "OK" : st === "failed" ? "Failed" : st === "pending" ? "Not yet checked" : NOT_SUPPLIED;
+  const last = c ? (fmtPollStamp(c.lastSuccessAt) || "Never") : NOT_SUPPLIED;
+  const parsed = c && c.itemsParsed != null ? String(c.itemsParsed) : NOT_SUPPLIED;
   return (
     <>
-      <ModalHead kicker={`Source · ${f.group}`} title={f.name} titleId={titleId} closeButtonRef={closeButtonRef} />
+      <ModalHead kicker={`Source · ${f.group}`} title={c && c.label ? c.label : f.name} titleId={titleId} closeButtonRef={closeButtonRef} />
       <div className="modal-body">
         <dl className="kv">
-          <dt>URL</dt><dd className="mono" style={{fontSize:11, color:"var(--ink-3)", wordBreak:"break-all"}}>{f.url}</dd>
-          <dt>Status</dt><dd>{status}</dd>
+          <dt>URL</dt><dd className="mono" style={{fontSize:"var(--t-eyebrow)", color:"var(--ink-3)", wordBreak:"break-all"}}>{f.url}</dd>
+          <dt>Status</dt><dd style={st === "failed" ? {color:"var(--escalate)"} : undefined}>{status}{c && c.lastHttpStatus != null ? ` · HTTP ${c.lastHttpStatus}` : ""}</dd>
           <dt>Authority</dt><dd>{f.authority}</dd>
-          <dt>Confidence</dt><dd>{f.confidence}</dd>
-          <dt>Parser</dt><dd>{parser}</dd>
-          <dt>Last refresh</dt><dd className="mono">{last}</dd>
-          <dt>Items today</dt><dd className="mono">{f.today ?? "—"}</dd>
-          <dt>False positive</dt><dd title={FPR_PENDING_NOTE}>— <span style={{color:"var(--ink-4)"}}>{FPR_PENDING_NOTE}</span></dd>
-          <dt>Modules</dt><dd>{f.modules.join(", ")}</dd>
+          <dt>Last success</dt><dd>{last}</dd>
+          <dt>Items at last check</dt><dd>{parsed}</dd>
+          {c && c.parseError && <><dt>Error</dt><dd>{c.parseError}</dd></>}
+          <dt>False positives</dt><dd title={FPR_PENDING_NOTE}><span style={{color:"var(--ink-4)"}}>Not measured yet ({FPR_PENDING_NOTE.toLowerCase()})</span></dd>
         </dl>
-        <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:16, marginBottom:8}}>Recent items</h3>
-        <div className="empty">—</div>
       </div>
       <div className="modal-foot">
-        <button className="btn primary" onClick={() => {
-          if (typeof window.__refreshLiveFeeds === "function") { window.__refreshLiveFeeds(); toast(`${f.name} refresh requested`, "brass"); }
-          else toast("Open Live parliament to start the feed poller", "brass");
-        }}><Icon name="refresh" size={13}/> Re-fetch now</button>
-        <button className="btn" title="Copy parser checklist for this feed" onClick={() => copyModalText(`# Parser checklist\nFeed: ${f.name}\nURL: ${f.url}\nParser: ${parser}\nLast refresh: ${last}\n\nChecks:\n- HTTP status is 2xx\n- XML item count is non-zero when source publishes\n- Title, date, link and description map cleanly\n- Module routing matches: ${f.modules.join(", ")}`, toast, "Parser checklist copied")}>Copy parser checklist</button>
+        <a className="btn primary" href={f.url} target="_blank" rel="noopener noreferrer" style={{textDecoration:"none"}}><Icon name="ext" size={13}/> Open the feed on aph.gov.au</a>
+        <button className="btn" title="Copy the checks a reader can run on this feed" onClick={() => copyModalText(`# Feed check list
+Feed: ${f.name}
+URL: ${f.url}
+Status: ${status}
+Last success: ${last}
+
+Checks:
+- HTTP status is 2xx
+- The feed lists items when the source publishes
+- Each item has a title, date and link`, toast, "Feed check list copied")}>Copy check list</button>
         <button className="btn ghost" style={{marginLeft:"auto"}} onClick={closeModal}>Close</button>
       </div>
     </>
@@ -1507,18 +1514,18 @@ function WatchlistDetail({ id, titleId, closeButtonRef }) {
           <div className="empty" style={{marginBottom:14}}>Created watchlist. Keyword matching runs against the current signal stream. Trend builds as new signals arrive.</div>
         )}
         <div className="grid g-3" style={{gap:12}}>
-          <div className="panel stat"><div className="stat-label">Matches</div><div className="stat-value" style={{fontSize:26}}>{matchingAll.length}</div></div>
-          <div className="panel stat"><div className="stat-label">Keywords</div><div className="stat-value" style={{fontSize:26}}>{keywordList.length}</div></div>
+          <div className="panel stat"><div className="stat-label">Matches</div><div className="stat-value" style={{fontSize:"var(--t-stat)"}}>{matchingAll.length}</div></div>
+          <div className="panel stat"><div className="stat-label">Keywords</div><div className="stat-value" style={{fontSize:"var(--t-stat)"}}>{keywordList.length}</div></div>
           <div className="panel stat"><div className="stat-label">Trend history</div>
-            <div className="mono" style={{marginTop:8, color:"var(--ink-4)", fontSize:11}}>Not held — Parliament Pulse does not yet track watchlist matches over time.</div>
+            <div className="mono" style={{marginTop:8, color:"var(--ink-4)", fontSize:"var(--t-eyebrow)"}}>Not held. Parliament Pulse does not yet track watchlist matches over time.</div>
           </div>
         </div>
-        <h3 className="mono" style={{fontSize:10, color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:6}}>Matching signals</h3>
+        <h3 className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:6}}>Matching signals</h3>
         {matchingSignals.length === 0 && <div className="empty">No matching signals in the current stream.</div>}
         {matchingSignals.map(s => (
           <div key={s.id} style={{padding:"8px 12px", border:"1px solid var(--line-2)", borderRadius:8, marginBottom:6}}>
-            <div style={{fontSize:12.5, fontWeight:500}}>{s.title}</div>
-            <div className="mono" style={{fontSize:10.5, color:"var(--ink-4)", marginTop:2}}>{s.id} · {s.source}</div>
+            <div style={{fontSize:"var(--t-body-sm)", fontWeight:500}}>{s.title}</div>
+            <div className="mono" style={{fontSize:"var(--t-label)", color:"var(--ink-4)", marginTop:2}}>{s.id} · {s.source}</div>
           </div>
         ))}
       </div>

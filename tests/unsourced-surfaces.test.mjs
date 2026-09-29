@@ -276,7 +276,7 @@ const shellSrc = read("shell");
 const canaries = [
   { why: "showUnsourcedSurfaces flipped to true", expect: "Parliamentary lines", over: { data: dataSrc.replace("showUnsourcedSurfaces: false", "showUnsourcedSurfaces: true") } },
   { why: "[CONFIRM] placeholder restored", expect: "[CONFIRM]", over: { pages: pagesSrc.replace("A public corrections address is being set up.", "[CONFIRM] A public corrections address is being set up.") } },
-  { why: "a localStorage key dropped from the privacy list", expect: "pp-streak-count", over: { pages: pagesSrc.replace(/\{\s*key: "pp-streak-count",[^}]*\},?/, "") } },
+  { why: "a localStorage key dropped from the privacy list", expect: "pp-onboarded", over: { pages: pagesSrc.replace(/\{\s*key: "pp-onboarded",[^}]*\},?/, "") } },
   { why: "an unavailable entry dropped from the About page", expect: "unavailable \"qon\"", over: { pages: pagesSrc.replace("items.map((u, i) =>", "items.slice(1).map((u, i) =>") } },
   { why: "Threads empty state removed", expect: "Threads desk shows no empty state", over: { pages: pagesSrc.replace("!threads.items && ", "false && ") } },
   { why: "the Watchlists 'Fixture' chip restored", expect: "renders \"Fixture\"", over: { pages: pagesSrc.replace('"Your keywords"', '"Fixture"') } },
