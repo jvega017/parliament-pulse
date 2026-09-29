@@ -1,10 +1,8 @@
+/* IBM Plex, self-hosted. IBM Plex Sans is ONE variable font (wght axis 100 to 700), declared once with a weight range: FE-11 found it shipped as four byte-identical files under four weight names, so the browser fetched the same 46 KB once per weight used. Mono and Serif are static faces, one file per weight. url()s resolve relative to this file. */
 @font-face{font-family:"IBM Plex Mono";font-style:normal;font-weight:400;font-display:swap;src:url("IBMPlexMono-400.woff2") format("woff2")}
 @font-face{font-family:"IBM Plex Mono";font-style:normal;font-weight:500;font-display:swap;src:url("IBMPlexMono-500.woff2") format("woff2")}
 @font-face{font-family:"IBM Plex Mono";font-style:normal;font-weight:600;font-display:swap;src:url("IBMPlexMono-600.woff2") format("woff2")}
-@font-face{font-family:"IBM Plex Sans";font-style:normal;font-weight:400;font-display:swap;src:url("IBMPlexSans-400.woff2") format("woff2")}
-@font-face{font-family:"IBM Plex Sans";font-style:normal;font-weight:500;font-display:swap;src:url("IBMPlexSans-500.woff2") format("woff2")}
-@font-face{font-family:"IBM Plex Sans";font-style:normal;font-weight:600;font-display:swap;src:url("IBMPlexSans-600.woff2") format("woff2")}
-@font-face{font-family:"IBM Plex Sans";font-style:normal;font-weight:700;font-display:swap;src:url("IBMPlexSans-700.woff2") format("woff2")}
+@font-face{font-family:"IBM Plex Sans";font-style:normal;font-weight:100 700;font-display:swap;src:url("IBMPlexSans-Variable.woff2") format("woff2")}
 @font-face{font-family:"IBM Plex Serif";font-style:normal;font-weight:400;font-display:swap;src:url("IBMPlexSerif-400.woff2") format("woff2")}
 @font-face{font-family:"IBM Plex Serif";font-style:normal;font-weight:600;font-display:swap;src:url("IBMPlexSerif-600.woff2") format("woff2")}
 @font-face{font-family:"IBM Plex Serif";font-style:normal;font-weight:700;font-display:swap;src:url("IBMPlexSerif-700.woff2") format("woff2")}

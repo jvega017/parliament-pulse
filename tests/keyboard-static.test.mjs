@@ -29,9 +29,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { JSX_FILES } from "../scripts/build-config.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const SOURCE_FILES = ["app.jsx", "shell.jsx", "pages.jsx", "store.jsx", "entities.jsx", "data.jsx", "icons.jsx"];
+const SOURCE_FILES = JSX_FILES.map(f => `${f}.jsx`);
 const NON_INTERACTIVE = new Set(["div", "span", "tr", "td", "th", "li", "ul", "ol", "p", "section", "article", "aside", "header", "footer", "img", "svg", "label", "strong", "em", "code", "h1", "h2", "h3", "h4", "h5", "h6", "nav", "main", "table", "tbody"]);
 
 // JSX-brace-aware end of an opening tag, so a `>` inside {...} does not end it.

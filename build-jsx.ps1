@@ -1,8 +1,10 @@
 # Precompile JSX -> classic JS via esbuild (no in-browser Babel).
 # Each file transforms JSX to React.createElement and keeps top-level
 # declarations in the shared global lexical scope, exactly as the old
-# type="text/babel" pipeline did. NO minify: minification would rename
-# top-level globals and break cross-file references (SIGNALS, useStore, etc.).
+# type="text/babel" pipeline did. NO minify here: these committed .js are
+# byte-compared by tests/release-gate.mjs. build-dist.ps1 minifies the dist copies
+# only, and never renames identifiers (renaming top-level globals would break
+# cross-file references such as SIGNALS and useStore).
 #
 # Uses the esbuild version pinned in package.json (run `npm ci` once), never
 # `npx --yes esbuild`, which fetched whatever version was latest that day.
@@ -13,10 +15,10 @@ $ErrorActionPreference = "Stop"
 Set-Location -LiteralPath $PSScriptRoot
 $esbuild = Join-Path $PSScriptRoot "node_modules\esbuild\bin\esbuild"
 if (-not (Test-Path -LiteralPath $esbuild)) { throw "Pinned esbuild not found at $esbuild. Run: npm ci" }
-$files = @("data","entities","icons","store","shell","pages","app")
+$files = @("data","entities","icons","store","store-detail","shell","pages-shared","pages-today","pages-workspace","pages-reference","app")
 foreach ($f in $files) {
   Write-Host "compiling $f.jsx -> $f.js"
   & node $esbuild "$f.jsx" "--outfile=$f.js" --target=es2018 --loader:.jsx=jsx --log-level=warning
   if ($LASTEXITCODE -ne 0) { throw "esbuild failed on $f.jsx" }
 }
-Write-Host "JSX precompile complete: 7 files"
+Write-Host "JSX precompile complete: $($files.Count) files"

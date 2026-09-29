@@ -28,7 +28,8 @@
 // declaring production clean, because an unverified surface is not a clean one.
 //
 // Usage:
-//   ./build-dist.ps1            (first: writes the local dist/build-info.json)
+//   ./build-dist.ps1            (first: writes the local dist/build-info.json,
+//                                whose js_map names the hashed scripts to scan)
 //   node tests/production-probe.mjs [baseUrl]
 //   PULSE_PROD_BASE=https://parliament-pulse.pages.dev node tests/production-probe.mjs
 //   node tests/production-probe.mjs --canary-only   (runs both detection proofs only, no network)
@@ -40,16 +41,18 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { BANNED, scan } from "./fabrication-patterns.mjs";
-import { BROWSER_UA, DENYLIST, classifyDenied, compareProvenance } from "./deploy-probe-lib.mjs";
+import { BROWSER_UA, DENYLIST, classifyDenied, compareProvenance, shippedUrls } from "./deploy-probe-lib.mjs";
+import { JSX_FILES } from "../scripts/build-config.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
 const canaryOnly = args.includes("--canary-only");
 const BASE = (args.find(a => !a.startsWith("--")) || process.env.PULSE_PROD_BASE || "https://parliament-pulse.pages.dev").replace(/\/+$/, "");
 
-// The render layer Cloudflare Pages serves. The fabrications lived in the data
-// and render modules; index.html anchors the shell.
-const SHIPPED_URLS = ["index.html", "data.js", "store.js", "pages.js", "entities.js", "app.js", "shell.js"];
+// The render layer Cloudflare Pages serves: index.html plus every app script.
+// Since FE-11 the scripts ship minified under content-hashed names, so the list
+// is read from the local dist/build-info.json (js_map) after the canaries run.
+const APP_SCRIPTS = JSX_FILES.map(f => `${f}.js`);
 
 // Minimum distinct fabrication classes the archived bundle must trip for the
 // probe to trust its own detection. The pre-sweep bundle contains many; require a
@@ -108,6 +111,15 @@ async function get(url) {
 // ---------------------------------------------------------------------------
 // THE FABRICATION SCAN
 // ---------------------------------------------------------------------------
+const readJson = buf => JSON.parse(buf.toString("utf8").replace(/^﻿/, ""));
+const localInfoPath = path.join(root, "dist", "build-info.json");
+let SHIPPED_URLS;
+try {
+  SHIPPED_URLS = shippedUrls(readJson(fs.readFileSync(localInfoPath)), APP_SCRIPTS);
+} catch (e) {
+  console.error(`PROBE ABORT: cannot name the shipped scripts: ${e.message}. Run ./build-dist.ps1 first (fail-closed).`);
+  process.exit(1);
+}
 console.log(`Probing ${BASE} across ${SHIPPED_URLS.length} shipped files.`);
 let findings = 0;
 let fetchFailures = 0;
@@ -135,8 +147,6 @@ for (const file of SHIPPED_URLS) {
 // (a) DEPLOY PROVENANCE
 // ---------------------------------------------------------------------------
 let provenanceFailures = 0;
-const readJson = buf => JSON.parse(buf.toString("utf8").replace(/^﻿/, ""));
-const localInfoPath = path.join(root, "dist", "build-info.json");
 if (!fs.existsSync(localInfoPath)) {
   console.error(`\nPROVENANCE FAIL: ${localInfoPath} not found. Run ./build-dist.ps1 first; without a local manifest drift cannot be measured (fail-closed).`);
   provenanceFailures++;

@@ -7,6 +7,7 @@
 //   startServer()    serves a dist directory through node:http on
 //                    127.0.0.1:8080, with the Content-Security-Policy from
 //                    dist/_headers applied, so a CSP regression shows up here.
+//                    Pages load from http://pulse.localhost:8080/ (PAGE_HOST).
 //   routeFixtures()  intercepts every Worker call the app makes and answers it
 //                    from tests/fixtures/: /state, /bills, /rss (and the local
 //                    dev proxy the app uses on 127.0.0.1), /alerts. Every other
@@ -27,6 +28,7 @@
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
+import crypto from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
@@ -34,6 +36,13 @@ export const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "
 export const FIXTURES = path.join(root, "tests", "fixtures");
 export const PORT = 8080;
 export const HOST = "127.0.0.1";
+// The hostname the browser loads the app from (FE-11). The server listens on
+// 127.0.0.1, and Chromium resolves every *.localhost name to loopback and treats
+// it as a secure context. The app switches to the local dev proxy only when the
+// hostname is exactly "localhost" or "127.0.0.1", so on this name it takes its
+// PRODUCTION path (the Worker, answered from tests/fixtures/) under the
+// PRODUCTION CSP from dist/_headers, which no longer allows a local port.
+export const PAGE_HOST = "pulse.localhost";
 export const WORKER_ORIGIN = "https://aph-proxy.jvega019.workers.dev";
 
 const fixture = name => fs.readFileSync(path.join(FIXTURES, name), "utf8");
@@ -54,6 +63,26 @@ export function buildDist() {
     return path.join(root, "dist");
   }
   throw new Error("build-dist.ps1 needs PowerShell (pwsh or powershell) on PATH");
+}
+
+// ---- canary edits on a scratch dist ---------------------------------------------
+// Since FE-11 dist ships each app script minified under a content-hashed name.
+// A canary names the plain file ("shell.js") and a snippet of the unminified
+// source. This resolves the name through the scratch copy's build-info.json
+// js_map and, on the first edit, swaps the minified bytes for the committed
+// unminified .js (the same code: tests/global-scope.test.mjs proves the minified
+// copy resolves every name and renders the same surfaces), so the snippet
+// matches and later edits to the same file build on earlier ones. Non-script
+// files (index.html) resolve to themselves.
+export function editableDistFile(dir, file) {
+  const infoPath = path.join(dir, "build-info.json");
+  const info = fs.existsSync(infoPath) ? JSON.parse(fs.readFileSync(infoPath, "utf8").replace(/^﻿/, "")) : null;
+  const hashed = info && info.js_map && info.js_map[file];
+  if (!hashed) return path.join(dir, file);
+  const p = path.join(dir, hashed);
+  const sha = crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex");
+  if (sha === info.files[hashed]) fs.copyFileSync(path.join(root, file), p);
+  return p;
 }
 
 // ---- static server -----------------------------------------------------------
@@ -98,7 +127,7 @@ export function startServer(distDir, { port = PORT, host = HOST } = {}) {
   return new Promise((resolve, reject) => {
     server.once("error", reject);
     server.listen(port, host, () => resolve({
-      url: `http://${host}:${port}/`,
+      url: `http://${PAGE_HOST}:${port}/`,
       close: () => new Promise(r => server.close(() => r())),
     }));
   });
@@ -119,7 +148,7 @@ export async function routeFixtures(context, { stateFile = "state.json" } = {}) 
   await context.route("**/*", async route => {
     const req = route.request();
     const u = new URL(req.url());
-    const local = u.hostname === "127.0.0.1" || u.hostname === "localhost";
+    const local = u.hostname === "127.0.0.1" || u.hostname === "localhost" || u.hostname === PAGE_HOST;
     // Any harness static server (8080, or a canary server on another port) is served for real.
     if (local && u.port !== "3001" && u.protocol === "http:") return route.continue();
     if (u.protocol === "data:" || u.protocol === "blob:") return route.continue();
@@ -157,7 +186,7 @@ export async function navDesks(page) {
 
 // Open one desk. theme: "dark" | "light"; width: CSS px; firstVisit: leave the
 // beta notice and the How it works guide in their first-visit state.
-export async function openDesk(page, id, { theme = "dark", width = 1280, height = 900, firstVisit = false, baseUrl = `http://${HOST}:${PORT}/` } = {}) {
+export async function openDesk(page, id, { theme = "dark", width = 1280, height = 900, firstVisit = false, baseUrl = `http://${PAGE_HOST}:${PORT}/` } = {}) {
   await page.setViewportSize({ width, height });
   await page.clock.setFixedTime(FIXTURE_CLOCK);
   await page.goto(baseUrl, { waitUntil: "load" });

@@ -15,7 +15,31 @@ import { fileURLToPath } from "node:url";
 
 export const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-export const JSX_FILES = ["data", "entities", "icons", "store", "shell", "pages", "app"];
+// Load order: index.html loads the built .js in exactly this order (FE-11 split
+// pages.jsx and store.jsx, ARCH-11). tests/asset-manifest.test.mjs checks that
+// index.html agrees, and tests/global-scope.test.mjs loads the minified dist copies
+// in this order.
+export const JSX_FILES = [
+  "data", "entities", "icons",
+  "store", "store-detail",
+  "shell",
+  "pages-shared", "pages-today", "pages-workspace", "pages-reference",
+  "app",
+];
+
+// Logical modules for tests that address source by concern: "store" and "pages"
+// were single files before FE-11. readModule() joins a group's files in load order
+// with the same newline-semicolon-newline separator the render harnesses use, so a canary that
+// mutates text inside the group behaves as it did against the single file.
+export const MODULE_GROUPS = {
+  store: ["store", "store-detail"],
+  pages: ["pages-shared", "pages-today", "pages-workspace", "pages-reference"],
+};
+export const GROUP_JOIN = "\n;\n";
+export function moduleFiles(name) { return MODULE_GROUPS[name] || [name]; }
+export function readModule(name, ext = "js") {
+  return moduleFiles(name).map(f => fs.readFileSync(path.join(root, `${f}.${ext}`), "utf8")).join(GROUP_JOIN);
+}
 
 export const ESBUILD_FLAGS = ["--target=es2018", "--loader:.jsx=jsx"];
 
@@ -31,6 +55,30 @@ export function compile(base, outfile) {
     return { ok: false, error: `pinned esbuild not installed at ${ESBUILD_BIN}. Run npm ci.` };
   }
   const r = spawnSync(process.execPath, [ESBUILD_BIN, `${base}.jsx`, `--outfile=${outfile}`, ...ESBUILD_FLAGS, "--log-level=warning"], {
+    cwd: root,
+    encoding: "utf8",
+  });
+  if (r.status !== 0) return { ok: false, error: (r.stderr || r.stdout || `exit ${r.status}`).trim() };
+  return { ok: true };
+}
+
+// FE-11 (PR-16): the dist copies of the built .js are minified by
+// scripts/dist-finalise.mjs, never the committed .js (tests/release-gate.mjs
+// byte-compares those). Whitespace and syntax only: NO --minify-identifiers, NO
+// --bundle and NO --format, so each file stays a classic script whose top-level
+// declarations share the one global lexical scope. The target matches
+// ESBUILD_FLAGS so syntax minification never emits newer syntax than the build.
+// tests/global-scope.test.mjs proves the minified files still resolve every
+// cross-file name.
+export const MINIFY_FLAGS = ["--minify-whitespace", "--minify-syntax", "--target=es2018", "--legal-comments=none"];
+
+// Minify one .js file to an outfile with the pinned esbuild. extraFlags exists
+// for the global-scope canary only.
+export function minify(infile, outfile, extraFlags = []) {
+  if (!fs.existsSync(ESBUILD_BIN)) {
+    return { ok: false, error: `pinned esbuild not installed at ${ESBUILD_BIN}. Run npm ci.` };
+  }
+  const r = spawnSync(process.execPath, [ESBUILD_BIN, infile, `--outfile=${outfile}`, ...MINIFY_FLAGS, ...extraFlags, "--log-level=warning"], {
     cwd: root,
     encoding: "utf8",
   });

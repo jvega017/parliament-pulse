@@ -39,7 +39,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { launch, startServer, FIXTURES, FIXTURE_CLOCK } from "./harness.mjs";
+import { launch, startServer, FIXTURES, FIXTURE_CLOCK, editableDistFile } from "./harness.mjs";
 
 const STATE = JSON.parse(fs.readFileSync(path.join(FIXTURES, "state.json"), "utf8"));
 const FIXTURE_SIGNAL = STATE.blocks.signals.items[0];
@@ -239,7 +239,7 @@ function scratchCopy(dist, name) {
   return dir;
 }
 function mutate(dir, file, from, to) {
-  const p = path.join(dir, file);
+  const p = editableDistFile(dir, file);
   const s = fs.readFileSync(p, "utf8");
   if (!s.includes(from)) throw new Error(`canary mutation did not apply to ${file}: ${from}`);
   fs.writeFileSync(p, s.split(from).join(to));

@@ -28,6 +28,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { JSX_FILES } from "../scripts/build-config.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -262,7 +263,7 @@ function read(file) {
 
 const appJsx = read("app.jsx");
 const storeJsx = read("store.jsx");
-const SOURCE_FILES = ["app.jsx", "shell.jsx", "pages.jsx", "store.jsx", "entities.jsx", "data.jsx", "icons.jsx"];
+const SOURCE_FILES = JSX_FILES.map(f => `${f}.jsx`);
 
 // 1. Skip link
 if (!hasSkipLink(appJsx)) {

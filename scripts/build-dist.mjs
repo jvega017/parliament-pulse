@@ -1,0 +1,294 @@
+// Assemble the deployable dist/ folder (FE-01 allowlist, FE-11 performance).
+//
+// build-dist.ps1 is the entry point (it recompiles the JSX first, then runs this
+// file); `node scripts/build-dist.mjs [outDir]` does the same without the
+// recompile. tests/global-scope.test.mjs and tests/dist-output.test.mjs call
+// buildDist() on a scratch directory, so the tests exercise the real pipeline,
+// not a copy of it.
+//
+// Steps, in order:
+//   1. Copy ONLY the allowlisted files (DIST_FILES, DIST_DIRS minus DIST_EXCLUDED)
+//      and write 404.html and robots.txt. Nothing else can reach production.
+//   2. Record the brotli size of every JS, CSS and font file as copied ("before").
+//   3. Minify each app .js with the pinned esbuild (MINIFY_FLAGS: whitespace and
+//      syntax only, no identifier renaming, no bundle, no format), rename it to
+//      <name>.<sha256-8>.js and rewrite its <script> tag in dist/index.html.
+//      The committed .js stay unminified: tests/release-gate.mjs byte-compares them.
+//   4. dist/_headers: replace the app-scripts block with one year-long immutable
+//      Cache-Control rule per hashed file, and strip the local dev proxy origins
+//      from connect-src (PR-16, SEC-13). The repo copy keeps both for local work.
+//   5. Record the brotli sizes again ("after") and write dist/build-info.json:
+//      git SHA, build time, sha256 of every file, the hashed-name map and both
+//      brotli tables. tests/production-probe.mjs reads it to find the hashed names.
+
+import fs from "node:fs";
+import path from "node:path";
+import os from "node:os";
+import zlib from "node:zlib";
+import crypto from "node:crypto";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { root, JSX_FILES, minify } from "./build-config.mjs";
+
+// ---- the allowlist ------------------------------------------------------------
+// Add a file here deliberately, never by widening a wildcard.
+export const DIST_FILES = [
+  "index.html",
+  ...JSX_FILES.map(f => `${f}.js`),
+  "_headers",
+  "manifest.webmanifest",
+  "favicon.ico",
+];
+export const DIST_DIRS = ["vendor", "assets"];
+// Files inside allowlisted directories that must still never ship.
+export const DIST_EXCLUDED = ["assets/asset-forge.html"];
+
+// The FE-11 baseline: brotli sizes (node zlib, quality 11) of the JS, CSS and
+// font files the dist of commit 40e61af shipped, before the split, the minify
+// and the font dedupe. Measured once from the git objects on 29 Sep 2026 and
+// kept as a fixed reference; every build also records its own before/after pair.
+export const BASELINE_PRE_FE11 = {
+  commit: "40e61af", measured: "2026-09-29",
+  js: 103350, css: 171, font: 288082, total: 391603,
+  note: "7 unminified app scripts plus vendor React; fonts.css; 10 woff2 files, 4 of them byte-identical copies of the IBM Plex Sans variable font",
+};
+
+const NOT_FOUND_HTML = `<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Page not found - Parliament Pulse</title>
+<style>
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #07080e; color: #e8e9ee; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 32rem; padding: 2rem 1rem; text-align: center; }
+  h1 { font-size: 1.5rem; margin: 0 0 0.75rem; }
+  p { color: #a9acb8; line-height: 1.5; }
+  a { color: #7fb2ff; }
+  a:focus-visible { outline: 2px solid #7fb2ff; outline-offset: 3px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Page not found</h1>
+  <p>This address is not part of Parliament Pulse.</p>
+  <p><a href="/">Return to Parliament Pulse</a></p>
+</main>
+</body>
+</html>`;
+const ROBOTS_TXT = "User-agent: *\nAllow: /\nDisallow: /build-info.json\n";
+
+// The local dev proxy origins. Allowed in the repo _headers for local work, never
+// in production.
+export const DEV_ORIGINS = ["http://localhost:3001", "http://127.0.0.1:3001"];
+
+// ---- pure helpers (exported for the tests) -------------------------------------
+export const sha256 = buf => crypto.createHash("sha256").update(buf).digest("hex");
+export const hashedName = (base, buf) => `${base}.${sha256(buf).slice(0, 8)}.js`;
+export const brotliSize = buf => zlib.brotliCompressSync(buf, { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 11 } }).length;
+
+// Replace each <script src="<name>.js"> with its hashed name. Every mapped file
+// must appear exactly once, or the build stops.
+export function rewriteScriptTags(html, jsMap) {
+  let out = html;
+  for (const [plain, hashed] of Object.entries(jsMap)) {
+    const tag = `<script src="${plain}"></script>`;
+    const n = out.split(tag).length - 1;
+    if (n !== 1) throw new Error(`index.html carries ${n} copies of ${tag}; expected exactly 1`);
+    out = out.replace(tag, `<script src="${hashed}"></script>`);
+  }
+  return out;
+}
+
+// The production _headers: the app-scripts block becomes one immutable rule per
+// hashed file, and the dev proxy origins leave connect-src.
+export function productionHeaders(text, hashedFiles) {
+  const begin = text.indexOf("# app-scripts:begin");
+  const endMark = "# app-scripts:end";
+  const end = text.indexOf(endMark);
+  if (begin < 0 || end < begin) throw new Error("_headers has no app-scripts:begin / app-scripts:end block");
+  const rules = hashedFiles.map(f => `/${f}\n  Cache-Control: public, max-age=31536000, immutable\n`).join("\n");
+  const block = `# app-scripts (generated by scripts/build-dist.mjs): content-hashed names,\n# so a year-long immutable cache is safe.\n${rules}`;
+  let out = text.slice(0, begin) + block + text.slice(end + endMark.length).replace(/^\n/, "");
+  out = out.split("\n").map(line => {
+    if (!/^\s+Content-Security-Policy:/.test(line)) return line;
+    let l = line;
+    for (const o of DEV_ORIGINS) l = l.split(` ${o}`).join("");
+    return l;
+  }).join("\n");
+  return out;
+}
+
+// Parse Cloudflare Pages _headers into rules: an unindented line is a URL
+// pattern, the indented "Name: value" lines under it are its headers.
+export function parseHeaders(text) {
+  const rules = [];
+  let cur = null;
+  for (const raw of text.split(/\r?\n/)) {
+    if (/^\s*#/.test(raw) || !raw.trim()) continue;
+    if (/^\S/.test(raw)) { cur = { pattern: raw.trim(), headers: {} }; rules.push(cur); continue; }
+    const m = raw.match(/^\s+([^:]+):\s*(.*)$/);
+    if (m && cur) (cur.headers[m[1].trim().toLowerCase()] ||= []).push(m[2].trim());
+  }
+  return rules;
+}
+
+// Pages URL-pattern semantics: "*" is a splat that matches any run of characters
+// (slashes included) and ":name" matches one path segment. Anchored both ends.
+export function patternMatches(pattern, urlPath) {
+  const re = "^" + pattern.split(/(\*|:[A-Za-z_]\w*)/).map(part => {
+    if (part === "*") return ".*";
+    if (/^:[A-Za-z_]\w*$/.test(part)) return "[^/]+";
+    return part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }).join("") + "$";
+  return new RegExp(re).test(urlPath);
+}
+
+// Paths that match more than one rule carrying a given header. Pages
+// concatenates the values of every matching rule, so for Cache-Control two
+// matches produce a garbage combined value.
+export function headerConflicts(text, urlPaths, header = "cache-control") {
+  const rules = parseHeaders(text).filter(r => r.headers[header]);
+  const out = [];
+  for (const p of urlPaths) {
+    const hits = rules.filter(r => patternMatches(r.pattern, p));
+    if (hits.length > 1) out.push({ path: p, patterns: hits.map(r => r.pattern) });
+  }
+  return out;
+}
+
+// The Cache-Control value a path receives (null when no rule sets one).
+export function cacheControlFor(text, urlPath) {
+  const hits = parseHeaders(text).filter(r => r.headers["cache-control"] && patternMatches(r.pattern, urlPath));
+  return hits.length ? hits.flatMap(r => r.headers["cache-control"]).join(", ") : null;
+}
+
+// URL paths Pages serves for a dist directory ("/" for index.html as well).
+export function servedPaths(distDir) {
+  const walk = dir => fs.readdirSync(dir, { withFileTypes: true }).flatMap(e =>
+    e.isDirectory() ? walk(path.join(dir, e.name)) : [path.relative(distDir, path.join(dir, e.name)).replace(/\\/g, "/")]);
+  return ["/", ...walk(distDir).filter(f => f !== "_headers").map(f => `/${f}`)];
+}
+
+// Brotli sizes of every JS, CSS and font file under dir.
+export function sizeTable(dir) {
+  const files = {};
+  const totals = { js: 0, css: 0, font: 0 };
+  const walk = d => fs.readdirSync(d, { withFileTypes: true }).forEach(e => {
+    const full = path.join(d, e.name);
+    if (e.isDirectory()) return walk(full);
+    const kind = /\.js$/i.test(e.name) ? "js" : /\.css$/i.test(e.name) ? "css" : /\.woff2?$/i.test(e.name) ? "font" : null;
+    if (!kind) return;
+    const size = brotliSize(fs.readFileSync(full));
+    files[path.relative(dir, full).replace(/\\/g, "/")] = size;
+    totals[kind] += size;
+  });
+  walk(dir);
+  return { totals: { ...totals, total: totals.js + totals.css + totals.font }, files };
+}
+
+function localIsoNow() {
+  const d = new Date();
+  const pad = n => String(Math.abs(n)).padStart(2, "0");
+  const off = -d.getTimezoneOffset();
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}${off >= 0 ? "+" : "-"}${pad(Math.trunc(off / 60))}:${pad(off % 60)}`;
+}
+
+function git(args) {
+  const r = spawnSync("git", ["-C", root, ...args], { encoding: "utf8" });
+  if (r.status !== 0) throw new Error(`git ${args.join(" ")} failed: ${(r.stderr || "").trim()}`);
+  return r.stdout;
+}
+
+// ---- the build ---------------------------------------------------------------------
+// outDir is emptied and rebuilt. extraMinifyFlags exists only for the
+// global-scope canary. writeBuildInfo:false skips the git calls (scratch builds).
+export function buildDist(outDir, { extraMinifyFlags = [], writeBuildInfo = true } = {}) {
+  fs.rmSync(outDir, { recursive: true, force: true });
+  fs.mkdirSync(outDir, { recursive: true });
+
+  // 1. allowlist copy
+  for (const f of DIST_FILES) {
+    const src = path.join(root, f);
+    if (!fs.existsSync(src)) throw new Error(`allowlisted file missing: ${f}`);
+    fs.copyFileSync(src, path.join(outDir, f));
+  }
+  for (const d of DIST_DIRS) {
+    const srcDir = path.join(root, d);
+    if (!fs.existsSync(srcDir)) throw new Error(`allowlisted directory missing: ${d}`);
+    const walk = dir => fs.readdirSync(dir, { withFileTypes: true }).forEach(e => {
+      const full = path.join(dir, e.name);
+      if (e.isDirectory()) return walk(full);
+      const rel = path.relative(root, full).replace(/\\/g, "/");
+      if (DIST_EXCLUDED.includes(rel)) return;
+      const dest = path.join(outDir, rel);
+      fs.mkdirSync(path.dirname(dest), { recursive: true });
+      fs.copyFileSync(full, dest);
+    });
+    walk(srcDir);
+  }
+  fs.writeFileSync(path.join(outDir, "404.html"), NOT_FOUND_HTML.replace(/\r\n/g, "\n"));
+  fs.writeFileSync(path.join(outDir, "robots.txt"), ROBOTS_TXT);
+
+  // 2. sizes before
+  const before = sizeTable(outDir);
+
+  // 3. minify, hash, rename, rewrite index.html
+  const jsMap = {};
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pp-min-"));
+  try {
+    for (const base of JSX_FILES) {
+      const plain = path.join(outDir, `${base}.js`);
+      const out = path.join(tmp, `${base}.js`);
+      const r = minify(plain, out, extraMinifyFlags);
+      if (!r.ok) throw new Error(`minify failed on ${base}.js: ${r.error}`);
+      const buf = fs.readFileSync(out);
+      const name = hashedName(base, buf);
+      fs.writeFileSync(path.join(outDir, name), buf);
+      fs.rmSync(plain);
+      jsMap[`${base}.js`] = name;
+    }
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+  const indexPath = path.join(outDir, "index.html");
+  fs.writeFileSync(indexPath, rewriteScriptTags(fs.readFileSync(indexPath, "utf8"), jsMap));
+
+  // 4. production _headers
+  const headersPath = path.join(outDir, "_headers");
+  fs.writeFileSync(headersPath, productionHeaders(fs.readFileSync(headersPath, "utf8"), Object.values(jsMap)));
+
+  // 5. sizes after, build-info.json
+  const after = sizeTable(outDir);
+  const brotli = {
+    method: "node:zlib brotliCompressSync, quality 11",
+    baseline_pre_fe11: BASELINE_PRE_FE11,
+    before: before.totals, after: after.totals,
+    files_before: before.files, files_after: after.files,
+  };
+  const info = { git_sha: null, git_dirty: null, built_at: localIsoNow(), js_map: jsMap, brotli, files: {} };
+  if (writeBuildInfo) {
+    info.git_sha = git(["rev-parse", "HEAD"]).trim();
+    info.git_dirty = git(["status", "--porcelain", "--untracked-files=no"]).trim().length > 0;
+  }
+  const all = [];
+  const walk = dir => fs.readdirSync(dir, { withFileTypes: true }).forEach(e => {
+    const full = path.join(dir, e.name);
+    if (e.isDirectory()) return walk(full);
+    all.push(path.relative(outDir, full).replace(/\\/g, "/"));
+  });
+  walk(outDir);
+  for (const rel of all.sort()) info.files[rel] = sha256(fs.readFileSync(path.join(outDir, rel)));
+  fs.writeFileSync(path.join(outDir, "build-info.json"), JSON.stringify(info, null, 2) + "\n");
+  return info;
+}
+
+// ---- CLI ------------------------------------------------------------------------------
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const outDir = path.resolve(process.argv[2] || path.join(root, "dist"));
+  const info = buildDist(outDir);
+  const b = info.brotli;
+  console.log(`dist/ built from ${info.git_sha}${info.git_dirty ? " (working tree has uncommitted changes)" : ""}: ${Object.keys(info.files).length} files plus build-info.json`);
+  console.log(`brotli JS ${b.before.js} -> ${b.after.js} bytes, CSS ${b.before.css} -> ${b.after.css}, fonts ${b.before.font} -> ${b.after.font}, total ${b.before.total} -> ${b.after.total}`);
+}

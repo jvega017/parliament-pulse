@@ -46,7 +46,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { launch, openDesk, navDesks, startServer } from "./harness.mjs";
+import { launch, openDesk, navDesks, startServer, editableDistFile } from "./harness.mjs";
 
 // 320, 390 and 1280 are the FE-07 acceptance widths; 820 (tablet portrait) and
 // 1024 cover the 781 to 1100 px band where the topbar used to overflow.
@@ -261,7 +261,7 @@ function scratchCopy(dist, name) {
   return dir;
 }
 function mutate(dir, file, from, to) {
-  const p = path.join(dir, file);
+  const p = editableDistFile(dir, file);
   const s = fs.readFileSync(p, "utf8");
   const n = from instanceof RegExp ? (s.match(new RegExp(from.source, from.flags.includes("g") ? from.flags : from.flags + "g")) || []).length : s.split(from).length - 1;
   if (n < 1) throw new Error(`canary mutation did not apply to ${file}: ${from}`);
@@ -290,13 +290,13 @@ const CANARIES = [
   { name: "stack-css", check: "tables",
     apply: d => mutate(d, "index.html", "@media (max-width: 640px) {\n    .table-scroll table.ds.ds-stack", "@media (max-width: 1px) {\n    .table-scroll table.ds.ds-stack") },
   { name: "overview-order", check: "first-sig",
-    apply: d => mutate(d, "pages.js", 'className: "page page-overview"', 'className: "page"') },
+    apply: d => mutate(d, "pages-today.js", 'className: "page page-overview"', 'className: "page"') },
   { name: "card-clip", check: "live-clip",
     apply: d => mutate(d, "index.html", "aspect-ratio: 16 / 9; overflow: visible;", "aspect-ratio: 16 / 9; overflow: hidden;") },
   { name: "eager-embed", check: "player",
-    apply: d => mutate(d, "pages.js", 'React.useState("card")', 'React.useState("embed")') },
+    apply: d => mutate(d, "pages-today.js", 'React.useState("card")', 'React.useState("embed")') },
   { name: "autoplay", check: "player",
-    apply: d => mutate(d, "pages.js", "live_stream?channel=${APH_YT_CHANNEL}`", "live_stream?channel=${APH_YT_CHANNEL}&autoplay=1&mute=1`") },
+    apply: d => mutate(d, "pages-today.js", "live_stream?channel=${APH_YT_CHANNEL}`", "live_stream?channel=${APH_YT_CHANNEL}&autoplay=1&mute=1`") },
 ];
 
 async function runCanary(h, c) {

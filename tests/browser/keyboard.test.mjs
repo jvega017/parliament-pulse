@@ -47,7 +47,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { launch, openDesk, navDesks, startServer } from "./harness.mjs";
+import { launch, openDesk, navDesks, startServer, editableDistFile } from "./harness.mjs";
 
 let failures = 0;
 const check = (ok, label, detail = "") => {
@@ -356,7 +356,7 @@ function mutate(distDir, c) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), `pp-kbd-${c.name}-`));
   fs.cpSync(distDir, dir, { recursive: true });
   for (const e of c.edits || [c]) {
-    const p = path.join(dir, e.file);
+    const p = editableDistFile(dir, e.file);
     const src = fs.readFileSync(p, "utf8");
     const from = src.includes("\r\n") ? e.from.replace(/\n/g, "\r\n") : e.from;
     const to = src.includes("\r\n") ? e.to.replace(/\n/g, "\r\n") : e.to;

@@ -9,8 +9,10 @@ npm run gate    # rebuild every .jsx, then run every local gate below; stops at 
 npm run probe   # production probe against the deployed site (network; not part of the gate)
 ```
 
-`npm run build` alone rebuilds the seven `.js` files (the cross-platform
-equivalent of `build-jsx.ps1`, which now calls the same pinned binary).
+`npm run build` alone rebuilds the eleven `.js` files listed in `JSX_FILES`
+(`scripts/build-config.mjs`; the cross-platform equivalent of `build-jsx.ps1`,
+which calls the same pinned binary). Tests that address source by concern read
+the `store` and `pages` module groups through `readModule()` in the same file.
 `node tests/deploy-integrity.test.mjs` runs `build-dist.ps1` and inspects
 `dist/`; it needs PowerShell, so it runs locally before a deploy and is not
 in `npm run gate` or CI. CI (`.github/workflows/ci.yml`) runs `npm ci`,
@@ -28,7 +30,9 @@ in `npm run gate` or CI. CI (`.github/workflows/ci.yml`) runs `npm ci`,
 | `analytics-honesty.test.mjs` | FE-06. Renders Bills, the Signal inbox, Activity by source (the old radar), About and the search palette against an all-MEDIUM fixture and a mixed fixture: with one shared value the Attention and Confidence columns disappear and "All N items currently score Medium attention; the score does not yet separate them." renders; with mixed values the columns render; confidence reads "Confidence n of 5", never n/5 or a bar; Activity by source has Source group, Items and Feeds and none of "momentum", "issue" or "suggested action"; every attention badge carries the heuristic disclosure tooltip and About has the paragraph; the Bills page-sub names the Bills Digest scope and links to the APH bills search; a live signal's brief has no empty "Recommended action"; a search for a fixture bill title returns a Bills group from the live /bills cache, every group label states its real scope, and no Members group renders | Yes (10 scratch-copy canaries: uniform detection removed, uniform detection forced, confidence n/5, momentum column, issue wording, tooltip removed, scope sentence removed, empty action restored, search bills source removed, scope label removed) |
 | `state-contract.test.mjs` | Worker `GET /state` payload shape; a degraded block never fabricates content | No (assertion-based, not canary-based) |
 | `beta-contract.test.mjs` | No public-facing "demo" wording; beta-evidence UI elements are present | No (assertion-based, not canary-based) |
-| `asset-manifest.test.mjs` | Every asset `index.html` references exists on disk; zero external-origin references in functional `src`/`href`/`content` attributes or `_headers` directive values; `assets/fonts/fonts.css` URLs resolve relative to their own directory; the og image stays under 300KB | Yes |
+| `asset-manifest.test.mjs` | Every asset `index.html` references exists on disk; `index.html` loads the app scripts in exactly `JSX_FILES` order; zero external-origin references in functional `src`/`href`/`content` attributes or `_headers` directive values; `assets/fonts/fonts.css` URLs resolve relative to their own directory; the og image stays under 300KB | Yes |
+| `global-scope.test.mjs` | FE-11. Parses the unminified built .js for top-level function, const, let and class names another file references (82 of 193 today), builds a scratch dist with `scripts/build-dist.mjs`, loads its minified, hash-named scripts in `index.html` order into one `node:vm` context, and asserts every one of those names resolves; then runs the honest-surfaces render (`honest-surfaces-lib.mjs`) against the minified bundle. Parser self-checks: every reported name resolves unminified, and no global function declaration is missed | Yes (scope-breaking builds `--format=iife`, `--bundle --minify-identifiers` and `--minify-identifiers --format=iife` must fail. Measured: `--minify-identifiers` alone keeps top-level names of a classic script in esbuild 0.28.2, so that build is run and reported, not required to fail) |
+| `dist-output.test.mjs` | FE-11. On a scratch dist (and on `dist/` when built): no localhost or 127.0.0.1 origin in `dist/_headers` while the repo copy keeps them; every served path matches at most one Cache-Control rule (Pages concatenates matching rules); hashed scripts get `public, max-age=31536000, immutable`, `/` and `/index.html` get `public, max-age=0, must-revalidate`; `index.html` loads only hashed scripts that exist and carry their own content hash; no plain-named app .js or any .jsx ships; brotli JS after is smaller than before and than the pre-FE-11 baseline; every woff2 is referenced by fonts.css, keeps `font-display: swap`, and none is a byte-identical copy | Yes (10 planted defects, including the old `/assets/fonts/*` overlap and a duplicated font file) |
 | `a11y.test.mjs` | Static structural approximation (the rendered-DOM scan is `npm run a11y`, below). Skip link, `<main id="pp-content">` landmark, toast container ARIA roles, image alt text, icon-only-button aria-labels, form-control labels, no positive tabindex | Yes |
 | `keyboard-static.test.mjs` | FE-10 (A11Y-01, WCAG 2.1.1). No `onClick` or `onMouseDown` on a non-interactive element (div, span, tr, td, li and the rest) unless it also has `role`, `tabIndex={0}` and `onKeyDown`. Two marked exemptions, each verified: `a11y-exempt: backdrop` (the scrim must be `aria-hidden`) and `a11y-exempt: stop` (the handler may only stop propagation). `SCAN_ROOT=<dir>` points it at a scratch copy | Yes (9 seeded mouse-only specimens caught, 6 compliant specimens left alone) |
 
@@ -42,7 +46,10 @@ npm run a11y                      # axe.test.mjs: the real axe-core scan (FE-10)
 
 `tests/browser/harness.mjs` is the shared harness (FE-09 and FE-10 reuse it). It
 runs `build-dist.ps1`, serves `dist/` on 127.0.0.1:8080 through `node:http` with
-the production CSP from `dist/_headers`, answers the Worker's `/state`, `/bills`,
+the production CSP from `dist/_headers`, and loads pages from
+`http://pulse.localhost:8080/` (Chromium resolves `*.localhost` to loopback), so
+the app takes its production path under the production CSP, which since FE-11 no
+longer allows the local dev proxy. It answers the Worker's `/state`, `/bills`,
 `/rss` (and the local dev proxy) and `/alerts` from `tests/fixtures/`, refuses
 every other external request, and pins the browser clock to the fixture time,
 so runs are deterministic and offline. `openDesk(page, id, { theme, width, firstVisit })`
@@ -58,6 +65,14 @@ heading and buttons unclipped at 390 and 320 px; the first Overview signal above
 `data-label` at 390 px and stay tables at 1280 px; Sources fits its panel with
 both Worker shapes; Live has no iframe and makes no YouTube request until
 "Load YouTube player", then embeds the verified channel with no `autoplay=1`.
+
+`design.test.mjs` (FE-09) also carries the FE-11 fonts check: on the Overview at
+1280 x 800 and 390 x 844, first visit and returning, every font file that renders
+text inside the first viewport (mapped from the computed family and weight through
+fonts.css with the CSS weight-matching rules) is preloaded, every preload renders
+text there, and no font file is fetched under two URLs. Canaries: the Serif 600
+preload removed, an unused Serif 700 preload added, the Sans preload under a
+second URL.
 Nine scratch-copy canaries (served on 8081) each remove one control and must be
 caught.
 
@@ -92,7 +107,12 @@ must fail on button-name and image-alt before the clean build is trusted. It als
 checks the About accessibility section (`#/about/accessibility`) against the run:
 state count, axe-core version and tags must match, and the stated scan date must
 not be later than the run (it prints a note when they differ, so re-issue
-`A11Y_SCAN` in pages.jsx after a clean run on a changed UI).
+`A11Y_SCAN` in pages-reference.jsx after a clean run on a changed UI).
+
+Canary edits on a scratch dist go through `editableDistFile(dir, "shell.js")`:
+it resolves the plain name through the scratch copy's `build-info.json`
+`js_map` and swaps the minified file for the committed unminified source on the
+first edit, so canary snippets keep matching the readable code.
 
 `tests/browser/keyboard.test.mjs` (in `npm run browser`) checks: Tab from the top
 of the Signal inbox reaches every card's Open button (distinct "Open <title>"

@@ -18,7 +18,7 @@
 //
 // Canaries (in-memory scratch copies; the working tree is never touched). Each
 // must FAIL for its named reason, and the restraint specimens must PASS:
-//   fail: em dash in a pages.js string, — escape in a shell.js string, em
+//   fail: em dash in a pages-today.js string, — escape in a shell.js string, em
 //         dash in the <title>, em dash in og:title, em dash in JSX text;
 //         raw hex in a CSS rule outside the token block, off-allowlist hex inside
 //         the block, off-token theme-color, hex in an inline style of store.js;
@@ -104,7 +104,7 @@ if (real.length) { console.error("COPY GATES FAILED:\n  " + real.join("\n  ")); 
 const E = "—";
 function mutJs(name, from, to) {
   const src = JS[name];
-  if (!src.includes(from)) return null;
+  if (typeof src !== "string" || !src.includes(from)) return null;
   return { js: { ...JS, [name]: src.replace(from, to) }, html: HTML };
 }
 function mutHtml(from, to) {
@@ -113,7 +113,7 @@ function mutHtml(from, to) {
 }
 const tokenLine = HTML.match(/--t-parliament:\s*#[0-9a-fA-F]{6};/);
 const canaries = [
-  { why: "em dash in a pages.js string", expect: "em-dash: pages.js", specimen: mutJs("pages", '"Priority signals"', `"Priority ${E} signals"`) },
+  { why: "em dash in a pages-today.js string", expect: "em-dash: pages-today.js", specimen: mutJs("pages-today", '"Priority signals"', `"Priority ${E} signals"`) },
   { why: "\\u2014 escape in a shell.js string", expect: "em-dash: shell.js", specimen: mutJs("shell", '"Live data unavailable"', '"Live data \\u2014 unavailable"') },
   { why: "the NOT_SUPPLIED sentinel set back to an em dash", expect: "em-dash: data.js", specimen: mutJs("data", 'const NOT_SUPPLIED = "Not supplied";', `const NOT_SUPPLIED = "${E}";`) },
   { why: "em dash in <title>", expect: "em-dash: index.html", specimen: mutHtml("<title>Parliament Pulse · Prometheus Policy Lab</title>", `<title>Parliament Pulse ${E} Prometheus Policy Lab</title>`) },
@@ -121,11 +121,11 @@ const canaries = [
   { why: "raw hex in a CSS rule outside the token block", expect: "outside the token block", specimen: mutHtml(".site-foot a { color: var(--link); }", ".site-foot a { color: #f08a3c; }") },
   { why: "off-token hex inside the token block", expect: "not in brand-tokens.json", specimen: tokenLine ? mutHtml(tokenLine[0], "--t-parliament: #f08a3c;") : null },
   { why: "off-token theme-color", expect: "outside the token block", specimen: mutHtml('<meta name="theme-color" content="#06070d"', '<meta name="theme-color" content="#07080e"') },
-  { why: "hex in a store.js inline style", expect: "raw-hex: store.js", specimen: mutJs("store", "color-mix(in srgb, #000 75%, transparent)", "#000000bf") },
+  { why: "hex in a store-detail.js inline style", expect: "raw-hex: store-detail.js", specimen: mutJs("store-detail", "color-mix(in srgb, #000 75%, transparent)", "#000000bf") },
   { why: "streak state restored", expect: "streak: shell.js", specimen: mutJs("shell", "function liveNavState(", "const streakCount = 0;\nfunction liveNavState(") },
 ];
 const restraints = [
-  { why: "em dash in a JS comment", specimen: mutJs("pages", "function PageBriefings() {", `// Briefings ${E} the queue\nfunction PageBriefings() {`) },
+  { why: "em dash in a JS comment", specimen: mutJs("pages-workspace", "function PageBriefings() {", `// Briefings ${E} the queue\nfunction PageBriefings() {`) },
   { why: "em dash in an HTML comment", specimen: mutHtml("<!-- register: b -->", `<!-- register: b ${E} Fire House -->`) },
   { why: "em dash in a CSS comment", specimen: mutHtml("/* ---------- Print (PR-13) ----------", `/* ---------- Print ${E} PR-13 ----------`) },
   { why: "#fff and #000 in a CSS rule", specimen: mutHtml(".site-foot a { color: var(--link); }", ".site-foot a { color: var(--link); outline-color: #fff; border-color: #000; }") },

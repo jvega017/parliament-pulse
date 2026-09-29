@@ -21,7 +21,9 @@ export const DENYLIST = [
   { path: "/REMEDIATION-PLAN.md", local: "docs/internal/REMEDIATION-PLAN.md" },
   { path: "/CODEX-TASKS.md", local: "docs/internal/CODEX-TASKS.md" },
   { path: "/docs/licence-architecture.md", local: "docs/licence-architecture.md" },
-  { path: "/pages.jsx", local: "pages.jsx" },
+  { path: "/pages.jsx", local: null },
+  { path: "/pages-today.jsx", local: "pages-today.jsx" },
+  { path: "/store.jsx", local: "store.jsx" },
   { path: "/data.jsx", local: "data.jsx" },
   { path: "/build.py", local: "docs/internal/build.py" },
   { path: "/verify.ps1", local: "verify.ps1" },
@@ -36,6 +38,20 @@ export const DENYLIST = [
   { path: "/parliament-pulse", local: "archive/parliament-pulse.html" },
   { path: "/archive/parliament-pulse-beta.html", local: "archive/parliament-pulse-beta.html" },
 ];
+
+// The scripts to scan for fabrications (FE-11): index.html plus every app
+// script under the content-hashed name the local build gave it, taken from
+// dist/build-info.json's js_map. The expected hashes therefore come from the
+// build, never from a hand-kept list. Throws when the manifest has no js_map:
+// a probe that silently fell back to plain names would fetch 404s or stale
+// files and could not prove what it scanned.
+export function shippedUrls(localInfo, appScripts) {
+  const map = localInfo && localInfo.js_map;
+  if (!map || typeof map !== "object") throw new Error("build-info.json has no js_map; rebuild dist with ./build-dist.ps1");
+  const missing = appScripts.filter(f => typeof map[f] !== "string" || !/^[\w-]+\.[0-9a-f]{8}\.js$/.test(map[f]));
+  if (missing.length) throw new Error(`build-info.json js_map has no hashed name for ${missing.join(", ")}`);
+  return ["index.html", ...appScripts.map(f => map[f])];
+}
 
 // Files build-info.json lists that Pages consumes instead of serving.
 export const NOT_SERVED = new Set(["_headers"]);

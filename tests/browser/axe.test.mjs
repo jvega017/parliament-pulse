@@ -304,7 +304,7 @@ try {
     check(stmt.unmeasured === wantUnmeasured, `About says ${stmt.unmeasured === "some" ? "some elements" : "no element"} could not be measured automatically, which matches this run (${residual} contrast nodes undecided after the gradient re-measure)`, `About data-axe-unmeasured=${stmt.unmeasured}, run needs ${wantUnmeasured}`);
     const valid = /^\d{4}-\d{2}-\d{2}$/.test(stmt.date || "");
     check(valid && stmt.date <= report.scanDate, `About's scan date (${stmt.date}) is a real date no later than this run (${report.scanDate})`);
-    if (valid && stmt.date !== report.scanDate) console.log(`      note: About states the scan of ${stmt.date}; this run is ${report.scanDate}. Update A11Y_SCAN in pages.jsx when the statement is re-issued.`);
+    if (valid && stmt.date !== report.scanDate) console.log(`      note: About states the scan of ${stmt.date}; this run is ${report.scanDate}. Update A11Y_SCAN in pages-reference.jsx when the statement is re-issued.`);
     else if (valid) console.log(`PASS  About's scan date matches axe.json scanDate (${report.scanDate})`);
   }
   check(page.pageErrors.length === 0, "no page errors during the scan", page.pageErrors.join("\n      "));

@@ -20,17 +20,18 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import os from "node:os";
 import { BANNED, scan } from "./fabrication-patterns.mjs";
-import { JSX_FILES, compile } from "../scripts/build-config.mjs";
+import { JSX_FILES, compile, readModule } from "../scripts/build-config.mjs";
 import { ATTRIBUTION_CANARIES, checkAttribution } from "./attribution-check.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 // Files that reach the public. .assetsignore keeps docs and scripts out of the
 // deploy, so this list is the shipped render layer plus the shell.
+// The source list is JSX_FILES (FE-11 split pages and store into several files).
 const SHIPPED = [
   "index.html",
-  "data.jsx", "entities.jsx", "icons.jsx", "store.jsx", "shell.jsx", "pages.jsx", "app.jsx",
-  "data.js", "entities.js", "icons.js", "store.js", "shell.js", "pages.js", "app.js",
+  ...JSX_FILES.map(f => `${f}.jsx`),
+  ...JSX_FILES.map(f => `${f}.js`),
 ];
 
 // BANNED patterns and scan() now live in ./fabrication-patterns.mjs, shared with
@@ -142,7 +143,7 @@ console.log(`Sync check: ${JSX_FILES.length} .jsx files rebuilt with the pinned 
   const read = f => (fs.existsSync(path.join(root, f)) ? fs.readFileSync(path.join(root, f), "utf8") : "");
   const sets = ["jsx", "js"].map(ext => ({
     ext,
-    files: { data: read(`data.${ext}`), shell: read(`shell.${ext}`), pages: read(`pages.${ext}`), app: read(`app.${ext}`) },
+    files: { data: read(`data.${ext}`), shell: read(`shell.${ext}`), pages: readModule("pages", ext), app: read(`app.${ext}`) },
   }));
   let attrCanaryFail = 0;
   for (const { ext, files } of sets) {

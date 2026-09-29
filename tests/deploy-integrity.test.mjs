@@ -11,7 +11,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync, execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { DENYLIST, classifyDenied, compareProvenance, sha256 } from "./deploy-probe-lib.mjs";
+import { DENYLIST, classifyDenied, compareProvenance, sha256, shippedUrls } from "./deploy-probe-lib.mjs";
+import { JSX_FILES } from "../scripts/build-config.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 let failures = 0;
@@ -50,6 +51,20 @@ check(drift.length === 1 && drift[0].file === "app.js",
 check(compareProvenance(info, new Map([["app.js", { error: "ECONNRESET" }]])).length === 1,
   "provenance fail-closed: a failed fetch counts as drift");
 
+// shippedUrls: hashed names come from build-info.json's js_map (FE-11).
+{
+  const map = { "app.js": "app.0123abcd.js", "data.js": "data.89abcdef.js" };
+  const urls = shippedUrls({ js_map: map }, ["data.js", "app.js"]);
+  check(JSON.stringify(urls) === JSON.stringify(["index.html", "data.89abcdef.js", "app.0123abcd.js"]),
+    "shippedUrls restraint: index.html plus each hashed name, in the order asked");
+  let threw = false;
+  try { shippedUrls({ files: {} }, ["app.js"]); } catch { threw = true; }
+  check(threw, "shippedUrls fail-closed: a manifest without js_map throws instead of falling back to plain names");
+  threw = false;
+  try { shippedUrls({ js_map: { "app.js": "app.js" } }, ["app.js"]); } catch { threw = true; }
+  check(threw, "shippedUrls canary: an unhashed name in js_map is refused");
+}
+
 // ---- 2. build-dist.ps1 output ---------------------------------------------
 if (process.platform !== "win32") {
   console.log("SKIP  build-dist.ps1 checks need Windows PowerShell");
@@ -63,9 +78,10 @@ if (process.platform !== "win32") {
     e.isDirectory() ? walk(path.join(dir, e.name)) : [path.relative(dist, path.join(dir, e.name)).replace(/\\/g, "/")]);
   const built = fs.existsSync(dist) ? walk(dist) : [];
 
-  const allowTop = new Set(["index.html", "data.js", "entities.js", "icons.js", "store.js", "shell.js", "pages.js", "app.js",
-    "_headers", "manifest.webmanifest", "favicon.ico", "404.html", "robots.txt", "build-info.json"]);
-  const stray = built.filter(f => !(allowTop.has(f) || f.startsWith("vendor/") || f.startsWith("assets/")));
+  const allowTop = new Set(["index.html", "_headers", "manifest.webmanifest", "favicon.ico", "404.html", "robots.txt", "build-info.json"]);
+  // App scripts ship only under content-hashed names (FE-11).
+  const hashedApp = new RegExp(`^(${JSX_FILES.join("|")})\\.[0-9a-f]{8}\\.js$`);
+  const stray = built.filter(f => !(allowTop.has(f) || hashedApp.test(f) || f.startsWith("vendor/") || f.startsWith("assets/")));
   check(built.length > 0 && stray.length === 0, `dist/ holds only allowlisted files${stray.length ? ": stray " + stray.join(", ") : ""}`);
   const denied = built.filter(f => /\.(md|jsx|ps1|mjs|py)$/i.test(f) || /(^|\/)parliament-pulse[^/]*\.html$/i.test(f) || f === "assets/asset-forge.html");
   check(denied.length === 0, `dist/ carries no .md/.jsx/.ps1/.mjs/.py, bundle or asset-forge file${denied.length ? ": " + denied.join(", ") : ""}`);

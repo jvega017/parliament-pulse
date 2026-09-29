@@ -2,12 +2,11 @@ import fs from "node:fs";
 import path from "node:path";
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
+import { moduleFiles, readModule } from "../scripts/build-config.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const publicFiles = [
-  "shell.jsx", "pages.jsx", "store.jsx", "data.jsx", "entities.jsx",
-  "shell.js", "pages.js", "store.js", "data.js", "entities.js",
-];
+const publicModules = ["shell", "pages", "store", "data", "entities"].flatMap(moduleFiles);
+const publicFiles = [...publicModules.map(f => `${f}.jsx`), ...publicModules.map(f => `${f}.js`)];
 
 const publicDemoPatterns = [
   /\bDemo mode\b/i,
@@ -39,8 +38,8 @@ assert.match(builtShell, /BetaNotice/, "Built shell.js should include the beta n
 assert.match(shell, /copyToClipboard/, "Shell clipboard actions should use the safe copy helper");
 assert.match(shell, /safeGetLocalStorage/, "Shell storage reads should use the safe storage helper");
 
-const pages = fs.readFileSync(path.join(root, "pages.jsx"), "utf8");
-const builtPages = fs.readFileSync(path.join(root, "pages.js"), "utf8");
+const pages = readModule("pages", "jsx");
+const builtPages = readModule("pages", "js");
 assert.match(pages, /copyLiveActionNote/, "Live controls should copy concrete action notes");
 assert.match(pages, /downloadBriefingQueue/, "Briefings queue should export local queue state");
 assert.match(pages, /BetaReadinessPanel/, "Overview should explain beta evidence status");

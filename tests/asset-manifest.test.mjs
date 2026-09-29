@@ -10,7 +10,9 @@
 //
 // Scope, per the four things this file was commissioned to catch:
 //   1. Every asset referenced from index.html (fonts, vendor scripts, icons,
-//      manifest, og image, favicon, the seven app .js files) exists on disk.
+//      manifest, og image, favicon, every app .js file in JSX_FILES) exists on
+//      disk, and index.html loads the app scripts in exactly JSX_FILES order
+//      (the classic-script global scope makes load order load-bearing).
 //   2. index.html and _headers carry zero references to unpkg.com,
 //      googleapis.com, gstatic.com, jsdelivr, cdnjs, or any other external
 //      origin: the CSP is 'self' and a reintroduced external origin would
@@ -25,6 +27,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { JSX_FILES } from "../scripts/build-config.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -98,6 +101,13 @@ function isUnderBudget(bytes, max) {
   return bytes <= max;
 }
 
+// The app's own classic scripts (vendor/ excluded) in the order index.html loads
+// them, compared with the expected list. Returns a message, or null when equal.
+function appScriptOrderProblem(html, expected) {
+  const got = [...html.matchAll(/<script\b[^>]*\bsrc\s*=\s*"([^"]+)"/g)].map(m => m[1]).filter(s => !s.startsWith("vendor/"));
+  return JSON.stringify(got) === JSON.stringify(expected) ? null : `index.html loads [${got.join(", ")}], expected [${expected.join(", ")}]`;
+}
+
 // ---------------------------------------------------------------------------
 // CANARY GATE. Prove the instrument detects before trusting it to report clean.
 // ---------------------------------------------------------------------------
@@ -167,7 +177,7 @@ for (const origin of BANNED_ORIGINS) {
   }
   // And a real, existing font file must resolve clean (proves the "relative
   // to its own directory" fix, not just any-missing-file detection).
-  const realCss = `@font-face{font-family:"Real";src:url("IBMPlexSans-400.woff2") format("woff2")}`;
+  const realCss = `@font-face{font-family:"Real";src:url("IBMPlexSans-Variable.woff2") format("woff2")}`;
   const realBroken = findBrokenFontUrls(realCss, path.join(root, "assets", "fonts"), fs.existsSync);
   if (realBroken.length !== 0) {
     console.error("CANARY FALSE POSITIVE: font-url detector flagged a real, present woff2 file.");
@@ -187,12 +197,29 @@ for (const origin of BANNED_ORIGINS) {
   }
 }
 
+// 5. App script order.
+{
+  const want = ["a.js", "b.js"];
+  if (appScriptOrderProblem('<script src="vendor/r.js"></script><script src="b.js"></script><script src="a.js"></script>', want) === null) {
+    console.error("CANARY MISS: script-order detector passed a swapped load order.");
+    canaryFailures++;
+  }
+  if (appScriptOrderProblem('<script src="a.js"></script>', want) === null) {
+    console.error("CANARY MISS: script-order detector passed a missing script.");
+    canaryFailures++;
+  }
+  if (appScriptOrderProblem('<script src="vendor/r.js"></script><script src="a.js"></script>\n<script src="b.js"></script>', want) !== null) {
+    console.error("CANARY FALSE POSITIVE: script-order detector flagged the expected order.");
+    canaryFailures++;
+  }
+}
+
 if (canaryFailures > 0) {
   console.error(`\nASSET MANIFEST GATE: FAIL (instrument self-test failed, ${canaryFailures} canary miss(es)).`);
   console.error("The checker cannot prove it detects, so any clean result is inadmissible.");
   process.exit(1);
 }
-console.log("Canary self-test PASSED: missing-asset, external-origin, broken-font-url and oversized-image detection all proven on seeded specimens.");
+console.log("Canary self-test PASSED: missing-asset, external-origin, broken-font-url, oversized-image and script-order detection all proven on seeded specimens.");
 
 // ---------------------------------------------------------------------------
 // THE ACTUAL SCAN
@@ -234,10 +261,15 @@ for (const { ref, full } of localPaths) {
   }
 }
 
-// (b) The seven shipped .js files explicitly, belt-and-braces on top of (a).
-const SEVEN_JS = ["data.js", "entities.js", "icons.js", "store.js", "shell.js", "pages.js", "app.js"];
-for (const f of SEVEN_JS) {
+// (b) Every shipped app .js explicitly, belt-and-braces on top of (a), and the
+// index.html load order must equal JSX_FILES.
+const APP_JS = JSX_FILES.map(f => `${f}.js`);
+for (const f of APP_JS) {
   if (!fs.existsSync(path.join(root, f))) { console.error(`MISSING SHIPPED JS  ${f}`); findings++; }
+}
+{
+  const problem = appScriptOrderProblem(indexHtml, APP_JS);
+  if (problem) { console.error(`SCRIPT ORDER  ${problem}`); findings++; }
 }
 
 // (c) manifest.webmanifest icon entries.

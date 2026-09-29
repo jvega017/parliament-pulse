@@ -35,10 +35,13 @@ import fs from "node:fs";
 import path from "node:path";
 import vm from "node:vm";
 import { fileURLToPath } from "node:url";
+import { readModule } from "../scripts/build-config.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const FILES = ["data", "entities", "icons", "store", "shell", "pages"];
-const read = f => fs.readFileSync(path.join(root, `${f}.js`), "utf8");
+// "store" and "pages" are module groups since FE-11 split them (ARCH-11);
+// readModule joins a group's built files in load order.
+const read = f => readModule(f);
 
 // ---- fixtures ------------------------------------------------------------------
 const NOW_MS = Date.now();

@@ -18,32 +18,37 @@
 # assets get a hard year-long cache, the HTML shell and the app's own
 # hand-authored scripts do not, and no pattern here matches both.
 #
-# /vendor/*, /assets/fonts/*, /assets/* - the self-hosted React/ReactDOM
-# bundle, the IBM Plex webfonts and the icon/manifest assets. Filenames are
-# not content-hashed, so this is safe only as long as an upgrade to any of
+# /vendor/* and /assets/* - the self-hosted React/ReactDOM bundle, the IBM
+# Plex webfonts (under /assets/fonts/) and the icon/manifest assets. Filenames
+# are not content-hashed, so this is safe only as long as an upgrade to any of
 # these (e.g. bumping the vendored React build) ships under a NEW filename;
 # reusing an existing filename with different content would leave it stale
-# in browser caches for up to a year under this rule.
+# in browser caches for up to a year under this rule. FE-11 removed a separate
+# /assets/fonts/* rule: /assets/* already matches the fonts, and two matching
+# rules concatenate their Cache-Control values. tests/headers.test.mjs fails if
+# any served path matches more than one Cache-Control rule.
 /vendor/*
-  Cache-Control: public, max-age=31536000, immutable
-
-/assets/fonts/*
   Cache-Control: public, max-age=31536000, immutable
 
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
 
-# index.html and the app's own precompiled scripts change on every deploy
-# under the SAME filename (no content hash), so they must never be cached
-# immutably: a stale index.html or pages.js would pin returning users to an
-# old build. Short cache, always revalidated (conditional GET / 304s) so a
-# repeat visit is cheap but never silently stale.
+# index.html changes on every deploy under the SAME filename, so it must never
+# be cached immutably: a stale index.html would pin returning users to an old
+# build. Short cache, always revalidated (conditional GET / 304s) so a repeat
+# visit is cheap but never silently stale.
 /
   Cache-Control: public, max-age=0, must-revalidate
 
 /index.html
   Cache-Control: public, max-age=0, must-revalidate
 
+# The app's own scripts. This is the DEV copy: here they keep their plain names,
+# so they are revalidated on every load. In dist/ (FE-11, PR-16) build-dist.ps1
+# minifies them, renames each to <name>.<sha256-8>.js and replaces everything
+# between the two markers below with one year-long immutable rule per hashed
+# file: a changed file gets a new name, so a cached copy can never go stale.
+# app-scripts:begin
 /data.js
   Cache-Control: public, max-age=0, must-revalidate
 
@@ -56,14 +61,27 @@
 /store.js
   Cache-Control: public, max-age=0, must-revalidate
 
+/store-detail.js
+  Cache-Control: public, max-age=0, must-revalidate
+
 /shell.js
   Cache-Control: public, max-age=0, must-revalidate
 
-/pages.js
+/pages-shared.js
+  Cache-Control: public, max-age=0, must-revalidate
+
+/pages-today.js
+  Cache-Control: public, max-age=0, must-revalidate
+
+/pages-workspace.js
+  Cache-Control: public, max-age=0, must-revalidate
+
+/pages-reference.js
   Cache-Control: public, max-age=0, must-revalidate
 
 /app.js
   Cache-Control: public, max-age=0, must-revalidate
+# app-scripts:end
 
 # build-info.json (written by build-dist.ps1) is the deploy-provenance
 # manifest tests/production-probe.mjs reads; it must always be current.
@@ -86,8 +104,10 @@
 #     style attributes; font-src is locked to 'self' because IBM Plex Sans, Mono
 #     and Serif are self-hosted under /assets/fonts/ (previously Google Fonts,
 #     now vendored) - do not reintroduce fonts.googleapis.com or fonts.gstatic.com.
-#   connect-src allows the production Worker origin (RSS proxy fetch) and the
-#     local dev proxy at localhost:3001 / 127.0.0.1:3001.
+#   connect-src allows the production Worker origin (RSS proxy fetch) and, in
+#     this DEV copy only, the local dev proxy at localhost:3001 / 127.0.0.1:3001.
+#     build-dist.ps1 strips both local origins from the dist copy (FE-11, PR-16,
+#     SEC-13), so production never permits a connection to a local port.
 #   frame-src allows the YouTube live embed. img-src allows YouTube thumbnail + data URIs.
 /*
   X-Frame-Options: SAMEORIGIN

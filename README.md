@@ -16,18 +16,30 @@ surface is honest, it names the gate that checks it.
 ## Architecture
 
 - Browser-only React app. `index.html` loads React and ReactDOM from `vendor/` (production
-  builds) and seven precompiled scripts in order: `data.js`, `entities.js`, `icons.js`,
-  `store.js`, `shell.js`, `pages.js`, `app.js`. There is no Babel in the browser.
+  builds) and eleven precompiled classic scripts in the order of `JSX_FILES`
+  (`scripts/build-config.mjs`): `data`, `entities`, `icons`, `store`, `store-detail`, `shell`,
+  `pages-shared`, `pages-today`, `pages-workspace`, `pages-reference`, `app`. Their top-level
+  declarations share one global scope, so load order matters for load-time code. FE-11 split
+  the former `pages.jsx` and `store.jsx` so no source file exceeds 1,200 lines. There is no
+  Babel in the browser.
 - The `.jsx` files are the source. `npm run build` (or `build-jsx.ps1`) compiles each one with
-  the pinned esbuild (`package.json`, no minification, so the shared top-level names survive).
-  The committed `.js` must match a fresh build; the release gate and CI both check it.
+  the pinned esbuild (`package.json`, no minification). The committed `.js` must match a fresh
+  build; the release gate and CI both check it.
+- `dist/` ships each script minified (whitespace and syntax only, never identifier renaming,
+  bundling or a format wrapper) under a content-hashed name, `<name>.<sha256-8>.js`, with a
+  year-long immutable cache; `index.html` is always revalidated. `tests/global-scope.test.mjs`
+  proves the minified files still resolve every cross-file name.
 - The CSP in `_headers` is `script-src 'self'`, with no `unsafe-eval` and no `unsafe-inline`.
-  `connect-src` allows only the Worker and the local dev proxy on port 3001.
+  `connect-src` allows the Worker, and in the repo (dev) copy only, the local dev proxy on port
+  3001; `dist/_headers` drops the local origins.
+- IBM Plex Sans ships as one variable font (`assets/fonts/IBMPlexSans-Variable.woff2`, weights
+  100 to 700); Mono and Serif are static faces. `index.html` preloads exactly the files the
+  first view renders above the fold (`tests/browser/design.test.mjs` checks it).
 - Data comes from the Worker: `GET /state` (signals, connectors, threads and freshness,
   refreshed every five minutes while the tab is visible), `GET /bills` (Bills Digests),
   and `GET /rss?u=<feed>` for the Live page. On `localhost` the Live page uses the dev proxy
   instead (see "Run locally").
-- Browser storage holds only the keys listed in `LOCAL_STORAGE_KEYS` (`pages.jsx`), which the
+- Browser storage holds only the keys listed in `LOCAL_STORAGE_KEYS` (`pages-reference.jsx`), which the
   About page prints; `tests/unsourced-surfaces.test.mjs` fails if the bundle uses a key that is
   not on that list.
 
@@ -119,9 +131,11 @@ npx wrangler@4 pages deploy dist --project-name=parliament-pulse --branch=main -
 node tests/production-probe.mjs
 ```
 
-`build-dist.ps1` recompiles the JSX, rebuilds `dist/` from an explicit allowlist, and adds
-`404.html`, `robots.txt` and `build-info.json` (git SHA, build time, sha256 per file). `<sha>`
-is the SHA it prints. The Pages production branch is `main`; any other branch lands on a
+`build-dist.ps1` recompiles the JSX, then runs `scripts/build-dist.mjs`, which rebuilds
+`dist/` from an explicit allowlist, minifies and hash-names the app scripts, writes the
+production `_headers`, and adds `404.html`, `robots.txt` and `build-info.json` (git SHA, build
+time, sha256 per file, the hashed-name map `js_map`, and brotli sizes before and after, with the
+pre-FE-11 baseline). `<sha>` is the SHA it prints. The Pages production branch is `main`; any other branch lands on a
 preview alias, and preview hostnames are not in the Worker's CORS allowlist. The probe must
 exit 0 straight after the deploy.
 

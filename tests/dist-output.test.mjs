@@ -1,0 +1,166 @@
+// Dist output test (FE-11: PR-16, SEC-13, A11Y-other caching).
+//
+// Builds a scratch dist with the real pipeline (scripts/build-dist.mjs) and
+// asserts what production will receive:
+//   1. dist/_headers carries no localhost or 127.0.0.1 origin, while the repo
+//      (dev) copy still does;
+//   2. every path dist serves matches AT MOST ONE rule that sets Cache-Control
+//      (Cloudflare Pages concatenates the values of every matching rule);
+//   3. each hashed app script gets "public, max-age=31536000, immutable" and
+//      "/" and "/index.html" get "public, max-age=0, must-revalidate";
+//   4. dist/index.html loads only content-hashed app scripts, each exists in dist,
+//      its name carries the first 8 hex of its own sha256, and no unhashed app
+//      .js or any .jsx ships;
+//   5. build-info.json records brotli totals before and after, and the after JS
+//      total is smaller, both than this build's unminified copy and than the
+//      recorded pre-FE-11 baseline;
+//   6. fonts: every woff2 in dist is a url() in fonts.css, every @font-face keeps
+//      font-display: swap, and no two woff2 files are byte-identical (FE-11 found
+//      the IBM Plex Sans variable font shipped four times under four names).
+// When a real dist/ exists (after ./build-dist.ps1) the same checks run on it.
+//
+// Canary-first: each check runs against planted defects (an overlapping
+// Cache-Control rule, the old /assets/fonts/* rule, a localhost origin put back,
+// an unhashed script tag, a hashed tag with no file, a wrong content hash) and
+// must fire on every one, and must stay silent on the clean scratch build.
+//
+// Run: node tests/dist-output.test.mjs   Exit 0 = pass, 1 = fail.
+
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { root, JSX_FILES } from "../scripts/build-config.mjs";
+import { buildDist, headerConflicts, cacheControlFor, servedPaths, sha256, DEV_ORIGINS } from "../scripts/build-dist.mjs";
+
+const IMMUTABLE = "public, max-age=31536000, immutable";
+const REVALIDATE = "public, max-age=0, must-revalidate";
+const HASHED = /^([\w-]+)\.([0-9a-f]{8})\.js$/;
+
+// A dist snapshot: { headers, html, files: Map rel -> Buffer, info }
+function snapshot(dir) {
+  const files = new Map();
+  const walk = d => fs.readdirSync(d, { withFileTypes: true }).forEach(e => {
+    const full = path.join(d, e.name);
+    if (e.isDirectory()) return walk(full);
+    files.set(path.relative(dir, full).replace(/\\/g, "/"), fs.readFileSync(full));
+  });
+  walk(dir);
+  const text = f => (files.get(f) || Buffer.from("")).toString("utf8");
+  let info = null;
+  try { info = JSON.parse(text("build-info.json").replace(/^﻿/, "")); } catch { info = null; }
+  return { headers: text("_headers"), html: text("index.html"), files, info };
+}
+
+function problems(s) {
+  const out = [];
+  // 1. no local dev origin in any header value
+  const values = s.headers.split(/\r?\n/).filter(l => !/^\s*#/.test(l)).join("\n");
+  for (const o of [...DEV_ORIGINS, "localhost", "127.0.0.1"]) if (values.includes(o)) out.push(`localhost: dist/_headers carries ${o}`);
+  // 2. at most one Cache-Control rule per served path
+  const paths = ["/", ...[...s.files.keys()].filter(f => f !== "_headers").map(f => `/${f}`)];
+  for (const c of headerConflicts(s.headers, paths)) out.push(`overlap: ${c.path} matches ${c.patterns.length} Cache-Control rules (${c.patterns.join(", ")})`);
+  // 4. script tags
+  const srcs = [...s.html.matchAll(/<script\b[^>]*\bsrc\s*=\s*"([^"]+)"/g)].map(m => m[1]).filter(x => !x.startsWith("vendor/"));
+  if (srcs.length !== JSX_FILES.length) out.push(`scripts: index.html loads ${srcs.length} app scripts, expected ${JSX_FILES.length}`);
+  for (const src of srcs) {
+    const m = src.match(HASHED);
+    if (!m) { out.push(`unhashed: index.html loads ${src}`); continue; }
+    const buf = s.files.get(src);
+    if (!buf) { out.push(`missing: index.html loads ${src}, which is not in dist`); continue; }
+    if (sha256(buf).slice(0, 8) !== m[2]) out.push(`hash: ${src} does not carry its own content hash`);
+    // 3. its cache rule
+    const cc = cacheControlFor(s.headers, `/${src}`);
+    if (cc !== IMMUTABLE) out.push(`cache: /${src} gets "${cc}", expected "${IMMUTABLE}"`);
+  }
+  for (const p of ["/", "/index.html"]) {
+    const cc = cacheControlFor(s.headers, p);
+    if (cc !== REVALIDATE) out.push(`cache: ${p} gets "${cc}", expected "${REVALIDATE}"`);
+  }
+  for (const f of s.files.keys()) {
+    if (/\.jsx$/.test(f)) out.push(`jsx: ${f} ships`);
+    if (JSX_FILES.includes(f.replace(/\.js$/, ""))) out.push(`unhashed: ${f} ships under its plain name`);
+  }
+  // 5. brotli table
+  const b = s.info && s.info.brotli;
+  if (!b || !b.before || !b.after || typeof b.before.js !== "number" || typeof b.after.total !== "number") out.push("sizes: build-info.json has no brotli before/after totals");
+  else if (!(b.after.js < b.before.js)) out.push(`sizes: minified JS ${b.after.js} is not smaller than ${b.before.js}`);
+  else if (!b.baseline_pre_fe11 || !(b.after.js < b.baseline_pre_fe11.js)) out.push(`sizes: minified JS ${b.after.js} is not smaller than the pre-FE-11 baseline ${b.baseline_pre_fe11 && b.baseline_pre_fe11.js}`);
+  // 6. fonts
+  const css = (s.files.get("assets/fonts/fonts.css") || Buffer.from("")).toString("utf8");
+  const faces = [...css.matchAll(/@font-face\s*\{([^}]*)\}/g)].map(m => m[1]);
+  const urls = new Set(faces.flatMap(f => [...f.matchAll(/url\("([^"]+)"\)/g)].map(m => `assets/fonts/${m[1]}`)));
+  for (const f of faces) if (!/font-display:\s*swap/.test(f)) out.push(`fonts: an @font-face lacks font-display: swap (${f.slice(0, 60)})`);
+  const woff = [...s.files.keys()].filter(f => /\.woff2$/.test(f));
+  for (const f of woff) if (!urls.has(f)) out.push(`fonts: ${f} ships but fonts.css never references it`);
+  for (const u of urls) if (!s.files.has(u)) out.push(`fonts: fonts.css references ${u}, which is not in dist`);
+  const byHash = {};
+  for (const f of woff) (byHash[sha256(s.files.get(f))] ||= []).push(f);
+  for (const g of Object.values(byHash)) if (g.length > 1) out.push(`fonts: ${g.join(", ")} are byte-identical copies`);
+  if (!s.info || !s.info.js_map || JSX_FILES.some(f => !s.info.js_map[`${f}.js`] || !s.files.has(s.info.js_map[`${f}.js`]))) out.push("map: build-info.json js_map does not name an existing hashed file for every app script");
+  return out;
+}
+
+let failures = 0;
+const fail = m => { console.error(`FAIL  ${m}`); failures++; };
+
+const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "pp-dist-"));
+try {
+  buildDist(scratch, { writeBuildInfo: false });
+  const clean = snapshot(scratch);
+  const anyHashed = Object.values(clean.info.js_map)[0];
+  const withHeaders = t => ({ ...clean, headers: t });
+  const withHtml = t => ({ ...clean, html: t });
+
+  // ---- canaries ----------------------------------------------------------------
+  const CANARIES = [
+    { why: "a blanket /*.js cache rule", expect: "overlap:", s: withHeaders(clean.headers + "\n/*.js\n  Cache-Control: no-cache\n") },
+    { why: "the pre-FE-11 /assets/fonts/* rule restored", expect: "overlap: /assets/fonts/", s: withHeaders(clean.headers.replace("/assets/*\n", "/assets/fonts/*\n  Cache-Control: public, max-age=31536000, immutable\n\n/assets/*\n")) },
+    { why: "localhost put back in connect-src", expect: "localhost:", s: withHeaders(clean.headers.replace("connect-src 'self'", "connect-src 'self' http://localhost:3001")) },
+    { why: "an unhashed script tag", expect: "unhashed:", s: withHtml(clean.html.replace(`src="${anyHashed}"`, `src="${anyHashed.replace(HASHED, "$1.js")}"`)) },
+    { why: "a hashed tag with no file", expect: "missing:", s: withHtml(clean.html.replace(`src="${anyHashed}"`, `src="${anyHashed.replace(HASHED, "$1.00000000.js")}"`)) },
+    { why: "index.html revalidation rule removed", expect: "cache: /index.html", s: withHeaders(clean.headers.replace("/index.html\n  Cache-Control: public, max-age=0, must-revalidate\n", "")) },
+    { why: "an unreferenced woff2 ships", expect: "fonts: assets/fonts/extra.woff2 ships", s: { ...clean, files: new Map([...clean.files, ["assets/fonts/extra.woff2", Buffer.from("x")]]) } },
+    { why: "a duplicate font file under a second name", expect: "fonts: ", s: (() => {
+      const files = new Map(clean.files);
+      files.set("assets/fonts/IBMPlexSans-700.woff2", files.get("assets/fonts/IBMPlexSans-Variable.woff2"));
+      const cssText = files.get("assets/fonts/fonts.css").toString("utf8") + '\n@font-face{font-family:"IBM Plex Sans";font-style:normal;font-weight:700;font-display:swap;src:url("IBMPlexSans-700.woff2") format("woff2")}';
+      files.set("assets/fonts/fonts.css", Buffer.from(cssText));
+      return { ...clean, files };
+    })() },
+    { why: "font-display: swap removed", expect: "fonts: an @font-face lacks", s: { ...clean, files: new Map([...clean.files, ["assets/fonts/fonts.css", Buffer.from(clean.files.get("assets/fonts/fonts.css").toString("utf8").replace("font-display:swap;", ""))]]) } },
+    { why: "JS after total not smaller", expect: "sizes:", s: { ...clean, info: { ...clean.info, brotli: { ...clean.info.brotli, after: { ...clean.info.brotli.after, js: clean.info.brotli.before.js } } } } },
+  ];
+  for (const c of CANARIES) {
+    const got = problems(c.s);
+    if (!got.some(m => m.startsWith(c.expect))) fail(`canary not caught: ${c.why} (expected "${c.expect}", got ${JSON.stringify(got)})`);
+  }
+  // the fonts canary must actually have planted a rule
+  if (!CANARIES[1].s.headers.includes("/assets/fonts/*")) fail("canary build error: the /assets/fonts/* rule was not planted");
+  // restraint: the clean scratch build passes
+  const cleanProblems = problems(clean);
+  for (const p of cleanProblems) fail(`scratch dist: ${p}`);
+  if (failures) { console.error("\nDIST OUTPUT: FAIL (instrument self-test or scratch build)."); process.exit(1); }
+  console.log(`Canary self-test PASSED: ${CANARIES.length} planted defects each caught; the clean scratch build passes.`);
+  const b = clean.info.brotli;
+  console.log(`Scratch dist: ${servedPaths(scratch).length} served paths, each with at most one Cache-Control rule; brotli JS ${b.before.js} -> ${b.after.js} bytes, total ${b.before.total} -> ${b.after.total}.`);
+} finally {
+  fs.rmSync(scratch, { recursive: true, force: true });
+}
+
+// The dev copy keeps the local proxy origins.
+{
+  const dev = fs.readFileSync(path.join(root, "_headers"), "utf8");
+  if (!DEV_ORIGINS.every(o => dev.includes(o))) fail("the repo _headers (dev copy) lost a local dev proxy origin");
+}
+
+// The real dist/, when present.
+const realDist = path.join(root, "dist");
+if (fs.existsSync(path.join(realDist, "build-info.json"))) {
+  for (const p of problems(snapshot(realDist))) fail(`dist/: ${p}`);
+  if (!failures) console.log("dist/: passes the same checks.");
+} else {
+  console.log("SKIP  dist/ not built (run ./build-dist.ps1); the scratch build above was checked.");
+}
+
+if (failures) { console.error(`\nDIST OUTPUT: FAIL. ${failures} finding(s).`); process.exit(1); }
+console.log("DIST OUTPUT: PASSED. Production headers carry no localhost origin, no path has two Cache-Control rules, hashed scripts are immutable, index.html revalidates and loads only hashed scripts that exist, and minified JS is smaller.");

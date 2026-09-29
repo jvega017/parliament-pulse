@@ -8,18 +8,21 @@
 <title>Parliament Pulse · Prometheus Policy Lab</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="color-scheme" content="dark light" />
-<!-- Preload only the above-the-fold faces: sans 400 (body default everywhere)
-     and sans 600 (nav/button emphasis), plus mono 400 (topbar clock + kbd
-     hint, both visible on first paint). The other seven faces (serif, the
-     heavier weights, mono 500/600) render below the fold or later in the
-     interaction and are left to fonts.css's normal @font-face loading:
-     preloading all ten would compete with these three on the critical path
-     and net-lose. Paths are relative to index.html at the site root, so they
-     need the full assets/fonts/ prefix (fonts.css's own url()s are bare
-     filenames because they resolve relative to fonts.css's own directory). -->
-<link rel="preload" href="assets/fonts/IBMPlexSans-400.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="assets/fonts/IBMPlexSans-600.woff2" as="font" type="font/woff2" crossorigin>
+<!-- Preload exactly the font files the first view (Overview) renders text with
+     inside the first viewport, at 1280 and 390 px, first visit and returning
+     (FE-11, measured through the browser harness; tests/browser/design.test.mjs
+     fails if a face renders there without a preload, or a preload goes unused):
+     the IBM Plex Sans variable font (body, nav and emphasis, every weight),
+     Mono 400, 500 and 600 (clock, kickers, nav group labels) and Serif 600
+     (brand name and desk title). Serif 400 and 700 render only further in, so
+     fonts.css loads them on demand. Each href must equal the url() fonts.css
+     resolves to, or the browser fetches the file twice. Paths are relative to
+     index.html at the site root, so they need the full assets/fonts/ prefix. -->
+<link rel="preload" href="assets/fonts/IBMPlexSans-Variable.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="assets/fonts/IBMPlexMono-400.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/IBMPlexMono-500.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/IBMPlexMono-600.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/IBMPlexSerif-600.woff2" as="font" type="font/woff2" crossorigin>
 <meta name="theme-color" content="#06070d" media="(prefers-color-scheme: dark)" />
 <meta name="theme-color" content="#F1ECE0" media="(prefers-color-scheme: light)" />
 <meta name="description" content="Parliament Pulse: Australian federal parliamentary intelligence for policy officers. It watches official APH feeds, sorts the signals, tracks committees and bills, and drafts briefs." />
@@ -1707,8 +1710,12 @@
 <script src="entities.js"></script>
 <script src="icons.js"></script>
 <script src="store.js"></script>
+<script src="store-detail.js"></script>
 <script src="shell.js"></script>
-<script src="pages.js"></script>
+<script src="pages-shared.js"></script>
+<script src="pages-today.js"></script>
+<script src="pages-workspace.js"></script>
+<script src="pages-reference.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

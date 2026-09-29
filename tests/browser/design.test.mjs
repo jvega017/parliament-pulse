@@ -21,6 +21,12 @@
 //   phone-cols  at 390 px the second column still shows on Sources (Add RSS feed)
 //               and Daily program (Recent divisions); the Overview alone defers
 //               its context rail (restraint: the rail stays hidden there).
+//   fonts       (FE-11) on the first view (Overview at 1280 x 800 and 390 x 844,
+//               first visit and returning) every font file that renders text
+//               inside the first viewport is preloaded, every preload renders
+//               text there, and no font file is fetched twice. Faces are mapped
+//               from the computed family and weight through dist fonts.css with
+//               the CSS weight-matching rules.
 //
 // Canaries (scratch copies of dist/ in the OS temp directory, served on 8081;
 // the working tree is never touched). Each removes one control and the named
@@ -30,12 +36,15 @@
 //   no-print       the print stylesheet disabled (print)
 //   no-print-urls  the printed-URL rule removed (print)
 //   rail-unscoped  the phone rail rule applied to every .g-overview again (phone-cols)
+//   no-serif-preload  the Serif 600 preload removed (fonts: renders without a preload)
+//   unused-preload    a Serif 700 preload added (fonts: preload unused in the first view)
+//   double-fetch      a second URL for the Sans variable font preloaded (fonts: fetched twice)
 // A canary whose mutation does not apply aborts the run as untrustworthy.
 
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { launch, openDesk, startServer, root, FIXTURE_CLOCK } from "./harness.mjs";
+import { launch, openDesk, startServer, root, FIXTURE_CLOCK, editableDistFile } from "./harness.mjs";
 
 let failures = 0;
 const check = (ok, label, detail = "") => {
@@ -133,6 +142,80 @@ async function printProblems(h, baseUrl, { pdf = false } = {}) {
   return out;
 }
 
+// ---- fonts (FE-11) -------------------------------------------------------------
+// fonts.css -> [{ family, min, max, file }]
+function fontFaces(css) {
+  return [...css.matchAll(/@font-face\s*\{([^}]*)\}/g)].map(m => {
+    const body = m[1];
+    const family = (body.match(/font-family:\s*"([^"]+)"/) || [])[1];
+    const w = (body.match(/font-weight:\s*([0-9]+)(?:\s+([0-9]+))?/) || []);
+    const file = (body.match(/url\("([^"]+)"\)/) || [])[1];
+    return { family, min: Number(w[1]), max: Number(w[2] || w[1]), file };
+  });
+}
+// CSS Fonts 4 weight matching over the faces of one family.
+function matchFace(faces, family, weight) {
+  const fam = faces.filter(f => f.family === family);
+  if (!fam.length) return null;
+  const exact = fam.find(f => f.min <= weight && weight <= f.max);
+  if (exact) return exact;
+  const up = fam.filter(f => f.min > weight).sort((a, b) => a.min - b.min);
+  const down = fam.filter(f => f.max < weight).sort((a, b) => b.max - a.max);
+  if (weight >= 400 && weight <= 500) {
+    const upTo500 = up.filter(f => f.min <= 500);
+    return upTo500[0] || down[0] || up[0];
+  }
+  return weight < 400 ? (down[0] || up[0]) : (up[0] || down[0]);
+}
+
+async function fontProblems(h, baseUrl) {
+  const out = [];
+  const css = await (await fetch(new URL("assets/fonts/fonts.css", baseUrl))).text();
+  const faces = fontFaces(css);
+  const fileOf = f => `assets/fonts/${f.file}`;
+  let preloads = null;
+  const used = new Set();
+  for (const [width, height] of [[1280, 800], [390, 844]]) for (const firstVisit of [false, true]) {
+    const page = await h.newPage();
+    await openDesk(page, "overview", { width, height, firstVisit, baseUrl });
+    const r = await page.evaluate(() => {
+      const seen = {};
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      let n;
+      while ((n = walker.nextNode())) {
+        if (!n.textContent.trim()) continue;
+        const cs = getComputedStyle(n.parentElement);
+        if (cs.visibility === "hidden") continue;
+        const range = document.createRange(); range.selectNodeContents(n);
+        const inView = [...range.getClientRects()].some(b => b.width > 0 && b.bottom > 0 && b.top < innerHeight && b.right > 0 && b.left < innerWidth);
+        if (!inView) continue;
+        seen[`${cs.fontFamily.split(",")[0].replace(/"/g, "").trim()}|${cs.fontWeight}`] = true;
+      }
+      const preloads = [...document.querySelectorAll("link[rel=preload][as=font]")].map(l => { const u = new URL(l.href); return u.pathname.replace(/^\//, "") + u.search; });
+      const fetched = performance.getEntriesByType("resource").map(e => new URL(e.name)).filter(u => /\.woff2$/.test(u.pathname)).map(u => u.pathname + u.search);
+      return { seen: Object.keys(seen), preloads, fetched };
+    });
+    const label = `${width}px ${firstVisit ? "first visit" : "returning"}`;
+    preloads = r.preloads;
+    for (const key of r.seen) {
+      const [family, weight] = key.split("|");
+      const face = matchFace(faces, family, Number(weight));
+      if (!face) continue; // system fallback families (Arial, the metric fallback)
+      used.add(fileOf(face));
+      if (!r.preloads.includes(fileOf(face))) out.push(`${label}: ${family} ${weight} renders in the first viewport from ${face.file}, which is not preloaded`);
+    }
+    const byPath = {};
+    for (const u of r.fetched) (byPath[u.split("?")[0]] ||= new Set()).add(u);
+    for (const [p, urls] of Object.entries(byPath)) if (urls.size > 1) out.push(`${label}: ${p} is fetched under ${urls.size} URLs (${[...urls].join(", ")})`);
+    await page.close();
+  }
+  for (const p of preloads || []) {
+    if (!faces.some(f => fileOf(f) === p)) out.push(`preload ${p} is not a url() in fonts.css, so the browser fetches it twice`);
+    else if (!used.has(p)) out.push(`preload ${p} renders no text in the first viewport of the first view`);
+  }
+  return out;
+}
+
 async function titleProblems(h, baseUrl) {
   const page = await h.newPage();
   await openDesk(page, "overview", { baseUrl });
@@ -167,7 +250,7 @@ function scratchCopy(dist, name) {
   return dir;
 }
 function mutate(dir, file, from, to) {
-  const p = path.join(dir, file);
+  const p = editableDistFile(dir, file);
   const s = fs.readFileSync(p, "utf8");
   if (!s.includes(from)) throw new Error(`canary mutation did not apply to ${file}: ${from.slice(0, 80)}`);
   fs.writeFileSync(p, s.replace(from, to));
@@ -176,8 +259,14 @@ const CANARIES = [
   { name: "no-live-state", run: liveNavProblems,
     apply: d => mutate(d, "shell.js", 'if (fresh && fresh.known && fresh.stale) return "stale";', "") },
   { name: "strip-back", run: committeeProblems,
-    apply: d => mutate(d, "pages.js", 'React.createElement(TodaysHearingsPanel, null)',
+    apply: d => mutate(d, "pages-workspace.js", 'React.createElement(TodaysHearingsPanel, null)',
       'React.createElement(LiveFeedStrip, { title: "Latest committee activity", items: (liveSignalsState.items || []).filter((s) => COMMITTEE_STRIP_LABELS.has(s.source)), fetchedAt: liveSignalsState.fetchedAt }), React.createElement(TodaysHearingsPanel, null)') },
+  { name: "no-serif-preload", run: fontProblems,
+    apply: d => mutate(d, "index.html", '<link rel="preload" href="assets/fonts/IBMPlexSerif-600.woff2" as="font" type="font/woff2" crossorigin>\n', "") },
+  { name: "unused-preload", run: fontProblems,
+    apply: d => mutate(d, "index.html", '<link rel="preload" href="assets/fonts/IBMPlexSerif-600.woff2" as="font" type="font/woff2" crossorigin>\n', '<link rel="preload" href="assets/fonts/IBMPlexSerif-600.woff2" as="font" type="font/woff2" crossorigin>\n<link rel="preload" href="assets/fonts/IBMPlexSerif-700.woff2" as="font" type="font/woff2" crossorigin>\n') },
+  { name: "double-fetch", run: fontProblems,
+    apply: d => mutate(d, "index.html", '<link rel="preload" href="assets/fonts/IBMPlexSans-Variable.woff2" as="font" type="font/woff2" crossorigin>\n', '<link rel="preload" href="assets/fonts/IBMPlexSans-Variable.woff2?v=2" as="font" type="font/woff2" crossorigin>\n') },
   { name: "rail-unscoped", run: phoneColumnProblems,
     apply: d => mutate(d, "index.html", ".page-overview .g-overview > div:last-child { display: none; }", ".g-overview > div:last-child { display: none; }") },
   { name: "no-print", run: printProblems,
@@ -200,6 +289,8 @@ try {
   check(pc.length === 0, "390 px: Sources keeps Add RSS feed and Daily program keeps Recent divisions; only the Overview defers its rail", pc.join("\n      "));
   const tt = await titleProblems(h, base);
   check(tt.length === 0, "document.title, description, OG and Twitter meta carry no em dash", tt.join("\n      "));
+  const fp = await fontProblems(h, base);
+  check(fp.length === 0, "fonts: the first view preloads exactly the font files it renders in the first viewport (1280 and 390 px, first visit and returning), and no font file is fetched twice", fp.join("\n      "));
 
   console.log("\n=== canaries (each must FAIL its check) ===");
   for (const c of CANARIES) {
