@@ -91,8 +91,10 @@ pnpm dev:worker          # wrangler dev --env dev on http://127.0.0.1:8787
 - **D1**: `ARCHIVE` database. Migrations are applied by the owner before the
   deploy that needs them: `wrangler d1 migrations apply parliament-pulse-archive --remote`.
 - **KV**: `CACHE` namespace, 5-minute TTL on RSS and `/state` bodies; also holds rate-limit counters.
-- **Frontend**: deployed from the separate frontend repository. `deploy-web.yml`
-  here is retired and manual-dispatch only.
+- **Frontend**: deployed from the separate frontend repository. This repository
+  has no frontend deploy workflow: `deploy-web.yml` was deleted on
+  `upgrade/commercial-ready` (29 Sep 2026), and the legacy `apps/web` build is
+  not published from here.
 
 ## Cron schedule (UTC)
 
