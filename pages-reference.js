@@ -237,11 +237,12 @@ function PageSources() {
   const workerRows = (health.items || []).filter((c) => !registryUrls.has(c.url));
   const healthyCount = (health.items || []).filter((c) => c.ok).length;
   const refreshHealth = () => {
-    if (typeof refreshLiveState !== "function") {
+    const pending = typeof refreshLiveState === "function" ? refreshLiveState() : void 0;
+    if (!pending || typeof pending.then !== "function") {
       toast("Feed health cannot be reloaded right now", "error");
       return;
     }
-    Promise.resolve(refreshLiveState()).then(() => toast("Feed health reloaded from the latest check")).catch(() => toast("Could not reach the service; showing the last health check held", "error"));
+    pending.then(() => toast("Feed health reloaded from the latest check")).catch(() => toast("Could not reach the service; showing the last health check held", "error"));
   };
   const feedChecks = (health.items || []).filter((c) => c.isFeed);
   const feedShape = feedChecks.length > 0;

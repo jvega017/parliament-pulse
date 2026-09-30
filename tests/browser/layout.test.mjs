@@ -30,6 +30,9 @@
 //               8 undated items with a first-seen date): on Overview and Signals at
 //               390 and 320 px every card-head date sits inside its card, and in the
 //               drawer the date and its "first seen" clause sit inside the drawer.
+//               Round 3: at the same widths every drawer footer button (Close
+//               included) sits inside the drawer and the viewport, and the footer
+//               does not scroll sideways; at 320 px Close used to be clipped.
 //   search      round 2, state.json (the poll line shows): at 1280 px the topbar
 //               search input is at least 200 px wide on Overview and Sources, and
 //               the page does not scroll sideways.
@@ -62,6 +65,7 @@
 //   drawer-seen    the drawer date and its first-seen clause joined in one
 //                  unbreakable span again (card-date)
 //   search-min     the topbar search min-width removed (search)
+//   foot-wrap      the drawer footer's flex-wrap removed (card-date: Close clipped at 320 px)
 // A canary whose mutation does not apply aborts the run as untrustworthy.
 
 import fs from "node:fs";
@@ -274,6 +278,20 @@ async function drawerDateProblems(page) {
       const r = p.getBoundingClientRect();
       if (r.right > Math.min(dr.right, window.innerWidth) + 1) out.push(`drawer date part "${p.textContent}" runs past the drawer (right ${Math.round(r.right)}, drawer right ${Math.round(dr.right)})`);
     }
+    // Round 3: the footer buttons, Close included, sit inside the drawer.
+    const foot = drawer.querySelector(".drawer-foot");
+    if (!foot) out.push("drawer foot: no .drawer-foot in the open drawer");
+    else {
+      const btns = [...foot.querySelectorAll("button")];
+      if (!btns.some(b => /Close/.test(b.textContent))) out.push("drawer foot: no Close button");
+      const right = Math.min(dr.right, window.innerWidth) + 1, left = Math.max(dr.left, 0) - 1;
+      for (const b of btns) {
+        const r = b.getBoundingClientRect();
+        if (r.right > right || r.left < left) out.push(`drawer foot: "${b.textContent.trim()}" runs past the drawer (left ${Math.round(r.left)}, right ${Math.round(r.right)}, drawer ${Math.round(dr.left)} to ${Math.round(dr.right)})`);
+        if (b.scrollWidth > b.clientWidth + 1) out.push(`drawer foot: "${b.textContent.trim()}" is truncated`);
+      }
+      if (foot.scrollWidth > foot.clientWidth + 1) out.push(`drawer foot: the footer scrolls sideways (${foot.scrollWidth} > ${foot.clientWidth})`);
+    }
     return out;
   });
   await page.keyboard.press("Escape");
@@ -456,6 +474,9 @@ const CANARIES = [
     expect: "runs past its card", apply: d => mutate(d, "store.js", 'return { dateKind: "none", time: "", date, when: "Date not supplied", pubAt: null };', 'return { dateKind: "none", time: "", date, when: date, pubAt: null };') },
   { name: "drawer-seen", check: "card-date",
     expect: "runs past the drawer", apply: d => mutate(d, "shell.js", 'const [day, seen] = String(s.date || "").split(", first seen ");', 'const [day, seen] = [String(s.date || ""), ""];') },
+  // Round 3.
+  { name: "foot-wrap", check: "card-date",
+    expect: "drawer foot:", apply: d => mutate(d, "index.html", ".drawer-foot { padding: 12px 20px; border-top: 1px solid var(--line); display: flex; flex-wrap: wrap;", ".drawer-foot { padding: 12px 20px; border-top: 1px solid var(--line); display: flex;") },
   { name: "search-min", check: "search",
     expect: "topbar search input is", apply: d => mutate(d, "index.html", ".topbar .search { min-width: 320px; }", "") },
 ];
@@ -490,7 +511,7 @@ try {
   check(r.tables.problems.length === 0, "Bills and Sources stack with data-label at 390 px and stay tables at 1280 px; Activity by source labels follow the width", r.tables.problems.join("\n      "));
   check(r["sources-fit"].problems.length === 0, "Sources, current and older Worker shapes: the table fits its panel at 1280 px and stacks at 390 px, both themes", r["sources-fit"].problems.slice(0, 6).join("\n      "));
   check(r.phone.problems.length === 0, "Overview and drawer at 390 px, both themes: topbar controls on one row with the theme toggle, confidence on one line clear of Open, evidence label on one line above a wide address, drawer date unbroken", r.phone.problems.slice(0, 6).join("\n      "));
-  check(r["card-date"].problems.length === 0, "Overview and Signals at 390 and 320 px with the 0.16-shaped fixture: every card-head date sits inside its card; the drawer date and its first-seen clause sit inside the drawer", r["card-date"].problems.slice(0, 6).join("\n      "));
+  check(r["card-date"].problems.length === 0, "Overview and Signals at 390 and 320 px with the 0.16-shaped fixture: every card-head date sits inside its card; the drawer date and its first-seen clause sit inside the drawer; every drawer footer button, Close included, sits inside the drawer", r["card-date"].problems.slice(0, 6).join("\n      "));
   check(r.search.problems.length === 0, "Topbar at 1280 px with the poll line showing, Overview and Sources, both themes: the search input is at least 200 px wide and the page does not scroll sideways", r.search.problems.slice(0, 6).join("\n      "));
   check(r.player.problems.length === 0, "Live: no iframe and no YouTube request before 'Load YouTube player'; one APH live stream embed after, verified channel, no autoplay; chambers link to ParlView", r.player.problems.join("\n      "));
   const errs = [...r.pageErrors, ...r.player.pageErrors].filter(e => !/net::ERR_BLOCKED_BY_CLIENT|Failed to load resource/.test(e));

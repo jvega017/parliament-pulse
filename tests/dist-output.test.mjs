@@ -24,6 +24,9 @@
 //      (.gitattributes). The planted-defect checks below edit those files by
 //      exact LF strings; a CRLF checkout on a fresh Windows clone
 //      (core.autocrlf=true) made two of them miss with nothing actually wrong.
+//   9. not-found page (round 3): dist ships 404.html, so Cloudflare Pages answers
+//      unknown paths (/.env, /.git/config) with status 404 instead of the SPA
+//      fallback's index.html and 200; the page links home and carries no script.
 // When a real dist/ exists (after ./build-dist.ps1) the same checks run on it.
 //
 // Canary-first: each check runs against planted defects (an overlapping
@@ -106,6 +109,15 @@ function problems(s) {
   // 7. images
   const refs = s.html + "\n" + (s.files.get("manifest.webmanifest") || Buffer.from("")).toString("utf8");
   for (const f of s.files.keys()) if (/\.(png|jpe?g|webp|gif|avif)$/i.test(f) && !refs.includes(f)) out.push(`image: ${f} ships but neither index.html nor manifest.webmanifest references it`);
+  // 9. not-found page
+  const nf = s.files.get("404.html");
+  if (!nf) out.push("404: dist has no 404.html, so Cloudflare Pages falls back to index.html with status 200 for every unknown path");
+  else {
+    const t = nf.toString("utf8");
+    if (/<script\b/i.test(t)) out.push("404: dist/404.html carries a script");
+    if (!/<a\b[^>]*\bhref="\/"/.test(t)) out.push("404: dist/404.html has no link home");
+    if (!/Page not found/.test(t)) out.push("404: dist/404.html does not say the page was not found");
+  }
   if (!s.info || !s.info.js_map || JSX_FILES.some(f => !s.info.js_map[`${f}.js`] || !s.files.has(s.info.js_map[`${f}.js`]))) out.push("map: build-info.json js_map does not name an existing hashed file for every app script");
   return out;
 }
@@ -139,6 +151,9 @@ try {
     })() },
     { why: "font-display: swap removed", expect: "fonts: an @font-face lacks", s: { ...clean, files: new Map([...clean.files, ["assets/fonts/fonts.css", Buffer.from(clean.files.get("assets/fonts/fonts.css").toString("utf8").replace("font-display:swap;", ""))]]) } },
     { why: "an unreferenced screenshot ships", expect: "image: assets/screenshot-signal-inbox.png", s: { ...clean, files: new Map([...clean.files, ["assets/screenshot-signal-inbox.png", Buffer.from("png")]]) } },
+    { why: "no 404.html in dist", expect: "404: dist has no 404.html", s: { ...clean, files: new Map([...clean.files].filter(([k]) => k !== "404.html")) } },
+    { why: "a script in 404.html", expect: "404: dist/404.html carries a script", s: { ...clean, files: new Map([...clean.files, ["404.html", Buffer.from(clean.files.get("404.html").toString("utf8").replace("</body>", "<script>1</script></body>"))]]) } },
+    { why: "404.html without its home link", expect: "404: dist/404.html has no link home", s: { ...clean, files: new Map([...clean.files, ["404.html", Buffer.from(clean.files.get("404.html").toString("utf8").replace('href="/"', 'href="#"'))]]) } },
     { why: "JS after total not smaller", expect: "sizes:", s: { ...clean, info: { ...clean.info, brotli: { ...clean.info.brotli, after: { ...clean.info.brotli.after, js: clean.info.brotli.before.js } } } } },
   ];
   for (const c of CANARIES) {

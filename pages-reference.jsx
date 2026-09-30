@@ -541,10 +541,14 @@ function PageSources() {
   // Live parliament is open, so on this page it could only print "Open Live
   // parliament to refresh the feeds" and sent no request. It now reloads /state
   // through the store, as the topbar refresh button does, and the health table
-  // re-renders from the checks that come back.
+  // re-renders from the checks that come back. The store hands back the running
+  // /state request (a press during a background fetch awaits that fetch), and no
+  // promise at all when no request can be sent, so "reloaded" is only ever said
+  // after a request has actually come back.
   const refreshHealth = () => {
-    if (typeof refreshLiveState !== "function") { toast("Feed health cannot be reloaded right now", "error"); return; }
-    Promise.resolve(refreshLiveState())
+    const pending = typeof refreshLiveState === "function" ? refreshLiveState() : undefined;
+    if (!pending || typeof pending.then !== "function") { toast("Feed health cannot be reloaded right now", "error"); return; }
+    pending
       .then(() => toast("Feed health reloaded from the latest check"))
       .catch(() => toast("Could not reach the service; showing the last health check held", "error"));
   };

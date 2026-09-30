@@ -595,14 +595,18 @@ function fetchedClause(v) {
 // The latest check time across a set of feed health checks, as
 // "last check 09:55 AEST", or "" when no check carries a time. The Sources
 // "Healthy" tile reads this: the page's own fetch time says nothing about when
-// the service last checked the feeds.
-function latestCheckClause(checks) {
+// the service last checked the feeds. A check made before today (Brisbane)
+// carries its day, "last check 28 Sep 09:55 AEST", so a stalled poller's clock
+// time never reads as this morning's.
+function latestCheckClause(checks, now = Date.now()) {
   let latest = NaN;
   for (const c of checks || []) {
     const t = fetchedAtMs(c && c.checkedAt);
     if (!Number.isNaN(t) && (Number.isNaN(latest) || t > latest)) latest = t;
   }
-  return Number.isNaN(latest) ? "" : `last check ${fmtClockHM(latest)} AEST`;
+  if (Number.isNaN(latest)) return "";
+  const day = fmtDayMonYear(latest) === fmtDayMonYear(now) ? "" : `${fmtDayMon(latest, PP_TZ, now)} `;
+  return `last check ${day}${fmtClockHM(latest)} AEST`;
 }
 
 // Explicit degradation state machine over the /state cache: loading | ready |
@@ -803,10 +807,13 @@ function StoreProvider({ children, navigate = () => {} }) {
     lastError: null,      // ms epoch of the last failed fetch; a background failure is silent (no toast)
   });
   // SWR plumbing. etagRef enables optional If-None-Match revalidation; inFlightRef
-  // dedupes concurrent fetches; fetchedAtRef mirrors liveState.fetchedAt so the
+  // dedupes concurrent fetches and holds the running fetch's promise, so a second
+  // caller awaits that fetch instead of getting undefined back straight away (the
+  // Sources "Refresh health" button toasted "reloaded" before anything had
+  // reloaded); fetchedAtRef mirrors liveState.fetchedAt so the
   // visibility handler reads a fresh value without a stale closure.
   const etagRef = React.useRef(null);
-  const inFlightRef = React.useRef(false);
+  const inFlightRef = React.useRef(null);
   const fetchedAtRef = React.useRef(null);
   const mountedRef = React.useRef(true);
   const pendingLiveRefreshRef = React.useRef(false);
@@ -823,71 +830,74 @@ function StoreProvider({ children, navigate = () => {} }) {
   // AbortController with an 8-second timeout, an in-flight flag. Invariants held:
   // a background refetch keeps status at "ready" (never flips the UI back to
   // skeletons), and a failed refetch never erases a good cache.
-  const doFetch = React.useCallback(async () => {
-    if (location.protocol === "file:") return;
-    if (inFlightRef.current) return;
-    inFlightRef.current = true;
-    // Only the first load (no cache yet) shows "loading". Once a good load has
-    // landed, revalidation keeps status "ready" and flags isRefreshing instead,
-    // so a background refetch can never regress the surface to skeletons.
-    setLiveState(s => ({ ...s, status: s.fetchedAt == null ? "loading" : "ready", isRefreshing: true }));
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 8000);
-    try {
-      const headers = {};
-      if (etagRef.current) headers["If-None-Match"] = etagRef.current;
-      const res = await fetch(`${WORKER_BASE_URL}/state`, { signal: ctrl.signal, headers });
-      // 304 Not Modified: a successful no-op revalidate. Keep the cached blocks
-      // and meta exactly as they are; only refresh the age stamp. (Worker ETag
-      // support is optional; without it every response is a full 200 fetch.)
-      if (res.status === 304) {
+  const doFetch = React.useCallback(() => {
+    if (location.protocol === "file:") return undefined;
+    if (inFlightRef.current) return inFlightRef.current;
+    const running = (async () => {
+      // Only the first load (no cache yet) shows "loading". Once a good load has
+      // landed, revalidation keeps status "ready" and flags isRefreshing instead,
+      // so a background refetch can never regress the surface to skeletons.
+      setLiveState(s => ({ ...s, status: s.fetchedAt == null ? "loading" : "ready", isRefreshing: true }));
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 8000);
+      try {
+        const headers = {};
+        if (etagRef.current) headers["If-None-Match"] = etagRef.current;
+        const res = await fetch(`${WORKER_BASE_URL}/state`, { signal: ctrl.signal, headers });
+        // 304 Not Modified: a successful no-op revalidate. Keep the cached blocks
+        // and meta exactly as they are; only refresh the age stamp. (Worker ETag
+        // support is optional; without it every response is a full 200 fetch.)
+        if (res.status === 304) {
+          const now = Date.now();
+          fetchedAtRef.current = now;
+          if (mountedRef.current) setLiveState(s => ({ ...s, status: "ready", isRefreshing: false, fetchedAt: now, lastError: null }));
+          return;
+        }
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const nextEtag = res.headers.get("ETag");
+        const payload = await res.json();
         const now = Date.now();
-        fetchedAtRef.current = now;
-        if (mountedRef.current) setLiveState(s => ({ ...s, status: "ready", isRefreshing: false, fetchedAt: now, lastError: null }));
-        return;
+        etagRef.current = nextEtag || null;
+        if (mountedRef.current) {
+          setLiveState(s => {
+            const nextBlocks = mapLiveBlocks(payload.blocks, payload.meta);
+            // Merge per block: a fresh block with usable items wins; a block that comes
+            // back degraded or empty keeps its last-good cache, so a transient bad
+            // revalidation never erases good data. Freshness tracks the primary
+            // (signals) block: if signals came back usable the shown data is fresh,
+            // otherwise the age stays put so the topbar never overstates freshness.
+            const merged = mergeLiveBlocks(s.blocks, nextBlocks);
+            const signalsFresh = !!(nextBlocks.signals && nextBlocks.signals.items);
+            const nextFetchedAt = signalsFresh ? now : (s.fetchedAt || null);
+            fetchedAtRef.current = nextFetchedAt;
+            return {
+              ...s,
+              status: "ready",
+              isRefreshing: false,
+              fetchedAt: nextFetchedAt,
+              lastError: null,
+              meta: payload.meta ?? s.meta ?? null,
+              blocks: merged,
+            };
+          });
+        }
+      } catch (e) {
+        // A failed refetch keeps the cache untouched (blocks and meta are preserved)
+        // and records the failure time. Status degrades to "error" only when no good
+        // load has ever landed; with a cache present the surface stays "ready" and
+        // the age label keeps counting up. Silent by design: no toast fires here, so
+        // the manual-refresh caller owns any user-facing failure message.
+        if (mountedRef.current) {
+          setLiveState(s => ({ ...s, status: s.fetchedAt != null ? "ready" : "error", isRefreshing: false, lastError: Date.now() }));
+        }
+        throw e;
+      } finally {
+        clearTimeout(timer);
+        inFlightRef.current = null;
       }
-      if (!res.ok) throw new Error("HTTP " + res.status);
-      const nextEtag = res.headers.get("ETag");
-      const payload = await res.json();
-      const now = Date.now();
-      etagRef.current = nextEtag || null;
-      if (mountedRef.current) {
-        setLiveState(s => {
-          const nextBlocks = mapLiveBlocks(payload.blocks, payload.meta);
-          // Merge per block: a fresh block with usable items wins; a block that comes
-          // back degraded or empty keeps its last-good cache, so a transient bad
-          // revalidation never erases good data. Freshness tracks the primary
-          // (signals) block: if signals came back usable the shown data is fresh,
-          // otherwise the age stays put so the topbar never overstates freshness.
-          const merged = mergeLiveBlocks(s.blocks, nextBlocks);
-          const signalsFresh = !!(nextBlocks.signals && nextBlocks.signals.items);
-          const nextFetchedAt = signalsFresh ? now : (s.fetchedAt || null);
-          fetchedAtRef.current = nextFetchedAt;
-          return {
-            ...s,
-            status: "ready",
-            isRefreshing: false,
-            fetchedAt: nextFetchedAt,
-            lastError: null,
-            meta: payload.meta ?? s.meta ?? null,
-            blocks: merged,
-          };
-        });
-      }
-    } catch (e) {
-      // A failed refetch keeps the cache untouched (blocks and meta are preserved)
-      // and records the failure time. Status degrades to "error" only when no good
-      // load has ever landed; with a cache present the surface stays "ready" and
-      // the age label keeps counting up. Silent by design: no toast fires here, so
-      // the manual-refresh caller owns any user-facing failure message.
-      if (mountedRef.current) {
-        setLiveState(s => ({ ...s, status: s.fetchedAt != null ? "ready" : "error", isRefreshing: false, lastError: Date.now() }));
-      }
-      throw e;
-    } finally {
-      clearTimeout(timer);
-      inFlightRef.current = false;
-    }
+    })();
+    inFlightRef.current = running;
+    return running;
   }, []);
 
   // Manual refresh trigger for the topbar. Forces a fetch and returns the promise

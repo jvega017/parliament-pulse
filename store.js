@@ -440,13 +440,15 @@ function fetchedClause(v) {
   const t = fetchedAtMs(v);
   return Number.isNaN(t) ? "" : `fetched ${fmtClockHM(t)} AEST`;
 }
-function latestCheckClause(checks) {
+function latestCheckClause(checks, now = Date.now()) {
   let latest = NaN;
   for (const c of checks || []) {
     const t = fetchedAtMs(c && c.checkedAt);
     if (!Number.isNaN(t) && (Number.isNaN(latest) || t > latest)) latest = t;
   }
-  return Number.isNaN(latest) ? "" : `last check ${fmtClockHM(latest)} AEST`;
+  if (Number.isNaN(latest)) return "";
+  const day = fmtDayMonYear(latest) === fmtDayMonYear(now) ? "" : `${fmtDayMon(latest, PP_TZ, now)} `;
+  return `last check ${day}${fmtClockHM(latest)} AEST`;
 }
 function liveStateDegradation(liveState, now = Date.now()) {
   if (!liveState) return "loading";
@@ -600,7 +602,7 @@ function StoreProvider({ children, navigate = () => {
     // ms epoch of the last failed fetch; a background failure is silent (no toast)
   });
   const etagRef = React.useRef(null);
-  const inFlightRef = React.useRef(false);
+  const inFlightRef = React.useRef(null);
   const fetchedAtRef = React.useRef(null);
   const mountedRef = React.useRef(true);
   const pendingLiveRefreshRef = React.useRef(false);
@@ -612,56 +614,59 @@ function StoreProvider({ children, navigate = () => {
     pendingLiveRefreshRef.current = false;
     return pending;
   }, []);
-  const doFetch = React.useCallback(async () => {
-    if (location.protocol === "file:") return;
-    if (inFlightRef.current) return;
-    inFlightRef.current = true;
-    setLiveState((s) => ({ ...s, status: s.fetchedAt == null ? "loading" : "ready", isRefreshing: true }));
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 8e3);
-    try {
-      const headers = {};
-      if (etagRef.current) headers["If-None-Match"] = etagRef.current;
-      const res = await fetch(`${WORKER_BASE_URL}/state`, { signal: ctrl.signal, headers });
-      if (res.status === 304) {
-        const now2 = Date.now();
-        fetchedAtRef.current = now2;
-        if (mountedRef.current) setLiveState((s) => ({ ...s, status: "ready", isRefreshing: false, fetchedAt: now2, lastError: null }));
-        return;
+  const doFetch = React.useCallback(() => {
+    if (location.protocol === "file:") return void 0;
+    if (inFlightRef.current) return inFlightRef.current;
+    const running = (async () => {
+      setLiveState((s) => ({ ...s, status: s.fetchedAt == null ? "loading" : "ready", isRefreshing: true }));
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 8e3);
+      try {
+        const headers = {};
+        if (etagRef.current) headers["If-None-Match"] = etagRef.current;
+        const res = await fetch(`${WORKER_BASE_URL}/state`, { signal: ctrl.signal, headers });
+        if (res.status === 304) {
+          const now2 = Date.now();
+          fetchedAtRef.current = now2;
+          if (mountedRef.current) setLiveState((s) => ({ ...s, status: "ready", isRefreshing: false, fetchedAt: now2, lastError: null }));
+          return;
+        }
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const nextEtag = res.headers.get("ETag");
+        const payload = await res.json();
+        const now = Date.now();
+        etagRef.current = nextEtag || null;
+        if (mountedRef.current) {
+          setLiveState((s) => {
+            var _a, _b;
+            const nextBlocks = mapLiveBlocks(payload.blocks, payload.meta);
+            const merged = mergeLiveBlocks(s.blocks, nextBlocks);
+            const signalsFresh = !!(nextBlocks.signals && nextBlocks.signals.items);
+            const nextFetchedAt = signalsFresh ? now : s.fetchedAt || null;
+            fetchedAtRef.current = nextFetchedAt;
+            return {
+              ...s,
+              status: "ready",
+              isRefreshing: false,
+              fetchedAt: nextFetchedAt,
+              lastError: null,
+              meta: (_b = (_a = payload.meta) != null ? _a : s.meta) != null ? _b : null,
+              blocks: merged
+            };
+          });
+        }
+      } catch (e) {
+        if (mountedRef.current) {
+          setLiveState((s) => ({ ...s, status: s.fetchedAt != null ? "ready" : "error", isRefreshing: false, lastError: Date.now() }));
+        }
+        throw e;
+      } finally {
+        clearTimeout(timer);
+        inFlightRef.current = null;
       }
-      if (!res.ok) throw new Error("HTTP " + res.status);
-      const nextEtag = res.headers.get("ETag");
-      const payload = await res.json();
-      const now = Date.now();
-      etagRef.current = nextEtag || null;
-      if (mountedRef.current) {
-        setLiveState((s) => {
-          var _a, _b;
-          const nextBlocks = mapLiveBlocks(payload.blocks, payload.meta);
-          const merged = mergeLiveBlocks(s.blocks, nextBlocks);
-          const signalsFresh = !!(nextBlocks.signals && nextBlocks.signals.items);
-          const nextFetchedAt = signalsFresh ? now : s.fetchedAt || null;
-          fetchedAtRef.current = nextFetchedAt;
-          return {
-            ...s,
-            status: "ready",
-            isRefreshing: false,
-            fetchedAt: nextFetchedAt,
-            lastError: null,
-            meta: (_b = (_a = payload.meta) != null ? _a : s.meta) != null ? _b : null,
-            blocks: merged
-          };
-        });
-      }
-    } catch (e) {
-      if (mountedRef.current) {
-        setLiveState((s) => ({ ...s, status: s.fetchedAt != null ? "ready" : "error", isRefreshing: false, lastError: Date.now() }));
-      }
-      throw e;
-    } finally {
-      clearTimeout(timer);
-      inFlightRef.current = false;
-    }
+    })();
+    inFlightRef.current = running;
+    return running;
   }, []);
   const refreshLiveState = React.useCallback(() => doFetch(), [doFetch]);
   React.useEffect(() => {

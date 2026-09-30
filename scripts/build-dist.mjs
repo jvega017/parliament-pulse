@@ -8,7 +8,10 @@
 //
 // Steps, in order:
 //   1. Copy ONLY the allowlisted files (DIST_FILES, DIST_DIRS minus DIST_EXCLUDED)
-//      and write 404.html and robots.txt. Nothing else can reach production.
+//      and write robots.txt. Nothing else can reach production. 404.html is a
+//      committed file on the allowlist: Cloudflare Pages serves it with status
+//      404 for any unknown path, in place of the SPA fallback (the app routes
+//      by hash, so no app address needs that fallback).
 //   2. Record the brotli size of every JS, CSS and font file as copied ("before").
 //   3. Minify each app .js with the pinned esbuild (MINIFY_FLAGS: whitespace and
 //      syntax only, no identifier renaming, no bundle, no format), rename it to
@@ -38,6 +41,7 @@ export const DIST_FILES = [
   "_headers",
   "manifest.webmanifest",
   "favicon.ico",
+  "404.html",
 ];
 export const DIST_DIRS = ["vendor", "assets"];
 // Files inside allowlisted directories that must still never ship.
@@ -53,30 +57,6 @@ export const BASELINE_PRE_FE11 = {
   note: "7 unminified app scripts plus vendor React; fonts.css; 10 woff2 files, 4 of them byte-identical copies of the IBM Plex Sans variable font",
 };
 
-const NOT_FOUND_HTML = `<!doctype html>
-<html lang="en-AU">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="noindex">
-<title>Page not found - Parliament Pulse</title>
-<style>
-  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #07080e; color: #e8e9ee; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
-  main { max-width: 32rem; padding: 2rem 1rem; text-align: center; }
-  h1 { font-size: 1.5rem; margin: 0 0 0.75rem; }
-  p { color: #a9acb8; line-height: 1.5; }
-  a { color: #7fb2ff; }
-  a:focus-visible { outline: 2px solid #7fb2ff; outline-offset: 3px; }
-</style>
-</head>
-<body>
-<main>
-  <h1>Page not found</h1>
-  <p>This address is not part of Parliament Pulse.</p>
-  <p><a href="/">Return to Parliament Pulse</a></p>
-</main>
-</body>
-</html>`;
 const ROBOTS_TXT = "User-agent: *\nAllow: /\nDisallow: /build-info.json\n";
 
 // The local dev proxy origins. Allowed in the repo _headers for local work, never
@@ -228,7 +208,6 @@ export function buildDist(outDir, { extraMinifyFlags = [], writeBuildInfo = true
     });
     walk(srcDir);
   }
-  fs.writeFileSync(path.join(outDir, "404.html"), NOT_FOUND_HTML.replace(/\r\n/g, "\n"));
   fs.writeFileSync(path.join(outDir, "robots.txt"), ROBOTS_TXT);
 
   // 2. sizes before

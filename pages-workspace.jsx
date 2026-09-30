@@ -164,8 +164,10 @@ const COMMITTEE_RECENT_LABELS = new Set([
 function PageCommittees() {
   const liveSignalsState = useLiveState("signals");
   const items = liveSignalsState.items;
-  const upcomingHearings = items ? items.filter(s => s.source === "Upcoming Senate hearings") : null;
-  const recentItems = items ? items.filter(s => COMMITTEE_RECENT_LABELS.has(s.source)) : null;
+  // Both lists run newest first with undated items last, as the Signal inbox
+  // does; the Worker sends score-then-recency order.
+  const upcomingHearings = items ? sortSignalsNewestFirst(items.filter(s => s.source === "Upcoming Senate hearings")) : null;
+  const recentItems = items ? sortSignalsNewestFirst(items.filter(s => COMMITTEE_RECENT_LABELS.has(s.source))) : null;
   const { toast } = useStore();
 
   const exportPrepPack = () => {

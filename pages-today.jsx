@@ -657,7 +657,7 @@ function PageLive() {
             </div>
             <div className="panel-body">
               <EmptyState icon="clock" kicker="Programs are on aph.gov.au">
-                This page does not build a chamber daily program. House daily program items from the APH feed appear in the "Recent items · APH RSS" panel beside this player whenever the feed returns them. Open the House or Senate program above for the current official schedule.
+                This page does not build a chamber daily program. House daily program items from the APH feed appear in the "Recent items · APH RSS" panel on this page whenever the feed returns them. Open the House or Senate program above for the current official schedule.
               </EmptyState>
             </div>
           </div>

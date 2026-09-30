@@ -55,8 +55,8 @@ const COMMITTEE_RECENT_LABELS = /* @__PURE__ */ new Set([
 function PageCommittees() {
   const liveSignalsState = useLiveState("signals");
   const items = liveSignalsState.items;
-  const upcomingHearings = items ? items.filter((s) => s.source === "Upcoming Senate hearings") : null;
-  const recentItems = items ? items.filter((s) => COMMITTEE_RECENT_LABELS.has(s.source)) : null;
+  const upcomingHearings = items ? sortSignalsNewestFirst(items.filter((s) => s.source === "Upcoming Senate hearings")) : null;
+  const recentItems = items ? sortSignalsNewestFirst(items.filter((s) => COMMITTEE_RECENT_LABELS.has(s.source))) : null;
   const { toast } = useStore();
   const exportPrepPack = () => {
     const rows = recentItems || [];

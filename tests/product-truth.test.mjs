@@ -32,6 +32,18 @@
 //             the page's fetch time, and drops the clause when no check has a time.
 //   livesort  Live "Recent items" run newest first with undated items last, and
 //             the poller applies that sort before the 30-item cap.
+// Round 3:
+//   committees  Committees "Upcoming Senate hearings" and "Inquiries and reports"
+//             run newest first with undated items last (they kept the Worker's
+//             score order).
+//   recentpanel the Daily program note places the "Recent items · APH RSS" panel
+//             "on this page", never "beside this player" (false at 390 px).
+//   inflight  a refresh pressed while the store's /state fetch is running gets
+//             that fetch's promise back, never an already-settled one, and the
+//             Sources button says "reloaded" only after a request has come back:
+//             with no request to wait on it says it cannot reload.
+//   checkday  the Healthy tile's check time carries its day when the check was
+//             not made today in Brisbane ("last check 28 Sep 09:55 AEST").
 //
 // Canary-first: each control is removed on an in-memory scratch copy of the built
 // .js or index.html (the working tree is never touched) and the matching assertion
@@ -64,6 +76,17 @@ const feedCheck = (label, at, extra) => ({ url: `https://www.aph.gov.au/truth/fe
 const NEVER = { ok: 0, status: null, last_http_status: null, items_parsed: null, last_success_at: null };
 const CHECKS = [feedCheck("House media releases", iso(CHECK_B)), feedCheck("Senate committee reports", iso(CHECK_A)), feedCheck("House news", null, NEVER)];
 const CHECKS_UNTIMED = [feedCheck("House news", null, NEVER)];
+// A latest check two days old: its clause must carry the day.
+const CHECK_OLD = NOW_MS - 2 * 24 * 60 * MIN;
+const CHECKS_OLD = [feedCheck("Senate committee reports", iso(CHECK_OLD))];
+// Expected short date computed with Intl directly, never with app code.
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const dayMon = ms => {
+  const o = {};
+  for (const p of new Intl.DateTimeFormat("en-AU", { timeZone: "Australia/Brisbane", year: "numeric", month: "numeric", day: "numeric" }).formatToParts(new Date(ms))) o[p.type] = p.value;
+  const nowYear = new Intl.DateTimeFormat("en-AU", { timeZone: "Australia/Brisbane", year: "numeric" }).format(new Date(NOW_MS));
+  return `${Number(o.day)} ${MONTHS[Number(o.month) - 1]}${o.year === nowYear ? "" : " " + o.year}`;
+};
 
 const sig = (id, extra) => ({
   guid: `https://www.aph.gov.au/truth/${id}`, title: `Truth item ${id}`, link: `https://www.aph.gov.au/truth/${id}`,
@@ -79,6 +102,18 @@ const SIGNALS = [
   sig("undated2", { pub_date: null, attention: "low" }),
 ];
 const EXPECT_ORDER = ["recent", "sep15", "jul", "undated", "undated2"];
+// Committee feeds, in Worker (score) order: the oldest and an undated item lead.
+const COMMITTEE_SIGNALS = [
+  sig("c-jul", { feed_label: "Senate reports tabled", pub_date: "2026-07-05", attention: "high" }),
+  sig("c-undated", { feed_label: "New Senate inquiries", pub_date: null, attention: "high" }),
+  sig("c-sep15", { feed_label: "House committee inquiries", pub_date: "2026-09-15T02:00:00.000Z" }),
+  sig("c-recent", { feed_label: "Joint committee inquiries", pub_date: iso(NOW_MS - 5 * MIN), attention: "low" }),
+  sig("h-old", { feed_label: "Upcoming Senate hearings", pub_date: "2026-08-01T00:00:00.000Z", attention: "high" }),
+  sig("h-undated", { feed_label: "Upcoming Senate hearings", pub_date: null, attention: "high" }),
+  sig("h-new", { feed_label: "Upcoming Senate hearings", pub_date: iso(NOW_MS - 60 * MIN), attention: "low" }),
+];
+const EXPECT_COMMITTEE_RECENT = ["c-recent", "c-sep15", "c-jul", "c-undated"];
+const EXPECT_COMMITTEE_HEARINGS = ["h-new", "h-old", "h-undated"];
 const BILL = { guid: "https://parlinfo.aph.gov.au/truth/bill1", title: "Truth Amendment Bill 2026", link: "https://parlinfo.aph.gov.au/truth/bill1", pub_date: "2026-09-28T04:00:00.000Z", description: null, attention: "high", confidence: 1 };
 const BLOCKS = {
   signals: { provenance: "live", fetched_at: NOW, origin: "fixture", items: SIGNALS },
@@ -154,7 +189,7 @@ function findEl(el, React, pred) {
   return findEl(props && props.children, React, pred);
 }
 
-function run(sources, billsFetchedAt, checks = CHECKS) {
+async function run(sources, billsFetchedAt, checks = CHECKS, { refreshReturns = "pending" } = {}) {
   const storeRef = { value: null };
   const { ctx, React } = makeContext(storeRef);
   JSX_FILES.filter(f => f !== "app").forEach(f => vm.runInContext(sources[f], ctx, { filename: `${f}.js` }));
@@ -168,14 +203,14 @@ function run(sources, billsFetchedAt, checks = CHECKS) {
     liveBills: { status: "ready", items: [BILL], fetchedAt: billsFetchedAt, isRefreshing: false },
     navigate: () => {}, toast: m => { calls.toasts.push(String(m)); }, openModal: () => {}, openSignal: () => {}, closeSignal: () => {}, closeModal: () => {},
     isWatched: () => false, addFeed: () => {}, requestLiveRefresh: () => {}, consumeLiveRefresh: () => false,
-    refreshLiveState: () => { calls.refresh++; return new Promise(() => {}); }, setSignalSearchQuery: () => {}, signalSearchQuery: "",
+    refreshLiveState: () => { calls.refresh++; return refreshReturns === "none" ? undefined : new Promise(() => {}); }, setSignalSearchQuery: () => {}, signalSearchQuery: "",
     setVisibleSignalOrder: () => {}, modal: null, signalId: null,
   };
   const r = (C, p = {}) => renderToString(React.createElement(C, p), React);
   // Press the Sources refresh button (found by its label) and record what it did.
   const btn = findEl(React.createElement(ctx.PageSources), React, p => typeof p.onClick === "function" && /Refresh (all|health)/.test(renderToString(p.children, React)));
   const refresh = { found: !!btn, label: btn ? text(renderToString(btn.props.children, React)) : null };
-  if (btn) { btn.props.onClick({ preventDefault() {} }); refresh.calls = calls.refresh; refresh.toasts = calls.toasts.slice(); }
+  if (btn) { btn.props.onClick({ preventDefault() {} }); await new Promise(res => setImmediate(res)); refresh.calls = calls.refresh; refresh.toasts = calls.toasts.slice(); }
   const undated = (mapped.signals.items || []).find(x => /\/undated$/.test(x.id));
   const T = ms => ({ getTime: () => ms });
   const liveEvents = typeof ctx.sortLiveEventsNewestFirst === "function" ? ctx.sortLiveEventsNewestFirst([
@@ -186,11 +221,31 @@ function run(sources, billsFetchedAt, checks = CHECKS) {
     { title: "feed2-a", date: null, feedIdx: 2, itemIdx: 0 },
     { title: "feed2-b", date: T(NOW_MS - 2 * 24 * 60 * MIN), feedIdx: 2, itemIdx: 1 },
   ]).map(e => e.title) : null;
-  return {
+  const out = {
     refresh, undatedDate: undated ? undated.date : null, liveEvents,
     bills: r(ctx.PageBills), signals: r(ctx.PageSignals), sources: r(ctx.PageSources),
     fmtNumber: ctx.fmtFetchedAt(FETCHED_MS), fmtIso: ctx.fmtFetchedAt(iso(FETCHED_MS)), fmtNull: ctx.fmtFetchedAt(null),
   };
+  // Committees, from the committee-feed fixture.
+  const cBlocks = JSON.parse(JSON.stringify(BLOCKS));
+  cBlocks.signals.items = JSON.parse(JSON.stringify(COMMITTEE_SIGNALS));
+  storeRef.value = { ...storeRef.value, liveState: { ...storeRef.value.liveState, blocks: ctx.mapLiveBlocks(cBlocks, JSON.parse(JSON.stringify(META))) } };
+  out.committees = r(ctx.PageCommittees);
+  return out;
+}
+
+// The store's own refresh: two presses while one /state fetch is running (the
+// fixture fetch never settles) must hand back that same running promise.
+function storeInflight(sources) {
+  const storeRef = { value: null };
+  const { ctx, React } = makeContext(storeRef);
+  JSX_FILES.filter(f => f !== "app").forEach(f => vm.runInContext(sources[f], ctx, { filename: `${f}.js` }));
+  const el = ctx.StoreProvider({ children: null });
+  const value = el && el.props && el.props.value;
+  if (!value || typeof value.refreshLiveState !== "function") return { found: false };
+  const first = value.refreshLiveState();
+  const second = value.refreshLiveState();
+  return { found: true, firstThenable: !!first && typeof first.then === "function", same: first === second };
 }
 
 const shipped = src => transformSync(src, { loader: "js", minifyWhitespace: true, legalComments: "none" }).code;
@@ -198,10 +253,14 @@ const billsKicker = html => { const m = html.match(/Tracked bills<\/h2><span cla
 const cssRule = (html, sel) => { const m = html.match(new RegExp(`\\${sel}\\s*\\{([^}]*)\\}`)); return m ? m[1] : null; };
 
 // ---- assertions ------------------------------------------------------------------
-function assertAll(sources) {
+async function assertAll(sources) {
   const f = [];
-  let withTime, noTime, untimed;
-  try { withTime = run(sources, FETCHED_MS); noTime = run(sources, null); untimed = run(sources, FETCHED_MS, CHECKS_UNTIMED); }
+  let withTime, noTime, untimed, oldCheck, noRequest, inflight;
+  try {
+    withTime = await run(sources, FETCHED_MS); noTime = await run(sources, null); untimed = await run(sources, FETCHED_MS, CHECKS_UNTIMED);
+    oldCheck = await run(sources, FETCHED_MS, CHECKS_OLD); noRequest = await run(sources, FETCHED_MS, CHECKS, { refreshReturns: "none" });
+    inflight = storeInflight(sources);
+  }
   catch (e) { return [`render threw ${e && e.stack ? e.stack.split("\n").slice(0, 2).join(" ") : e}`]; }
   // fetched
   const want = clock(FETCHED_MS);
@@ -269,6 +328,32 @@ function assertAll(sources) {
   const wantLive = ["feed1-a", "feed2-b", "feed0-a", "feed1-b", "feed0-b", "feed2-a"];
   if (!withTime.liveEvents || withTime.liveEvents.join(",") !== wantLive.join(",")) f.push(`livesort: Live items order ${JSON.stringify(withTime.liveEvents)}, expected ${wantLive.join(",")} (newest first, undated last in feed order)`);
   if (!/setEvents\(sortLiveEventsNewestFirst\(all\)\.slice\(0,\s*30\)\)/.test(today)) f.push("livesort: the Live poller does not sort before the 30-item cap");
+  // committees
+  const cHtml = withTime.committees;
+  const hAt = cHtml.indexOf("Upcoming Senate hearings</h2>"), rAt = cHtml.indexOf("Inquiries and reports</h2>");
+  const ids = seg => [...seg.matchAll(/href="https:\/\/www\.aph\.gov\.au\/truth\/([ch]-[^"]+)"/g)].map(m => m[1]);
+  if (hAt < 0 || rAt < hAt) f.push("committees: the Upcoming Senate hearings and Inquiries and reports panels were not found in order");
+  else {
+    const hearings = ids(cHtml.slice(hAt, rAt)), recent = ids(cHtml.slice(rAt));
+    if (hearings.join(",") !== EXPECT_COMMITTEE_HEARINGS.join(",")) f.push(`committees: Upcoming Senate hearings order is ${hearings.join(",")}, expected ${EXPECT_COMMITTEE_HEARINGS.join(",")} (newest first, undated last)`);
+    if (recent.join(",") !== EXPECT_COMMITTEE_RECENT.join(",")) f.push(`committees: Inquiries and reports order is ${recent.join(",")}, expected ${EXPECT_COMMITTEE_RECENT.join(",")} (newest first, undated last)`);
+  }
+  // recentpanel
+  if (/beside this player/.test(today)) f.push('recentpanel: the Daily program note says the Recent items panel is "beside this player", which is false at 390 px');
+  if (!/Recent items \\xB7 APH RSS" panel on this page/.test(today)) f.push('recentpanel: the Daily program note does not place the Recent items · APH RSS panel "on this page"');
+  // inflight
+  if (!inflight.found) f.push("inflight: StoreProvider exposes no refreshLiveState");
+  else if (!inflight.firstThenable || !inflight.same) f.push(`inflight: a second refresh during a running /state fetch did not get that fetch's promise back (thenable ${inflight.firstThenable}, same ${inflight.same}), so a caller can report "reloaded" before anything reloaded`);
+  if (withTime.refresh.found && withTime.refresh.toasts.some(m => /health reloaded/.test(m))) f.push("inflight: Refresh health says reloaded while the /state request is still running");
+  if (noRequest.refresh.found) {
+    if (noRequest.refresh.toasts.some(m => /health reloaded/.test(m))) f.push("refresh: with no request to wait on, Refresh health still says reloaded");
+    if (!noRequest.refresh.toasts.some(m => /cannot be reloaded/.test(m))) f.push(`refresh: with no request to wait on, Refresh health does not say it cannot reload (toasts ${JSON.stringify(noRequest.refresh.toasts)})`);
+  }
+  // checkday
+  const mOld = meta(oldCheck.sources);
+  const wantOld = `last check ${dayMon(CHECK_OLD)} ${clock(CHECK_OLD)} AEST`;
+  if (mOld == null || !mOld.includes(wantOld)) f.push(`checkday: an older check reads ${JSON.stringify(mOld)}, expected it to carry "${wantOld}"`);
+  if (mTimed != null && /last check \d{1,2} [A-Z][a-z]{2}/.test(mTimed)) f.push(`checkday: today's check carries a day it does not need (${JSON.stringify(mTimed)})`);
   return f;
 }
 
@@ -294,24 +379,32 @@ const CANARIES = [
   { why: "Refresh all depends on the Live poller again", expect: "refresh:", m: mut("pages-reference", "onClick: refreshHealth }", 'onClick: () => { if (typeof window.__refreshLiveFeeds === "function") { window.__refreshLiveFeeds(); toast("Live feeds re-polled"); } else { toast("Open Live parliament to refresh the feeds"); } } }') },
   { why: "Healthy reads the page fetch time again", expect: "checktime:", m: mut("pages-reference", "latestCheckClause(feedChecks)]", "`as at ${fmtFetchedAt(health.fetchedAt)} AEST`]") },
   { why: "the check clause picks the earliest check", expect: "checktime:", m: mut("store", "t > latest)) latest = t;", "t < latest)) latest = t;") },
-  { why: "the check clause prints a placeholder with no check time", expect: "checktime: with no check times", m: mut("store", 'return Number.isNaN(latest) ? "" : `last check ${fmtClockHM(latest)} AEST`;', "return `last check ${Number.isNaN(latest) ? NOT_SUPPLIED : fmtClockHM(latest)} AEST`;") },
+  { why: "the check clause prints a placeholder with no check time", expect: "checktime: with no check times", m: mut("store", 'if (Number.isNaN(latest)) return "";', "if (Number.isNaN(latest)) return `last check ${NOT_SUPPLIED} AEST`;") },
   { why: "Live items back in feed order", expect: "livesort:", m: mut("pages-today", "if (ea != null && eb != null && ea !== eb) return eb - ea;", "") },
   { why: "Live undated items sort first", expect: "livesort:", m: mut("pages-today", "if (ea == null && eb != null) return 1;\n    if (eb == null && ea != null) return -1;", "if (ea == null && eb != null) return -1;\n    if (eb == null && ea != null) return 1;") },
   { why: "the Live poller skips the sort", expect: "livesort: the Live poller", m: mut("pages-today", "setEvents(sortLiveEventsNewestFirst(all).slice(0, 30));", "setEvents(all.slice(0, 30));") },
+  // round 3
+  { why: "Committees reports keep the Worker order", expect: "committees: Inquiries and reports", m: mut("pages-workspace", "sortSignalsNewestFirst(items.filter((s) => COMMITTEE_RECENT_LABELS.has(s.source)))", "items.filter((s) => COMMITTEE_RECENT_LABELS.has(s.source))") },
+  { why: "Committees hearings keep the Worker order", expect: "committees: Upcoming Senate hearings", m: mut("pages-workspace", 'sortSignalsNewestFirst(items.filter((s) => s.source === "Upcoming Senate hearings"))', 'items.filter((s) => s.source === "Upcoming Senate hearings")') },
+  { why: "the Daily program note says beside this player again", expect: "recentpanel:", m: mut("pages-today", "panel on this page whenever", "panel beside this player whenever") },
+  { why: "the store answers an in-flight refresh with nothing", expect: "inflight: a second refresh", m: mut("store", "if (inFlightRef.current) return inFlightRef.current;", "if (inFlightRef.current) return Promise.resolve();") },
+  { why: "Refresh health toasts reloaded with no request", expect: "refresh: with no request", m: mut("pages-reference", 'if (!pending || typeof pending.then !== "function") {\n      toast("Feed health cannot be reloaded right now", "error");\n      return;\n    }\n    pending.then(', "Promise.resolve(pending).then(") },
+  { why: "an older check prints its clock time with no day", expect: "checkday: an older check", m: mut("store", 'const day = fmtDayMonYear(latest) === fmtDayMonYear(now) ? "" : `${fmtDayMon(latest, PP_TZ, now)} `;', 'const day = "";') },
+  { why: "every check prints its day, today's too", expect: "checkday: today's check", m: mut("store", 'const day = fmtDayMonYear(latest) === fmtDayMonYear(now) ? "" : `${fmtDayMon(latest, PP_TZ, now)} `;', "const day = `${fmtDayMon(latest, PP_TZ, now)} `;") },
 ];
 
 let failures = 0;
 for (const c of CANARIES) {
   const src = SOURCES[c.m.file];
   if (src.split(c.m.a).length - 1 !== 1) { console.error(`CANARY BUILD ERROR: "${c.why}" did not apply once to ${c.m.file}; the source moved.`); failures++; continue; }
-  const got = assertAll({ ...SOURCES, [c.m.file]: src.replace(c.m.a, c.m.b) });
+  const got = await assertAll({ ...SOURCES, [c.m.file]: src.replace(c.m.a, c.m.b) });
   if (process.env.PP_DEBUG) console.log(`canary "${c.why}":\n  ${got.join("\n  ")}`);
   if (!got.some(m => m.startsWith(c.expect))) { console.error(`CANARY MISS: "${c.why}" did not fail with "${c.expect}" (got ${JSON.stringify(got)}).`); failures++; }
 }
 if (failures) { console.error("PRODUCT TRUTH: FAIL (instrument self-test)."); process.exit(1); }
 console.log(`Canary self-test PASSED: ${CANARIES.length} scratch-copy regressions each failed the assertions.`);
 
-const real = assertAll(SOURCES);
+const real = await assertAll(SOURCES);
 for (const m of real) { console.error(`FAIL  ${m}`); failures++; }
 if (failures) { console.error(`\nPRODUCT TRUTH: FAIL. ${failures} finding(s).`); process.exit(1); }
-console.log("PRODUCT TRUTH: PASSED. Fetch times read from numbers and the clause is omitted without one; the inbox sorts newest first with undated items last; no simulated feed check; the Not yet connected panel links to APH with no commercial wording or dead Request button; card-head dates do not wrap; the Live count says items; undated card heads read \"Date not supplied\" with first seen kept for the drawer; Refresh health reloads /state; Healthy reads the latest check time; Live items run newest first.");
+console.log("PRODUCT TRUTH: PASSED. Fetch times read from numbers and the clause is omitted without one; the inbox sorts newest first with undated items last; no simulated feed check; the Not yet connected panel links to APH with no commercial wording or dead Request button; card-head dates do not wrap; the Live count says items; undated card heads read \"Date not supplied\" with first seen kept for the drawer; Refresh health reloads /state; Healthy reads the latest check time; Live items run newest first; Committees lists run newest first; the Daily program note places Recent items on this page; an in-flight refresh awaits the running fetch and \"reloaded\" waits for a request; an older check time carries its day.");
