@@ -37,6 +37,6 @@ jobs:
         run: sleep 60
 
       - name: Run smoke
-        run: pnpm --filter e2e test
+        run: pnpm --filter e2e smoke
         env:
           BASE_URL: https://parliament-pulse.pages.dev
