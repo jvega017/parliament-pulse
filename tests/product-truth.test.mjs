@@ -44,6 +44,12 @@
 //             with no request to wait on it says it cannot reload.
 //   checkday  the Healthy tile's check time carries its day when the check was
 //             not made today in Brisbane ("last check 28 Sep 09:55 AEST").
+// Round 4:
+//   hearingorder the Upcoming Senate hearings list states its real order. No row
+//             carries a hearing date (/state sends none; the APH feed keeps it in
+//             <description>), so the note never claims hearing order: dated rows
+//             read "newest published first", and all-undated rows (the live shape)
+//             say the feed gives no dates and keep the Worker's score order.
 //
 // Canary-first: each control is removed on an in-memory scratch copy of the built
 // .js or index.html (the working tree is never touched) and the matching assertion
@@ -114,6 +120,14 @@ const COMMITTEE_SIGNALS = [
 ];
 const EXPECT_COMMITTEE_RECENT = ["c-recent", "c-sep15", "c-jul", "c-undated"];
 const EXPECT_COMMITTEE_HEARINGS = ["h-new", "h-old", "h-undated"];
+// The live shape (30 Sep 2026 /state probe): every Upcoming Senate hearings row
+// has pub_date null and no hearing date, so they keep the Worker's score order.
+const COMMITTEE_SIGNALS_UNDATED = [
+  sig("h-first", { feed_label: "Upcoming Senate hearings", pub_date: null, attention: "high" }),
+  sig("h-second", { feed_label: "Upcoming Senate hearings", pub_date: null }),
+  sig("h-third", { feed_label: "Upcoming Senate hearings", pub_date: null, attention: "low" }),
+];
+const EXPECT_COMMITTEE_HEARINGS_UNDATED = ["h-first", "h-second", "h-third"];
 const BILL = { guid: "https://parlinfo.aph.gov.au/truth/bill1", title: "Truth Amendment Bill 2026", link: "https://parlinfo.aph.gov.au/truth/bill1", pub_date: "2026-09-28T04:00:00.000Z", description: null, attention: "high", confidence: 1 };
 const BLOCKS = {
   signals: { provenance: "live", fetched_at: NOW, origin: "fixture", items: SIGNALS },
@@ -231,6 +245,10 @@ async function run(sources, billsFetchedAt, checks = CHECKS, { refreshReturns = 
   cBlocks.signals.items = JSON.parse(JSON.stringify(COMMITTEE_SIGNALS));
   storeRef.value = { ...storeRef.value, liveState: { ...storeRef.value.liveState, blocks: ctx.mapLiveBlocks(cBlocks, JSON.parse(JSON.stringify(META))) } };
   out.committees = r(ctx.PageCommittees);
+  const uBlocks = JSON.parse(JSON.stringify(BLOCKS));
+  uBlocks.signals.items = JSON.parse(JSON.stringify(COMMITTEE_SIGNALS_UNDATED));
+  storeRef.value = { ...storeRef.value, liveState: { ...storeRef.value.liveState, blocks: ctx.mapLiveBlocks(uBlocks, JSON.parse(JSON.stringify(META))) } };
+  out.committeesUndated = r(ctx.PageCommittees);
   return out;
 }
 
@@ -338,6 +356,24 @@ async function assertAll(sources) {
     if (hearings.join(",") !== EXPECT_COMMITTEE_HEARINGS.join(",")) f.push(`committees: Upcoming Senate hearings order is ${hearings.join(",")}, expected ${EXPECT_COMMITTEE_HEARINGS.join(",")} (newest first, undated last)`);
     if (recent.join(",") !== EXPECT_COMMITTEE_RECENT.join(",")) f.push(`committees: Inquiries and reports order is ${recent.join(",")}, expected ${EXPECT_COMMITTEE_RECENT.join(",")} (newest first, undated last)`);
   }
+  // hearingorder
+  const orderNote = html => { const m = html.match(/data-hearing-order="">([^<]*)</); return m ? m[1] : null; };
+  const HEARING_ORDER_CLAIM = /soonest|next hearing first|in hearing order|by hearing date|hearing date order/i;
+  const NOT_HEARING_ORDER = "This is not the order the hearings will be held";
+  const nDated = orderNote(withTime.committees), nUndated = orderNote(withTime.committeesUndated);
+  if (nDated == null || nUndated == null) f.push(`hearingorder: no order note on Upcoming Senate hearings (dated ${JSON.stringify(nDated)}, undated ${JSON.stringify(nUndated)})`);
+  else {
+    if (!/newest published first/.test(nDated)) f.push(`hearingorder: dated rows read ${JSON.stringify(nDated)}, expected "newest published first"`);
+    if (/newest published/.test(nUndated)) f.push(`hearingorder: undated rows claim a publication order they do not have (${JSON.stringify(nUndated)})`);
+    if (!/no dates/.test(nUndated)) f.push(`hearingorder: undated rows read ${JSON.stringify(nUndated)}, expected it to say the feed gives no dates`);
+    for (const n of [nDated, nUndated]) {
+      if (HEARING_ORDER_CLAIM.test(n)) f.push(`hearingorder: the note claims hearing order with no hearing date in the data (${JSON.stringify(n)})`);
+      if (!n.includes(NOT_HEARING_ORDER)) f.push(`hearingorder: the note does not say the list is not hearing order (${JSON.stringify(n)})`);
+    }
+  }
+  const uAt = withTime.committeesUndated.indexOf("Upcoming Senate hearings</h2>"), urAt = withTime.committeesUndated.indexOf("Inquiries and reports</h2>");
+  const uIds = uAt < 0 ? [] : [...withTime.committeesUndated.slice(uAt, urAt).matchAll(/href="https:\/\/www\.aph\.gov\.au\/truth\/(h-[^"]+)"/g)].map(m => m[1]);
+  if (uIds.join(",") !== EXPECT_COMMITTEE_HEARINGS_UNDATED.join(",")) f.push(`hearingorder: undated hearings order is ${uIds.join(",")}, expected the Worker's score order ${EXPECT_COMMITTEE_HEARINGS_UNDATED.join(",")}`);
   // recentpanel
   if (/beside this player/.test(today)) f.push('recentpanel: the Daily program note says the Recent items panel is "beside this player", which is false at 390 px');
   if (!/Recent items \\xB7 APH RSS" panel on this page/.test(today)) f.push('recentpanel: the Daily program note does not place the Recent items · APH RSS panel "on this page"');
@@ -391,6 +427,11 @@ const CANARIES = [
   { why: "Refresh health toasts reloaded with no request", expect: "refresh: with no request", m: mut("pages-reference", 'if (!pending || typeof pending.then !== "function") {\n      toast("Feed health cannot be reloaded right now", "error");\n      return;\n    }\n    pending.then(', "Promise.resolve(pending).then(") },
   { why: "an older check prints its clock time with no day", expect: "checkday: an older check", m: mut("store", 'const day = fmtDayMonYear(latest) === fmtDayMonYear(now) ? "" : `${fmtDayMon(latest, PP_TZ, now)} `;', 'const day = "";') },
   { why: "every check prints its day, today's too", expect: "checkday: today's check", m: mut("store", 'const day = fmtDayMonYear(latest) === fmtDayMonYear(now) ? "" : `${fmtDayMon(latest, PP_TZ, now)} `;', "const day = `${fmtDayMon(latest, PP_TZ, now)} `;") },
+  // round 4
+  { why: "the hearings order note is gone", expect: "hearingorder: no order note", m: mut("pages-workspace", "if (!rows || rows.length === 0) return null;", "return null;") },
+  { why: "undated hearings claim newest published order", expect: "hearingorder: undated rows claim", m: mut("pages-workspace", 'rows.some((s) => s.dateKind !== "none") ?', "true ?") },
+  { why: "the note claims hearing order", expect: "hearingorder: the note claims hearing order", m: mut("pages-workspace", "This is not the order the hearings will be held,", "Soonest hearing first,") },
+  { why: "undated hearings lose the Worker order", expect: "hearingorder: undated hearings order", m: mut("pages-today", "if (ta == null && tb == null) return 0;", "if (ta == null && tb == null) return String(b.id).localeCompare(String(a.id));") },
 ];
 
 let failures = 0;
@@ -407,4 +448,4 @@ console.log(`Canary self-test PASSED: ${CANARIES.length} scratch-copy regression
 const real = await assertAll(SOURCES);
 for (const m of real) { console.error(`FAIL  ${m}`); failures++; }
 if (failures) { console.error(`\nPRODUCT TRUTH: FAIL. ${failures} finding(s).`); process.exit(1); }
-console.log("PRODUCT TRUTH: PASSED. Fetch times read from numbers and the clause is omitted without one; the inbox sorts newest first with undated items last; no simulated feed check; the Not yet connected panel links to APH with no commercial wording or dead Request button; card-head dates do not wrap; the Live count says items; undated card heads read \"Date not supplied\" with first seen kept for the drawer; Refresh health reloads /state; Healthy reads the latest check time; Live items run newest first; Committees lists run newest first; the Daily program note places Recent items on this page; an in-flight refresh awaits the running fetch and \"reloaded\" waits for a request; an older check time carries its day.");
+console.log("PRODUCT TRUTH: PASSED. Fetch times read from numbers and the clause is omitted without one; the inbox sorts newest first with undated items last; no simulated feed check; the Not yet connected panel links to APH with no commercial wording or dead Request button; card-head dates do not wrap; the Live count says items; undated card heads read \"Date not supplied\" with first seen kept for the drawer; Refresh health reloads /state; Healthy reads the latest check time; Live items run newest first; Committees lists run newest first; the Daily program note places Recent items on this page; an in-flight refresh awaits the running fetch and \"reloaded\" waits for a request; an older check time carries its day; the Upcoming Senate hearings list states its real order and never claims hearing order.");

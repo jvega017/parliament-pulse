@@ -161,13 +161,30 @@ const COMMITTEE_RECENT_LABELS = new Set([
   "Senate reports tabled", "New Senate inquiries", "House committee inquiries", "Joint committee inquiries",
 ]);
 
+// States the Upcoming Senate hearings order as it is. The APH feed puts each
+// hearing's date only in its <description>, which /state does not send, and
+// supplies no pubDate (live /state probe and raw feed read, 30 Sep 2026). So
+// the app holds no hearing date and cannot list the soonest hearing first.
+// Dated rows run newest published first; with none dated, every row keeps the
+// Worker's attention-score order. Neither is hearing order, and the feed can
+// still carry hearings that have passed.
+function hearingOrderNote(rows) {
+  if (!rows || rows.length === 0) return null;
+  const order = rows.some(s => s.dateKind !== "none")
+    ? "Listed newest published first, undated items last."
+    : "The feed gives these items no dates, so they are listed by Parliament Pulse attention score.";
+  return `${order} This is not the order the hearings will be held, and the feed can still list hearings that have passed. Open an item for its hearing date on aph.gov.au.`;
+}
+
 function PageCommittees() {
   const liveSignalsState = useLiveState("signals");
   const items = liveSignalsState.items;
-  // Both lists run newest first with undated items last, as the Signal inbox
-  // does; the Worker sends score-then-recency order.
+  // Both lists run newest published first with undated items last, as the
+  // Signal inbox does; the Worker sends score-then-recency order. No row carries
+  // a hearing date, so the hearings list states its order (hearingOrderNote).
   const upcomingHearings = items ? sortSignalsNewestFirst(items.filter(s => s.source === "Upcoming Senate hearings")) : null;
   const recentItems = items ? sortSignalsNewestFirst(items.filter(s => COMMITTEE_RECENT_LABELS.has(s.source))) : null;
+  const hearingsOrder = hearingOrderNote(upcomingHearings);
   const { toast } = useStore();
 
   const exportPrepPack = () => {
@@ -206,6 +223,7 @@ function PageCommittees() {
         <div className="panel">
           <div className="panel-head"><h2 className="panel-title">Upcoming Senate hearings</h2><span className="panel-kicker">{(upcomingHearings || []).length} from the APH feed</span></div>
           <div className="panel-body">
+            {hearingsOrder && <p data-hearing-order="" style={{margin:"0 0 10px", color:"var(--ink-2)", fontSize:"var(--t-body-sm)"}}>{hearingsOrder}</p>}
             <SittingDeskList
               rows={upcomingHearings} emptyIcon="signal"
               unavailableText={<>Parliament Pulse holds no verified upcoming Senate hearings right now because the live signal feed is unavailable. <a href="https://www.aph.gov.au/Parliamentary_Business/Committees" target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>Open committee hearings on aph.gov.au</a>.</>}
