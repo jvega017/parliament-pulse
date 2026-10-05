@@ -129,7 +129,7 @@ export async function sendDailyDigest(env: EnvWithSecrets): Promise<DigestResult
       continue;
     }
 
-    const subject = `Parliament Pulse — ${filtered.length} new ${filtered.length === 1 ? "signal" : "signals"}`;
+    const subject = `Parliament Pulse: ${filtered.length} new ${filtered.length === 1 ? "signal" : "signals"}`;
     const html = renderDigestHtml(filtered);
     const text = renderDigestText(filtered);
 
@@ -162,7 +162,7 @@ export async function sendDailyDigest(env: EnvWithSecrets): Promise<DigestResult
 
 function renderDigestText(items: SignalRow[]): string {
   return [
-    "Parliament Pulse — daily digest",
+    "Parliament Pulse daily digest",
     "",
     ...items.map(
       (i) =>

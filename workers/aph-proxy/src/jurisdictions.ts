@@ -92,3 +92,21 @@ export function sourceGroupForConfig(label: string, config: JurisdictionConfig):
   }
   return config.defaultSourceGroup;
 }
+
+// Per-item chamber (0.16.3, data review 5 Oct 2026). A feed's label names the
+// chamber that publishes it, not the committee an item belongs to: "Today's
+// House and joint hearings" carries House committee hearings, and the Senate
+// feeds carry joint committee items. When an item's link names a committee
+// chamber (/Committees/House|Joint|Senate/), that chamber is the item's group.
+// Otherwise the feed rule applies. Library (Bills Digests) is never
+// overridden. migrations/0010_item_source_group.sql applies the same rule to
+// stored rows.
+const COMMITTEE_CHAMBER_RE = /\/Committees\/(House|Joint|Senate)\//i;
+const CHAMBER_GROUPS: Record<string, string> = { house: "House", joint: "Joint", senate: "Senate" };
+
+export function sourceGroupForItemConfig(link: string | null | undefined, feedLabel: string, config: JurisdictionConfig): string {
+  const feedGroup = sourceGroupForConfig(feedLabel, config);
+  if (feedGroup === "Library" || !link) return feedGroup;
+  const m = COMMITTEE_CHAMBER_RE.exec(link);
+  return m ? CHAMBER_GROUPS[m[1].toLowerCase()] : feedGroup;
+}

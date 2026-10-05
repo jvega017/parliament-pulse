@@ -141,13 +141,23 @@ export interface ThreadItem {
   thread_id: string;
   title: string;
   item_count: number;
+  // first_seen_at / last_seen_at are INGEST times: when the archive first and
+  // last wrote the thread, not when APH published anything.
   first_seen_at: string;
   last_seen_at: string;
+  // 0.16.3, additive: the earliest and latest APH publication date among the
+  // member signals (MIN/MAX signals.pub_date), ISO-8601, or null when no
+  // member carries a pub_date (Upcoming Senate hearings has none).
+  first_pub_date: string | null;
+  last_pub_date: string | null;
   signal_guids: string[];
 }
 
 export interface ThreadsBlock extends StateBlockBase {
   items: ThreadItem[];
+  // 0.16.3, additive: threads in the archive. `items` is the top 15 by
+  // repeat coverage, so a UI can say "top 15 of N".
+  total?: number;
 }
 
 export interface StateResponse {

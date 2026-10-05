@@ -149,19 +149,29 @@ async function buildThreadsBlock(env: Env, now: string): Promise<ThreadsBlock> {
     }
     const items: ThreadItem[] = [];
     for (const row of rows) {
+      // LEFT JOIN: a mapping row whose signal is gone still counts, as it
+      // does in item_count above, so the two always agree.
       const memberRes = await env.ARCHIVE.prepare(
-        `SELECT signal_guid FROM signal_threads WHERE thread_id = ?`,
-      ).bind(row.thread_id).all<{ signal_guid: string }>();
+        `SELECT st.signal_guid AS signal_guid, s.pub_date AS pub_date
+           FROM signal_threads st
+           LEFT JOIN signals s ON s.guid = st.signal_guid
+          WHERE st.thread_id = ?`,
+      ).bind(row.thread_id).all<{ signal_guid: string; pub_date: string | null }>();
+      const members = memberRes.results ?? [];
+      const pubs = members.map((m) => m.pub_date).filter((d): d is string => !!d).sort();
       items.push({
         thread_id: row.thread_id,
         title: row.title,
         item_count: row.item_count,
         first_seen_at: row.first_seen_at,
         last_seen_at: row.last_seen_at,
-        signal_guids: (memberRes.results ?? []).map((m) => m.signal_guid),
+        first_pub_date: pubs[0] ?? null,
+        last_pub_date: pubs[pubs.length - 1] ?? null,
+        signal_guids: members.map((m) => m.signal_guid),
       });
     }
-    return { provenance: "derived", fetched_at: now, origin: ORIGIN, items };
+    const totalRow = await env.ARCHIVE.prepare(`SELECT COUNT(*) AS n FROM threads`).first<{ n: number }>();
+    return { provenance: "derived", fetched_at: now, origin: ORIGIN, items, total: Number(totalRow?.n ?? items.length) };
   } catch (err) {
     return { provenance: "fixture", fetched_at: now, origin: ORIGIN, items: [], note: degradedNote(err) };
   }

@@ -14,7 +14,7 @@
 // unchanged by that refactor because the exported names and shapes below are
 // identical to before. See ./jurisdictions.ts for the config reader itself.
 
-import { getJurisdiction, sourceGroupForConfig, type JurisdictionFeedMeta } from "./jurisdictions";
+import { getJurisdiction, sourceGroupForConfig, sourceGroupForItemConfig, type JurisdictionFeedMeta } from "./jurisdictions";
 
 const APH = getJurisdiction("aph");
 
@@ -44,4 +44,9 @@ export const APH_PARLINFO_SEARCH_BASE: string = APH.parlinfoSearchBase;
 
 export function sourceGroupFor(label: string): string {
   return sourceGroupForConfig(label, APH);
+}
+
+/** Group for one item: the committee chamber in its link, else the feed rule. */
+export function sourceGroupForItem(link: string | null | undefined, feedLabel: string): string {
+  return sourceGroupForItemConfig(link, feedLabel, APH);
 }

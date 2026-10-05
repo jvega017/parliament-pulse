@@ -10,7 +10,10 @@
 // in timestamps and a candidate ID for a possible new thread; this module
 // only decides which thread an item's tokens belong to.
 
-export const SIMILARITY_THRESHOLD = 0.5;
+// 0.16.3: raised from 0.5. At 0.5, with descriptions in the token set,
+// "Annual reports" and "Budget Estimates" items from different committees
+// and four different Treasury Laws bills each shared one thread.
+export const SIMILARITY_THRESHOLD = 0.6;
 export const MAX_FINGERPRINT_TOKENS = 30;
 const MIN_TOKEN_LEN = 3; // shorter than the Hansard resolver's 4 -- RSS titles are short, so short tokens (e.g. "gst", "aid") carry more signal here
 
@@ -21,11 +24,15 @@ const STOPWORDS = new Set(
    of off on once only or other our ours ourselves out over own same she should so
    some such than that the their theirs them themselves then there these they this
    those through to too under until up very was we were what when where which while
-   who whom why will with would you your yours yourself yourselves new bill act`
+   who whom why will with would you your yours yourself yourselves new bill act
+   committee standing joint inquiry division suspension sessional orders annual
+   reports report estimates review amendment legislation treasury laws`
     .split(/\s+/)
     .filter(Boolean),
 );
 
+// The second line (0.16.3) is committee and procedure vocabulary that every
+// committee item shares, so it said nothing about WHICH inquiry an item is.
 // "new" and "bill" and "act" are dropped as near-universal in this corpus (most
 // titles are "X Amendment Bill 2026" / "New inquiry: ...") -- keeping them would
 // inflate similarity between otherwise-unrelated items.
@@ -36,9 +43,92 @@ export function tokenize(text: string): string[] {
   return words.filter((w) => w.length >= MIN_TOKEN_LEN && !STOPWORDS.has(w));
 }
 
-/** Build the deduplicated token set used for thread matching from a title + optional summary. */
-export function buildTokenSet(title: string, summary?: string | null): Set<string> {
-  return new Set([...tokenize(title), ...tokenize(summary ?? "")]);
+/**
+ * Build the deduplicated token set used for thread matching. 0.16.3: the
+ * title only. A summary is accepted for call-site compatibility and ignored:
+ * descriptions are boilerplate ("... Committee have tabled a report titled")
+ * that made unrelated items look similar.
+ */
+export function buildTokenSet(title: string, _summary?: string | null): Set<string> {
+  return new Set(tokenize(title));
+}
+
+// ---- Canonical keys (0.16.3) ------------------------------------------------
+// An item that names its inquiry, bill or division is threaded by that name,
+// never by word overlap. Keys are stored as the first fingerprint token with
+// a "key:" prefix, which tokenize() can never produce (it emits [a-z0-9]+).
+export const KEY_PREFIX = "key:";
+
+const INQUIRY_PATH_RE = /\/Committees\/(House|Joint|Senate)\/([^/?#]+)\/([^/?#]+)/i;
+const DIVISION_ID_RE = /\/divisions\/Details\?id=(\d+)/i;
+const DIVISION_PREFIX_RE = /^Division\s+\d+\s+-\s+/i;
+const BILL_NAME_RE = /^(.*?\bBill\s+\d{4})\b/i;
+const APOSTROPHES_RE = /[‘’']/g;
+
+function normKeyText(t: string): string {
+  return t.toLowerCase().replace(APOSTROPHES_RE, "").replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+/**
+ * The canonical thread key for an item, or null when it has none.
+ *  - a committee link: the inquiry path /Committees/<chamber>/<committee>/<inquiry>
+ *  - a division: the bill named before ":" when it is a bill, else the division itself
+ *  - a Bills Digest (or any title that is a bill name): the bill name
+ */
+export function canonicalThreadKey(title: string, link: string | null | undefined, kind?: string | null): string | null {
+  const l = link ?? "";
+  const inquiry = INQUIRY_PATH_RE.exec(l);
+  if (inquiry) return `${KEY_PREFIX}inquiry/${inquiry[1]}/${inquiry[2]}/${inquiry[3]}`.toLowerCase();
+  const t = (title ?? "").trim();
+  if (kind === "division" || DIVISION_PREFIX_RE.test(t)) {
+    const subject = t.replace(DIVISION_PREFIX_RE, "").split(":")[0];
+    const bill = BILL_NAME_RE.exec(subject);
+    if (bill) return `${KEY_PREFIX}bill/${normKeyText(bill[1])}`;
+    const id = DIVISION_ID_RE.exec(l);
+    return id ? `${KEY_PREFIX}division/${id[1]}` : null;
+  }
+  if (kind === "digest") {
+    const bill = BILL_NAME_RE.exec(t);
+    if (bill) return `${KEY_PREFIX}bill/${normKeyText(bill[1])}`;
+  }
+  return null;
+}
+
+function keyOf(fingerprint: string[]): string | null {
+  const k = fingerprint.find((tok) => tok.startsWith(KEY_PREFIX));
+  return k ?? null;
+}
+
+function wordTokens(fingerprint: string[]): Set<string> {
+  return new Set(fingerprint.filter((tok) => !tok.startsWith(KEY_PREFIX)));
+}
+
+/**
+ * Assign an item that may carry a canonical key. A keyed item joins only the
+ * thread holding the same key, and otherwise starts its own keyed thread. An
+ * unkeyed item falls back to title Jaccard, against word tokens only, so a
+ * key token never adds or removes similarity.
+ */
+export function assignThreadKeyed(
+  itemTokens: Set<string>,
+  key: string | null,
+  candidates: ThreadCandidate[],
+  newThreadId: string,
+  threshold: number = SIMILARITY_THRESHOLD,
+): ThreadAssignment {
+  if (key) {
+    const match = candidates.find((c) => keyOf(c.fingerprint) === key);
+    const base = match ? [...wordTokens(match.fingerprint)] : [];
+    const union = [key, ...new Set([...base, ...itemTokens])].slice(0, MAX_FINGERPRINT_TOKENS);
+    return match
+      ? { thread_id: match.thread_id, fingerprint: union, created: false, similarity: 1 }
+      : { thread_id: newThreadId, fingerprint: union, created: true, similarity: 0 };
+  }
+  const plain = candidates.map((c) => ({ ...c, fingerprint: [...wordTokens(c.fingerprint)], key: keyOf(c.fingerprint) }));
+  const a = assignThread(itemTokens, plain, newThreadId, threshold);
+  if (a.created) return a;
+  const k = plain.find((c) => c.thread_id === a.thread_id)?.key ?? null;
+  return k ? { ...a, fingerprint: [k, ...a.fingerprint].slice(0, MAX_FINGERPRINT_TOKENS) } : a;
 }
 
 export function jaccardSimilarity(a: Set<string>, b: Set<string>): number {

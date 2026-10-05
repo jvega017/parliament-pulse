@@ -91,6 +91,29 @@ crons = ["*/30 * * * *", "0 5 * * *", "0 19 * * *"]
 #   /qons      30 req/min per IP
 #   /members   30 req/min per IP
 #   /healthz/deep 30 req/min per IP
+#   /healthz   60 req/min per IP (0.16.3)
+#   the rest: READ_LIMITS in src/index.ts
+
+# Workers Rate Limiting bindings (0.16.3, security review 5 Oct 2026: the KV
+# limiter let a 36-request burst through untouched). One binding per
+# per-minute budget; src/rateLimit.ts picks RL_<budget> and keys it by
+# endpoint and client IP, so endpoints sharing a budget keep separate counts.
+# If a binding is missing the KV limiter is used, so removing one is safe.
+# namespace_id only has to be unique within the account.
+[[ratelimits]]
+name = "RL_30"
+namespace_id = "1001"
+simple = { limit = 30, period = 60 }
+
+[[ratelimits]]
+name = "RL_60"
+namespace_id = "1002"
+simple = { limit = 60, period = 60 }
+
+[[ratelimits]]
+name = "RL_120"
+namespace_id = "1003"
+simple = { limit = 120, period = 60 }
 
 # ---- Local development environment (SEC-14) ---------------------------------
 # Run locally with:  npx wrangler dev --env dev

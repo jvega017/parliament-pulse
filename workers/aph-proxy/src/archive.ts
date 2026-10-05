@@ -1,9 +1,9 @@
 // Archive ingest + query layer for Parliament Pulse.
 // Cron pollers write into D1; the /archive HTTP endpoint reads from it.
 
-import { APH_FEEDS, type FeedMeta, sourceGroupFor, APH_BROWSER_HEADERS } from "./feeds";
+import { APH_FEEDS, type FeedMeta, sourceGroupForItem, APH_BROWSER_HEADERS } from "./feeds";
 import { scoreForArchive, matchAlertRules, type AlertRule, type NewItem } from "./workerScoring";
-import { assignThread, buildTokenSet, type ThreadCandidate, type ThreadAssignment } from "./threads";
+import { assignThreadKeyed, buildTokenSet, canonicalThreadKey, type ThreadCandidate, type ThreadAssignment } from "./threads";
 import { parseHearingDate } from "./hearingDate";
 
 export interface Env {
@@ -14,6 +14,11 @@ export interface Env {
   RESEND_API_KEY?: string;
   DIGEST_FROM_EMAIL?: string;
   ADMIN_TOKEN?: string;
+  // Workers Rate Limiting bindings, one per per-minute budget (wrangler.toml
+  // [[ratelimits]], 0.16.3). Optional: absent, the KV limiter is used.
+  RL_30?: RateLimit;
+  RL_60?: RateLimit;
+  RL_120?: RateLimit;
 }
 
 export interface ArchiveRow {
@@ -39,42 +44,120 @@ export interface ArchiveRow {
 // www.aph.gov.au feeds returned 200 under both. See commit message for the
 // evidence table.
 
-// Naive RSS parser tuned for APH RSS 2.0 + Atom. Pure regex (no DOMParser
-// in workers runtime). Returns at most 50 items per feed.
-function parseFeed(xml: string, feed: FeedMeta): Array<{
+export interface ParsedItem {
   title: string;
   link: string;
   pubDate: string | null;
   guid: string;
   description: string | null;
-}> {
-  const out: Array<{ title: string; link: string; pubDate: string | null; guid: string; description: string | null }> = [];
+}
+
+// 0.16.3: items a single poll ingests from one feed at most. The parser used
+// to stop at 50, so the 134-item Senate reports feed lost its tail and the
+// Sources desk reported 50 parsed. parseFeed now reads every item and reports
+// the true count (feed_health.items_parsed); this cap only bounds the D1
+// writes of one poll against a runaway feed. Measured 5 Oct 2026: the largest
+// feed holds 134 items.
+export const MAX_INGEST_PER_FEED = 250;
+
+// Unresolvable host seen on two hearing links (5 Oct 2026): aphcms.aph.gov.au
+// fails DNS, while the same path on www.aph.gov.au returns 200.
+const APHCMS_RE = /^https?:\/\/aphcms\.aph\.gov\.au\//i;
+export function canonicalAphUrl(u: string): string {
+  return u.replace(APHCMS_RE, "https://www.aph.gov.au/");
+}
+
+// A title for an item that has no <title> (House news). The last path
+// segment of an APH news link is the article's headline with "_" for spaces
+// (measured 5 Oct 2026: ".../News/Gain_a_better_understanding_of_the_House_of_
+// Representatives_in_engaging_half-day_seminar" is that page's <title>). Only
+// when the link has no such segment does the description stand in, cut at a
+// word boundary with an ellipsis rather than mid-word.
+export const FALLBACK_TITLE_MAX = 100;
+export function fallbackTitle(link: string | null, description: string | null): string | null {
+  if (link) {
+    try {
+      const segs = new URL(link).pathname.split("/").filter(Boolean);
+      const last = segs.length ? decodeURIComponent(segs[segs.length - 1]) : "";
+      if (last.includes("_") && last.split("_").filter(Boolean).length >= 3) {
+        return last.replace(/_+/g, " ").trim();
+      }
+    } catch {
+      // fall through to the description
+    }
+  }
+  if (!description) return null;
+  const line = description.split("\n")[0].trim();
+  if (line.length <= FALLBACK_TITLE_MAX) return line || null;
+  const cut = line.slice(0, FALLBACK_TITLE_MAX);
+  const space = cut.lastIndexOf(" ");
+  return `${(space > 40 ? cut.slice(0, space) : cut).replace(/[\s,;:.-]+$/, "")}…`;
+}
+
+// Naive RSS parser tuned for APH RSS 2.0 + Atom. Pure regex (no DOMParser
+// in workers runtime). Returns every item; the caller caps ingest.
+export function parseFeed(xml: string, feed: FeedMeta): ParsedItem[] {
+  const out: ParsedItem[] = [];
   const itemRegex = /<(?:item|entry)\b[\s\S]*?<\/(?:item|entry)>/g;
   const matches = xml.match(itemRegex) ?? [];
-  for (const block of matches.slice(0, 50)) {
+  for (const block of matches) {
     let title = pluck(block, "title");
     let link = pluck(block, "link");
     if (!link) {
       const hrefMatch = block.match(/<link[^>]*href="([^"]+)"/);
       if (hrefMatch && hrefMatch[1]) link = hrefMatch[1];
     }
+    if (link) link = canonicalAphUrl(link.trim());
     const pubText = pluck(block, "pubDate") ?? pluck(block, "updated") ?? pluck(block, "published");
     const rawDesc = pluck(block, "description") ?? pluck(block, "summary") ?? null;
-    // Fallback: if title is missing, use first 100 chars of description (up to first newline)
-    if (!title && rawDesc) {
-      title = rawDesc.split('\n')[0].substring(0, 100).trim();
-    }
-    const guid = pluck(block, "guid") ?? link ?? `${feed.url}#${title}`;
+    if (!title) title = fallbackTitle(link, rawDesc);
+    const rawGuid = pluck(block, "guid");
+    const guid = rawGuid ? canonicalAphUrl(rawGuid.trim()) : (link ?? `${feed.url}#${title}`);
     if (!title || !link) continue;
+    const pubMs = pubText ? Date.parse(pubText.trim()) : NaN;
     out.push({
       title: title.trim(),
-      link: link.trim(),
-      pubDate: pubText ? new Date(pubText.trim()).toISOString() : null,
+      link,
+      pubDate: Number.isFinite(pubMs) ? new Date(pubMs).toISOString() : null,
       guid: guid.trim(),
       description: rawDesc ? rawDesc.trim().slice(0, 600) : null,
     });
   }
   return out;
+}
+
+/** Today's civil date in Brisbane (AEST, no daylight saving), YYYY-MM-DD. */
+export function brisbaneToday(now: Date = new Date()): string {
+  return new Date(now.getTime() + 10 * 3600 * 1000).toISOString().slice(0, 10);
+}
+
+/**
+ * One item per guid for a poll. A feed can repeat a guid: the Upcoming Senate
+ * hearings feed has no <guid>, so every hearing of one inquiry shares the
+ * inquiry's link. For a hearing feed the representative is the NEXT hearing
+ * (earliest date on or after today in Brisbane), else the most recent past
+ * one, so the stored description, and the hearing_date read from it, is the
+ * date a reader needs. For every other feed the first listed item is kept.
+ * Returns the kept items and how many repeats were dropped.
+ */
+export function pickPerGuid(items: ParsedItem[], kind: string, today: string): { items: ParsedItem[]; dropped: number } {
+  const byGuid = new Map<string, ParsedItem[]>();
+  for (const it of items) {
+    const list = byGuid.get(it.guid);
+    if (list) list.push(it); else byGuid.set(it.guid, [it]);
+  }
+  const kept: ParsedItem[] = [];
+  for (const group of byGuid.values()) {
+    if (group.length === 1 || kind !== "hearing") { kept.push(group[0]); continue; }
+    const dated = group
+      .map((it) => ({ it, d: parseHearingDate(it.description) }))
+      .filter((x): x is { it: ParsedItem; d: string } => x.d !== null);
+    if (dated.length === 0) { kept.push(group[0]); continue; }
+    const upcoming = dated.filter((x) => x.d >= today).sort((a, b) => a.d.localeCompare(b.d));
+    const past = dated.filter((x) => x.d < today).sort((a, b) => b.d.localeCompare(a.d));
+    kept.push((upcoming[0] ?? past[0]).it);
+  }
+  return { items: kept, dropped: items.length - kept.length };
 }
 
 function pluck(block: string, tag: string): string | null {
@@ -141,58 +224,78 @@ async function persistThreadAssignment(
   ).bind(assignment.thread_id).run();
 }
 
+// 0.16.3: threads built by the canonical-key matcher carry this id prefix.
+// Migration 0012 deletes every thread WITHOUT it (the 0.16.2-and-earlier
+// word-overlap threads), so re-running it never touches a rebuilt thread.
+export const THREAD_ID_PREFIX = "t2:";
+
+/** Unthreaded signals each poll threads (see the heal step in pollAndArchive). */
+export const THREAD_HEAL_PER_POLL = 25;
+
+// A keyed item whose thread fell outside the in-memory candidate window is
+// found by its key, which leads its fingerprint, so it never starts a second
+// thread for the same inquiry or bill.
+async function findKeyedThread(env: Env, key: string): Promise<ThreadCandidate | null> {
+  const row = await env.ARCHIVE.prepare(
+    `SELECT thread_id, fingerprint FROM threads
+      WHERE fingerprint = ? OR fingerprint LIKE ? ESCAPE '\\'
+      ORDER BY last_seen_at DESC LIMIT 1`,
+  ).bind(key, `${escapeLike(key)},%`).first<{ thread_id: string; fingerprint: string }>();
+  return row ? { thread_id: row.thread_id, fingerprint: row.fingerprint.split(",").filter(Boolean) } : null;
+}
+
 // Assigns one item and keeps the in-memory candidate list in sync so later
 // items in the same poll/backfill batch can join a thread created earlier in
 // that same batch, without a re-query per item.
 async function threadItem(
   env: Env,
   candidates: ThreadCandidate[],
-  guid: string,
-  title: string,
-  description: string | null,
+  item: { guid: string; title: string; link: string | null; kind: string | null },
   now: string,
-): Promise<void> {
-  const tokens = buildTokenSet(title, description);
-  const assignment = assignThread(tokens, candidates, `thread:${guid}`);
-  await persistThreadAssignment(env, assignment, guid, title, now);
+): Promise<ThreadAssignment> {
+  const tokens = buildTokenSet(item.title);
+  const key = canonicalThreadKey(item.title, item.link, item.kind);
+  if (key && !candidates.some((c) => c.fingerprint[0] === key)) {
+    const found = await findKeyedThread(env, key);
+    if (found) candidates.push(found);
+  }
+  const assignment = assignThreadKeyed(tokens, key, candidates, `${THREAD_ID_PREFIX}${item.guid}`);
+  await persistThreadAssignment(env, assignment, item.guid, item.title, now);
   const idx = candidates.findIndex((c) => c.thread_id === assignment.thread_id);
   if (idx >= 0) candidates[idx] = { thread_id: assignment.thread_id, fingerprint: assignment.fingerprint };
   else candidates.push({ thread_id: assignment.thread_id, fingerprint: assignment.fingerprint });
+  return assignment;
 }
 
 // Threads any archived signals that pollAndArchive inserted before this layer
-// existed (or that failed thread assignment at ingest time). Chronological
-// order so earlier items seed threads that later items join, matching how
-// pollAndArchive threads items as they arrive. Idempotent: only processes
-// signals with no row in signal_threads yet, so it is safe to call repeatedly
-// (e.g. in a loop until `processed` comes back 0) to work through a large
-// backlog in bounded batches.
+// existed (or that failed thread assignment at ingest time, or whose old
+// thread migration 0012 removed). Chronological order so earlier items seed
+// threads that later items join, matching how pollAndArchive threads items
+// as they arrive. Idempotent: only processes signals with no row in
+// signal_threads yet, so it is safe to call repeatedly (e.g. in a loop until
+// `processed` comes back 0) to work through a large backlog in bounded
+// batches.
 export async function backfillThreads(env: Env, limit = 500): Promise<{
   processed: number;
   threadsCreated: number;
   threadsJoined: number;
 }> {
   const res = await env.ARCHIVE.prepare(
-    `SELECT s.guid, s.title, s.description, s.first_seen_at
+    `SELECT s.guid, s.title, s.link, s.kind, s.first_seen_at
        FROM signals s
        LEFT JOIN signal_threads st ON st.signal_guid = s.guid
       WHERE st.signal_guid IS NULL
-      ORDER BY s.first_seen_at ASC
+      ORDER BY s.first_seen_at ASC, s.guid ASC
       LIMIT ?`,
-  ).bind(limit).all<{ guid: string; title: string; description: string | null; first_seen_at: string }>();
+  ).bind(limit).all<{ guid: string; title: string; link: string | null; kind: string | null; first_seen_at: string }>();
   const rows = res.results ?? [];
 
   const candidates = await loadThreadCandidates(env, 1000);
   let threadsCreated = 0;
   let threadsJoined = 0;
   for (const row of rows) {
-    const tokens = buildTokenSet(row.title, row.description);
-    const assignment = assignThread(tokens, candidates, `thread:${row.guid}`);
-    await persistThreadAssignment(env, assignment, row.guid, row.title, row.first_seen_at);
+    const assignment = await threadItem(env, candidates, row, row.first_seen_at);
     if (assignment.created) threadsCreated += 1; else threadsJoined += 1;
-    const idx = candidates.findIndex((c) => c.thread_id === assignment.thread_id);
-    if (idx >= 0) candidates[idx] = { thread_id: assignment.thread_id, fingerprint: assignment.fingerprint };
-    else candidates.push({ thread_id: assignment.thread_id, fingerprint: assignment.fingerprint });
   }
 
   return { processed: rows.length, threadsCreated, threadsJoined };
@@ -370,13 +473,15 @@ export async function pollAndArchive(env: Env): Promise<{
     console.warn("thread candidate load failed", threadLoadErr instanceof Error ? threadLoadErr.message : threadLoadErr);
   }
 
-  // In-poll title deduplication: tracks normalised title hashes across all feeds
-  // in this cron run to prevent inserting different-GUID items with identical titles.
-  const seenTitleHashes = new Set<string>();
-
-  function normTitle(t: string): string {
-    return t.toLowerCase().replace(/[^a-z0-9\s]/g, "").replace(/\s+/g, " ").trim();
-  }
+  // 0.16.3 (data review 5 Oct 2026): no title dedup across feeds. Keying the
+  // in-poll dedup on a normalised title dropped real items whose title
+  // another feed had used first: six Bills Digests that share a bill's name
+  // with a Senate inquiry, and six of eight "Annual reports (No. 2 of 2026)"
+  // reports from different committees. The archive's key is the guid, so the
+  // only in-poll dedup is by guid: within one feed pickPerGuid keeps one item
+  // per guid, and across feeds the first feed to carry a guid writes it.
+  const seenGuids = new Set<string>();
+  const today = brisbaneToday(new Date(now));
 
   for (const feedResult of feedResults) {
     if (!feedResult.ok) {
@@ -386,16 +491,16 @@ export async function pollAndArchive(env: Env): Promise<{
     }
     const { meta: feed, xml } = feedResult;
     try {
-      const items = parseFeed(xml, feed);
+      const parsed = parseFeed(xml, feed);
+      const picked = pickPerGuid(parsed, feed.kind, today);
+      const items = picked.items.slice(0, MAX_INGEST_PER_FEED);
       let added = 0;
-      let updated = 0;
-      let dedupSkipped = 0;
-      const sourceGroup = sourceGroupFor(feed.label);
+      let dedupSkipped = picked.dropped;
       const nowDate = new Date(now);
       for (const item of items) {
-        const titleHash = normTitle(item.title);
-        if (seenTitleHashes.has(titleHash)) { dedupSkipped += 1; continue; }
-        seenTitleHashes.add(titleHash);
+        if (seenGuids.has(item.guid)) { dedupSkipped += 1; continue; }
+        seenGuids.add(item.guid);
+        const sourceGroup = sourceGroupForItem(item.link, feed.label);
         const momentumHint = momentumMap.get(feed.kind) ?? 0.5;
         const scored = scoreForArchive(item.title, feed.kind, item.pubDate, nowDate, momentumHint, now);
         // NOTE: attention, confidence and scoring_explanation below are an
@@ -411,20 +516,39 @@ export async function pollAndArchive(env: Env): Promise<{
         // These columns exist for historical analysis only (e.g. the
         // /archive/timeline day-by-day volume chart, which is deliberately an
         // ingest-time record of what was assessed on each day).
-        // New-row detection (DATA-06). The previous upsert inferred "new" from
-        // meta.last_row_id, but SQLite's last_insert_rowid() keeps the value
-        // of the previous successful INSERT on the connection, so a re-seen
-        // item whose ON CONFLICT branch fired still looked new and was
-        // re-threaded on every poll. RETURNING on DO NOTHING yields a row
-        // only when this statement actually inserted one.
-        const inserted = await env.ARCHIVE.prepare(
+        //
+        // New-row detection (DATA-06, 0.16.3). One upsert per item. RETURNING
+        // yields the stored first_seen_at, which equals this poll's `now` only
+        // when this statement inserted the row: the DO UPDATE branch never
+        // touches first_seen_at, and seenGuids stops a second write of one
+        // guid in the same poll. (meta.last_row_id is NOT usable: SQLite's
+        // last_insert_rowid() keeps the previous INSERT's value.)
+        //
+        // A re-seen row refreshes pub_date when the feed supplies one (the
+        // House daily program keeps one guid and changes its date each sitting
+        // day; it showed 11 Aug beside a 16 Sep title), and its link and group
+        // from this item. source_group changes only when the same feed wrote
+        // the row, so a guid two feeds share keeps its first feed's group.
+        const res = await env.ARCHIVE.prepare(
           `INSERT INTO signals
              (guid, title, link, pub_date, feed_url, feed_label, source_group, kind,
               first_seen_at, last_seen_at,
               attention, confidence, score_json, entities_json, scoring_explanation, description)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-           ON CONFLICT(guid) DO NOTHING
-           RETURNING guid`,
+           ON CONFLICT(guid) DO UPDATE SET
+             last_seen_at        = excluded.last_seen_at,
+             title               = excluded.title,
+             link                = excluded.link,
+             pub_date            = COALESCE(excluded.pub_date, signals.pub_date),
+             description         = excluded.description,
+             source_group        = CASE WHEN signals.feed_url = excluded.feed_url
+                                        THEN excluded.source_group ELSE signals.source_group END,
+             attention           = excluded.attention,
+             confidence          = excluded.confidence,
+             score_json          = excluded.score_json,
+             entities_json       = excluded.entities_json,
+             scoring_explanation = excluded.scoring_explanation
+           RETURNING first_seen_at`,
         )
           .bind(
             item.guid, item.title, item.link, item.pubDate,
@@ -434,47 +558,37 @@ export async function pollAndArchive(env: Env): Promise<{
             scored.scoreJson, scored.entitiesJson, scored.explanation,
             item.description,
           )
-          .all<{ guid: string }>();
-        if ((inserted.results ?? []).length > 0) {
+          .all<{ first_seen_at: string }>();
+        if (res.results?.[0]?.first_seen_at === now) {
           added += 1;
           // Thread only genuinely new rows -- a re-seen item already has a
           // signal_threads row from when it first arrived.
           try {
-            await threadItem(env, threadCandidates, item.guid, item.title, item.description, now);
+            await threadItem(env, threadCandidates, { guid: item.guid, title: item.title, link: item.link, kind: feed.kind }, now);
           } catch (threadErr) {
             console.warn("thread assignment failed", item.guid, threadErr instanceof Error ? threadErr.message : threadErr);
           }
-        } else {
-          await env.ARCHIVE.prepare(
-            `UPDATE signals SET
-               last_seen_at        = ?,
-               title               = ?,
-               description         = ?,
-               attention           = ?,
-               confidence          = ?,
-               score_json          = ?,
-               entities_json       = ?,
-               scoring_explanation = ?
-             WHERE guid = ?`,
-          )
-            .bind(
-              now, item.title, item.description,
-              scored.attention, scored.confidence,
-              scored.scoreJson, scored.entitiesJson, scored.explanation,
-              item.guid,
-            )
-            .run();
-          updated += 1;
         }
       }
       perFeed.push({ feed: feed.url, ok: true, new: added, seen: items.length, dedup: dedupSkipped });
-      await recordFeedHealth(env, feed, feedResult.status, items.length, null, now, true);
+      // items_parsed is the feed's true item count, not the ingest window.
+      await recordFeedHealth(env, feed, feedResult.status, parsed.length, null, now, true);
     } catch (err) {
       console.warn("feed processing failed", feed.url, err instanceof Error ? err.message : err);
       const msg = "feed processing failed";
       perFeed.push({ feed: feed.url, ok: false, new: 0, seen: 0, dedup: 0, error: msg });
       await recordFeedHealth(env, feed, feedResult.status, null, msg, now, false);
     }
+  }
+
+  // Self-healing thread layer (0.16.3): thread a few signals that have no
+  // thread yet (a failed assignment, or rows migration 0012 unthreaded), so
+  // the layer rebuilds without an admin call. Bounded so one poll's D1 work
+  // stays small; when nothing is unthreaded this is one query.
+  try {
+    await backfillThreads(env, THREAD_HEAL_PER_POLL);
+  } catch (healErr) {
+    console.warn("thread heal failed", healErr instanceof Error ? healErr.message : healErr);
   }
 
   // Evaluate alert rules against items seen in this poll window.
@@ -548,6 +662,19 @@ export async function checkConnectors(env: Env, urls: string[]): Promise<{
   return { results };
 }
 
+/**
+ * A row limit from a query string. SEC (5 Oct 2026): the old
+ * Math.min(parseInt(x) || d, max) let limit=-1 through, and SQLite treats
+ * LIMIT -1 as no limit, so one request could read a whole table. A missing,
+ * non-numeric, zero or negative value now gives the default; anything larger
+ * than max gives max.
+ */
+export function clampLimit(raw: string | null, dflt: number, max: number): number {
+  const n = parseInt(raw ?? "", 10);
+  if (!Number.isFinite(n) || n < 1) return dflt;
+  return Math.min(n, max);
+}
+
 function escapeLike(s: string): string {
   // Escape SQLite LIKE special chars so user input is treated as literal.
   return s.replace(/[%_\\]/g, "\\$&");
@@ -563,7 +690,7 @@ export async function queryArchive(env: Env, params: URLSearchParams): Promise<{
   const kind = params.get("kind");
   const group = params.get("source_group");
   const q = params.get("q");
-  const limit = Math.min(parseInt(params.get("limit") ?? "100", 10) || 100, 500);
+  const limit = clampLimit(params.get("limit"), 100, 500);
   const offset = Math.max(parseInt(params.get("offset") ?? "0", 10) || 0, 0);
 
   const attention = params.get("attention");
@@ -773,7 +900,7 @@ export async function queryBills(env: Env, params: URLSearchParams): Promise<{
   total: number;
 }> {
   const q = params.get("q");
-  const limit = Math.min(parseInt(params.get("limit") ?? "100", 10) || 100, 500);
+  const limit = clampLimit(params.get("limit"), 100, 500);
   const offset = Math.max(parseInt(params.get("offset") ?? "0", 10) || 0, 0);
 
   const where: string[] = ["kind = 'digest'"];
@@ -826,7 +953,7 @@ export async function queryQons(env: Env, params: URLSearchParams): Promise<{
 }> {
   const q = params.get("q");
   const chamber = params.get("chamber");
-  const limit = Math.min(parseInt(params.get("limit") ?? "100", 10) || 100, 500);
+  const limit = clampLimit(params.get("limit"), 100, 500);
   const offset = Math.max(parseInt(params.get("offset") ?? "0", 10) || 0, 0);
 
   const where: string[] = [];
@@ -941,7 +1068,7 @@ export async function queryMembers(env: Env, params: URLSearchParams): Promise<{
   const q = params.get("q");
   const party = params.get("party");
   const chamber = params.get("chamber");
-  const limit = Math.min(parseInt(params.get("limit") ?? "200", 10) || 200, 500);
+  const limit = clampLimit(params.get("limit"), 200, 500);
   const offset = Math.max(parseInt(params.get("offset") ?? "0", 10) || 0, 0);
 
   const where: string[] = [];

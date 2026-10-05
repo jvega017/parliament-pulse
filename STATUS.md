@@ -52,7 +52,11 @@ Why QON and member data are empty (probed 29 Sep 2026):
 Nothing below is live until the owner merges to `main` and the CI-gated
 deploy runs. New migrations `0006_feed_health.sql`,
 `0007_backfill_thread_item_count.sql`, `0008_job_runs.sql` and
-`0009_joint_source_group.sql` are not applied to the remote D1; the deploy runbook must apply them first. Remote migration
+`0009_joint_source_group.sql` are not applied to the remote D1; the deploy runbook must apply them first.
+Worker 0.16.3 adds `0010_item_source_group.sql`, `0011_link_and_title_repair.sql`
+and `0012_rethread.sql`, also unapplied. Apply 0012 only AFTER 0.16.3 is
+deployed, then either let the poll re-thread 25 signals per run or call
+`POST /admin/backfill-threads` until `processed` is 0. Remote migration
 state was not queried in this session.
 
 | Package | Change in the code | Effect on surfaces |
@@ -67,6 +71,7 @@ state was not queried in this session.
 | WK-08 | Empty QON and member surfaces keep provenance `fixture` and carry a plain reason in `note`; `/qons` and `/members` add `provenance` and `note`; feed tables generated from `src/jurisdictions.json` | Empty desks say why they are empty |
 | 0.16.1 | Feeds whose label contains "joint" are grouped `Joint` (previously `Custom`); migration 0009 relabels stored `signals` and `alert_rules` rows | Activity by source and the drawer Source group read `Joint` |
 | 0.16.2 | `/state` signal items add `hearing_date` (YYYY-MM-DD civil date, or null), parsed at read time from the stored APH description of `hearing` rows; no migration. The Upcoming Senate hearings feed has no `<pubDate>`, so `pub_date` stays null there. One row per inquiry is stored, so the date is the feed's first-listed hearing for that inquiry, not always the next one | Upcoming Senate hearings can show a real hearing date once the frontend reads the field |
+| 0.16.3 | Review of 5 Oct 2026. Ingest: no cross-feed title dedup (guid only), every feed item parsed (`items_parsed` is the true count; ingest capped at 250 per feed), per-item chamber from the committee link (migration 0010), `aphcms` host rewritten and House news titles taken from the link (migration 0011), re-seen rows refresh `pub_date`, and a hearing inquiry stores its NEXT hearing so `hearing_date` is the next date. Threads: canonical keys (inquiry path, bill name, division id), title-only overlap at 0.6, more stopwords, new ids `t2:`; migration 0012 drops the old threads and each poll re-threads 25; thread items add `first_pub_date`/`last_pub_date`, the block adds `total`. Security: Rate Limiting bindings `RL_30`/`RL_60`/`RL_120` (KV fallback), `limit` of zero or below gives the default, `/healthz` limited at 60 and without mail config, `/healthz/deep` counts `partial` polls as runs and adds `feeds_failed`, CORS `GET,OPTIONS`, CSP on every response, 5-minute cache on `/bills` and the two archive charts, no em dashes in served strings | Bills shows the digests it was missing, Committees and Radar count chambers by item, Threads stop merging unrelated items, Sources reports true item counts, an uptime monitor on `/healthz/deep` stops alarming over one blocked feed |
 
 On the branch the QON and member surfaces stay **empty**. The crons keep
 running and record their zero-row outcomes as counts in `job_runs.detail`

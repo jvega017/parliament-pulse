@@ -32,6 +32,27 @@ function logFailure(endpoint: string, stage: string, err: unknown): void {
   }
 }
 
+/** The Workers Rate Limiting binding surface this module calls. */
+export interface RateLimiterBinding {
+  limit(options: { key: string }): Promise<{ success: boolean }>;
+}
+
+/**
+ * The binding for a per-minute budget, by name: RL_30, RL_60 or RL_120
+ * (wrangler.toml [[ratelimits]], 0.16.3). Undefined when not declared, as in
+ * `wrangler dev --env dev` and the tests, which then use the KV limiter.
+ */
+export function rateLimitBinding(env: object, maxPerMinute: number): RateLimiterBinding | undefined {
+  const b = (env as Record<string, unknown>)[`RL_${maxPerMinute}`];
+  return b && typeof (b as RateLimiterBinding).limit === "function" ? (b as RateLimiterBinding) : undefined;
+}
+
+// 0.16.3 (security review 5 Oct 2026): measured live, 36 back-to-back GETs to
+// /healthz/deep (limit 30) all got through, because every request in the
+// burst read the same KV count before any write landed. When a Rate Limiting
+// binding is passed, it decides instead: its counter is held by Cloudflare
+// per location, not read back from KV, and costs no KV write per request.
+// The binding also fails open: if limit() throws, the request is allowed.
 export async function checkRateLimit(
   kv: KVNamespace,
   ip: string,
@@ -39,7 +60,17 @@ export async function checkRateLimit(
   maxPerWindow: number,
   windowSec: number,
   ctx?: WaitUntilContext,
+  binding?: RateLimiterBinding,
 ): Promise<boolean> {
+  if (binding) {
+    try {
+      const { success } = await binding.limit({ key: `${endpoint}:${ip}` });
+      return success;
+    } catch (err) {
+      logFailure(endpoint, "binding", err);
+      return true;
+    }
+  }
   try {
     const bucket = Math.floor(Date.now() / 1000 / windowSec);
     const key = `rl:${endpoint}:${ip}:${bucket}`;

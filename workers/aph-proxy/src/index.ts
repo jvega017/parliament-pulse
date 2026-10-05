@@ -19,7 +19,7 @@
 // for /healthz/deep and never rejects out of scheduled().
 
 import { APH_REFERENCE_LINKS, APH_ALLOWED_HOSTS, APH_BROWSER_HEADERS, APH_FEEDS } from "./feeds";
-import { checkRateLimit, clientIp } from "./rateLimit";
+import { checkRateLimit, clientIp, rateLimitBinding } from "./rateLimit";
 import { WORKER_VERSION, STATE_CACHE_KEY } from "./version";
 import {
   buildFeedAllowlist,
@@ -49,6 +49,7 @@ import {
   backfillThreads,
   AnalyticsInputError,
   MAX_ANALYTICS_TERMS,
+  clampLimit,
   type Env,
 } from "./archive";
 import { ingestQons } from "./hansard";
@@ -68,6 +69,8 @@ const FEED_ALLOWLIST = buildFeedAllowlist(APH_FEEDS.map((f) => f.url));
 // Per-minute budgets for read endpoints limited centrally at the top of fetch.
 // /archive, /bills, /qons, /members and /state keep their own inline limits.
 const READ_LIMITS: Record<string, [string, number]> = {
+  // 0.16.3: /healthz reads D1 (freshness) on every call and had no limit.
+  "/healthz": ["healthz", 60],
   "/rss": ["rss", 60],
   "/archive/analytics": ["analytics", 30],
   "/archive/timeline": ["timeline", 60],
@@ -134,8 +137,12 @@ function corsHeaders(origin: string, allowed: string): HeadersInit {
     .map((s) => s.trim())
     .filter(Boolean);
   const accepted = list.includes(origin) ? origin : null;
+  // 0.16.3: GET only. Every browser-reachable write (/alerts POST and
+  // DELETE, LB-04; /digest/subscribe, LB-05) answers 403, and the admin POSTs
+  // are called from a shell, not a page. Re-add POST when decision D2 opens
+  // a write path to the frontend.
   const headers: HeadersInit = {
-    "access-control-allow-methods": "GET,POST,OPTIONS",
+    "access-control-allow-methods": "GET,OPTIONS",
     "access-control-allow-headers": "content-type",
     "access-control-max-age": "86400",
     vary: "Origin",
@@ -150,7 +157,25 @@ const SECURITY_HEADERS: HeadersInit = {
   "referrer-policy": "strict-origin-when-cross-origin",
   "permissions-policy": "camera=(), microphone=(), geolocation=()",
   "strict-transport-security": "max-age=31536000; includeSubDomains",
+  // 0.16.3: the Worker serves JSON and XML only, never a page, so nothing it
+  // returns may load anything or be framed.
+  "content-security-policy": "default-src 'none'; frame-ancestors 'none'",
 };
+
+// One limiter call for every rate-limited route (0.16.3). Uses the Workers
+// Rate Limiting binding for this budget when wrangler.toml declares it, else
+// the KV soft limiter. Both fail open.
+function allowRequest(env: Env, req: Request, endpoint: string, max: number, ctx: ExecutionContext): Promise<boolean> {
+  return checkRateLimit(env.CACHE, clientIp(req), endpoint, max, 60, ctx, rateLimitBinding(env, max));
+}
+
+function rateLimited(max: number, cors: HeadersInit): Response {
+  return jsonResponse({ error: `rate limit exceeded, max ${max}/min` }, 429, cors);
+}
+
+// Short public cache for read-only archive views that change at most every
+// 30-minute poll (0.16.3: /bills was refetched on every visit).
+const READ_CACHE = "public, max-age=300";
 
 function jsonResponse(body: unknown, status: number, extra: HeadersInit): Response {
   return new Response(JSON.stringify(body), {
@@ -165,16 +190,14 @@ export default {
     const origin = req.headers.get("Origin") ?? "";
     const cors = corsHeaders(origin, env.ALLOWED_ORIGINS);
 
-    if (req.method === "OPTIONS") return new Response(null, { headers: cors });
+    if (req.method === "OPTIONS") return new Response(null, { headers: { ...SECURITY_HEADERS, ...cors } });
 
     // WK-02 (ARCH-08, PERF-01): per-IP limits on the read endpoints that had
     // none. checkRateLimit fails open, so this block cannot throw or 500.
     const limit = READ_LIMITS[url.pathname];
     if (limit && (url.pathname !== "/alerts" || req.method === "GET")) {
       const [bucket, max] = limit;
-      if (!(await checkRateLimit(env.CACHE, clientIp(req), bucket, max, 60, ctx))) {
-        return jsonResponse({ error: `rate limit exceeded, max ${max}/min` }, 429, cors);
-      }
+      if (!(await allowRequest(env, req, bucket, max, ctx))) return rateLimited(max, cors);
     }
 
     if (url.pathname === "/healthz") {
@@ -186,8 +209,8 @@ export default {
         ...freshness,
         version: WORKER_VERSION,
         scoring_engine: "v1.1-deterministic",
-        resend_wired: !!env.RESEND_API_KEY,
-        digest_from: env.DIGEST_FROM_EMAIL ?? null,
+        // 0.16.3: resend_wired moved to /healthz/deep and digest_from dropped;
+        // a public liveness probe does not need mail configuration.
       }, 200, cors);
     }
 
@@ -198,7 +221,7 @@ export default {
       const noStore = { ...cors, "cache-control": "no-store" };
       try {
         const health = await deepHealth(env);
-        return jsonResponse(health, health.ok ? 200 : 503, noStore);
+        return jsonResponse({ ...health, resend_wired: !!env.RESEND_API_KEY }, health.ok ? 200 : 503, noStore);
       } catch (err) {
         console.error({ endpoint: "/healthz/deep", error: err instanceof Error ? err.message : String(err), ts: new Date().toISOString() });
         return jsonResponse({ ok: false, note: "job run log unavailable" }, 503, noStore);
@@ -219,10 +242,7 @@ export default {
 
     if (url.pathname === "/archive") {
       // Rate limit: 120 requests per minute per IP.
-      const ip = clientIp(req);
-      if (!(await checkRateLimit(env.CACHE, ip, "archive", 120, 60, ctx))) {
-        return jsonResponse({ error: "rate limit exceeded — max 120/min" }, 429, cors);
-      }
+      if (!(await allowRequest(env, req, "archive", 120, ctx))) return rateLimited(120, cors);
       // Optional Cloudflare Access gate. Enable by setting REQUIRE_ACCESS = "true"
       // in wrangler.toml [vars] and creating a Cloudflare Zero Trust policy.
       const requireAccess = env.REQUIRE_ACCESS === "true";
@@ -254,7 +274,7 @@ export default {
     if (url.pathname === "/archive/timeline") {
       try {
         const result = await timelineArchive(env, url.searchParams);
-        return jsonResponse(result, 200, cors);
+        return jsonResponse(result, 200, { ...cors, "cache-control": READ_CACHE });
       } catch (err) {
         console.error({ endpoint: "/archive/timeline", error: err instanceof Error ? err.message : err, ts: new Date().toISOString() });
         return jsonResponse({ error: "timeline temporarily unavailable" }, 503, cors);
@@ -264,7 +284,7 @@ export default {
     if (url.pathname === "/archive/watchlist-trend") {
       try {
         const result = await watchlistTrend(env, url.searchParams);
-        return jsonResponse(result, 200, cors);
+        return jsonResponse(result, 200, { ...cors, "cache-control": READ_CACHE });
       } catch (err) {
         console.error({ endpoint: "/archive/watchlist-trend", error: err instanceof Error ? err.message : err, ts: new Date().toISOString() });
         return jsonResponse({ days: [] }, 200, cors);
@@ -375,13 +395,10 @@ export default {
 
     // Bills (archive view — kind=digest) ----------------------------------------
     if (url.pathname === "/bills") {
-      const ip = clientIp(req);
-      if (!(await checkRateLimit(env.CACHE, ip, "bills", 60, 60, ctx))) {
-        return jsonResponse({ error: "rate limit exceeded — max 60/min" }, 429, cors);
-      }
+      if (!(await allowRequest(env, req, "bills", 60, ctx))) return rateLimited(60, cors);
       try {
         const result = await queryBills(env, url.searchParams);
-        return jsonResponse(result, 200, cors);
+        return jsonResponse(result, 200, { ...cors, "cache-control": READ_CACHE });
       } catch (err) {
         console.error({ endpoint: "/bills", error: err instanceof Error ? err.message : err });
         return jsonResponse({ error: "bills temporarily unavailable" }, 503, cors);
@@ -390,10 +407,7 @@ export default {
 
     // QONs -----------------------------------------------------------------------
     if (url.pathname === "/qons") {
-      const ip = clientIp(req);
-      if (!(await checkRateLimit(env.CACHE, ip, "qons", 30, 60, ctx))) {
-        return jsonResponse({ error: "rate limit exceeded — max 30/min" }, 429, cors);
-      }
+      if (!(await allowRequest(env, req, "qons", 30, ctx))) return rateLimited(30, cors);
       try {
         const result = await queryQons(env, url.searchParams);
         // DATA-09: additive provenance + note, so an empty pipeline says why.
@@ -406,10 +420,7 @@ export default {
 
     // Members --------------------------------------------------------------------
     if (url.pathname === "/members") {
-      const ip = clientIp(req);
-      if (!(await checkRateLimit(env.CACHE, ip, "members", 30, 60, ctx))) {
-        return jsonResponse({ error: "rate limit exceeded — max 30/min" }, 429, cors);
-      }
+      if (!(await allowRequest(env, req, "members", 30, ctx))) return rateLimited(30, cors);
       try {
         const result = await queryMembers(env, url.searchParams);
         return jsonResponse({ ...result, ...(await tableProvenance(env, "members", result.total)) }, 200, cors);
@@ -421,7 +432,7 @@ export default {
 
     if (url.pathname === "/alerts/events") {
       try {
-        const limit = Math.min(parseInt(url.searchParams.get("limit") ?? "50", 10) || 50, 200);
+        const limit = clampLimit(url.searchParams.get("limit"), 50, 200);
         const result = await listAlertEvents(env, limit);
         return jsonResponse(result, 200, cors);
       } catch (err) {
@@ -438,7 +449,7 @@ export default {
         return jsonResponse({ error: "admin token required" }, 401, cors);
       }
       try {
-        const limit = Math.min(parseInt(url.searchParams.get("limit") ?? "500", 10) || 500, 2000);
+        const limit = clampLimit(url.searchParams.get("limit"), 500, 2000);
         const result = await backfillThreads(env, limit);
         return jsonResponse(result, 200, cors);
       } catch (err) {
@@ -467,10 +478,7 @@ export default {
     // Composed state view (signals + connectors + alerts + qons), provenance-as-schema.
     if (url.pathname === "/state") {
       if (req.method !== "GET") return jsonResponse({ error: "method not allowed" }, 405, cors);
-      const ip = clientIp(req);
-      if (!(await checkRateLimit(env.CACHE, ip, "state", 60, 60, ctx))) {
-        return jsonResponse({ error: "rate limit exceeded — max 60/min" }, 429, cors);
-      }
+      if (!(await allowRequest(env, req, "state", 60, ctx))) return rateLimited(60, cors);
       // v2 (WK-04): bumped when the signals block moved from a global top 30
       // to per-feed quotas, so a cached 30-row body cannot outlive the deploy.
       // The key also carries WORKER_VERSION (src/version.ts), so a body cached

@@ -16,8 +16,8 @@
 //  - dropping pruneJobRuns from the 0 5 branch fails the prune test;
 //  - removing "/healthz/deep" from READ_LIMITS fails the rate-limit test;
 //  - returning String(err) on a D1 error fails the D1 error test;
-//  - counting any finished run (not only ok) as last_ok_at fails the
-//    error-or-partial test;
+//  - counting any finished run (not only ok or partial) as last_ok_at fails
+//    the error-run test;
 //  - widening the threshold to 3x fails all three (b) staleness tests.
 
 import { register } from "node:module";
@@ -141,7 +141,7 @@ test("(b) a daily job 27 hours old gives 503; 25 hours old is fine", async () =>
   assert.equal(body.jobs.qons.overdue, true);
 });
 
-test("(b) a recent error or partial run does not count as ok", async () => {
+test("(b) a recent error run does not count as ok", async () => {
   const e = env();
   seedAllFresh(e);
   e.ARCHIVE.raw.exec(`DELETE FROM job_runs WHERE job = 'poll'`);
@@ -288,7 +288,7 @@ test("(e) canary: a scratch Worker hard-coded to ok:true fails the stale-poll ch
     cpSync(srcDir, dst, { recursive: true });
     const jobsPath = join(dst, "jobs.ts");
     const original = readFileSync(jobsPath, "utf8");
-    const mutated = original.replace("return { ok, jobs };", "return { ok: true, jobs };");
+    const mutated = original.replace("return { ok, jobs, feeds_failed };", "return { ok: true, jobs, feeds_failed };");
     assert.notEqual(mutated, original, "canary mutation must apply");
     writeFileSync(jobsPath, mutated);
     const { default: broken } = await import(pathToFileURL(join(dst, "index.ts")).href);
@@ -300,4 +300,57 @@ test("(e) canary: a scratch Worker hard-coded to ok:true fails the stale-poll ch
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }
+});
+
+// ---- 0.16.3 (security review 5 Oct 2026) ------------------------------------
+
+test("0.16.3 a recent partial poll counts as a successful run and reports feeds_failed", async () => {
+  // Live state on 5 Oct 2026: Bills Digests 403 since 3 Oct, so every poll was
+  // partial and /healthz/deep was 503 permanently.
+  const e = env();
+  seedAllFresh(e);
+  e.ARCHIVE.raw.exec(`DELETE FROM job_runs WHERE job = 'poll'`);
+  const at = new Date(Date.now() - 60_000).toISOString();
+  e.ARCHIVE.raw
+    .prepare(`INSERT INTO job_runs (job, started_at, finished_at, outcome, detail) VALUES ('poll', ?, ?, 'partial', ?)`)
+    .run(at, at, JSON.stringify({ feeds: 13, feeds_failed: 1, new_items: 0, seen_items: 200 }));
+  const { status, body } = await deep(worker, e);
+  assert.equal(status, 200, "one blocked feed does not make the monitor alarm");
+  assert.equal(body.ok, true);
+  assert.equal(body.jobs.poll.last_outcome, "partial");
+  assert.equal(body.jobs.poll.overdue, false);
+  assert.equal(body.feeds_failed, 1, "the failing feed is still reported");
+});
+
+test("0.16.3 a stale partial poll is still overdue", async () => {
+  const e = env();
+  seedAllFresh(e);
+  e.ARCHIVE.raw.exec(`DELETE FROM job_runs WHERE job = 'poll'`);
+  seedRun(e, "poll", 2 * 60 * 60 * 1000, "partial");
+  const { status, body } = await deep(worker, e);
+  assert.equal(status, 503);
+  assert.equal(body.jobs.poll.overdue, true);
+});
+
+test("0.16.3 /healthz drops mail config; /healthz/deep carries resend_wired", async () => {
+  const e = { ...env(), RESEND_API_KEY: "re_test", DIGEST_FROM_EMAIL: "noreply@example.com" };
+  const live = await (await worker.fetch(new Request("https://w.test/healthz"), e, ctx())).json();
+  assert.equal(live.ok, true);
+  assert.ok(!("resend_wired" in live), "no resend_wired on the public probe");
+  assert.ok(!("digest_from" in live), "no digest_from on the public probe");
+  assert.ok(!JSON.stringify(live).includes("@"), "no address on the public probe");
+  seedAllFresh(e);
+  const { body } = await deep(worker, e);
+  assert.equal(body.resend_wired, true);
+});
+
+test("0.16.3 /healthz is rate-limited at 60 a minute", async () => {
+  const e = env();
+  const statuses = [];
+  for (let i = 0; i < 62; i += 1) {
+    const res = await worker.fetch(new Request("https://w.test/healthz", { headers: { "cf-connecting-ip": "5.6.7.8" } }), e, ctx());
+    statuses.push(res.status);
+  }
+  assert.equal(statuses.filter((x) => x === 200).length, 60);
+  assert.equal(statuses.at(-1), 429);
 });

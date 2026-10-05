@@ -124,19 +124,38 @@ export async function pruneJobRuns(env: Env, now = Date.now()): Promise<void> {
   }
 }
 
+// last_ok_at is the last run that DID ITS JOB: outcome ok, or partial (0.16.3).
+// A partial run is one where some items failed and the rest succeeded, which
+// for the poll means some feeds answered and were archived. Counting only
+// "ok" made /healthz/deep 503 permanently once one feed (Bills Digests,
+// HTTP 403 since 3 Oct 2026) was blocked, so an external monitor would alarm
+// all the time and mean nothing. A failing feed is reported separately as
+// feeds_failed, from the latest poll's counts, and per feed on
+// /healthz/connectors. An "error" run (nothing succeeded) never counts.
+export const SUCCESS_OUTCOMES: readonly JobOutcome[] = ["ok", "partial"];
+
 export type JobHealth = { last_ok_at: string | null; last_outcome: JobOutcome | null; overdue: boolean };
-export type DeepHealth = { ok: boolean; jobs: Record<JobName, JobHealth> };
+export type DeepHealth = { ok: boolean; jobs: Record<JobName, JobHealth>; feeds_failed: number | null };
 
 /** Reads job_runs. Throws on a D1 error; the route maps that to a generic 503. */
 export async function deepHealth(env: Env, now = Date.now()): Promise<DeepHealth> {
   const { results } = await env.ARCHIVE.prepare(
     `SELECT j.job AS job,
-            (SELECT MAX(finished_at) FROM job_runs WHERE job = j.job AND outcome = 'ok') AS last_ok_at,
+            (SELECT MAX(finished_at) FROM job_runs WHERE job = j.job AND outcome IN ('ok', 'partial')) AS last_ok_at,
             (SELECT outcome FROM job_runs WHERE job = j.job AND outcome IS NOT NULL
-               ORDER BY finished_at DESC, id DESC LIMIT 1) AS last_outcome
+               ORDER BY finished_at DESC, id DESC LIMIT 1) AS last_outcome,
+            (SELECT detail FROM job_runs WHERE job = j.job AND outcome IS NOT NULL
+               ORDER BY finished_at DESC, id DESC LIMIT 1) AS last_detail
        FROM (SELECT DISTINCT job FROM job_runs) j`,
-  ).all<{ job: string; last_ok_at: string | null; last_outcome: JobOutcome | null }>();
+  ).all<{ job: string; last_ok_at: string | null; last_outcome: JobOutcome | null; last_detail: string | null }>();
   const byJob = new Map((results ?? []).map((r) => [r.job, r]));
+  let feeds_failed: number | null = null;
+  try {
+    const d = JSON.parse(byJob.get("poll")?.last_detail ?? "null");
+    if (d && typeof d.feeds_failed === "number") feeds_failed = d.feeds_failed;
+  } catch {
+    feeds_failed = null;
+  }
 
   const jobs = {} as Record<JobName, JobHealth>;
   let ok = true;
@@ -148,5 +167,5 @@ export async function deepHealth(env: Env, now = Date.now()): Promise<DeepHealth
     if (overdue) ok = false;
     jobs[job] = { last_ok_at: lastOk, last_outcome: r?.last_outcome ?? null, overdue };
   }
-  return { ok, jobs };
+  return { ok, jobs, feeds_failed };
 }
