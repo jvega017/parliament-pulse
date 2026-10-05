@@ -47,7 +47,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { launch, openDesk, navDesks, startServer, editableDistFile } from "./harness.mjs";
+import { launch, openDesk, navDesks, startServer, editableDistFile, CANARY_PORT } from "./harness.mjs";
 
 let failures = 0;
 const check = (ok, label, detail = "") => {
@@ -189,6 +189,11 @@ async function cardShape(h, baseUrl) {
 async function navClosed(h, baseUrl) {
   const out = [];
   const page = await h.newPage();
+  // Round 5: at desktop width the menu button must not show or take a Tab stop
+  // (the later .btn rule used to beat .nav-toggle{display:none}).
+  await openDesk(page, "overview", { baseUrl, width: 1280 });
+  const desktopToggle = await page.evaluate(() => { const t = document.querySelector(".nav-toggle"); if (!t) return null; const r = t.getBoundingClientRect(); return { visible: t.checkVisibility({ checkVisibilityCSS: true }), w: r.width, h: r.height }; });
+  if (desktopToggle && (desktopToggle.visible || desktopToggle.w > 0 || desktopToggle.h > 0)) out.push(`the phone menu button shows at 1280 px (${desktopToggle.w} x ${desktopToggle.h})`);
   await openDesk(page, "overview", { baseUrl, width: 390 });
   const focusables = await page.evaluate(() => [...document.querySelectorAll("aside.side a[href], aside.side button, aside.side input, aside.side [tabindex]")]
     .filter(el => el.tabIndex >= 0 && el.checkVisibility({ checkVisibilityCSS: true })).length);
@@ -341,6 +346,7 @@ async function runAll(h, baseUrl, only) {
 // ---- canaries ---------------------------------------------------------------------------
 const CANARIES = [
   { name: "nav-visible", check: "navClosed", file: "index.html", from: "      visibility: hidden;  /* FE-10 (A11Y-03): zero focus stops while closed */", to: "" },
+  { name: "nav-toggle-desktop", check: "navClosed", file: "index.html", from: "  .btn.nav-toggle { display: none; flex: none; }", to: "  .nav-toggle { display: none; flex: none; }" },
   { name: "drawer-tree", check: "drawerTree", edits: [
     { file: "index.html", from: "    visibility: hidden;  /* FE-10: out of the accessibility tree and focus order while closed */", to: "" },
     { file: "shell.js", from: ` "aria-hidden": on ? void 0 : "true"`, to: "" },
@@ -380,7 +386,7 @@ try {
   const r = await runAll(h, h.baseUrl, ONLY);
   report(r.walk, "walk: Tab reaches every signal card's Open button (distinct \"Open <title>\" names); Enter opens the drawer on it; Esc closes it and returns focus");
   report(r.card, "card: every signal card is an article named by its title, with no link nested in a button");
-  report(r.navClosed, "nav-closed: the closed phone navigation has 0 focusable descendants and 0 Tab stops; opened it lists every desk; Esc closes it to the toggle");
+  report(r.navClosed, "nav-closed: the menu button is hidden at 1280 px; the closed phone navigation has 0 focusable descendants and 0 Tab stops; opened it lists every desk; Esc closes it to the toggle");
   report(r.drawerTree, "drawer-tree: the closed drawer is out of the accessibility tree; the open drawer is one dialog named Signal detail");
   report(r.shortcuts, "shortcuts: j works, is typed in a field, Ctrl+A does not archive, a archives with Undo, and the off setting stops j and survives a reload");
   report(r.targets, `targets: every visible control on every desk, the drawer and the modal is at least 24 x 24 CSS px at 1280 and 390 px`);
@@ -389,7 +395,7 @@ try {
     for (const c of CANARIES) {
       const dir = mutate(h.distDir, c);
       scratch.push(dir);
-      const srv = await startServer(dir, { port: 8081 });
+      const srv = await startServer(dir, { port: CANARY_PORT });
       try {
         const cr = await runAll(h, srv.url, [c.check]);
         check(Array.isArray(cr[c.check]) && cr[c.check].length > 0, `canary ${c.name}: removing the control fails the ${c.check} check`, "the check still passed with the control removed");

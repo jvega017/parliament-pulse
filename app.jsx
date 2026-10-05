@@ -46,6 +46,9 @@ function App() {
     const onHash = () => {
       const r = parseRoute(window.location.hash);
       if (r) setRoute(r);
+      // Back, Forward or a typed address changes the desk: the phone menu closes
+      // as it does for a tapped desk (RouteOverlaySync closes a modal or drawer).
+      setMobileNavOpen(false);
     };
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
@@ -130,6 +133,7 @@ function App() {
     <StoreProvider navigate={navigate}>
       <a className="skip-link" href="#pp-content" onClick={skipToContent}>Skip to content</a>
       <RouteSignalSync route={route} setRoute={setRoute} />
+      <RouteOverlaySync routeKey={routeKey} route={route} />
       <div className="sr-only" role="status" aria-live="polite" aria-atomic="true" data-route-announcer="">{announce}</div>
       <div className="app">
         {/* a11y-exempt: backdrop */}
@@ -151,6 +155,21 @@ function App() {
 // #/signal/<guid> opens the drawer over the Signal inbox. When the reader closes
 // that drawer, the address returns to #/signals with replaceState, so a reload
 // does not reopen it and Back does not step through a closed drawer.
+// A modal or drawer belongs to the desk it was opened on. After Back, the
+// address read #/signals while the Parliamentary scrutiny modal stayed over the
+// inbox (UX review, 5 Oct 2026). Any route change closes an open modal, and the
+// drawer too unless the new address is itself a #/signal/ address.
+function RouteOverlaySync({ routeKey, route }) {
+  const { closeModal, closeSignal } = useStore();
+  const firstRef = React.useRef(true);
+  React.useEffect(() => {
+    if (firstRef.current) { firstRef.current = false; return; }
+    closeModal();
+    if (!route.signal) closeSignal();
+  }, [routeKey]);
+  return null;
+}
+
 function RouteSignalSync({ route, setRoute }) {
   const { signalId, openSignal } = useStore();
   const prevSignalRef = React.useRef(signalId);

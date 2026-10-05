@@ -1,6 +1,7 @@
 const { useState, useMemo } = React;
 function csvEscape(v) {
-  const text = v == null ? "" : String(v);
+  let text = v == null ? "" : String(v);
+  if (/^[=+\-@\t\r]/.test(text)) text = "'" + text;
   return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 function exportSignalsCSV(signals) {
@@ -40,7 +41,7 @@ function exportRowsCSV(headers, rows, filename) {
   } catch (e) {
     return false;
   } finally {
-    if (url) URL.revokeObjectURL(url);
+    if (url) setTimeout(() => URL.revokeObjectURL(url), 0);
   }
 }
 function copyText(text, toast, ok = "Copied to clipboard") {

@@ -5,46 +5,6 @@
 
 
 
-// Shared additive live strip (Committees, Daily program). Every live title renders
-// ONLY inside an anchor to its APH link (licence contract, spec section 4.1); the
-// product's own metadata (kind, feed label, date) renders as ordinary content around
-// it. Filtered lists pass items already narrowed by verified feed_label.
-function LiveFeedStrip({ title, items, fetchedAt, emptyText }) {
-  // Data-gate the whole strip: with no live items there is no live surface, so the
-  // panel and its Live chip do not render at all (a Live chip must never sit over an
-  // empty match). The desk's representative content stands on its own.
-  if (!items || items.length === 0) return null;
-  return (
-    <div className="panel" style={{marginBottom:16}}>
-      <div className="panel-head">
-        <h2 className="panel-title">{title}</h2>
-        <ProvenanceChip provenance="live" title="Live items from the official APH feeds" />
-        {fetchedClause(fetchedAt) && <span className="panel-kicker" style={{marginLeft:"auto"}}>{fetchedClause(fetchedAt)}</span>}
-      </div>
-      <div className="panel-body">
-        {items.length === 0
-          ? <div className="empty">{emptyText}</div>
-          : items.map((s, i) => (
-            <div key={s.id || i} className="data-row" style={{display:"grid", gap:6, padding:"10px 0", borderBottom: i<items.length-1 ? "1px solid var(--line)" : 0}}>
-              {/* Licence rule: the live APH title renders only inside an anchor to its
-                  APH link; with no valid link it falls back to the source label. */}
-              {s.link
-                ? <a href={s.link} target="_blank" rel="noopener noreferrer" style={{display:"inline-flex", alignItems:"center", gap:6, color:"var(--link)", textDecoration:"none", fontSize:"var(--t-body-sm)", fontWeight:500}} title="Opens the source at aph.gov.au">
-                    {s.title} <Icon name="ext" size={11}/>
-                  </a>
-                : <span style={{fontSize:"var(--t-body-sm)", fontWeight:500, color:"var(--ink-2)"}}>{s.source}</span>}
-              <div style={{display:"flex", gap:10, alignItems:"center", flexWrap:"wrap"}}>
-                <span className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".12em"}}>{(s.tags && s.tags[0] && s.tags[0].l) || "item"}</span>
-                <span style={{fontSize:"var(--t-caption)", color:"var(--ink-3)"}}>{s.source}</span>
-                <span className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)"}}>{s.date}</span>
-              </div>
-            </div>
-          ))}
-      </div>
-    </div>
-  );
-}
-
 // ---------- SITTING-DAY HONESTY HELPERS ----------
 // No sitting or return date is ever hardcoded here: a literal date goes false
 // the day the calendar moves, and tests/fabrication-patterns.mjs bans the
@@ -72,15 +32,22 @@ function recessEmptyText(scope, url, linkLabel) {
 // One live signal row, shared by every sitting-day list below: the title renders
 // only inside its APH anchor (licence rule), with the feed label and date around
 // it as the product's own metadata.
-function LiveSignalRow({ s, isLast }) {
+// The committee read from the link (committeeFromLink) tells same-titled items
+// apart; a hearing row with a hearing date (Worker 0.16.2) shows that date in
+// place of the publication line, which the hearings feed never supplies.
+function LiveSignalRow({ s, isLast, hearingLabel }) {
+  const hearing = s.hearingDate ? fmtHearingDay(s.hearingDate) : null;
   return (
     <div className="data-row" style={{padding:"10px 0", borderBottom: isLast ? 0 : "1px solid var(--line)"}}>
       {s.link
         ? <a href={s.link} target="_blank" rel="noopener noreferrer" style={{color:"var(--link)", textDecoration:"none", fontSize:"var(--t-body-sm)", fontWeight:500}} title="Opens the source at aph.gov.au">{s.title} <Icon name="ext" size={11}/></a>
         : <span style={{fontSize:"var(--t-body-sm)", fontWeight:500, color:"var(--ink-2)"}}>{s.source}</span>}
       <div style={{display:"flex", gap:10, alignItems:"center", flexWrap:"wrap", marginTop:4}}>
-        <span className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".12em"}}>{s.source}</span>
-        <span className="mono" style={{fontSize:"var(--t-eyebrow)", color:"var(--ink-4)"}}>{s.date}</span>
+        <span className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".12em"}}>{feedDisplayName(s.source)}</span>
+        {s.committee && <span data-committee="" style={{fontSize:"var(--t-caption)", color:"var(--ink-3)"}}>{s.committee}</span>}
+        {hearing
+          ? <span className="mono" data-hearing-date={s.hearingDate} style={{fontSize:"var(--t-eyebrow)", color:"var(--ink-2)"}}>{hearingLabel || "Hearing"} {hearing}</span>
+          : <span className="mono" style={{fontSize:"var(--t-eyebrow)", color:"var(--ink-4)"}}>{s.date}</span>}
       </div>
     </div>
   );
@@ -91,7 +58,7 @@ function LiveSignalRow({ s, isLast }) {
 // live but this filter empty (recess-aware empty text supplied by the caller),
 // or real rows. Used by every sitting-day panel below so the "outage vs
 // genuinely nothing scheduled" distinction never gets blurred into one message.
-function SittingDeskList({ rows, unavailableText, emptyIcon = "clock", emptyKicker, emptyBody }) {
+function SittingDeskList({ rows, unavailableText, emptyIcon = "clock", emptyKicker, emptyBody, hearingLabel }) {
   if (rows === null) {
     return (
       <EmptyState icon={emptyIcon} kicker="Live data unavailable" variant="error">
@@ -102,7 +69,7 @@ function SittingDeskList({ rows, unavailableText, emptyIcon = "clock", emptyKick
   if (rows.length === 0) {
     return <EmptyState icon={emptyIcon} kicker={emptyKicker}>{emptyBody}</EmptyState>;
   }
-  return <>{rows.map((s, i) => <LiveSignalRow key={s.id || i} s={s} isLast={i === rows.length - 1} />)}</>;
+  return <>{rows.map((s, i) => <LiveSignalRow key={s.id || i} s={s} isLast={i === rows.length - 1} hearingLabel={hearingLabel} />)}</>;
 }
 
 // Related House divisions, shared by the Bills register and the Daily program
@@ -127,10 +94,22 @@ function DivisionsLiveList() {
 // Today's House, joint and Senate committee hearings — two real Worker feeds
 // ("Today's House and joint hearings", "Today's Senate hearings") that return an
 // empty channel while the relevant chamber is not sitting.
+// The archive keeps every hearing these feeds ever listed, so the feed name alone
+// put hearings from 1 Sep to 1 Oct under "Today's hearings" (UX and data review,
+// 5 Oct 2026). Only rows dated today in Brisbane stay: the hearing date when the
+// Worker sends one, otherwise the publication day. Undated rows cannot be shown
+// as today's.
+function hearingDayKey(s) {
+  return (s && s.hearingDate) || signalDayKey(s);
+}
+function todaysHearingRows(items, now = Date.now()) {
+  const HEARING_LABELS = new Set(["Today's House and joint hearings", "Today's Senate hearings"]);
+  const today = brisbaneDayKey(now);
+  return items.filter(s => HEARING_LABELS.has(s.source) && hearingDayKey(s) === today);
+}
 function TodaysHearingsPanel() {
   const live = useLiveState("signals");
-  const HEARING_LABELS = new Set(["Today's House and joint hearings", "Today's Senate hearings"]);
-  const rows = live.items ? live.items.filter(s => HEARING_LABELS.has(s.source)) : null;
+  const rows = live.items ? todaysHearingRows(live.items) : null;
   return (
     <div className="panel" style={{marginTop:16}}>
       <div className="panel-head"><h2 className="panel-title">Today's hearings</h2><span className="panel-kicker">House, joint & Senate</span></div>
@@ -161,13 +140,13 @@ const COMMITTEE_RECENT_LABELS = new Set([
   "Senate reports tabled", "New Senate inquiries", "House committee inquiries", "Joint committee inquiries",
 ]);
 
-// States the Upcoming Senate hearings order as it is. The APH feed puts each
-// hearing's date only in its <description>, which /state does not send, and
-// supplies no pubDate (live /state probe and raw feed read, 30 Sep 2026). So
-// the app holds no hearing date and cannot list the soonest hearing first.
-// Dated rows run newest published first; with none dated, every row keeps the
-// Worker's attention-score order. Neither is hearing order, and the feed can
-// still carry hearings that have passed.
+// States the order of the Senate hearing rows that carry NO hearing date. The
+// APH feed prints each hearing's date only in its <description> and supplies no
+// pubDate. Worker 0.16.2 parses that date into hearing_date; Worker 0.16.1 (and
+// any row whose description does not parse) sends none, so those rows cannot be
+// listed soonest first. Dated-by-publication rows run newest published first;
+// with none dated, the rows keep the Worker's attention-score order. Neither is
+// hearing order, and the feed can still carry hearings that have passed.
 function hearingOrderNote(rows) {
   if (!rows || rows.length === 0) return null;
   const order = rows.some(s => s.dateKind !== "none")
@@ -176,16 +155,43 @@ function hearingOrderNote(rows) {
   return `${order} This is not the order the hearings will be held, and the feed can still list hearings that have passed. Open an item for its hearing date on aph.gov.au.`;
 }
 
+// Splits the Upcoming Senate hearings rows by their hearing date (Worker 0.16.2):
+//   upcoming: dated today or later in Brisbane, soonest first;
+//   held:     dated before today, most recent first, shown under "Recently held"
+//             rather than hidden, because the Worker keeps one row per inquiry
+//             with the FIRST date the feed lists, so an inquiry whose first
+//             hearing has passed can still list later hearings;
+//   undated:  no hearing date (Worker 0.16.1, or a description that did not
+//             parse), newest published first, with hearingOrderNote.
+function splitSenateHearings(rows, now = Date.now()) {
+  const today = brisbaneDayKey(now);
+  const dated = rows.filter(s => s.hearingDate);
+  return {
+    anyDated: dated.length > 0,
+    upcoming: dated.filter(s => s.hearingDate >= today).sort((a, b) => a.hearingDate.localeCompare(b.hearingDate)),
+    held: dated.filter(s => s.hearingDate < today).sort((a, b) => b.hearingDate.localeCompare(a.hearingDate)),
+    undated: sortSignalsNewestFirst(rows.filter(s => !s.hearingDate)),
+  };
+}
+
+const HEARINGS_URL = "https://www.aph.gov.au/Parliamentary_Business/Committees";
+
 function PageCommittees() {
   const liveSignalsState = useLiveState("signals");
   const items = liveSignalsState.items;
-  // Both lists run newest published first with undated items last, as the
-  // Signal inbox does; the Worker sends score-then-recency order. No row carries
-  // a hearing date, so the hearings list states its order (hearingOrderNote).
-  const upcomingHearings = items ? sortSignalsNewestFirst(items.filter(s => s.source === "Upcoming Senate hearings")) : null;
+  const { liveState, toast } = useStore();
+  const fresh = (liveState && liveState.blocks && liveState.blocks.freshness) || null;
+  // Inquiries and reports run newest published first with undated items last,
+  // as the Signal inbox does; the Worker sends score-then-recency order.
+  const hearingRows = items ? items.filter(s => s.source === "Upcoming Senate hearings") : null;
+  const hearings = hearingRows ? splitSenateHearings(hearingRows) : null;
+  // The undated rows, ordered and noted as before. With no hearing date on any
+  // row (Worker 0.16.1) this is the whole list.
+  const upcomingHearings = hearings ? hearings.undated : null;
   const recentItems = items ? sortSignalsNewestFirst(items.filter(s => COMMITTEE_RECENT_LABELS.has(s.source))) : null;
   const hearingsOrder = hearingOrderNote(upcomingHearings);
-  const { toast } = useStore();
+  const hearingsHeld = heldOfAvailable(fresh, ["Upcoming Senate hearings"], (hearingRows || []).length);
+  const recentHeld = heldOfAvailable(fresh, [...COMMITTEE_RECENT_LABELS], (recentItems || []).length);
 
   const exportPrepPack = () => {
     const rows = recentItems || [];
@@ -212,8 +218,13 @@ function PageCommittees() {
       {/* UX-14: one list per kind. The combined "latest activity" strip repeated
           every row of the two lists below, so it is gone. */}
       <div className="grid g-3" style={{marginBottom:18}}>
-        <div className="panel stat"><div className="stat-label">Upcoming Senate hearings</div><div className="stat-value">{(upcomingHearings || []).length}</div></div>
-        <div className="panel stat"><div className="stat-label">Inquiries and reports</div><div className="stat-value">{(recentItems || []).length}</div></div>
+        {/* With hearing dates (Worker 0.16.2) the tile counts only hearings dated
+            today or later; without them it counts notices, which include hearings
+            that have passed, and says so. */}
+        {hearings && hearings.anyDated
+          ? <div className="panel stat" data-stat="hearings"><div className="stat-label">Upcoming Senate hearings</div><div className="stat-value">{hearings.upcoming.length}</div><div className="stat-meta">dated today or later</div></div>
+          : <div className="panel stat" data-stat="hearings"><div className="stat-label">Senate hearing notices</div><div className="stat-value">{(hearingRows || []).length}</div><div className="stat-meta">{hearingsHeld ? `${hearingsHeld} · ` : ""}no hearing dates supplied</div></div>}
+        <div className="panel stat" data-stat="inquiries"><div className="stat-label">Inquiries and reports</div><div className="stat-value">{(recentItems || []).length}</div>{recentHeld && <div className="stat-meta">{recentHeld} archived</div>}</div>
         <div className="panel stat"><div className="stat-label">Official committee feeds</div><div className="stat-value">{COMMITTEE_STRIP_LABELS.size}<span className="unit">tracked</span></div></div>
       </div>
 
@@ -221,19 +232,51 @@ function PageCommittees() {
 
       <div className="grid g-2">
         <div className="panel">
-          <div className="panel-head"><h2 className="panel-title">Upcoming Senate hearings</h2><span className="panel-kicker">{(upcomingHearings || []).length} from the APH feed</span></div>
+          <div className="panel-head"><h2 className="panel-title">Upcoming Senate hearings</h2><span className="panel-kicker" data-hearings-kicker="">{hearings && hearings.anyDated
+            ? `${hearings.upcoming.length} dated today or later · ${hearings.held.length} recently held`
+            : `${hearingsHeld || (hearingRows || []).length} notices from the APH feed`}</span></div>
           <div className="panel-body">
-            {hearingsOrder && <p data-hearing-order="" style={{margin:"0 0 10px", color:"var(--ink-2)", fontSize:"var(--t-body-sm)"}}>{hearingsOrder}</p>}
-            <SittingDeskList
-              rows={upcomingHearings} emptyIcon="signal"
-              unavailableText={<>Parliament Pulse holds no verified upcoming Senate hearings right now because the live signal feed is unavailable. <a href="https://www.aph.gov.au/Parliamentary_Business/Committees" target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>Open committee hearings on aph.gov.au</a>.</>}
-              emptyKicker="No upcoming hearings listed"
-              emptyBody={<>The Upcoming Senate hearings feed lists no hearings in the current live window. <a href="https://www.aph.gov.au/Parliamentary_Business/Committees" target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>Open committee hearings on aph.gov.au</a>.</>}
-            />
+            {hearings && hearings.anyDated ? (
+              <>
+                <p data-hearing-sort="" style={{margin:"0 0 10px", color:"var(--ink-2)", fontSize:"var(--t-body-sm)"}}>Soonest hearing first, by the hearing date the APH feed prints. Where an inquiry lists several hearings, the date shown is the first one the feed lists.</p>
+                <div data-hearings-upcoming="">
+                  <SittingDeskList
+                    rows={hearings.upcoming} emptyIcon="signal" hearingLabel="Hearing"
+                    unavailableText={null}
+                    emptyKicker="No hearing dated today or later"
+                    emptyBody={<>No hearing in the feed window is dated today or later. <a href={HEARINGS_URL} target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>Open committee hearings on aph.gov.au</a>.</>}
+                  />
+                </div>
+                {hearings.held.length > 0 && (
+                  <div data-hearings-held="" style={{marginTop:16, paddingTop:12, borderTop:"1px solid var(--line-2)"}}>
+                    <h3 className="mono t-label" style={{margin:"0 0 6px", color:"var(--ink-3)", textTransform:"uppercase", letterSpacing:".14em"}}>Recently held</h3>
+                    <p style={{margin:"0 0 6px", color:"var(--ink-3)", fontSize:"var(--t-caption)"}}>The first hearing date the feed lists for these inquiries has passed. An inquiry can still list later hearings; open it on aph.gov.au for its full schedule.</p>
+                    {hearings.held.map((s, i) => <LiveSignalRow key={s.id || i} s={s} isLast={i === hearings.held.length - 1} hearingLabel="First listed" />)}
+                  </div>
+                )}
+                {hearings.undated.length > 0 && (
+                  <div data-hearings-undated="" style={{marginTop:16, paddingTop:12, borderTop:"1px solid var(--line-2)"}}>
+                    <h3 className="mono t-label" style={{margin:"0 0 6px", color:"var(--ink-3)", textTransform:"uppercase", letterSpacing:".14em"}}>No hearing date in the feed</h3>
+                    {hearingsOrder && <p data-hearing-order="" style={{margin:"0 0 6px", color:"var(--ink-3)", fontSize:"var(--t-caption)"}}>{hearingsOrder}</p>}
+                    {hearings.undated.map((s, i) => <LiveSignalRow key={s.id || i} s={s} isLast={i === hearings.undated.length - 1} />)}
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                {hearingsOrder && <p data-hearing-order="" style={{margin:"0 0 10px", color:"var(--ink-2)", fontSize:"var(--t-body-sm)"}}>{hearingsOrder}</p>}
+                <SittingDeskList
+                  rows={upcomingHearings} emptyIcon="signal"
+                  unavailableText={<>Parliament Pulse holds no verified upcoming Senate hearings right now because the live signal feed is unavailable. <a href={HEARINGS_URL} target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>Open committee hearings on aph.gov.au</a>.</>}
+                  emptyKicker="No upcoming hearings listed"
+                  emptyBody={<>The Upcoming Senate hearings feed lists no hearings in the current live window. <a href={HEARINGS_URL} target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>Open committee hearings on aph.gov.au</a>.</>}
+                />
+              </>
+            )}
           </div>
         </div>
         <div className="panel">
-          <div className="panel-head"><h2 className="panel-title">Inquiries and reports</h2><span className="panel-kicker">{(recentItems || []).length} from the APH feeds</span></div>
+          <div className="panel-head"><h2 className="panel-title">Inquiries and reports</h2><span className="panel-kicker">{`${recentHeld || (recentItems || []).length} from the APH feeds`}</span></div>
           <div className="panel-body">
             <SittingDeskList
               rows={recentItems} emptyIcon="signal"
@@ -252,6 +295,15 @@ function PageCommittees() {
 function PageBills() {
   const live = useLiveBills();
   const bills = live.items; // null = nothing has ever loaded; array (maybe empty) once live
+  // The /bills list is the archive of the Bills Digests feed. When that feed's
+  // latest check failed, the list is only as current as its last success, so the
+  // header says so instead of a Live chip (UX review, 5 Oct 2026: HTTP 403 since
+  // 4 Oct while the page read LIVE).
+  const { liveState } = useStore();
+  const digestCheck = feedCheckFor(liveState && liveState.blocks, "Bills Digests");
+  const digestFailing = !!digestCheck && feedHealthState(digestCheck) === "failed";
+  const digestSince = digestCheck ? fmtPollStamp(digestCheck.lastSuccessAt) : null;
+  const billCount = bills ? (live.total != null && live.total > bills.length ? `${bills.length} of ${live.total} bills` : `${bills.length} bill${bills.length !== 1 ? "s" : ""}`) : null;
 
   const fmtBillDate = (iso) => fmtIsoDate(iso, true);
 
@@ -278,7 +330,9 @@ function PageBills() {
           <div className="page-sub" data-bills-scope="">Lists bills that have a Bills Digest in the Parliamentary Library feed, not every bill before Parliament. Each title links to its ParlInfo record; attention and confidence are Parliament Pulse's own scoring. For every bill, <a href="https://www.aph.gov.au/Parliamentary_Business/Bills_Legislation/Bills_Search_Results" target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>search bills on aph.gov.au</a>.</div>
         </div>
         <div style={{display:"flex", gap:10, alignItems:"center"}}>
-          {bills && <ProvenanceChip provenance="live" title="Bills from the Parliamentary Library Bills Digest feed" />}
+          {bills && (digestFailing
+            ? <span className="chip-fixture chip-caution" data-bills-feed-failing="" title="The latest check of the Bills Digests feed failed; see Sources">{digestSince ? `Bills Digest feed failing since ${digestSince}; list as at then` : "Bills Digest feed failing; list as at its last success"}</span>
+            : <ProvenanceChip provenance="live" title="Bills from the Parliamentary Library Bills Digest feed" />)}
           <button className="btn" disabled={!bills || bills.length === 0} onClick={exportBills}><Icon name="download" size={13}/> Export register</button>
         </div>
       </div>
@@ -286,7 +340,7 @@ function PageBills() {
       <div className="panel">
         <div className="panel-head">
           <h2 className="panel-title">Tracked bills</h2>
-          <span className="panel-kicker">{bills ? [`${bills.length} bill${bills.length !== 1 ? "s" : ""}`, fetchedClause(live.fetchedAt)].filter(Boolean).join(" · ") :(live.status === "loading" ? "Loading…" : NO_VALUE)}</span>
+          <span className="panel-kicker">{bills ? [billCount, fetchedClause(live.fetchedAt)].filter(Boolean).join(" · ") :(live.status === "loading" ? "Loading…" : NO_VALUE)}</span>
         </div>
         {live.status === "loading" && !bills ? <SkeletonTable rows={6} /> : !bills ? (
           <div className="panel-body">
@@ -341,7 +395,7 @@ function PageBills() {
       </div>
 
       <div className="panel" style={{marginTop:16}}>
-        <div className="panel-head"><h2 className="panel-title">Related divisions</h2><span className="panel-kicker">House</span></div>
+        <div className="panel-head"><h2 className="panel-title">Recent House divisions</h2><span className="panel-kicker">Latest in the feed, not matched to these bills</span></div>
         <div className="panel-body">
           <DivisionsLiveList />
         </div>
@@ -359,7 +413,20 @@ function PageParliament() {
   // against "House Daily Program" / "House Divisions" (title case), which never
   // matched a real row, so both strips silently rendered nothing on every poll
   // regardless of whether the House was sitting.
-  const dailyProgramLive = live.items ? live.items.filter(s => s.source === "House daily program") : null;
+  // The House daily program feed holds one item whose guid never changes, so the
+  // archive kept the 16 September program and showed it as current weeks later
+  // (UX and data review, 5 Oct 2026). It shows only when meta.feeds says the feed
+  // carried an item in today's poll (Brisbane); otherwise the empty state names
+  // the day the program was last seen. A Worker that sends no meta.feeds keeps
+  // the previous behaviour.
+  const { liveState } = useStore();
+  const fresh = (liveState && liveState.blocks && liveState.blocks.freshness) || null;
+  const programSeenAt = feedLastSeenAt(fresh, "House daily program");
+  const programSeenMs = programSeenAt ? Date.parse(programSeenAt) : NaN;
+  const programKnown = !!(fresh && Array.isArray(fresh.feeds) && fresh.feeds.length);
+  const programToday = !programKnown || (!Number.isNaN(programSeenMs) && brisbaneDayKey(programSeenMs) === brisbaneDayKey());
+  const dailyProgramLive = live.items ? (programToday ? live.items.filter(s => s.source === "House daily program") : []) : null;
+  const programLastSeen = !programToday && !Number.isNaN(programSeenMs) ? fmtDayMon(programSeenMs) : null;
   const divisionsLive = live.items ? live.items.filter(s => s.source === "House divisions") : null;
   const newsLive = live.items ? live.items.filter(s => s.source === "House news" || s.source === "House media releases") : null;
   return (
@@ -379,8 +446,11 @@ function PageParliament() {
             <SittingDeskList
               rows={dailyProgramLive} emptyIcon="clock"
               unavailableText={<>Parliament Pulse holds no verified daily program right now because the live signal feed is unavailable. <a href="https://www.aph.gov.au/Parliamentary_Business/Chamber_documents" target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>Open the House daily program on aph.gov.au</a>.</>}
-              emptyKicker="No daily program items in the feed window"
-              emptyBody={recessEmptyText("The House daily program feed lists no items in the current feed window.", "https://www.aph.gov.au/Parliamentary_Business/Chamber_documents", "Open the House daily program on aph.gov.au")}
+              emptyKicker={programToday ? "No daily program items in the feed window" : "No daily program today"}
+              emptyBody={recessEmptyText(programToday
+                ? "The House daily program feed lists no items in the current feed window."
+                : `The House daily program feed has carried no program today${programLastSeen ? `; the last program it carried was seen on ${programLastSeen}` : ""}.`,
+                "https://www.aph.gov.au/Parliamentary_Business/Chamber_documents", "Open the House daily program on aph.gov.au")}
             />
           </div>
         </div>
@@ -444,7 +514,7 @@ function ThreadRow({ t, byGuid, isLast }) {
         style={{display:"flex", alignItems:"center", flexWrap:"wrap", columnGap:12, rowGap:4, width:"100%", minHeight:24, background:"none", border:"none", padding:0, cursor:"pointer", textAlign:"left", color:"inherit"}}>
         <Icon name="chevron" size={13} style={{flexShrink:0, transform: open ? "rotate(90deg)" : "none", transition:"transform .15s"}}/>
         <span style={{fontSize:"var(--t-body-sm)", fontWeight:600, color:"var(--ink)", whiteSpace:"nowrap"}}>{t.itemCount} items</span>
-        <span className="mono" style={{fontSize:"var(--t-eyebrow)", color:"var(--ink-3)", whiteSpace:"nowrap"}}>{fmtSpanDate(t.firstSeenAt)} → {fmtSpanDate(t.lastSeenAt)}</span>
+        <span className="mono" data-thread-span="" title="When Parliament Pulse first and last saw an item in this thread, not when APH published it" style={{fontSize:"var(--t-eyebrow)", color:"var(--ink-3)", whiteSpace:"nowrap"}}>first seen {fmtSpanDate(t.firstSeenAt)} · last seen {fmtSpanDate(t.lastSeenAt)}</span>
         {/* The thread title is the product's own clustering label, not APH-sourced
             prose. It is framed with a "Cluster" tag so it reads unambiguously as the
             product's analysis (threads carry no link; spec 4.3). */}
@@ -465,7 +535,8 @@ function ThreadRow({ t, byGuid, isLast }) {
                 : <span style={{fontSize:"var(--t-body-sm)", fontWeight:500, color:"var(--ink-2)"}}>{s.source}</span>}
               <div style={{display:"flex", gap:10, alignItems:"center", flexWrap:"wrap"}}>
                 <span className="mono t-label" style={{color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".12em"}}>{(s.tags && s.tags[0] && s.tags[0].l) || "item"}</span>
-                <span style={{fontSize:"var(--t-eyebrow)", color:"var(--ink-3)"}}>{s.source}</span>
+                <span style={{fontSize:"var(--t-eyebrow)", color:"var(--ink-3)"}}>{feedDisplayName(s.source)}</span>
+                {s.committee && <span data-committee="" style={{fontSize:"var(--t-eyebrow)", color:"var(--ink-3)"}}>{s.committee}</span>}
                 <span className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)"}}>{s.date}</span>
               </div>
             </div>
@@ -516,7 +587,7 @@ function PagePatterns() {
           <div className="panel-head">
             <h2 className="panel-title">Signal threads</h2>
             <ProvenanceChip provenance={threads.displayProvenance} title="Parliament Pulse's own grouping of live signals (derived analysis)" />
-            <span className="panel-kicker" style={{marginLeft:"auto"}}>{[`${threads.items.length} threads`, fetchedClause(threads.fetchedAt)].filter(Boolean).join(" · ")}</span>
+            <span className="panel-kicker" style={{marginLeft:"auto"}}>{[`the ${threads.items.length} largest threads`, fetchedClause(threads.fetchedAt)].filter(Boolean).join(" · ")}</span>
           </div>
           <div className="panel-body">
             {threads.items.length === 0
@@ -629,7 +700,7 @@ function PageBriefings() {
         <div>
           <div className="page-kicker">Workflow</div>
           <h1 className="page-title">Briefings</h1>
-          <div className="page-sub">Briefs you generate from a signal appear here with their evidence links: What happened · Source · Why it matters · Evidence · Provenance.</div>
+          <div className="page-sub">Briefs you generate from a signal appear here with their source, scoring, evidence links and provenance.</div>
         </div>
         <div style={{display:"flex", gap:8, flexWrap:"wrap", justifyContent:"flex-end"}}>
           <button className="btn" disabled={briefs.length === 0} onClick={() => downloadBriefingQueue(briefs, toast)}><Icon name="download" size={13}/> Export queue</button>
@@ -693,12 +764,14 @@ function PageBriefings() {
                       ? <a href={brief.link} target="_blank" rel="noopener noreferrer" style={{color:"inherit"}} title="Open the source at aph.gov.au">{brief.title} <Icon name="ext" size={12} style={{verticalAlign:"-1px", opacity:.6}}/></a>
                       : brief.meta.source)
                   : brief.title}</h3>
-                <h5>What happened</h5>
+                <h5>{brief.isLive ? brief.summaryHeading : "What happened"}</h5>
                 <div>{brief.summary}</div>
                 <h5>Source</h5>
                 <div>{brief.meta.source} · {brief.meta.sourceAuthority} · {brief.meta.date}</div>
-                <h5>Why it matters</h5>
-                <div>{brief.whyItMatters}</div>
+                {brief.whyItMatters && <>
+                  <h5>Why it matters</h5>
+                  <div>{brief.whyItMatters}</div>
+                </>}
                 {brief.recommendedAction && <>
                   <h5>Recommended action</h5>
                   <div><strong>{brief.recommendedAction.label}.</strong> {brief.recommendedAction.reason}</div>

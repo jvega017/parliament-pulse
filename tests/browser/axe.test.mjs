@@ -31,7 +31,7 @@ import os from "node:os";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { AxeBuilder } from "@axe-core/playwright";
-import { launch, openDesk, navDesks, startServer, root } from "./harness.mjs";
+import { launch, openDesk, navDesks, startServer, root, CANARY_PORT } from "./harness.mjs";
 
 const require = createRequire(import.meta.url);
 const AXE_VERSION = require("axe-core/package.json").version;
@@ -205,7 +205,7 @@ let canaryDir = null;
 try {
   // 1. Canary: the scan must catch an injected nameless button and alt-less image.
   canaryDir = canaryDist(h.distDir);
-  const cServer = await startServer(canaryDir, { port: 8081 });
+  const cServer = await startServer(canaryDir, { port: CANARY_PORT });
   try {
     const cBase = cServer.url;
     const page = await h.newPage();

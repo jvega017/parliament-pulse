@@ -179,7 +179,9 @@ const GROUPS = {
     if (/class="att med"/.test(o.signals)) f.push("uniform: Signal cards still show a per-card attention badge");
     if (!st.includes(LINE(SIGNALS_UNIFORM.length, "Confidence 3 of 5"))) f.push("uniform: Signal inbox does not show the one-line confidence explanation");
     if (/data-col="attention"/.test(o.radar)) f.push("uniform: Activity by source still has an attention column");
-    if (!text(o.radar).includes(LINE(2, "Medium attention"))) f.push("uniform: Activity by source does not show the one-line explanation");
+    // Round 5: the radar rows are source groups that PEAK at a level, never "items".
+    if (!text(o.radar).includes("All 2 source groups peak at Medium attention; the score does not yet separate them.")) f.push("uniform: Activity by source does not show the one-line explanation");
+    if (/All \d+ items currently score/.test(text(o.radar))) f.push("uniform: Activity by source calls its source groups items");
     return f;
   },
   // Test (b): mixed values show the column; confidence reads "Confidence n of 5".
@@ -290,6 +292,7 @@ const CANARIES = [
   { why: "empty recommended action restored", over: { shell: mut(shell, "recommendedAction: s.action ? {", "recommendedAction: true ? {") } },
   { why: "search bills source removed", over: { shell: mut(shell, "bills: liveBills.items,", "bills: [],") } },
   { why: "search group scope label removed", over: { store: mut(store, "`Signals (latest ${sigSource.length} held)`", "`Signals`") } },
+  { why: "radar calls its source groups items again", over: { pages: mut(pages, 'uniformScoreLine(rows.length, "attention", attAll, "source groups")', 'uniformScoreLine(rows.length, "attention", attAll)') } },
 ];
 let failures = 0;
 for (const c of CANARIES) {

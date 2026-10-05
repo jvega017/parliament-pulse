@@ -6,8 +6,11 @@
 
 const { useState, useMemo } = React;
 
+// A cell that starts with =, +, -, @, tab or CR runs as a formula in a
+// spreadsheet, so it is prefixed with an apostrophe (feed titles are untrusted).
 function csvEscape(v) {
-  const text = v == null ? "" : String(v);
+  let text = v == null ? "" : String(v);
+  if (/^[=+\-@\t\r]/.test(text)) text = "'" + text;
   return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 
@@ -49,7 +52,9 @@ function exportRowsCSV(headers, rows, filename) {
   } catch {
     return false;
   } finally {
-    if (url) URL.revokeObjectURL(url);
+    // Revoked on the next tick: revoking straight after click() can cancel the
+    // download in some browsers (historically Safari).
+    if (url) setTimeout(() => URL.revokeObjectURL(url), 0);
   }
 }
 

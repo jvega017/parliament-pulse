@@ -2,8 +2,10 @@
 
 const IS_MAC = /Mac|iPad/i.test(navigator.platform);
 
+// Brisbane time, like every other time on the site (the viewer's own zone read
+// 17:26 in Sydney beside "fetched 16:23 AEST").
 function fmtClock() {
-  return new Date().toLocaleTimeString("en-AU", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  return new Date().toLocaleTimeString("en-AU", { timeZone: "Australia/Brisbane", hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
 
 function TopClock() {
@@ -13,8 +15,8 @@ function TopClock() {
     return () => clearInterval(id);
   }, []);
   return (
-    <span className="mono top-clock" title="Local time" style={{fontSize:"var(--t-caption)", color:"var(--ink-3)", letterSpacing:".06em", fontVariantNumeric:"tabular-nums"}}>
-      <span className="sr-only">Local time </span>{clock}
+    <span className="mono top-clock" title="Brisbane time (AEST)" style={{fontSize:"var(--t-caption)", color:"var(--ink-3)", letterSpacing:".06em", fontVariantNumeric:"tabular-nums"}}>
+      <span className="sr-only">Brisbane time </span>{clock} AEST
     </span>
   );
 }
@@ -151,6 +153,9 @@ function Sidebar({ page, onNavigate, mobileOpen }) {
   // shared signal means it can never show "configured" while the topbar is
   // simultaneously showing an outage.
   const noLiveCache = !!(liveState && liveState.status === "error" && !liveState.blocks);
+  // With feed rows from the Worker, the status names how many are healthy.
+  const health = feedHealthSummary(liveState && liveState.blocks);
+  const allHealthy = !health || (health.failed === 0 && health.pending === 0);
   const liveNav = liveNavState(liveState, useFreshness());
   const navCount = React.useMemo(() => {
     const signalItems = (liveState && liveState.blocks && liveState.blocks.signals && liveState.blocks.signals.items) || null;
@@ -231,10 +236,10 @@ function Sidebar({ page, onNavigate, mobileOpen }) {
         ) : (
           <>
             <div className="side-status-head">
-              <span className="dot" style={{background:"var(--ok)", boxShadow:"none"}}/>
-              <span>Official feeds connected</span>
+              <span className="dot" style={{background: allHealthy ? "var(--ok)" : "var(--caution)", boxShadow:"none"}}/>
+              <span data-side-health="">{allHealthy ? "Official feeds connected" : `${health.ok} of ${health.total} feeds healthy`}</span>
             </div>
-            <div>Parliament Pulse reads the official APH feeds. Each feed's health is on Sources.</div>
+            <div>{allHealthy ? "Parliament Pulse reads the official APH feeds. Each feed's health is on Sources." : "Parliament Pulse reads the official APH feeds. Sources shows which feed is failing and since when."}</div>
           </>
         )}
       </div>
@@ -453,7 +458,7 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
   );
   return (
     <>
-    <div className="topbar">
+    <header className="topbar">
       <button
         className="btn ghost sm nav-toggle"
         aria-label={mobileNavOpen ? "Close navigation" : "Open navigation"}
@@ -567,7 +572,7 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
           setIsDark(!isDark);
         }}><Icon name={isDark ? "sun" : "moon"} size={13} /></button>
       </div>
-    </div>
+    </header>
     {/* Slim honest staleness ribbon: only when a good cache exists and is older than
         30 min. Never shows for fresh data, and never when there is no cache (that
         state is carried by the LIVE DATA UNAVAILABLE chip above). Carries the same
@@ -651,7 +656,10 @@ function buildBriefSections(s, isLive = false) {
       humanReview: s.humanReview,
     },
     summary: s.summary,
-    whyItMatters: s.attentionReason,
+    // For a live item the summary and the reason are the same scoring line, so
+    // the second copy is dropped and the section is titled for what it is.
+    whyItMatters: (s.attentionReason && s.attentionReason !== s.summary) ? s.attentionReason : "",
+    summaryHeading: isLive ? "Scoring" : "Summary",
     // UX-03: no recommended action exists for a live item (action is ""), so the
     // brief carries none rather than an empty heading.
     recommendedAction: s.action ? { label: s.action, reason: s.actionReason || "" } : null,
@@ -684,7 +692,7 @@ const SignalCardView = React.memo(function SignalCardView({ s, archived, feedbac
     <article className="signal" data-att={s.attention} aria-labelledby={titleId} data-signal-id={s.id}>
       <div className="sig-head">
         <span className="sig-id mono">{s.isLive || /^https?:/.test(s.id) ? "APH" : s.id}</span>
-        <span className="sig-source mono">· {s.source}</span>
+        <span className="sig-source mono">· {feedDisplayName(s.source)}</span>
         {!hideAtt && <Att level={s.attention} />}
         {watched && <span className="tag brass">Watching</span>}
         <span className="sig-time mono" data-sig-when="">{signalWhen(s)}</span>
@@ -731,14 +739,12 @@ function generateBriefMarkdown(s, isLive = false) {
     `> Beta draft, generated from the current Parliament Pulse signal record. Verify source links before distribution.`,
     ``,
     `# Executive brief: ${titleMd}`,
-    `Date: ${brief.meta.date} | Source: ${brief.meta.source} | Priority: ${(brief.meta.attention || NOT_SUPPLIED).toUpperCase()}`,
+    `Date: ${brief.meta.date} | Source: ${brief.meta.source} | Attention: ${attentionWord(brief.meta.attention) || NOT_SUPPLIED}`,
     ``,
-    `## Summary`,
+    `## ${brief.summaryHeading}`,
     brief.summary,
     ``,
-    `## Why it matters`,
-    brief.whyItMatters,
-    ``,
+    ...(brief.whyItMatters ? [`## Why it matters`, brief.whyItMatters, ``] : []),
     ...(brief.recommendedAction ? [
       `## Recommended action`,
       `**${brief.recommendedAction.label}**`,

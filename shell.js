@@ -1,6 +1,6 @@
 const IS_MAC = /Mac|iPad/i.test(navigator.platform);
 function fmtClock() {
-  return (/* @__PURE__ */ new Date()).toLocaleTimeString("en-AU", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  return (/* @__PURE__ */ new Date()).toLocaleTimeString("en-AU", { timeZone: "Australia/Brisbane", hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
 function TopClock() {
   const [clock, setClock] = React.useState(fmtClock);
@@ -8,7 +8,7 @@ function TopClock() {
     const id = setInterval(() => setClock(fmtClock()), 1e3);
     return () => clearInterval(id);
   }, []);
-  return /* @__PURE__ */ React.createElement("span", { className: "mono top-clock", title: "Local time", style: { fontSize: "var(--t-caption)", color: "var(--ink-3)", letterSpacing: ".06em", fontVariantNumeric: "tabular-nums" } }, /* @__PURE__ */ React.createElement("span", { className: "sr-only" }, "Local time "), clock);
+  return /* @__PURE__ */ React.createElement("span", { className: "mono top-clock", title: "Brisbane time (AEST)", style: { fontSize: "var(--t-caption)", color: "var(--ink-3)", letterSpacing: ".06em", fontVariantNumeric: "tabular-nums" } }, /* @__PURE__ */ React.createElement("span", { className: "sr-only" }, "Brisbane time "), clock, " AEST");
 }
 function BetaNotice() {
   const key = "pp-beta-ack";
@@ -81,6 +81,8 @@ function Sidebar({ page, onNavigate, mobileOpen }) {
   const { state, liveState } = useStore();
   const counts = useCounts();
   const noLiveCache = !!(liveState && liveState.status === "error" && !liveState.blocks);
+  const health = feedHealthSummary(liveState && liveState.blocks);
+  const allHealthy = !health || health.failed === 0 && health.pending === 0;
   const liveNav = liveNavState(liveState, useFreshness());
   const navCount = React.useMemo(() => {
     const signalItems = liveState && liveState.blocks && liveState.blocks.signals && liveState.blocks.signals.items || null;
@@ -126,7 +128,7 @@ function Sidebar({ page, onNavigate, mobileOpen }) {
     /* @__PURE__ */ React.createElement("span", null, n.label),
     n.live && liveNav && /* @__PURE__ */ React.createElement("span", { className: "count nav-live", "data-live-state": liveNav, title: liveNav === "live" ? "APH feeds polled recently" : liveNav === "stale" ? "The APH feed poll has stalled; items may be out of date" : "Live data is unavailable" }, LIVE_NAV_LABELS[liveNav]),
     !n.live && typeof navCount[n.id] === "number" && navCount[n.id] > 0 && /* @__PURE__ */ React.createElement("span", { className: "count", "data-nav-count": n.id }, navCount[n.id])
-  ))))), /* @__PURE__ */ React.createElement("div", { className: "side-status", role: "group", "aria-label": "System status" }, noLiveCache ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "side-status-head" }, /* @__PURE__ */ React.createElement("span", { className: "dot", style: { background: "var(--caution)", boxShadow: "none" } }), /* @__PURE__ */ React.createElement("span", null, "Live data unavailable")), /* @__PURE__ */ React.createElement("div", null, "The official APH feeds did not respond at the last check, so each desk says what is missing instead of showing invented data. See Sources for feed health.")) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "side-status-head" }, /* @__PURE__ */ React.createElement("span", { className: "dot", style: { background: "var(--ok)", boxShadow: "none" } }), /* @__PURE__ */ React.createElement("span", null, "Official feeds connected")), /* @__PURE__ */ React.createElement("div", null, "Parliament Pulse reads the official APH feeds. Each feed's health is on Sources."))), /* @__PURE__ */ React.createElement("div", { className: "side-foot" }, /* @__PURE__ */ React.createElement("div", { style: { lineHeight: 1.2 } }, /* @__PURE__ */ React.createElement("div", { style: { fontFamily: "var(--mono)", fontSize: "var(--t-micro)", color: "var(--ink-4)" } }, "Prometheus Policy Lab \xB7 free beta"))));
+  ))))), /* @__PURE__ */ React.createElement("div", { className: "side-status", role: "group", "aria-label": "System status" }, noLiveCache ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "side-status-head" }, /* @__PURE__ */ React.createElement("span", { className: "dot", style: { background: "var(--caution)", boxShadow: "none" } }), /* @__PURE__ */ React.createElement("span", null, "Live data unavailable")), /* @__PURE__ */ React.createElement("div", null, "The official APH feeds did not respond at the last check, so each desk says what is missing instead of showing invented data. See Sources for feed health.")) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "side-status-head" }, /* @__PURE__ */ React.createElement("span", { className: "dot", style: { background: allHealthy ? "var(--ok)" : "var(--caution)", boxShadow: "none" } }), /* @__PURE__ */ React.createElement("span", { "data-side-health": "" }, allHealthy ? "Official feeds connected" : `${health.ok} of ${health.total} feeds healthy`)), /* @__PURE__ */ React.createElement("div", null, allHealthy ? "Parliament Pulse reads the official APH feeds. Each feed's health is on Sources." : "Parliament Pulse reads the official APH feeds. Sources shows which feed is failing and since when."))), /* @__PURE__ */ React.createElement("div", { className: "side-foot" }, /* @__PURE__ */ React.createElement("div", { style: { lineHeight: 1.2 } }, /* @__PURE__ */ React.createElement("div", { style: { fontFamily: "var(--mono)", fontSize: "var(--t-micro)", color: "var(--ink-4)" } }, "Prometheus Policy Lab \xB7 free beta"))));
 }
 const SHORTCUTS_KEY = "pp-shortcuts";
 function singleKeyShortcutsOn() {
@@ -281,7 +283,7 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
     if (next) setOpen(false);
   };
   const row = ({ key, k, title, link, openLabel, act, extra }) => /* @__PURE__ */ React.createElement("li", { key, className: "sr-item", ...extra || {} }, link ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("span", { className: "k" }, k), /* @__PURE__ */ React.createElement("a", { className: "sr-title", href: link, target: "_blank", rel: "noopener noreferrer", style: { color: "inherit", textDecoration: "none" }, title: "Open the source at aph.gov.au" }, title), /* @__PURE__ */ React.createElement("button", { type: "button", className: "sr-open sr-open-short", "data-sr-focus": "", "aria-label": openLabel, onClick: () => selectItem(act) }, "Open")) : /* @__PURE__ */ React.createElement("button", { type: "button", className: "sr-open", "data-sr-focus": "", onClick: () => selectItem(act) }, /* @__PURE__ */ React.createElement("span", { className: "k" }, k), /* @__PURE__ */ React.createElement("span", { className: "sr-title" }, title)));
-  return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "topbar" }, /* @__PURE__ */ React.createElement(
+  return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("header", { className: "topbar" }, /* @__PURE__ */ React.createElement(
     "button",
     {
       className: "btn ghost sm nav-toggle",
@@ -430,7 +432,10 @@ function buildBriefSections(s, isLive = false) {
       humanReview: s.humanReview
     },
     summary: s.summary,
-    whyItMatters: s.attentionReason,
+    // For a live item the summary and the reason are the same scoring line, so
+    // the second copy is dropped and the section is titled for what it is.
+    whyItMatters: s.attentionReason && s.attentionReason !== s.summary ? s.attentionReason : "",
+    summaryHeading: isLive ? "Scoring" : "Summary",
     // UX-03: no recommended action exists for a live item (action is ""), so the
     // brief carries none rather than an empty heading.
     recommendedAction: s.action ? { label: s.action, reason: s.actionReason || "" } : null,
@@ -449,7 +454,7 @@ const SignalCardView = React.memo(function SignalCardView2({ s, archived, feedba
   const titleId = "sig-t-" + React.useId().replace(/:/g, "");
   if (archived) return null;
   const name = s.title || s.source || "signal";
-  return /* @__PURE__ */ React.createElement("article", { className: "signal", "data-att": s.attention, "aria-labelledby": titleId, "data-signal-id": s.id }, /* @__PURE__ */ React.createElement("div", { className: "sig-head" }, /* @__PURE__ */ React.createElement("span", { className: "sig-id mono" }, s.isLive || /^https?:/.test(s.id) ? "APH" : s.id), /* @__PURE__ */ React.createElement("span", { className: "sig-source mono" }, "\xB7 ", s.source), !hideAtt && /* @__PURE__ */ React.createElement(Att, { level: s.attention }), watched && /* @__PURE__ */ React.createElement("span", { className: "tag brass" }, "Watching"), /* @__PURE__ */ React.createElement("span", { className: "sig-time mono", "data-sig-when": "" }, signalWhen(s))), /* @__PURE__ */ React.createElement("h3", { className: "sig-title serif", id: titleId }, s.link ? /* @__PURE__ */ React.createElement("a", { href: s.link, target: "_blank", rel: "noopener noreferrer", style: { color: "inherit", textDecoration: "none" }, title: "Open the source at aph.gov.au" }, s.title, " ", /* @__PURE__ */ React.createElement(Icon, { name: "ext", size: 12, style: { verticalAlign: "-1px", opacity: 0.6 } })) : s.isLive ? s.source : s.title), /* @__PURE__ */ React.createElement("div", { className: "sig-sum" }, s.summary.length > 120 ? s.summary.slice(0, 120).replace(/\s\S+$/, "") + "\u2026" : s.summary), /* @__PURE__ */ React.createElement("div", { className: "sig-tags" }, s.tags.map((t, i) => /* @__PURE__ */ React.createElement("span", { key: i, className: "tag " + (t.c || "") }, t.l))), /* @__PURE__ */ React.createElement("div", { className: "sig-action" }, s.action ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("span", { className: "sig-action-label" }, "Recommended"), /* @__PURE__ */ React.createElement("span", { className: "sig-action-value" }, s.action)) : /* @__PURE__ */ React.createElement("span", { className: "sig-action-label" }, "Open to triage"), !hideConf && /* @__PURE__ */ React.createElement("span", { className: "mono", "data-conf": "", style: { fontSize: "var(--t-micro)", color: "var(--ink-4)", letterSpacing: ".04em", whiteSpace: "nowrap" } }, confidenceLabel(s.confidence)), /* @__PURE__ */ React.createElement("button", { type: "button", className: "sig-open", "aria-label": "Open " + name, onClick: () => openSignal(s.id) }, "Open")), feedback && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 8, fontSize: "var(--t-caption)", color: "var(--brass)" } }, /* @__PURE__ */ React.createElement(Icon, { name: "check", size: 12, style: { verticalAlign: "-2px", marginRight: 4 } }), " Feedback: ", feedback.label), watched && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 8, fontSize: "var(--t-caption)", color: "var(--brass)" } }, /* @__PURE__ */ React.createElement(Icon, { name: "watch", size: 12, style: { verticalAlign: "-2px", marginRight: 4 } }), " On watchlist"));
+  return /* @__PURE__ */ React.createElement("article", { className: "signal", "data-att": s.attention, "aria-labelledby": titleId, "data-signal-id": s.id }, /* @__PURE__ */ React.createElement("div", { className: "sig-head" }, /* @__PURE__ */ React.createElement("span", { className: "sig-id mono" }, s.isLive || /^https?:/.test(s.id) ? "APH" : s.id), /* @__PURE__ */ React.createElement("span", { className: "sig-source mono" }, "\xB7 ", feedDisplayName(s.source)), !hideAtt && /* @__PURE__ */ React.createElement(Att, { level: s.attention }), watched && /* @__PURE__ */ React.createElement("span", { className: "tag brass" }, "Watching"), /* @__PURE__ */ React.createElement("span", { className: "sig-time mono", "data-sig-when": "" }, signalWhen(s))), /* @__PURE__ */ React.createElement("h3", { className: "sig-title serif", id: titleId }, s.link ? /* @__PURE__ */ React.createElement("a", { href: s.link, target: "_blank", rel: "noopener noreferrer", style: { color: "inherit", textDecoration: "none" }, title: "Open the source at aph.gov.au" }, s.title, " ", /* @__PURE__ */ React.createElement(Icon, { name: "ext", size: 12, style: { verticalAlign: "-1px", opacity: 0.6 } })) : s.isLive ? s.source : s.title), /* @__PURE__ */ React.createElement("div", { className: "sig-sum" }, s.summary.length > 120 ? s.summary.slice(0, 120).replace(/\s\S+$/, "") + "\u2026" : s.summary), /* @__PURE__ */ React.createElement("div", { className: "sig-tags" }, s.tags.map((t, i) => /* @__PURE__ */ React.createElement("span", { key: i, className: "tag " + (t.c || "") }, t.l))), /* @__PURE__ */ React.createElement("div", { className: "sig-action" }, s.action ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("span", { className: "sig-action-label" }, "Recommended"), /* @__PURE__ */ React.createElement("span", { className: "sig-action-value" }, s.action)) : /* @__PURE__ */ React.createElement("span", { className: "sig-action-label" }, "Open to triage"), !hideConf && /* @__PURE__ */ React.createElement("span", { className: "mono", "data-conf": "", style: { fontSize: "var(--t-micro)", color: "var(--ink-4)", letterSpacing: ".04em", whiteSpace: "nowrap" } }, confidenceLabel(s.confidence)), /* @__PURE__ */ React.createElement("button", { type: "button", className: "sig-open", "aria-label": "Open " + name, onClick: () => openSignal(s.id) }, "Open")), feedback && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 8, fontSize: "var(--t-caption)", color: "var(--brass)" } }, /* @__PURE__ */ React.createElement(Icon, { name: "check", size: 12, style: { verticalAlign: "-2px", marginRight: 4 } }), " Feedback: ", feedback.label), watched && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 8, fontSize: "var(--t-caption)", color: "var(--brass)" } }, /* @__PURE__ */ React.createElement(Icon, { name: "watch", size: 12, style: { verticalAlign: "-2px", marginRight: 4 } }), " On watchlist"));
 });
 function generateBriefMarkdown(s, isLive = false) {
   const brief = buildBriefSections(s, isLive);
@@ -459,14 +464,12 @@ function generateBriefMarkdown(s, isLive = false) {
     `> Beta draft, generated from the current Parliament Pulse signal record. Verify source links before distribution.`,
     ``,
     `# Executive brief: ${titleMd}`,
-    `Date: ${brief.meta.date} | Source: ${brief.meta.source} | Priority: ${(brief.meta.attention || NOT_SUPPLIED).toUpperCase()}`,
+    `Date: ${brief.meta.date} | Source: ${brief.meta.source} | Attention: ${attentionWord(brief.meta.attention) || NOT_SUPPLIED}`,
     ``,
-    `## Summary`,
+    `## ${brief.summaryHeading}`,
     brief.summary,
     ``,
-    `## Why it matters`,
-    brief.whyItMatters,
-    ``,
+    ...brief.whyItMatters ? [`## Why it matters`, brief.whyItMatters, ``] : [],
     ...brief.recommendedAction ? [
       `## Recommended action`,
       `**${brief.recommendedAction.label}**`,

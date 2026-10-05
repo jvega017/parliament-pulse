@@ -34,7 +34,10 @@ import { fileURLToPath } from "node:url";
 
 export const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 export const FIXTURES = path.join(root, "tests", "fixtures");
-export const PORT = 8080;
+// PP_HARNESS_PORT and PP_CANARY_PORT move the two static servers off 8080 and
+// 8081 when another process holds them (the defaults are unchanged).
+export const PORT = Number(process.env.PP_HARNESS_PORT) || 8080;
+export const CANARY_PORT = Number(process.env.PP_CANARY_PORT) || 8081;
 export const HOST = "127.0.0.1";
 // The hostname the browser loads the app from (FE-11). The server listens on
 // 127.0.0.1, and Chromium resolves every *.localhost name to loopback and treats

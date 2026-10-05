@@ -255,6 +255,73 @@ function signalDateFields(pubDate, firstSeenAt) {
   return { dateKind: "none", time: "", date, when: "Date not supplied", pubAt: null };
 }
 
+// ---- Brisbane calendar days and hearing dates (round 5) ----
+// "YYYY-MM-DD" of an epoch in Brisbane, the civil day every "today" test uses.
+function brisbaneDayKey(t = Date.now()) {
+  const p = ppDateParts(t, PP_TZ);
+  return `${p.year}-${String(p.month).padStart(2, "0")}-${String(p.day).padStart(2, "0")}`;
+}
+// The Brisbane calendar day a mapped signal was published on, or null. A
+// date-only value names its calendar day directly (read in UTC, as
+// signalDateFields does), so it never shifts across the date line.
+function signalDayKey(s) {
+  if (!s || typeof s.pubAt !== "number" || Number.isNaN(s.pubAt)) return null;
+  if (s.dateKind === "date") {
+    const d = new Date(s.pubAt);
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+  }
+  return s.dateKind === "datetime" ? brisbaneDayKey(s.pubAt) : null;
+}
+// Worker 0.16.2 serves hearing_date, the hearing's civil day as printed by APH
+// ("YYYY-MM-DD", no time zone). Worker 0.16.1 omits the field. Anything that is
+// not a real calendar date maps to null, so no row ever carries a guessed day.
+function parseHearingDay(v) {
+  if (typeof v !== "string") return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v.trim());
+  if (!m) return null;
+  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const cal = new Date(Date.UTC(y, mo - 1, d));
+  if (cal.getUTCFullYear() !== y || cal.getUTCMonth() !== mo - 1 || cal.getUTCDate() !== d) return null;
+  return m[0];
+}
+const PP_WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+// "Tue 6 Oct" for a "YYYY-MM-DD" hearing day, read as a calendar day (UTC), never
+// shifted through a time zone. The year is added outside the current year.
+function fmtHearingDay(key, now = Date.now()) {
+  const day = parseHearingDay(key);
+  if (!day) return null;
+  const [y, mo, d] = day.split("-").map(Number);
+  const t = Date.UTC(y, mo - 1, d);
+  return `${PP_WEEKDAYS[new Date(t).getUTCDay()]} ${fmtDayMon(t, "UTC", now)}`;
+}
+// A feed name for display. Two APH feeds are named "Today's ...", which read
+// false on a card dated another day, so the leading "Today's " is dropped
+// wherever a label sits beside a date. The Worker's feed_label itself (s.source)
+// is unchanged, so every filter still matches it exactly.
+function feedDisplayName(label) {
+  const l = String(label || "");
+  const m = /^Today's\s+(.+)$/i.exec(l);
+  return m ? m[1].charAt(0).toUpperCase() + m[1].slice(1) : l;
+}
+// The committee an APH committee link belongs to, read from its path:
+// /Committees/<House|Senate|Joint>/<Committee_Name>/... -> "Senate · Community Affairs".
+// Same-titled reports from different committees ("Additional Estimates 2025-26"
+// from five committees) are then told apart. null for any other link.
+function committeeFromLink(link) {
+  const m = /\/Committees\/(House|Senate|Joint)\/([^/?#;]+)/i.exec(String(link || ""));
+  if (!m) return /\/Senate_estimates\//i.test(String(link || "")) ? "Senate estimates" : null;
+  let name = m[2];
+  try { name = decodeURIComponent(name); } catch { /* keep the raw segment */ }
+  name = name.replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
+  if (!name) return null;
+  return `${m[1].charAt(0).toUpperCase()}${m[1].slice(1).toLowerCase()} · ${name}`;
+}
+// Two archived hearing links point at aphcms.aph.gov.au, which does not resolve;
+// the same path on www.aph.gov.au answers (data review, 5 Oct 2026).
+function canonicalAphLink(link) {
+  return typeof link === "string" ? link.replace(/^https:\/\/aphcms\.aph\.gov\.au\//i, "https://www.aph.gov.au/") : link;
+}
+
 // signals.items[] -> signal card shape. Moved from pages.jsx unchanged, then
 // extended with the two new fields (link, isLive) marked NEW in the spec table.
 function mapWorkerSignalToCard(row) {
@@ -262,8 +329,11 @@ function mapWorkerSignalToCard(row) {
   // Validate the APH deep link once (safeHttpUrl enforces an aph.gov.au host) and
   // reuse that single validated value for both the title anchor and the evidence
   // link, so evidence can never keep a raw, unvalidated or non-APH URL.
-  const link = safeHttpUrl(row.link);
+  const link = safeHttpUrl(canonicalAphLink(row.link));
   return {
+    // Worker 0.16.2: the hearing's civil day, or null (0.16.1 sends no field).
+    hearingDate: parseHearingDay(row.hearing_date),
+    committee: committeeFromLink(link),
     id: row.guid,
     time: dates.time,
     date: dates.date,
@@ -360,7 +430,45 @@ function mapLiveFreshness(meta) {
     feeds: Array.isArray(m.feeds)
       ? m.feeds.filter(f => f && f.feed_label).map(f => ({ feedLabel: f.feed_label, lastSeenAt: f.last_seen_at || null }))
       : [],
+    // meta.signal_counts: per feed, the rows served (held) and archived
+    // (available). Empty on a Worker that does not send it.
+    signalCounts: (m.signal_counts && typeof m.signal_counts === "object") ? m.signal_counts : {},
   };
+}
+
+// "latest 10 of 75": the rows a list holds beside the rows archived for its
+// feeds, from meta.signal_counts. Returns "" when the Worker sent no counts or
+// the list holds every archived row, so no list claims more than it knows.
+function heldOfAvailable(fr, labels, held) {
+  const counts = fr && fr.signalCounts ? fr.signalCounts : {};
+  let available = 0, known = false;
+  for (const l of labels) {
+    const c = counts[l];
+    if (c && Number.isFinite(Number(c.available))) { available += Number(c.available); known = true; }
+  }
+  if (!known || !(available > held)) return "";
+  return `latest ${held} of ${available}`;
+}
+
+// When a feed last carried an item at all (meta.feeds[].last_seen_at), or null.
+function feedLastSeenAt(fr, label) {
+  const f = fr && Array.isArray(fr.feeds) ? fr.feeds.find(x => x.feedLabel === label) : null;
+  return f ? f.lastSeenAt : null;
+}
+
+// Health across the configured feeds, from the feed-shaped connector checks:
+// { total, ok, failed, pending }, or null when the Worker serves no feed rows.
+function feedHealthSummary(blocks) {
+  const items = blocks && blocks.connectors && Array.isArray(blocks.connectors.items) ? blocks.connectors.items : null;
+  const feeds = items ? items.filter(c => c && c.isFeed) : [];
+  if (!feeds.length) return null;
+  const st = feeds.map(feedHealthState);
+  return { total: feeds.length, ok: st.filter(x => x === "ok").length, failed: st.filter(x => x === "failed").length, pending: st.filter(x => x === "pending").length };
+}
+// The check row for one feed label, or null.
+function feedCheckFor(blocks, label) {
+  const items = blocks && blocks.connectors && Array.isArray(blocks.connectors.items) ? blocks.connectors.items : [];
+  return items.find(c => c && c.isFeed && c.feedLabel === label) || null;
 }
 
 // True when the poller looks stalled. The Worker's flag decides; a cache that
@@ -675,6 +783,7 @@ function useLiveBills() {
   return {
     status: liveBills.status,
     items: liveBills.items,        // null (nothing has ever loaded) or an array (maybe empty) once live
+    total: liveBills.total ?? null, // the Worker's archived digest count, when sent
     fetchedAt: liveBills.fetchedAt,
     isRefreshing: liveBills.isRefreshing,
   };
@@ -725,9 +834,12 @@ function uniformScore(rows, key) {
   const first = rows[0] ? (rows[0][key] ?? null) : null;
   return rows.every(r => ((r && r[key]) ?? null) === first) ? first : undefined;
 }
-function uniformScoreLine(n, kind, value) {
-  if (value == null) return `All ${n} items are currently unscored for ${kind}; the score does not yet separate them.`;
+// `noun` names what is counted: "items" by default; Activity by source passes
+// "source groups", whose rows are groups that PEAK at a level, not items.
+function uniformScoreLine(n, kind, value, noun = "items") {
+  if (value == null) return `All ${n} ${noun} are currently unscored for ${kind}; the score does not yet separate them.`;
   const level = kind === "confidence" ? confidenceLabel(value) : `${attentionWord(value) || value} attention`;
+  if (noun !== "items") return `All ${n} ${noun} peak at ${level}; the score does not yet separate them.`;
   return `All ${n} items currently score ${level}; the score does not yet separate them.`;
 }
 
@@ -969,14 +1081,17 @@ function StoreProvider({ children, navigate = () => {} }) {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 8000);
     try {
-      const res = await fetch(`${WORKER_BASE_URL}/bills?limit=50`, { signal: ctrl.signal });
+      // limit=200 (the Worker caps at 500): limit=50 cut the list at 50 of 52.
+      const res = await fetch(`${WORKER_BASE_URL}/bills?limit=200`, { signal: ctrl.signal });
       if (!res.ok) throw new Error("HTTP " + res.status);
       const payload = await res.json();
       const rows = Array.isArray(payload?.rows) ? payload.rows : [];
+      // The Worker's own archive count, so the header can say "50 of 52".
+      const total = Number.isFinite(Number(payload?.total)) ? Number(payload.total) : null;
       const now = Date.now();
       billsFetchedAtRef.current = now;
       if (billsMountedRef.current) {
-        setLiveBills(s => ({ ...s, status: "ready", isRefreshing: false, fetchedAt: now, lastError: null, items: rows }));
+        setLiveBills(s => ({ ...s, status: "ready", isRefreshing: false, fetchedAt: now, lastError: null, items: rows, total }));
       }
     } catch (e) {
       // A failed revalidation leaves the cached rows untouched; status only
@@ -1248,4 +1363,4 @@ function migrateLegacyPageQuery(loc, hist) {
 
 Object.assign(window, { ABOUT_SECTIONS, parseRoute, routeHash, routeLabel, routeTitle, migrateLegacyPageQuery });
 
-Object.assign(window, { StoreProvider, useStore, watchlistKeywords, watchlistMatches, useLiveState, useLiveBills, selectCounts, useCounts, COMMITTEE_STRIP_LABELS, liveStateDegradation, mapWorkerSignalToCard, mapLiveBlocks, fmtFetchedAt, fetchedClause, mapLiveFreshness, freshnessView, useFreshness, pollIsStale, configuredFeedCount, useFeedCount, feedHealthState, signalDateFields, fmtDayMonYear, fmtPollStamp, ATTENTION_DIMS_DEFAULT, scoringDims, attentionDisclosure, attentionWord, confidenceLabel, uniformScore, uniformScoreLine, buildSearchResults });
+Object.assign(window, { StoreProvider, useStore, watchlistKeywords, watchlistMatches, useLiveState, useLiveBills, selectCounts, useCounts, COMMITTEE_STRIP_LABELS, liveStateDegradation, mapWorkerSignalToCard, mapLiveBlocks, fmtFetchedAt, fetchedClause, mapLiveFreshness, freshnessView, useFreshness, pollIsStale, configuredFeedCount, useFeedCount, feedHealthState, signalDateFields, fmtDayMonYear, fmtPollStamp, ATTENTION_DIMS_DEFAULT, scoringDims, attentionDisclosure, attentionWord, confidenceLabel, uniformScore, uniformScoreLine, buildSearchResults, brisbaneDayKey, signalDayKey, parseHearingDay, fmtHearingDay, feedDisplayName, committeeFromLink, heldOfAvailable, feedLastSeenAt, feedHealthSummary, feedCheckFor });

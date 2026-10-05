@@ -184,11 +184,63 @@ function signalDateFields(pubDate, firstSeenAt) {
   const date = Number.isNaN(seen) ? "Date not supplied" : `Date not supplied, first seen ${fmtDayMonYear(seen)}`;
   return { dateKind: "none", time: "", date, when: "Date not supplied", pubAt: null };
 }
+function brisbaneDayKey(t = Date.now()) {
+  const p = ppDateParts(t, PP_TZ);
+  return `${p.year}-${String(p.month).padStart(2, "0")}-${String(p.day).padStart(2, "0")}`;
+}
+function signalDayKey(s) {
+  if (!s || typeof s.pubAt !== "number" || Number.isNaN(s.pubAt)) return null;
+  if (s.dateKind === "date") {
+    const d = new Date(s.pubAt);
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+  }
+  return s.dateKind === "datetime" ? brisbaneDayKey(s.pubAt) : null;
+}
+function parseHearingDay(v) {
+  if (typeof v !== "string") return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v.trim());
+  if (!m) return null;
+  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const cal = new Date(Date.UTC(y, mo - 1, d));
+  if (cal.getUTCFullYear() !== y || cal.getUTCMonth() !== mo - 1 || cal.getUTCDate() !== d) return null;
+  return m[0];
+}
+const PP_WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+function fmtHearingDay(key, now = Date.now()) {
+  const day = parseHearingDay(key);
+  if (!day) return null;
+  const [y, mo, d] = day.split("-").map(Number);
+  const t = Date.UTC(y, mo - 1, d);
+  return `${PP_WEEKDAYS[new Date(t).getUTCDay()]} ${fmtDayMon(t, "UTC", now)}`;
+}
+function feedDisplayName(label) {
+  const l = String(label || "");
+  const m = /^Today's\s+(.+)$/i.exec(l);
+  return m ? m[1].charAt(0).toUpperCase() + m[1].slice(1) : l;
+}
+function committeeFromLink(link) {
+  const m = /\/Committees\/(House|Senate|Joint)\/([^/?#;]+)/i.exec(String(link || ""));
+  if (!m) return /\/Senate_estimates\//i.test(String(link || "")) ? "Senate estimates" : null;
+  let name = m[2];
+  try {
+    name = decodeURIComponent(name);
+  } catch (e) {
+  }
+  name = name.replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
+  if (!name) return null;
+  return `${m[1].charAt(0).toUpperCase()}${m[1].slice(1).toLowerCase()} \xB7 ${name}`;
+}
+function canonicalAphLink(link) {
+  return typeof link === "string" ? link.replace(/^https:\/\/aphcms\.aph\.gov\.au\//i, "https://www.aph.gov.au/") : link;
+}
 function mapWorkerSignalToCard(row) {
   var _a, _b;
   const dates = signalDateFields(row.pub_date, row.first_seen_at);
-  const link = safeHttpUrl(row.link);
+  const link = safeHttpUrl(canonicalAphLink(row.link));
   return {
+    // Worker 0.16.2: the hearing's civil day, or null (0.16.1 sends no field).
+    hearingDate: parseHearingDay(row.hearing_date),
+    committee: committeeFromLink(link),
     id: row.guid,
     time: dates.time,
     date: dates.date,
@@ -267,8 +319,39 @@ function mapLiveFreshness(meta) {
     lastPollAt: m.last_poll_at || null,
     lastNewItemAt: m.last_new_item_at || null,
     stale: m.stale === true,
-    feeds: Array.isArray(m.feeds) ? m.feeds.filter((f) => f && f.feed_label).map((f) => ({ feedLabel: f.feed_label, lastSeenAt: f.last_seen_at || null })) : []
+    feeds: Array.isArray(m.feeds) ? m.feeds.filter((f) => f && f.feed_label).map((f) => ({ feedLabel: f.feed_label, lastSeenAt: f.last_seen_at || null })) : [],
+    // meta.signal_counts: per feed, the rows served (held) and archived
+    // (available). Empty on a Worker that does not send it.
+    signalCounts: m.signal_counts && typeof m.signal_counts === "object" ? m.signal_counts : {}
   };
+}
+function heldOfAvailable(fr, labels, held) {
+  const counts = fr && fr.signalCounts ? fr.signalCounts : {};
+  let available = 0, known = false;
+  for (const l of labels) {
+    const c = counts[l];
+    if (c && Number.isFinite(Number(c.available))) {
+      available += Number(c.available);
+      known = true;
+    }
+  }
+  if (!known || !(available > held)) return "";
+  return `latest ${held} of ${available}`;
+}
+function feedLastSeenAt(fr, label) {
+  const f = fr && Array.isArray(fr.feeds) ? fr.feeds.find((x) => x.feedLabel === label) : null;
+  return f ? f.lastSeenAt : null;
+}
+function feedHealthSummary(blocks) {
+  const items = blocks && blocks.connectors && Array.isArray(blocks.connectors.items) ? blocks.connectors.items : null;
+  const feeds = items ? items.filter((c) => c && c.isFeed) : [];
+  if (!feeds.length) return null;
+  const st = feeds.map(feedHealthState);
+  return { total: feeds.length, ok: st.filter((x) => x === "ok").length, failed: st.filter((x) => x === "failed").length, pending: st.filter((x) => x === "pending").length };
+}
+function feedCheckFor(blocks, label) {
+  const items = blocks && blocks.connectors && Array.isArray(blocks.connectors.items) ? blocks.connectors.items : [];
+  return items.find((c) => c && c.isFeed && c.feedLabel === label) || null;
 }
 function pollIsStale(fr, now = Date.now()) {
   if (!fr || !fr.known) return false;
@@ -482,11 +565,14 @@ function useLiveState(blockName) {
   };
 }
 function useLiveBills() {
+  var _a;
   const { liveBills } = useStore();
   return {
     status: liveBills.status,
     items: liveBills.items,
     // null (nothing has ever loaded) or an array (maybe empty) once live
+    total: (_a = liveBills.total) != null ? _a : null,
+    // the Worker's archived digest count, when sent
     fetchedAt: liveBills.fetchedAt,
     isRefreshing: liveBills.isRefreshing
   };
@@ -530,9 +616,10 @@ function uniformScore(rows, key) {
     return ((_a2 = r && r[key]) != null ? _a2 : null) === first;
   }) ? first : void 0;
 }
-function uniformScoreLine(n, kind, value) {
-  if (value == null) return `All ${n} items are currently unscored for ${kind}; the score does not yet separate them.`;
+function uniformScoreLine(n, kind, value, noun = "items") {
+  if (value == null) return `All ${n} ${noun} are currently unscored for ${kind}; the score does not yet separate them.`;
   const level = kind === "confidence" ? confidenceLabel(value) : `${attentionWord(value) || value} attention`;
+  if (noun !== "items") return `All ${n} ${noun} peak at ${level}; the score does not yet separate them.`;
   return `All ${n} items currently score ${level}; the score does not yet separate them.`;
 }
 function buildSearchResults(q, { signals, bills, committees, feeds, liveSignals }) {
@@ -715,14 +802,15 @@ function StoreProvider({ children, navigate = () => {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 8e3);
     try {
-      const res = await fetch(`${WORKER_BASE_URL}/bills?limit=50`, { signal: ctrl.signal });
+      const res = await fetch(`${WORKER_BASE_URL}/bills?limit=200`, { signal: ctrl.signal });
       if (!res.ok) throw new Error("HTTP " + res.status);
       const payload = await res.json();
       const rows = Array.isArray(payload == null ? void 0 : payload.rows) ? payload.rows : [];
+      const total = Number.isFinite(Number(payload == null ? void 0 : payload.total)) ? Number(payload.total) : null;
       const now = Date.now();
       billsFetchedAtRef.current = now;
       if (billsMountedRef.current) {
-        setLiveBills((s) => ({ ...s, status: "ready", isRefreshing: false, fetchedAt: now, lastError: null, items: rows }));
+        setLiveBills((s) => ({ ...s, status: "ready", isRefreshing: false, fetchedAt: now, lastError: null, items: rows, total }));
       }
     } catch (e) {
       if (billsMountedRef.current) {
@@ -993,4 +1081,4 @@ function migrateLegacyPageQuery(loc, hist) {
   return hash;
 }
 Object.assign(window, { ABOUT_SECTIONS, parseRoute, routeHash, routeLabel, routeTitle, migrateLegacyPageQuery });
-Object.assign(window, { StoreProvider, useStore, watchlistKeywords, watchlistMatches, useLiveState, useLiveBills, selectCounts, useCounts, COMMITTEE_STRIP_LABELS, liveStateDegradation, mapWorkerSignalToCard, mapLiveBlocks, fmtFetchedAt, fetchedClause, mapLiveFreshness, freshnessView, useFreshness, pollIsStale, configuredFeedCount, useFeedCount, feedHealthState, signalDateFields, fmtDayMonYear, fmtPollStamp, ATTENTION_DIMS_DEFAULT, scoringDims, attentionDisclosure, attentionWord, confidenceLabel, uniformScore, uniformScoreLine, buildSearchResults });
+Object.assign(window, { StoreProvider, useStore, watchlistKeywords, watchlistMatches, useLiveState, useLiveBills, selectCounts, useCounts, COMMITTEE_STRIP_LABELS, liveStateDegradation, mapWorkerSignalToCard, mapLiveBlocks, fmtFetchedAt, fetchedClause, mapLiveFreshness, freshnessView, useFreshness, pollIsStale, configuredFeedCount, useFeedCount, feedHealthState, signalDateFields, fmtDayMonYear, fmtPollStamp, ATTENTION_DIMS_DEFAULT, scoringDims, attentionDisclosure, attentionWord, confidenceLabel, uniformScore, uniformScoreLine, buildSearchResults, brisbaneDayKey, signalDayKey, parseHearingDay, fmtHearingDay, feedDisplayName, committeeFromLink, heldOfAvailable, feedLastSeenAt, feedHealthSummary, feedCheckFor });

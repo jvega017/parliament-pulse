@@ -34,6 +34,7 @@ function App() {
     const onHash = () => {
       const r = parseRoute(window.location.hash);
       if (r) setRoute(r);
+      setMobileNavOpen(false);
     };
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
@@ -119,7 +120,20 @@ function App() {
     e.preventDefault();
     main.focus();
   };
-  return /* @__PURE__ */ React.createElement(StoreProvider, { navigate }, /* @__PURE__ */ React.createElement("a", { className: "skip-link", href: "#pp-content", onClick: skipToContent }, "Skip to content"), /* @__PURE__ */ React.createElement(RouteSignalSync, { route, setRoute }), /* @__PURE__ */ React.createElement("div", { className: "sr-only", role: "status", "aria-live": "polite", "aria-atomic": "true", "data-route-announcer": "" }, announce), /* @__PURE__ */ React.createElement("div", { className: "app" }, /* @__PURE__ */ React.createElement("div", { className: "drawer-back mobile-nav-back" + (mobileNavOpen ? " on" : ""), onClick: () => setMobileNavOpen(false), "aria-hidden": "true" }), /* @__PURE__ */ React.createElement(Sidebar, { page, onNavigate: navigate, mobileOpen: mobileNavOpen }), /* @__PURE__ */ React.createElement("div", { className: "main" }, /* @__PURE__ */ React.createElement(Topbar, { mobileNavOpen, setMobileNavOpen }), /* @__PURE__ */ React.createElement(BetaNotice, null), /* @__PURE__ */ React.createElement("main", { className: "content", id: "pp-content", tabIndex: -1 }, /* @__PURE__ */ React.createElement(ErrorBoundary, null, renderPage())), /* @__PURE__ */ React.createElement(SiteFooter, null)), /* @__PURE__ */ React.createElement(ErrorBoundary, null, /* @__PURE__ */ React.createElement(Drawer, null)), /* @__PURE__ */ React.createElement(ErrorBoundary, null, /* @__PURE__ */ React.createElement(DetailModal, null))));
+  return /* @__PURE__ */ React.createElement(StoreProvider, { navigate }, /* @__PURE__ */ React.createElement("a", { className: "skip-link", href: "#pp-content", onClick: skipToContent }, "Skip to content"), /* @__PURE__ */ React.createElement(RouteSignalSync, { route, setRoute }), /* @__PURE__ */ React.createElement(RouteOverlaySync, { routeKey, route }), /* @__PURE__ */ React.createElement("div", { className: "sr-only", role: "status", "aria-live": "polite", "aria-atomic": "true", "data-route-announcer": "" }, announce), /* @__PURE__ */ React.createElement("div", { className: "app" }, /* @__PURE__ */ React.createElement("div", { className: "drawer-back mobile-nav-back" + (mobileNavOpen ? " on" : ""), onClick: () => setMobileNavOpen(false), "aria-hidden": "true" }), /* @__PURE__ */ React.createElement(Sidebar, { page, onNavigate: navigate, mobileOpen: mobileNavOpen }), /* @__PURE__ */ React.createElement("div", { className: "main" }, /* @__PURE__ */ React.createElement(Topbar, { mobileNavOpen, setMobileNavOpen }), /* @__PURE__ */ React.createElement(BetaNotice, null), /* @__PURE__ */ React.createElement("main", { className: "content", id: "pp-content", tabIndex: -1 }, /* @__PURE__ */ React.createElement(ErrorBoundary, null, renderPage())), /* @__PURE__ */ React.createElement(SiteFooter, null)), /* @__PURE__ */ React.createElement(ErrorBoundary, null, /* @__PURE__ */ React.createElement(Drawer, null)), /* @__PURE__ */ React.createElement(ErrorBoundary, null, /* @__PURE__ */ React.createElement(DetailModal, null))));
+}
+function RouteOverlaySync({ routeKey, route }) {
+  const { closeModal, closeSignal } = useStore();
+  const firstRef = React.useRef(true);
+  React.useEffect(() => {
+    if (firstRef.current) {
+      firstRef.current = false;
+      return;
+    }
+    closeModal();
+    if (!route.signal) closeSignal();
+  }, [routeKey]);
+  return null;
 }
 function RouteSignalSync({ route, setRoute }) {
   const { signalId, openSignal } = useStore();

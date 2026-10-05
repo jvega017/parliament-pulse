@@ -44,7 +44,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { launch, openDesk, startServer, root, FIXTURE_CLOCK, editableDistFile } from "./harness.mjs";
+import { launch, openDesk, startServer, root, FIXTURE_CLOCK, editableDistFile, CANARY_PORT } from "./harness.mjs";
 
 let failures = 0;
 const check = (ok, label, detail = "") => {
@@ -297,7 +297,7 @@ try {
     const dir = scratchCopy(h.distDir, c.name);
     try {
       try { c.apply(dir); } catch (e) { console.error(`CANARY BUILD ERROR (${c.name}): ${e.message}`); failures++; continue; }
-      const server = await startServer(dir, { port: 8081 });
+      const server = await startServer(dir, { port: CANARY_PORT });
       try {
         const got = await c.run(h, server.url);
         check(got.length > 0, `canary ${c.name} is caught${got.length ? `: ${got[0]}` : ""}`, "the check passed with the control removed");

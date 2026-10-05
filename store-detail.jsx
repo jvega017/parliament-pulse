@@ -396,8 +396,10 @@ Checks:
   );
 }
 
+const WATCHLIST_MODAL_ROWS = 5;
 function WatchlistDetail({ id, titleId, closeButtonRef }) {
-  const { closeModal, toast, state } = useStore();
+  const { closeModal, toast, state, openSignal } = useStore();
+  const [showAll, setShowAll] = React.useState(false);
   // F2: resolve against the merged list so user-created watchlists open their
   // detail rather than a "Not found" modal.
   const all = [...WATCHLISTS, ...(state.watchlistCreated || [])];
@@ -412,7 +414,9 @@ function WatchlistDetail({ id, titleId, closeButtonRef }) {
   const matchSource = live.items || SIGNALS;
   // F16: stable keyword matching against signal tags, not a name-prefix substring.
   const matchingAll = watchlistMatches(w, matchSource);
-  const matchingSignals = matchingAll.slice(0, 3);
+  // The count and the list agree: the first rows show with "Showing 5 of 49" and
+  // a control for the rest, and the digest carries every match.
+  const matchingSignals = showAll ? matchingAll : matchingAll.slice(0, WATCHLIST_MODAL_ROWS);
   const keywordList = watchlistKeywords(w);
   return (
     <>
@@ -430,19 +434,32 @@ function WatchlistDetail({ id, titleId, closeButtonRef }) {
         </div>
         <h3 className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:".16em", marginTop:18, marginBottom:6}}>Matching signals</h3>
         {matchingSignals.length === 0 && <div className="empty">No matching signals in the current stream.</div>}
+        {matchingAll.length > matchingSignals.length && (
+          <div data-wl-showing="" className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)", marginBottom:6}}>Showing {matchingSignals.length} of {matchingAll.length}</div>
+        )}
+        <div style={showAll ? {maxHeight:360, overflowY:"auto"} : undefined}>
         {matchingSignals.map(s => (
-          <div key={s.id} style={{padding:"8px 12px", border:"1px solid var(--line-2)", borderRadius:8, marginBottom:6}}>
-            <div style={{fontSize:"var(--t-body-sm)", fontWeight:500}}>{s.title}</div>
-            <div className="mono" style={{fontSize:"var(--t-label)", color:"var(--ink-4)", marginTop:2}}>{s.id} · {s.source}</div>
+          <div key={s.id} data-wl-match="" style={{display:"flex", alignItems:"center", gap:10, padding:"8px 12px", border:"1px solid var(--line-2)", borderRadius:8, marginBottom:6}}>
+            <div style={{flex:1, minWidth:0}}>
+              {/* Licence rule: a live APH title renders only inside its APH anchor. */}
+              {s.link
+                ? <a href={s.link} target="_blank" rel="noopener noreferrer" style={{fontSize:"var(--t-body-sm)", fontWeight:500, color:"var(--link)", textDecoration:"none"}} title="Opens the source at aph.gov.au">{s.title} <Icon name="ext" size={11}/></a>
+                : <div style={{fontSize:"var(--t-body-sm)", fontWeight:500}}>{s.isLive ? s.source : s.title}</div>}
+              <div className="mono" style={{fontSize:"var(--t-label)", color:"var(--ink-4)", marginTop:2}}>{[feedDisplayName(s.source), s.committee, signalWhen(s)].filter(Boolean).join(" · ")}</div>
+            </div>
+            <button type="button" className="btn ghost sm" aria-label={"Open " + (s.title || s.source || "signal")} onClick={() => { closeModal(); openSignal(s.id); }}>Open</button>
           </div>
         ))}
+        </div>
+        {matchingAll.length > WATCHLIST_MODAL_ROWS && (
+          <button type="button" className="btn ghost sm" data-wl-toggle="" onClick={() => setShowAll(v => !v)}>{showAll ? "Show fewer" : `Show all ${matchingAll.length}`}</button>
+        )}
       </div>
       <div className="modal-foot">
         <button className="btn ghost" onClick={() => {
-          copyModalText(`# Watchlist digest\nWatchlist: ${w.name}\nMatches: ${matchingAll.length}\nKeywords: ${keywordList.join(", ")}\n\nMatching signals:\n${matchingSignals.map(s => `- ${s.id}: ${s.title}`).join("\n") || "- No matching signals in the current stream."}`, toast, "Watchlist digest copied");
+          copyModalText(`# Watchlist digest\nWatchlist: ${w.name}\nMatches: ${matchingAll.length}\nKeywords: ${keywordList.join(", ")}\n\nMatching signals:\n${matchingAll.map(s => `- ${s.link ? `[${s.title}](${s.link})` : (s.isLive ? s.source : s.title)}`).join("\n") || "- No matching signals in the current stream."}`, toast, "Watchlist digest copied");
           closeModal();
         }}>Copy digest</button>
-        <button className="btn" onClick={() => toast("Configuration saved locally")}>Save config</button>
       </div>
     </>
   );

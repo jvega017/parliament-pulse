@@ -1,12 +1,7 @@
 # Cloudflare Pages _headers
-# Order matters: most specific paths first. The .jsx and .js MIME rules below
-# are load-bearing. The app loads modules via <script type="text/babel" src="*.jsx">
-# and Pages would otherwise serve .jsx with a non-script Content-Type, which
-# modern browsers refuse to execute. Do not remove or reorder these two rules
-# above the catch-all security block.
-
-/*.jsx
-  Content-Type: text/javascript; charset=utf-8
+# Order matters: most specific paths first. The app loads precompiled .js only
+# (no .jsx ships and nothing runs through text/babel), so the old /*.jsx rule
+# is gone: it served 404s for .jsx paths as text/javascript.
 
 /*.js
   Content-Type: text/javascript; charset=utf-8
@@ -108,11 +103,12 @@
 #     this DEV copy only, the local dev proxy at localhost:3001 / 127.0.0.1:3001.
 #     build-dist.ps1 strips both local origins from the dist copy (FE-11, PR-16,
 #     SEC-13), so production never permits a connection to a local port.
-#   frame-src allows the YouTube live embed. img-src allows YouTube thumbnail + data URIs.
+#   frame-src allows only the youtube-nocookie.com live embed. img-src allows data URIs;
+#   the page shows no YouTube thumbnails (the player draws its own inside the frame).
 /*
   X-Frame-Options: SAMEORIGIN
   X-Content-Type-Options: nosniff
   Strict-Transport-Security: max-age=31536000; includeSubDomains
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
-  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: https://i.ytimg.com https://*.ytimg.com; connect-src 'self' https://aph-proxy.jvega019.workers.dev http://localhost:3001 http://127.0.0.1:3001; frame-src https://www.youtube.com https://www.youtube-nocookie.com; base-uri 'self'; form-action 'self'; object-src 'none'; frame-ancestors 'self'
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self' https://aph-proxy.jvega019.workers.dev http://localhost:3001 http://127.0.0.1:3001; frame-src https://www.youtube-nocookie.com; base-uri 'self'; form-action 'self'; object-src 'none'; frame-ancestors 'self'

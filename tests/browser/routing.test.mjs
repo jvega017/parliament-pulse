@@ -39,7 +39,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { launch, startServer, FIXTURES, FIXTURE_CLOCK, editableDistFile } from "./harness.mjs";
+import { launch, startServer, FIXTURES, FIXTURE_CLOCK, editableDistFile, CANARY_PORT } from "./harness.mjs";
 
 const STATE = JSON.parse(fs.readFileSync(path.join(FIXTURES, "state.json"), "utf8"));
 const FIXTURE_SIGNAL = STATE.blocks.signals.items[0];
@@ -285,7 +285,7 @@ try {
     let problems;
     try {
       c.apply(dir);
-      const server = await startServer(dir, { port: 8081 });
+      const server = await startServer(dir, { port: CANARY_PORT });
       try {
         const p = await h.newPage();
         problems = await CHECKS[c.check](p, server.url).catch(e => [`threw: ${e.message}`]);

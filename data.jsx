@@ -107,10 +107,12 @@ const SITE_CONFIG = {
   ],
 };
 
+// Labels match the Worker's feed_label exactly (jurisdictions.json), so the Live
+// page names each feed as every other desk does.
 const SOURCE_REGISTRY = [
   {
     id: "h-media",
-    label: "House Media Releases",
+    label: "House media releases",
     url: "https://www.aph.gov.au/house/rss/media_releases",
     authority: "Official",
     confidence: "High",
@@ -119,11 +121,11 @@ const SOURCE_REGISTRY = [
     errorDetail: null,
     lastItemCount: null,
     // legacy display fields for existing APH_FEEDS consumers
-    name: "House Media Releases", group: "House", status: null, last: null, today: null, modules: ["Media", "Overview"], parser: null,
+    name: "House media releases", group: "House", status: null, last: null, today: null, modules: ["Media", "Overview"], parser: null,
   },
   {
     id: "s-reports",
-    label: "Senate Committee Reports Tabled",
+    label: "Senate reports tabled",
     url: "https://www.aph.gov.au/senate/rss/reports",
     authority: "Official",
     confidence: "High",
@@ -131,11 +133,11 @@ const SOURCE_REGISTRY = [
     lastStatusCode: null,
     errorDetail: null,
     lastItemCount: null,
-    name: "Senate Committee Reports Tabled", group: "Senate", status: null, last: null, today: null, modules: ["Committees", "Briefings"], parser: null,
+    name: "Senate reports tabled", group: "Senate", status: null, last: null, today: null, modules: ["Committees", "Briefings"], parser: null,
   },
   {
     id: "s-new-inquiries",
-    label: "Senate New Inquiries",
+    label: "New Senate inquiries",
     url: "https://www.aph.gov.au/senate/rss/new_inquiries",
     authority: "Official",
     confidence: "High",
@@ -143,11 +145,11 @@ const SOURCE_REGISTRY = [
     lastStatusCode: null,
     errorDetail: null,
     lastItemCount: null,
-    name: "Senate New Inquiries", group: "Senate", status: null, last: null, today: null, modules: ["Committees", "Emerging Issues"], parser: null,
+    name: "New Senate inquiries", group: "Senate", status: null, last: null, today: null, modules: ["Committees", "Emerging Issues"], parser: null,
   },
   {
     id: "s-upcoming",
-    label: "Senate Upcoming Hearings",
+    label: "Upcoming Senate hearings",
     url: "https://www.aph.gov.au/senate/rss/upcoming_hearings",
     authority: "Official",
     confidence: "High",
@@ -155,11 +157,11 @@ const SOURCE_REGISTRY = [
     lastStatusCode: null,
     errorDetail: null,
     lastItemCount: null,
-    name: "Senate Upcoming Hearings", group: "Senate", status: null, last: null, today: null, modules: ["What's On", "Committees"], parser: null,
+    name: "Upcoming Senate hearings", group: "Senate", status: null, last: null, today: null, modules: ["What's On", "Committees"], parser: null,
   },
   {
     id: "h-div",
-    label: "House Divisions",
+    label: "House divisions",
     url: "https://www.aph.gov.au/house/rss/divisions",
     authority: "Official",
     confidence: "High",
@@ -167,11 +169,11 @@ const SOURCE_REGISTRY = [
     lastStatusCode: null,
     errorDetail: null,
     lastItemCount: null,
-    name: "House Divisions", group: "House", status: null, last: null, today: null, modules: ["Divisions"], parser: null,
+    name: "House divisions", group: "House", status: null, last: null, today: null, modules: ["Divisions"], parser: null,
   },
   {
     id: "h-program",
-    label: "House Daily Program",
+    label: "House daily program",
     url: "https://www.aph.gov.au/house/rss/daily_program",
     authority: "Official",
     confidence: "High",
@@ -179,7 +181,7 @@ const SOURCE_REGISTRY = [
     lastStatusCode: null,
     errorDetail: null,
     lastItemCount: null,
-    name: "House Daily Program", group: "House", status: null, last: null, today: null, modules: ["Parliament", "Live"], parser: null,
+    name: "House daily program", group: "House", status: null, last: null, today: null, modules: ["Parliament", "Live"], parser: null,
   },
 ];
 

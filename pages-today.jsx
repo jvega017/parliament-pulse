@@ -46,7 +46,7 @@ function isPhoneViewport() {
 
 
 function PageOverview() {
-  const { state, toast, navigate } = useStore();
+  const { state, toast, navigate, liveState } = useStore();
   const goto = navigate;
   // Live signals feed the priority/rest computation and the command strip. When
   // the /state signals block is not live, sourceSignals falls back to the fixture
@@ -71,6 +71,7 @@ function PageOverview() {
   // inside that window. Date-only and undated items cannot be placed in it, so
   // they count toward the inbox total and never toward the 24-hour figure.
   const DAY_MS = 24 * 60 * 60 * 1000;
+  const newest = sortSignalsNewestFirst(rest).slice(0, 3);
   const restRecent = rest.filter(s => s.dateKind === "datetime" && typeof s.pubAt === "number" && Date.now() - s.pubAt <= DAY_MS).length;
   if (sortByAttention) {
     const rank = { high: 0, med: 1, low: 2 };
@@ -94,6 +95,7 @@ function PageOverview() {
   const committeeItemsLive = live.items ? live.items.filter(s => COMMITTEE_STRIP_LABELS.has(s.source)) : [];
   const committeeHearingCount = committeeItemsLive.filter(i => (i.tags?.[0]?.l) === "hearing").length;
   const committeeInquiryCount = committeeItemsLive.filter(i => (i.tags?.[0]?.l) === "inquiry").length;
+  const committeeHeld = heldOfAvailable(liveState && liveState.blocks && liveState.blocks.freshness, [...COMMITTEE_STRIP_LABELS], committeeItemsLive.length);
   const committeeReportCount = committeeItemsLive.filter(i => (i.tags?.[0]?.l) === "report").length;
 
   // Overview briefing queue: the user's own generated briefs (state.briefsGenerated),
@@ -113,7 +115,9 @@ function PageOverview() {
     const prioritySections = priority.length === 0 ? ["None."] : priority.map(s => {
       const brief = buildBriefSections(s, !!s.isLive);
       return [
-        `### ${brief.meta.id} - ${briefTitleMd(brief)}`,
+        // A live item's id is its APH URL, already carried by the title link, so
+        // only a non-live example keeps its id in front of the title.
+        brief.isLive ? `### ${briefTitleMd(brief)}` : `### ${brief.meta.id} - ${briefTitleMd(brief)}`,
         `Source: ${brief.meta.source} | ${confidenceLabel(brief.meta.confidence)}`,
         brief.summary,
         ...(brief.recommendedAction ? [`**Action:** ${brief.recommendedAction.label}. ${brief.recommendedAction.reason}`] : []),
@@ -122,7 +126,7 @@ function PageOverview() {
     });
     const restSections = rest.length === 0 ? ["None."] : rest.map(s => {
       const brief = buildBriefSections(s, !!s.isLive);
-      return `- [${brief.meta.id}] ${briefTitleMd(brief)}${brief.recommendedAction ? ` - ${brief.recommendedAction.label}` : ""}`;
+      return `- ${brief.isLive ? "" : `[${brief.meta.id}] `}${briefTitleMd(brief)}${brief.recommendedAction ? ` - ${brief.recommendedAction.label}` : ""}`;
     });
     const lines = [
       `# Parliamentary daily signal brief: ${today}`,
@@ -139,24 +143,32 @@ function PageOverview() {
     ].join("\n");
     copyText(lines, toast, "Daily brief copied to clipboard");
   };
+  // The handoff is built from what the page holds now: the Worker's feed health,
+  // the live signal count, the About desk-coverage split and the not-yet-available
+  // list. The old fixed text said six feeds were configured (the Worker polls 13)
+  // and called live scoring "representative".
   const copyBetaHandoff = () => {
+    const health = feedHealthSummary(liveState && liveState.blocks);
+    const unavailable = (typeof SITE_CONFIG !== "undefined" && Array.isArray(SITE_CONFIG.unavailable)) ? SITE_CONFIG.unavailable : [];
+    const feedLine = health
+      ? `- ${health.total} official APH feeds are polled by the Parliament Pulse service; ${health.ok} were healthy at the latest check${health.failed ? `, ${health.failed} failing` : ""}${health.pending ? `, ${health.pending} not yet polled` : ""}.`
+      : "- Feed health has not loaded; see Sources.";
     const handoff = [
       "# Parliament Pulse beta handoff",
       `Generated: ${new Date().toISOString()}`,
       "",
-      "## Live in this beta",
-      "- Six official APH RSS feeds are configured.",
-      "- The Live page reads the official APH feeds.",
-      "- Source register, direct APH links, CSV exports, clipboard briefs and local review state are operational.",
+      "## Feeds and signals",
+      feedLine,
+      `- The Live page reads ${liveFeedList().length} APH feeds directly.`,
+      counts.signals == null ? "- No live signals are held right now." : `- ${counts.signals} live signals are held, ${priority.length} of them high attention.`,
       "",
-      "## Representative until pipeline activation",
-      "- Priority scoring, confidence scoring, radar clustering, watchlist trend matching, QON pattern detection and shared briefing queue.",
+      "## Desk coverage (as on About)",
+      ...coverageRows(counts).map(r => `- ${r.module}: ${r.state}`),
       "",
-      "## Activation path",
-      "- Add authenticated division/member data.",
-      "- Add Hansard and QON extraction.",
-      "- Add shared persistence and approval workflow.",
-      "- Keep representative chips until each module has verified live evidence.",
+      "## Not yet available",
+      ...(unavailable.length ? unavailable.map(u => `- ${u.name}`) : ["- None listed."]),
+      "",
+      "Attention and confidence are Parliament Pulse's own heuristic scores. Verify each item on aph.gov.au before use.",
     ].join("\n");
     copyText(handoff, toast, "Beta handoff copied");
   };
@@ -174,7 +186,7 @@ function PageOverview() {
             title={live.displayProvenance === "live" ? "Signals from the official APH feeds" : "Live signals are unavailable; the Live page links to the official APH feeds"} />
           <button className="btn ghost sm" aria-expanded={showHelp} onClick={() => setShowHelp(v => !v)}><Icon name="signal" size={12}/> How it works</button>
           <button className="btn ghost sm" onClick={() => exportSignalsCSV(sourceSignals)}><Icon name="ext" size={12}/> Export CSV</button>
-          <button className="btn ghost sm" onClick={copyBetaHandoff}><Icon name="brief" size={12}/> Copy beta handoff</button>
+          <button className="btn ghost sm" data-copy-handoff="" onClick={copyBetaHandoff}><Icon name="brief" size={12}/> Copy beta handoff</button>
           <button className="btn primary" onClick={generateDailyBrief}><Icon name="brief" size={13}/> Generate daily brief</button>
         </div>
       </div>
@@ -185,7 +197,7 @@ function PageOverview() {
       <div className="command-strip">
         <div className="cs-primary">
           <div className="cs-stat-label">Priority signals</div>
-          <div className="cs-kpi cs-count-up">{priority.length}<span className="unit">{priority.length > 0 ? "to triage" : "clear"}</span></div>
+          <div className="cs-kpi cs-count-up">{priority.length}<span className="unit">{priority.length > 0 ? "to triage" : "high"}</span></div>
           <div className="stat-meta" style={{marginTop:8, display:"flex", alignItems:"center", gap:10}}>
             <span style={{color:"var(--ink-3)"}}>{priority.length + rest.length} signals in view · {sourceSignals.filter(s => state.archived[s.id]).length}/{sourceSignals.length} actioned</span>
             {priority.length > 0 && <button className="btn ghost sm" style={{marginLeft:"auto"}} onClick={() => document.getElementById("priority-panel")?.scrollIntoView({behavior:"smooth", block:"start"})}>Triage now →</button>}
@@ -194,7 +206,7 @@ function PageOverview() {
         <div className="cs-secondary" title="Counted from the live Senate, House and joint committee feeds">
           <div className="cs-stat-label" style={{display:"flex", alignItems:"center", gap:8}}>Committee activity {live.items && <ProvenanceChip provenance="live" title="Counted from the live committee feeds" />}</div>
           <div className="cs-stat">{counts.committees == null ? NO_VALUE : counts.committees}<span className="unit">items</span></div>
-          <div className="stat-meta">{committeeHearingCount} hearing{committeeHearingCount !== 1 ? "s" : ""} · {committeeInquiryCount} inquir{committeeInquiryCount !== 1 ? "ies" : "y"} · {committeeReportCount} report{committeeReportCount !== 1 ? "s" : ""}</div>
+          <div className="stat-meta">{committeeHeld ? `${committeeHeld} · ` : ""}{committeeHearingCount} hearing{committeeHearingCount !== 1 ? "s" : ""} · {committeeInquiryCount} inquir{committeeInquiryCount !== 1 ? "ies" : "y"} · {committeeReportCount} report{committeeReportCount !== 1 ? "s" : ""}</div>
         </div>
         <div className="cs-secondary" data-source-health="">
           <div className="cs-stat-label">Source health</div>
@@ -240,7 +252,15 @@ function PageOverview() {
                   ) : <>
                     {/* Every card here is high attention, so the panel kicker says it once (UX-03 pattern). */}
                     {priority.map(s => <SignalCard key={s.id} s={s} hideAtt />)}
-                    {priority.length === 0 && <EmptyState icon="check" kicker="Priority clear">All priority signals actioned.</EmptyState>}
+                    {priority.length === 0 && <EmptyState icon="check" kicker="None">No high-attention items in the current feeds.</EmptyState>}
+                    {/* With no priority items the phone layout (which hides the side
+                        column) showed no signal at all, so the three newest follow. */}
+                    {priority.length === 0 && newest.length > 0 && (
+                      <div data-newest-signals="" style={{marginTop:14}}>
+                        <h3 className="mono t-label" style={{margin:"0 0 8px", color:"var(--ink-3)", textTransform:"uppercase", letterSpacing:".14em"}}>Newest signals</h3>
+                        {newest.map(s => <SignalCard key={s.id} s={s} />)}
+                      </div>
+                    )}
                   </>}
             </div>
             {rest.length > 0 && (
@@ -271,9 +291,9 @@ function PageOverview() {
                   nothing about the day. */}
               {live.items ? (
                 <div className="timeline">
-                  {live.items.slice(0, 6).map((s, i) => (
+                  {sortSignalsNewestFirst(live.items).slice(0, 6).map((s, i) => (
                     <div key={s.id || i} className="tl-item">
-                      <div className="tl-time">{signalWhen(s)} · {s.source}</div>
+                      <div className="tl-time">{signalWhen(s)} · {feedDisplayName(s.source)}</div>
                       <div className="tl-body">
                         {s.link
                           ? <a href={s.link} target="_blank" rel="noopener noreferrer" style={{color:"var(--link)", textDecoration:"none"}} title="Opens the source at aph.gov.au">{s.title}</a>
@@ -393,6 +413,7 @@ function LiveBroadcast() {
         allow="encrypted-media; picture-in-picture"
         allowFullScreen
         referrerPolicy="strict-origin-when-cross-origin"
+        sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
         onLoad={() => setLoaded(true)}
       />
       <div className="live-badge" style={{position:"absolute", top:12, left:12, zIndex:3, display:"flex", alignItems:"center", gap:6, background:"rgba(0,0,0,0.6)", padding:"5px 10px", borderRadius:4, fontFamily:"var(--mono)", fontSize:"var(--t-eyebrow)", color: loaded ? "#fff" : "var(--ink-2)", letterSpacing:".12em", border:"1px solid var(--line-bright)"}}>
@@ -478,6 +499,18 @@ function sortLiveEventsNewestFirst(events) {
     return (a.feedIdx - b.feedIdx) || (a.itemIdx - b.itemIdx);
   });
 }
+// The six newest items of one feed. The Senate feeds are not in date order, so
+// taking the first six in feed order left out the newest (data review, 5 Oct
+// 2026: a 15 Sep inquiry and a 16 Sep report missing while 2025 items showed).
+// Dated items newest first, undated after them, each group in feed order.
+function latestFeedItems(items, n = 6) {
+  const ms = e => (e && e.date && typeof e.date.getTime === "function" && !Number.isNaN(e.date.getTime())) ? e.date.getTime() : null;
+  return items
+    .map((e, i) => ({ e, i, t: ms(e) }))
+    .sort((a, b) => ((a.t == null) - (b.t == null)) || ((b.t ?? 0) - (a.t ?? 0)) || (a.i - b.i))
+    .slice(0, n)
+    .map((x, order) => ({ ...x.e, order }));
+}
 function PageLive() {
   const { toast, consumeLiveRefresh } = useStore();
 
@@ -498,7 +531,6 @@ function PageLive() {
         const items = doc.querySelectorAll("item");
         const seen = new Set();
         items.forEach(item => {
-          if (out.length >= 6) return;
           const title = item.querySelector("title")?.textContent?.trim().replace(/\s+/g, " ") || "";
           // <link> in RSS 2.0 is a text node between tags (not an attribute)
           const linkEl = item.querySelector("link");
@@ -519,7 +551,7 @@ function PageLive() {
           });
         });
       } catch (e) { /* parse error — return empty */ }
-      return out;
+      return latestFeedItems(out);
     };
 
     // F1: a file:// origin cannot reach a proxy; guard early so the panel can advise.
@@ -784,7 +816,7 @@ function PageLive() {
             ))}
           </div>
           <div className="panel-foot" style={{flexDirection:"column", alignItems:"flex-start", gap:4}}>
-            <span className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-3)"}}>Official APH RSS feeds · refreshes every 2 min</span>
+            <span className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-3)"}}>This panel re-reads the APH feeds every 2 min, apart from the service's own poll</span>
             <span className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)"}}>Last poll: {lastPoll ? fmtTime(lastPoll) : NOT_SUPPLIED} · Click any item to open source</span>
           </div>
         </div>
@@ -852,7 +884,7 @@ function PageRadar() {
             </EmptyState>
           ) : (
           <>
-          {!showAtt && <div className="score-uniform" data-uniform="attention" style={{fontSize:"var(--t-body-sm)", color:"var(--ink-3)", marginBottom:10}}>{uniformScoreLine(rows.length, "attention", attAll)}</div>}
+          {!showAtt && <div className="score-uniform" data-uniform="attention" style={{fontSize:"var(--t-body-sm)", color:"var(--ink-3)", marginBottom:10}}>{uniformScoreLine(rows.length, "attention", attAll, "source groups")}</div>}
           <div className="radar-row radar-head g-radar-table" style={{display:"grid", gridTemplateColumns:cols, padding:"4px 0 10px", borderBottom:"1px solid var(--line)", alignItems:"center", gap:14}}>
             <div className="mono t-label" style={head}>Source group</div>
             <div className="mono t-label" style={{...head, textAlign:"right"}}>Items</div>
@@ -1049,6 +1081,7 @@ function PageSignals() {
         )
       ) : (
         <div>
+          <h2 className="sr-only">Signals</h2>
           {(hideAtt || hideConf) && (
             <div className="score-uniform" style={{fontSize:"var(--t-body-sm)", color:"var(--ink-3)", marginBottom:12}}>
               {hideAtt && <div data-uniform="attention">{uniformScoreLine(inView.length, "attention", attAll)}</div>}

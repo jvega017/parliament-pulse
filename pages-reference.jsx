@@ -211,7 +211,8 @@ function ProvenanceMetricsBand({ navigate }) {
     ...(typeof feedCount === "number" ? [{ label: "Official feeds", value: feedCount, detail: "Official APH feeds the service polls", icon: "rss", page: "sources" }] : []),
     { label: "Signals", value: dash(counts.signals), detail: counts.signals == null ? "Live signals are unavailable" : "Live signals held right now", icon: "signal", page: "signals" },
     { label: "Committee items", value: dash(counts.committees), detail: "From the live committee feeds", icon: "committee", page: "committees" },
-    { label: "Human review", value: "On", detail: "Verify before publication", icon: "check" },
+    // No item is reviewed by Parliament Pulse before it shows; review is the reader's.
+    { label: "Human review", value: "Yours", detail: "Verify each item before use", icon: "check" },
   ];
   return (
     <div className="provenance-metrics">
@@ -508,8 +509,9 @@ function PageNotFound({ path }) {
 
 // ---------- SOURCES ----------
 function PageSources() {
-  const { openModal, addFeed, state, toast, refreshLiveState } = useStore();
+  const { openModal, addFeed, state, toast, refreshLiveState, liveState } = useStore();
   const health = useLiveState("connectors");   // health.items is the mapped checks array
+  const fresh = (liveState && liveState.blocks && liveState.blocks.freshness) || null;
   // The form starts empty: example values are placeholders only, so no real
   // feed name or address is ever pre-filled as though the reader had typed it.
   const [newUrl, setNewUrl] = useState("");
@@ -629,7 +631,7 @@ function PageSources() {
           <table className="ds ds-stack" data-feed-table="">
             <thead><tr>
               <th>Feed</th><th>Group</th><th>Status</th><th className="num">HTTP</th>
-              <th className="num">Items parsed</th><th>Last success</th><th>Parse error</th>
+              <th className="num">Items in latest poll</th><th>Last success</th><th>Parse error</th>
             </tr></thead>
             <tbody>
               {feedChecks.map(c => {
@@ -649,8 +651,17 @@ function PageSources() {
                     {st === "pending" ? "Not yet polled" : st === "ok" ? "OK" : "Failed"}
                   </td>
                   <td className="num mono" data-label="HTTP">{c.lastHttpStatus ?? NO_VALUE}</td>
-                  <td className="num" data-label="Items parsed">{c.itemsParsed ?? NO_VALUE}</td>
-                  <td className="mono" data-label="Last success" style={{fontSize:"var(--t-caption)", color:"var(--ink-3)"}}>{st === "pending" ? NO_VALUE : (fmtPollStamp(c.lastSuccessAt) || "Never")}</td>
+                  <td className="num" data-label="Items in latest poll">{c.itemsParsed ?? NO_VALUE}
+                    {/* A feed can parse 0 now while the desks still list its older items;
+                        the last poll that carried any item says how old they are. */}
+                    {(() => { const at = feedLastSeenAt(fresh, c.feedLabel); const t = at ? Date.parse(at) : NaN; return Number.isNaN(t) ? null : <div className="mono" data-last-carried="" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)"}}>items last seen {fmtDayMon(t)}</div>; })()}</td>
+                  <td className="mono" data-label="Last success" style={{fontSize:"var(--t-caption)", color:"var(--ink-3)"}}>{st === "pending" ? NO_VALUE : (() => {
+                    // "07:32 AEST" over "4 Oct 2026": two lines at most, never three.
+                    const stamp = fmtPollStamp(c.lastSuccessAt);
+                    if (!stamp) return "Never";
+                    const [clockPart, datePart] = stamp.split(", ");
+                    return <><span style={{whiteSpace:"nowrap"}}>{clockPart}</span>{datePart ? <> <span style={{whiteSpace:"nowrap"}}>{datePart}</span></> : null}</>;
+                  })()}</td>
                   <td data-label="Parse error" style={{fontSize:"var(--t-caption)", color: c.parseError ? "var(--ink-2)" : "var(--ink-4)", overflowWrap:"anywhere"}} title={c.parseError || undefined}>{c.parseError ? (c.parseError.length > 60 ? c.parseError.slice(0,60)+"…" : c.parseError) : NO_VALUE}</td>
                 </tr>
                 );
@@ -663,7 +674,7 @@ function PageSources() {
                   </td>
                   <td data-label="Group"><span className="tag">Custom</span></td>
                   <td data-label="Status"><span style={{color:"var(--ink-4)", fontStyle:"italic"}} title="Saved feeds are not polled">Not polled</span></td>
-                  <td className="num" data-label="HTTP">{NO_VALUE}</td><td className="num" data-label="Items parsed">{NO_VALUE}</td><td data-label="Last success">{NO_VALUE}</td><td data-label="Parse error">{NO_VALUE}</td>
+                  <td className="num" data-label="HTTP">{NO_VALUE}</td><td className="num" data-label="Items in latest poll">{NO_VALUE}</td><td data-label="Last success">{NO_VALUE}</td><td data-label="Parse error">{NO_VALUE}</td>
                 </tr>
               ))}
             </tbody>
@@ -735,8 +746,8 @@ function PageSources() {
               <div className="panel-body">
                 <ul style={{listStyle:"none", margin:0, padding:0}}>
                   {referenceLinks.map(u => (
-                    <li key={u} data-reference-link="" style={{padding:"6px 0", borderBottom:"1px dashed var(--line-2)", fontSize:"var(--t-body-sm)", overflowWrap:"anywhere"}}>
-                      <a href={u} target="_blank" rel="noopener noreferrer" style={{color:"var(--ink-2)"}}>{u.replace(/^https?:\/\/(www\.)?/, "")}</a>
+                    <li key={u} data-reference-link="" style={{padding:"6px 0", borderBottom:"1px dashed var(--line-2)", fontSize:"var(--t-body-sm)", overflowWrap:"break-word"}}>
+                      <a href={u} target="_blank" rel="noopener noreferrer" style={{color:"var(--ink-2)"}}>{u.replace(/^https?:\/\/(www\.)?/, "").split("/").map((part, i, arr) => <React.Fragment key={i}>{part}{i < arr.length - 1 ? <>/<wbr/></> : null}</React.Fragment>)}</a>
                     </li>
                   ))}
                 </ul>

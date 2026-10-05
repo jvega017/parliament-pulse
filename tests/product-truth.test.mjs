@@ -397,7 +397,7 @@ async function assertAll(sources) {
 const mut = (file, a, b) => ({ file, a, b });
 const CANARIES = [
   { why: "fmtFetchedAt rejects a millisecond number again", expect: "fetched:", m: mut("store", 'if (typeof v === "number") return Number.isFinite(v) && v > 0 ? v : NaN;', 'if (typeof v === "number") return NaN;') },
-  { why: "the Bills header keeps the clause with no fetch time", expect: "fetched: Bills header with no fetch time", m: mut("pages-workspace", '[`${bills.length} bill${bills.length !== 1 ? "s" : ""}`, fetchedClause(live.fetchedAt)].filter(Boolean).join(" \\xB7 ")', '`${bills.length} bill${bills.length !== 1 ? "s" : ""} \\xB7 fetched ${fmtFetchedAt(live.fetchedAt)} AEST`') },
+  { why: "the Bills header keeps the clause with no fetch time", expect: "fetched: Bills header with no fetch time", m: mut("pages-workspace", '[billCount, fetchedClause(live.fetchedAt)].filter(Boolean).join(" \\xB7 ")', '`${billCount} \\xB7 fetched ${fmtFetchedAt(live.fetchedAt)} AEST`') },
   { why: "the time sort is a no-op again", expect: "sort:", m: mut("pages-today", 'else if (sort === "time") sigs = sortSignalsNewestFirst(sigs);', "") },
   { why: "the time sort runs oldest first", expect: "sort:", m: mut("pages-today", "return tb - ta;", "return ta - tb;") },
   { why: "undated items sort first", expect: "sort:", m: mut("pages-today", "if (ta == null) return 1;\n    if (tb == null) return -1;", "if (ta == null) return -1;\n    if (tb == null) return 1;") },
@@ -421,7 +421,7 @@ const CANARIES = [
   { why: "the Live poller skips the sort", expect: "livesort: the Live poller", m: mut("pages-today", "setEvents(sortLiveEventsNewestFirst(all).slice(0, 30));", "setEvents(all.slice(0, 30));") },
   // round 3
   { why: "Committees reports keep the Worker order", expect: "committees: Inquiries and reports", m: mut("pages-workspace", "sortSignalsNewestFirst(items.filter((s) => COMMITTEE_RECENT_LABELS.has(s.source)))", "items.filter((s) => COMMITTEE_RECENT_LABELS.has(s.source))") },
-  { why: "Committees hearings keep the Worker order", expect: "committees: Upcoming Senate hearings", m: mut("pages-workspace", 'sortSignalsNewestFirst(items.filter((s) => s.source === "Upcoming Senate hearings"))', 'items.filter((s) => s.source === "Upcoming Senate hearings")') },
+  { why: "Committees hearings keep the Worker order", expect: "committees: Upcoming Senate hearings", m: mut("pages-workspace", "undated: sortSignalsNewestFirst(rows.filter((s) => !s.hearingDate))", "undated: rows.filter((s) => !s.hearingDate)") },
   { why: "the Daily program note says beside this player again", expect: "recentpanel:", m: mut("pages-today", "panel on this page whenever", "panel beside this player whenever") },
   { why: "the store answers an in-flight refresh with nothing", expect: "inflight: a second refresh", m: mut("store", "if (inFlightRef.current) return inFlightRef.current;", "if (inFlightRef.current) return Promise.resolve();") },
   { why: "Refresh health toasts reloaded with no request", expect: "refresh: with no request", m: mut("pages-reference", 'if (!pending || typeof pending.then !== "function") {\n      toast("Feed health cannot be reloaded right now", "error");\n      return;\n    }\n    pending.then(', "Promise.resolve(pending).then(") },

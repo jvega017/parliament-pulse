@@ -46,7 +46,7 @@
 // the working tree is never touched). Each removes one control, or injects one
 // defect, and the matching assertion must FAIL there:
 //   wide-element   a 2,000 px wide element injected into index.html (overflow)
-//   tablet-topbar  the 1100 px topbar and top-right wraps removed (overflow on Overview at 820 px)
+//   tablet-topbar  the 1100 px topbar and top-right wraps removed (overflow on Overview at 781 px)
 //   ux05-controls  the .g-overview > * { min-width: 0 } rule, the .ds-url wrap and
 //                  the lead-cell wrap removed (overflow on Sources at 1280 px;
 //                  each alone suffices)
@@ -71,7 +71,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { launch, openDesk, navDesks, startServer, editableDistFile } from "./harness.mjs";
+import { launch, openDesk, navDesks, startServer, editableDistFile, CANARY_PORT } from "./harness.mjs";
 
 // 320, 390 and 1280 are the FE-07 acceptance widths; 820 (tablet portrait) and
 // 1024 cover the 781 to 1100 px band where the topbar used to overflow.
@@ -441,7 +441,9 @@ const CANARIES = [
       mutate(d, "index.html", ".ds-url { overflow-wrap: anywhere; }", "");
       mutate(d, "index.html", "table.ds td.ds-lead { overflow-wrap: anywhere; min-width: 12rem; }", "");
     } },
-  { name: "tablet-topbar", check: "overflow", only: "overview-820",
+  // Round 5: 781 px, not 820. The menu button no longer shows above 780 px, so
+  // without the wraps the topbar first overflows just above the phone breakpoint.
+  { name: "tablet-topbar", check: "overflow", only: "overview-781",
     apply: d => {
       mutate(d, "index.html", ".topbar { flex-wrap: wrap; row-gap: 8px; }", "");
       mutate(d, "index.html", ".top-right { flex-wrap: wrap; justify-content: flex-end; min-width: 0; }", "");
@@ -485,7 +487,7 @@ async function runCanary(h, c) {
   const dir = scratchCopy(h.distDir, c.name);
   try {
     c.apply(dir);
-    const server = await startServer(dir, { port: 8081 });
+    const server = await startServer(dir, { port: CANARY_PORT });
     try {
       if (c.only) {
         // A single desk and width, enough to prove the instrument sees the defect.
