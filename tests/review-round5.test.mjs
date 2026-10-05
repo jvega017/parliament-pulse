@@ -371,7 +371,7 @@ async function assertAll(sources) {
   if (odd.length) f.push(`live: registry labels the Worker never sends: ${odd.join(", ")}`);
   // threads
   if (!/first seen 26 Apr · last seen 28 Apr/.test(text(o.threads))) f.push(`threads: the range is not labelled first seen / last seen`);
-  if (!/the 1 largest threads/.test(text(o.threads))) f.push("threads: the count does not say these are the largest threads");
+  if (!/the largest thread\b/.test(text(o.threads)) || /largest threads/.test(text(o.threads))) f.push("threads: the count does not say these are the largest threads");
   // sources
   if (!/Items in latest poll/.test(o.sources) || /<th class="num">Items parsed<\/th>/.test(o.sources)) f.push("sources: the column is not \"Items in latest poll\"");
   if (!text(between(o.sources, 'data-feed-row="Senate reports tabled"', "</tr>")).includes("items last seen 20 Sep")) f.push("sources: the row does not say when its feed last carried items");
@@ -444,7 +444,7 @@ const CANARIES = [
   ["live: registry labels", ["data", 'label: "Senate reports tabled"', 'label: "Senate Committee Reports Tabled"']],
   // Round 6 moved the span text into threadSpan(); the ingest fallback keeps the labels.
   ["threads: the range is not labelled", ["pages-workspace", "`first seen ${fmtSpanDate(t.firstSeenAt)} \\xB7 last seen ${fmtSpanDate(t.lastSeenAt)}`", "`${fmtSpanDate(t.firstSeenAt)} \\u2192 ${fmtSpanDate(t.lastSeenAt)}`"]],
-  ["threads: the count does not say", ["pages-workspace", "`the ${threads.items.length} largest threads`", "`${threads.items.length} threads`"]],
+  ["threads: the count does not say", ["pages-workspace", 'threads.items.length === 1 ? "the largest thread" :', 'threads.items.length === 1 ? "1 threads" :']],
   ["sources: the column is not", ["pages-reference", '{ className: "num" }, "Items in latest poll")', '{ className: "num" }, "Items parsed")']],
   ["sources: the row does not say", ["pages-reference", "const at = feedLastSeenAt(fresh, c.feedLabel);", "const at = null;"]],
   ["about: Human review still reads On", ["pages-reference", 'value: "Yours"', 'value: "On"']],

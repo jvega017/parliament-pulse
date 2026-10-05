@@ -18,6 +18,10 @@
 //             hearing thread with no pubDate) it falls back to "first seen /
 //             last seen"; with threads.total it says "the N largest of T
 //             threads", and without it "the N largest threads".
+//   plural    singular-aware counts: one thread reads "the largest thread" (or
+//             "the largest of T threads"), never "the 1 largest threads"; the
+//             progressive Signals line reads "Showing 1 signal", never
+//             "Showing all 1 signals", and stays wired into PageSignals.
 //   billsempty an empty Bills list says why from the feed's health: a feed that
 //             never succeeded is not "returned no bills just now".
 //   health    the Overview Source health tile and the topbar Live chip name the
@@ -59,6 +63,8 @@ const OVERVIEW = [
   sig("ov-c", { pub_date: iso(NOW_MS - 3 * DAY) }), sig("ov-d", { pub_date: null }), sig("ov-e", { pub_date: iso(NOW_MS - 5 * DAY) }),
 ];
 const OVERVIEW_HIGH = [...OVERVIEW, sig("ov-high", { attention: "high" })];
+// 81 signals: the Signals list turns progressive and shows the first 60.
+const MANY = Array.from({ length: 81 }, (_, i) => sig(`many-${i}`, { pub_date: iso(NOW_MS - (i + 1) * MIN) }));
 const H = (id, hearing_date) => sig(id, { feed_label: "Upcoming Senate hearings", source_group: "Senate", kind: "hearing", pub_date: null, hearing_date });
 const PAST = keyAdd(-5);
 const HEARINGS = [H("uh-next", keyAdd(2)), H("uh-past", PAST)];
@@ -163,6 +169,10 @@ async function run(sources) {
   for (const v of ["0.16.1", "0.16.2", "0.16.3", "0.16.10", "0.17.0"]) { setStore(HEARINGS, { version: v }); out[`hear-${v}`] = r(ctx.PageCommittees); }
   setStore(OVERVIEW, { threads: THREAD_OLD }); out.threadsOld = r(ctx.PagePatterns);
   setStore(OVERVIEW, { version: "0.16.3", threads: THREAD_NEW, threadsTotal: 40 }); out.threadsNew = r(ctx.PagePatterns);
+  setStore(OVERVIEW, { threads: [THREAD_OLD[0]] }); out.threadOne = r(ctx.PagePatterns);
+  setStore(OVERVIEW, { version: "0.16.3", threads: [THREAD_NEW[0]], threadsTotal: 40 }); out.threadOneOf = r(ctx.PagePatterns);
+  out.progress = [[1, 1], [60, 81], [81, 81]].map(([a, b]) => ctx.signalProgressLine(a, b));
+  setStore(MANY); out.signalsMany = r(ctx.PageSignals);
   setStore(OVERVIEW, { checks: NEVER }); out.billsNever = r(ctx.PageBills);
   setStore(OVERVIEW, { checks: FAILING }); out.billsFailing = r(ctx.PageBills);
   out.overviewFailing = r(ctx.PageOverview);
@@ -207,6 +217,14 @@ async function assertAll(sources) {
   if (!/the 2 largest of 40 threads/.test(tNew)) f.push("threadpub: with threads.total the kicker does not say \"the 2 largest of 40 threads\"");
   if (!/the 2 largest threads/.test(tOld) || /largest of/.test(tOld)) f.push("threadpub: Worker 0.16.1 (no total) does not say \"the 2 largest threads\"");
   void rowNew1;
+  // plural
+  const t1 = text(o.threadOne), t1of = text(o.threadOneOf);
+  if (!/the largest thread\b/.test(t1) || /1 largest threads|largest threads/.test(t1)) f.push(`plural: one thread does not read "the largest thread" (${JSON.stringify(text(between(o.threadOne, "panel-kicker", "</span>")))})`);
+  if (!/the largest of 40 threads/.test(t1of) || /the 1 largest/.test(t1of)) f.push(`plural: one thread of 40 does not read "the largest of 40 threads" (${JSON.stringify(text(between(o.threadOneOf, "panel-kicker", "</span>")))})`);
+  const [p1, p60, p81] = o.progress;
+  if (p1 !== "Showing 1 signal") f.push(`plural: one signal reads ${JSON.stringify(p1)}, expected "Showing 1 signal"`);
+  if (p60 !== "Showing 60 of 81 signals" || p81 !== "Showing all 81 signals") f.push(`plural: the many-signal progress lines changed (${JSON.stringify([p60, p81])})`);
+  if (!text(o.signalsMany).includes("Showing 60 of 81 signals")) f.push("plural: PageSignals does not print the progress line for 81 signals");
   // billsempty
   const bn = text(o.billsNever), bf = text(o.billsFailing), bh = text(o.billsHealthy);
   if (/returned no bills just now/.test(bn) || !/has not answered a check successfully yet \(latest: timeout\)/.test(bn)) f.push(`billsempty: a Bills Digest feed that never succeeded reads ${JSON.stringify(text(between(o.billsNever, "data-bills-empty", "</span>")))}`);
@@ -238,6 +256,10 @@ const CANARIES = [
   ["threadpub: with threads.total", ["store", "if (Number.isFinite(block.total)) out.total = block.total;", ""]],
   ["threadpub: with threads.total", ["store", "total: Number.isFinite(block == null ? void 0 : block.total) ? block.total : null,", "total: null,"]],
   ["threadpub: a thread whose members", ["pages-workspace", "if (a || b) {", "if (true) {"]],
+  ["plural: one thread does not read", ["pages-workspace", 'threads.items.length === 1 ? "the largest thread" :', 'threads.items.length === 1 ? "the 1 largest threads" :']],
+  ["plural: one thread of 40", ["pages-workspace", 'threads.items.length === 1 ? "the largest" :', 'false ? "the largest" :']],
+  ["plural: one signal reads", ["pages-today", 'return total === 1 ? "Showing 1 signal" : `Showing all ${total} ${noun}`;', 'return `Showing all ${total} signals`;']],
+  ["plural: PageSignals does not print", ["pages-today", "signalProgressLine(shown.length, visible.length)", '""']],
   ["billsempty: a Bills Digest feed that never", ["pages-workspace", "const emptyBills = digestFailing ?", "const emptyBills = false ?"]],
   ["billsempty: the header chip", ["pages-workspace", '"Bills Digest feed failing; no successful check yet"', '"Bills Digest feed failing; list as at its last success"']],
   ["health: the Source health tile", ["pages-today", "feedHealth && feedHealth.failed > 0 ?", "false ?"]],
@@ -266,4 +288,4 @@ console.log(`Canary self-test PASSED: ${CANARIES.length} scratch-copy regression
 const real = await assertAll(SOURCES);
 for (const m of real) { console.error(`FAIL  ${m}`); failures++; }
 if (failures) { console.error(`\nREVIEW ROUND 6: FAIL. ${failures} finding(s).`); process.exit(1); }
-console.log("REVIEW ROUND 6: PASSED. The Overview rest line leaves out the signals shown above it; the hearing copy follows the Worker's own date rule by version; a one-item thread reads 1 item; thread ranges use publication dates when the Worker sends them and say first seen otherwise, with the largest-of-total count; an empty Bills list says why from the feed's health; and the Source health tile and Live chip name a failing feed.");
+console.log("REVIEW ROUND 6: PASSED. The Overview rest line leaves out the signals shown above it; the hearing copy follows the Worker's own date rule by version; a one-item thread reads 1 item; one thread and one signal read singular; thread ranges use publication dates when the Worker sends them and say first seen otherwise, with the largest-of-total count; an empty Bills list says why from the feed's health; and the Source health tile and Live chip name a failing feed.");

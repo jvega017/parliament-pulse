@@ -936,6 +936,13 @@ function sortSignalsNewestFirst(sigs) {
     return tb - ta;
   });
 }
+// The progressive list's count line. Singular-aware: one signal reads
+// "Showing 1 signal", never "Showing all 1 signals".
+function signalProgressLine(shownCount, total) {
+  const noun = total === 1 ? "signal" : "signals";
+  if (shownCount < total) return `Showing ${shownCount} of ${total} ${noun}`;
+  return total === 1 ? "Showing 1 signal" : `Showing all ${total} ${noun}`;
+}
 function PageSignals() {
   const { state, setVisibleSignalOrder, signalSearchQuery, setSignalSearchQuery } = useStore();
   const [filter, setFilter] = useState("all");
@@ -1105,7 +1112,7 @@ function PageSignals() {
           {progressive && (
             <div className="list-progress" style={{display:"flex", alignItems:"center", gap:12, padding:"14px 4px 4px"}}>
               <span className="mono" style={{fontSize:"var(--t-micro)", color:"var(--ink-4)", letterSpacing:".08em"}}>
-                {moreToShow ? `Showing ${shown.length} of ${visible.length} signals` : `Showing all ${visible.length} signals`}
+                {signalProgressLine(shown.length, visible.length)}
               </span>
               {moreToShow && <button className="btn sm ghost" style={{marginLeft:"auto"}} onClick={() => setRenderCap(cap => cap + CHUNK)}>Show more</button>}
             </div>

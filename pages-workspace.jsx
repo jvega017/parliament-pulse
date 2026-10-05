@@ -631,7 +631,7 @@ function PagePatterns() {
           <div className="panel-head">
             <h2 className="panel-title">Signal threads</h2>
             <ProvenanceChip provenance={threads.displayProvenance} title="Parliament Pulse's own grouping of live signals (derived analysis)" />
-            <span className="panel-kicker" style={{marginLeft:"auto"}}>{[threads.total != null && threads.total > threads.items.length ? `the ${threads.items.length} largest of ${threads.total} threads` : `the ${threads.items.length} largest threads`, fetchedClause(threads.fetchedAt)].filter(Boolean).join(" · ")}</span>
+            <span className="panel-kicker" style={{marginLeft:"auto"}}>{[threads.total != null && threads.total > threads.items.length ? `${threads.items.length === 1 ? "the largest" : `the ${threads.items.length} largest`} of ${threads.total} threads` : threads.items.length === 1 ? "the largest thread" : `the ${threads.items.length} largest threads`, fetchedClause(threads.fetchedAt)].filter(Boolean).join(" · ")}</span>
           </div>
           <div className="panel-body">
             {threads.items.length === 0
