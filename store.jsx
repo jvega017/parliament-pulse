@@ -465,6 +465,11 @@ function feedHealthSummary(blocks) {
   const st = feeds.map(feedHealthState);
   return { total: feeds.length, ok: st.filter(x => x === "ok").length, failed: st.filter(x => x === "failed").length, pending: st.filter(x => x === "pending").length };
 }
+// Labels of the configured feeds whose latest check failed, in Worker order.
+function failingFeedLabels(blocks) {
+  const items = blocks && blocks.connectors && Array.isArray(blocks.connectors.items) ? blocks.connectors.items : [];
+  return items.filter(c => c && c.isFeed && feedHealthState(c) === "failed").map(c => c.feedLabel).filter(Boolean);
+}
 // The check row for one feed label, or null.
 function feedCheckFor(blocks, label) {
   const items = blocks && blocks.connectors && Array.isArray(blocks.connectors.items) ? blocks.connectors.items : [];
@@ -538,8 +543,30 @@ function useFeedCount() {
   return configuredFeedCount(liveState && liveState.blocks);
 }
 
+// meta.worker_version as [major, minor, patch], or null when absent or not
+// semver. Copy that describes a Worker rule switches on this, so a frontend
+// served beside an older Worker keeps describing the rule that Worker runs.
+function parseWorkerVersion(v) {
+  const m = typeof v === "string" ? /^(\d+)\.(\d+)\.(\d+)/.exec(v.trim()) : null;
+  return m ? [Number(m[1]), Number(m[2]), Number(m[3])] : null;
+}
+function workerVersionAtLeast(meta, want) {
+  const have = parseWorkerVersion(meta && meta.worker_version);
+  const need = parseWorkerVersion(want);
+  if (!have || !need) return false;
+  for (let i = 0; i < 3; i++) if (have[i] !== need[i]) return have[i] > need[i];
+  return true;
+}
+function useWorkerVersionAtLeast(want) {
+  const { liveState } = useStore();
+  return workerVersionAtLeast(liveState && liveState.meta, want);
+}
+
 // threads.items[] -> thread row. signalGuids MAY resolve against the mapped
 // signals; unresolved guids render as a count only, never a fabricated row.
+// first_pub_date / last_pub_date (Worker 0.16.3) are the APH publication range
+// of the members; an older Worker omits them and the row falls back to the
+// ingest times, labelled as such.
 function mapThreadItem(row) {
   return {
     id: row.thread_id,
@@ -547,6 +574,8 @@ function mapThreadItem(row) {
     itemCount: row.item_count,
     firstSeenAt: row.first_seen_at,
     lastSeenAt: row.last_seen_at,
+    firstPubDate: row.first_pub_date || null,
+    lastPubDate: row.last_pub_date || null,
     signalGuids: Array.isArray(row.signal_guids) ? row.signal_guids : [],
   };
 }
@@ -571,6 +600,8 @@ function mapOneBlock(block, arrayKey, mapFn) {
     items: usable ? arr.map(mapFn) : null,
   };
   if (block.note != null) out.note = block.note;
+  // threads.total (Worker 0.16.3): rows in the archive beside the top rows served.
+  if (Number.isFinite(block.total)) out.total = block.total;
   return out;
 }
 
@@ -762,6 +793,7 @@ function useLiveState(blockName) {
     fetchedAt: block?.fetchedAt || null,
     note: block?.note || null,
     referenceLinks: block?.referenceLinks || null,   // connectors only (FE-05)
+    total: Number.isFinite(block?.total) ? block.total : null,   // threads only (Worker 0.16.3)
     isRefreshing: liveState.isRefreshing,
     liveStale,                              // cache older than 30 min AND a good cache exists
     // What the chip shows. A block with usable items shows its own provenance
@@ -1363,4 +1395,4 @@ function migrateLegacyPageQuery(loc, hist) {
 
 Object.assign(window, { ABOUT_SECTIONS, parseRoute, routeHash, routeLabel, routeTitle, migrateLegacyPageQuery });
 
-Object.assign(window, { StoreProvider, useStore, watchlistKeywords, watchlistMatches, useLiveState, useLiveBills, selectCounts, useCounts, COMMITTEE_STRIP_LABELS, liveStateDegradation, mapWorkerSignalToCard, mapLiveBlocks, fmtFetchedAt, fetchedClause, mapLiveFreshness, freshnessView, useFreshness, pollIsStale, configuredFeedCount, useFeedCount, feedHealthState, signalDateFields, fmtDayMonYear, fmtPollStamp, ATTENTION_DIMS_DEFAULT, scoringDims, attentionDisclosure, attentionWord, confidenceLabel, uniformScore, uniformScoreLine, buildSearchResults, brisbaneDayKey, signalDayKey, parseHearingDay, fmtHearingDay, feedDisplayName, committeeFromLink, heldOfAvailable, feedLastSeenAt, feedHealthSummary, feedCheckFor });
+Object.assign(window, { StoreProvider, useStore, watchlistKeywords, watchlistMatches, useLiveState, useLiveBills, selectCounts, useCounts, COMMITTEE_STRIP_LABELS, liveStateDegradation, mapWorkerSignalToCard, mapLiveBlocks, fmtFetchedAt, fetchedClause, mapLiveFreshness, freshnessView, useFreshness, pollIsStale, configuredFeedCount, useFeedCount, feedHealthState, signalDateFields, fmtDayMonYear, fmtPollStamp, ATTENTION_DIMS_DEFAULT, scoringDims, attentionDisclosure, attentionWord, confidenceLabel, uniformScore, uniformScoreLine, buildSearchResults, brisbaneDayKey, signalDayKey, parseHearingDay, fmtHearingDay, feedDisplayName, committeeFromLink, heldOfAvailable, feedLastSeenAt, feedHealthSummary, feedCheckFor, failingFeedLabels, parseWorkerVersion, workerVersionAtLeast, useWorkerVersionAtLeast });

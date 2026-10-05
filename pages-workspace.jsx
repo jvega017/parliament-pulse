@@ -158,9 +158,11 @@ function hearingOrderNote(rows) {
 // Splits the Upcoming Senate hearings rows by their hearing date (Worker 0.16.2):
 //   upcoming: dated today or later in Brisbane, soonest first;
 //   held:     dated before today, most recent first, shown under "Recently held"
-//             rather than hidden, because the Worker keeps one row per inquiry
-//             with the FIRST date the feed lists, so an inquiry whose first
-//             hearing has passed can still list later hearings;
+//             rather than hidden. Worker 0.16.2 keeps one row per inquiry with
+//             the FIRST date the feed lists, so a held row can still list later
+//             hearings; from 0.16.3 the date is the inquiry's next listed
+//             hearing, so a held row's date is its latest past one and every
+//             hearing the feed lists for it has passed (hearingCopy below);
 //   undated:  no hearing date (Worker 0.16.1, or a description that did not
 //             parse), newest published first, with hearingOrderNote.
 function splitSenateHearings(rows, now = Date.now()) {
@@ -176,6 +178,20 @@ function splitSenateHearings(rows, now = Date.now()) {
 
 const HEARINGS_URL = "https://www.aph.gov.au/Parliamentary_Business/Committees";
 
+// The words that describe which hearing date a row carries. They follow the
+// Worker's rule, read from meta.worker_version: 0.16.3 and later date each
+// inquiry by its next listed hearing (a held row by its latest past one);
+// older Workers by the first hearing the feed lists.
+function hearingCopy(nextRule) {
+  return nextRule
+    ? { sort: "Where an inquiry lists several hearings, the date shown is its next listed hearing.",
+        held: "Every hearing the feed lists for these inquiries has passed. Open one on aph.gov.au for its record.",
+        heldLabel: "Last hearing" }
+    : { sort: "Where an inquiry lists several hearings, the date shown is the first one the feed lists.",
+        held: "The first hearing date the feed lists for these inquiries has passed. An inquiry can still list later hearings; open it on aph.gov.au for its full schedule.",
+        heldLabel: "First listed" };
+}
+
 function PageCommittees() {
   const liveSignalsState = useLiveState("signals");
   const items = liveSignalsState.items;
@@ -185,6 +201,7 @@ function PageCommittees() {
   // as the Signal inbox does; the Worker sends score-then-recency order.
   const hearingRows = items ? items.filter(s => s.source === "Upcoming Senate hearings") : null;
   const hearings = hearingRows ? splitSenateHearings(hearingRows) : null;
+  const hCopy = hearingCopy(useWorkerVersionAtLeast("0.16.3"));
   // The undated rows, ordered and noted as before. With no hearing date on any
   // row (Worker 0.16.1) this is the whole list.
   const upcomingHearings = hearings ? hearings.undated : null;
@@ -238,7 +255,7 @@ function PageCommittees() {
           <div className="panel-body">
             {hearings && hearings.anyDated ? (
               <>
-                <p data-hearing-sort="" style={{margin:"0 0 10px", color:"var(--ink-2)", fontSize:"var(--t-body-sm)"}}>Soonest hearing first, by the hearing date the APH feed prints. Where an inquiry lists several hearings, the date shown is the first one the feed lists.</p>
+                <p data-hearing-sort="" style={{margin:"0 0 10px", color:"var(--ink-2)", fontSize:"var(--t-body-sm)"}}>Soonest hearing first, by the hearing date the APH feed prints. {hCopy.sort}</p>
                 <div data-hearings-upcoming="">
                   <SittingDeskList
                     rows={hearings.upcoming} emptyIcon="signal" hearingLabel="Hearing"
@@ -250,8 +267,8 @@ function PageCommittees() {
                 {hearings.held.length > 0 && (
                   <div data-hearings-held="" style={{marginTop:16, paddingTop:12, borderTop:"1px solid var(--line-2)"}}>
                     <h3 className="mono t-label" style={{margin:"0 0 6px", color:"var(--ink-3)", textTransform:"uppercase", letterSpacing:".14em"}}>Recently held</h3>
-                    <p style={{margin:"0 0 6px", color:"var(--ink-3)", fontSize:"var(--t-caption)"}}>The first hearing date the feed lists for these inquiries has passed. An inquiry can still list later hearings; open it on aph.gov.au for its full schedule.</p>
-                    {hearings.held.map((s, i) => <LiveSignalRow key={s.id || i} s={s} isLast={i === hearings.held.length - 1} hearingLabel="First listed" />)}
+                    <p style={{margin:"0 0 6px", color:"var(--ink-3)", fontSize:"var(--t-caption)"}} data-hearings-held-note="">{hCopy.held}</p>
+                    {hearings.held.map((s, i) => <LiveSignalRow key={s.id || i} s={s} isLast={i === hearings.held.length - 1} hearingLabel={hCopy.heldLabel} />)}
                   </div>
                 )}
                 {hearings.undated.length > 0 && (
@@ -303,6 +320,18 @@ function PageBills() {
   const digestCheck = feedCheckFor(liveState && liveState.blocks, "Bills Digests");
   const digestFailing = !!digestCheck && feedHealthState(digestCheck) === "failed";
   const digestSince = digestCheck ? fmtPollStamp(digestCheck.lastSuccessAt) : null;
+  const digestPending = !!digestCheck && feedHealthState(digestCheck) === "pending";
+  // Why the list is empty, from the feed's health rather than assumed: a feed
+  // that has never succeeded returned nothing at all (review round 6: a timeout
+  // read "returned no bills just now").
+  const digestError = digestCheck ? (digestCheck.error || (digestCheck.lastHttpStatus ? `HTTP ${digestCheck.lastHttpStatus}` : null)) : null;
+  const emptyBills = digestFailing
+    ? { kicker: "Bills Digest feed failing", text: digestSince
+        ? `The Bills Digest feed's latest check failed${digestError ? ` (${digestError})` : ""}. It last answered at ${digestSince}, and Parliament Pulse holds no bills from it.`
+        : `The Bills Digest feed has not answered a check successfully yet${digestError ? ` (latest: ${digestError})` : ""}, so Parliament Pulse holds no bills from it.` }
+    : digestPending
+      ? { kicker: "Not yet polled", text: "The Parliament Pulse service has not polled the Bills Digest feed yet." }
+      : { kicker: "No bills returned", text: "The Bills Digest feed returned no bills just now." };
   const billCount = bills ? (live.total != null && live.total > bills.length ? `${bills.length} of ${live.total} bills` : `${bills.length} bill${bills.length !== 1 ? "s" : ""}`) : null;
 
   const fmtBillDate = (iso) => fmtIsoDate(iso, true);
@@ -331,7 +360,7 @@ function PageBills() {
         </div>
         <div style={{display:"flex", gap:10, alignItems:"center"}}>
           {bills && (digestFailing
-            ? <span className="chip-fixture chip-caution" data-bills-feed-failing="" title="The latest check of the Bills Digests feed failed; see Sources">{digestSince ? `Bills Digest feed failing since ${digestSince}; list as at then` : "Bills Digest feed failing; list as at its last success"}</span>
+            ? <span className="chip-fixture chip-caution" data-bills-feed-failing="" title="The latest check of the Bills Digests feed failed; see Sources">{digestSince ? `Bills Digest feed failing since ${digestSince}; list as at then` : "Bills Digest feed failing; no successful check yet"}</span>
             : <ProvenanceChip provenance="live" title="Bills from the Parliamentary Library Bills Digest feed" />)}
           <button className="btn" disabled={!bills || bills.length === 0} onClick={exportBills}><Icon name="download" size={13}/> Export register</button>
         </div>
@@ -350,8 +379,8 @@ function PageBills() {
           </div>
         ) : bills.length === 0 ? (
           <div className="panel-body">
-            <EmptyState icon="bill" kicker="No bills returned">
-              The Bills Digest feed returned no bills just now. <a href="https://www.aph.gov.au/Parliamentary_Business/Bills_Legislation" target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>Open Bills Legislation on aph.gov.au</a>.
+            <EmptyState icon="bill" kicker={emptyBills.kicker} variant={digestFailing ? "error" : undefined}>
+              <span data-bills-empty={digestFailing ? "failing" : digestPending ? "pending" : "empty"}>{emptyBills.text}</span> <a href="https://www.aph.gov.au/Parliamentary_Business/Bills_Legislation" target="_blank" rel="noopener noreferrer" style={{color:"var(--link)"}}>Open Bills Legislation on aph.gov.au</a>.
             </EmptyState>
           </div>
         ) : (
@@ -501,6 +530,20 @@ function fmtSpanDate(iso) {
   return fmtIsoDate(iso, false);
 }
 
+// A thread's date range. With Worker 0.16.3 publication dates it reads
+// "published 23 Jun to 14 Aug"; without them (an older Worker, or a thread whose
+// members carry no pubDate) it falls back to the ingest times, labelled as
+// when Parliament Pulse saw the items, so no ingest time reads as a publication.
+function threadSpan(t) {
+  const a = t.firstPubDate ? fmtSpanDate(t.firstPubDate) : null;
+  const b = t.lastPubDate ? fmtSpanDate(t.lastPubDate) : null;
+  if (a || b) {
+    const text = a && b && a !== b ? `published ${a} to ${b}` : `published ${a || b}`;
+    return { text, pub: true, title: "The earliest and latest APH publication dates among the items in this thread" };
+  }
+  return { text: `first seen ${fmtSpanDate(t.firstSeenAt)} · last seen ${fmtSpanDate(t.lastSeenAt)}`, pub: false, title: "When Parliament Pulse first and last saw an item in this thread, not when APH published it" };
+}
+
 // One live thread row. The product-owned facts (item count, first/last seen) lead;
 // the thread title is a quoted identifier with no anchor of its own (threads carry no
 // link field; spec 4.3). Expanding lists member signals, each anchored to its APH link.
@@ -508,13 +551,14 @@ function ThreadRow({ t, byGuid, isLast }) {
   const [open, setOpen] = useState(false);
   const resolved = t.signalGuids.map(g => byGuid.get(g)).filter(Boolean);
   const unresolved = t.signalGuids.length - resolved.length;
+  const span = threadSpan(t);
   return (
     <div style={{padding:"12px 0", borderBottom: isLast ? 0 : "1px solid var(--line)"}}>
       <button onClick={() => setOpen(v => !v)} aria-expanded={open}
         style={{display:"flex", alignItems:"center", flexWrap:"wrap", columnGap:12, rowGap:4, width:"100%", minHeight:24, background:"none", border:"none", padding:0, cursor:"pointer", textAlign:"left", color:"inherit"}}>
         <Icon name="chevron" size={13} style={{flexShrink:0, transform: open ? "rotate(90deg)" : "none", transition:"transform .15s"}}/>
-        <span style={{fontSize:"var(--t-body-sm)", fontWeight:600, color:"var(--ink)", whiteSpace:"nowrap"}}>{t.itemCount} items</span>
-        <span className="mono" data-thread-span="" title="When Parliament Pulse first and last saw an item in this thread, not when APH published it" style={{fontSize:"var(--t-eyebrow)", color:"var(--ink-3)", whiteSpace:"nowrap"}}>first seen {fmtSpanDate(t.firstSeenAt)} · last seen {fmtSpanDate(t.lastSeenAt)}</span>
+        <span style={{fontSize:"var(--t-body-sm)", fontWeight:600, color:"var(--ink)", whiteSpace:"nowrap"}}>{t.itemCount} item{t.itemCount !== 1 ? "s" : ""}</span>
+        <span className="mono" data-thread-span={span.pub ? "published" : "seen"} title={span.title} style={{fontSize:"var(--t-eyebrow)", color:"var(--ink-3)", whiteSpace:"nowrap"}}>{span.text}</span>
         {/* The thread title is the product's own clustering label, not APH-sourced
             prose. It is framed with a "Cluster" tag so it reads unambiguously as the
             product's analysis (threads carry no link; spec 4.3). */}
@@ -587,7 +631,7 @@ function PagePatterns() {
           <div className="panel-head">
             <h2 className="panel-title">Signal threads</h2>
             <ProvenanceChip provenance={threads.displayProvenance} title="Parliament Pulse's own grouping of live signals (derived analysis)" />
-            <span className="panel-kicker" style={{marginLeft:"auto"}}>{[`the ${threads.items.length} largest threads`, fetchedClause(threads.fetchedAt)].filter(Boolean).join(" · ")}</span>
+            <span className="panel-kicker" style={{marginLeft:"auto"}}>{[threads.total != null && threads.total > threads.items.length ? `the ${threads.items.length} largest of ${threads.total} threads` : `the ${threads.items.length} largest threads`, fetchedClause(threads.fetchedAt)].filter(Boolean).join(" · ")}</span>
           </div>
           <div className="panel-body">
             {threads.items.length === 0

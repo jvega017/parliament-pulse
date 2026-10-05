@@ -342,6 +342,11 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
   const fresh = useFreshness();
   const pollStalled = !noLiveCache && fresh.stale;
   const feedCount = useFeedCount();
+  const failingFeeds = failingFeedLabels(liveState && liveState.blocks);
+  const feedsChip = feedCount != null ? ` · ${feedCount} feeds${failingFeeds.length ? `, ${failingFeeds.length} failing` : ""}` : "";
+  const feedsTitle = feedCount != null
+    ? `${feedCount} official APH feeds polled by the Parliament Pulse service${failingFeeds.length ? `; failing at the latest check: ${failingFeeds.join(", ")}` : ""}`
+    : "Official APH feeds; the Live page reads them directly";
 
   const handleLiveRefresh = React.useCallback(() => {
     const ageAtClick = fmtDataAge((liveState || {}).fetchedAt);
@@ -547,8 +552,8 @@ function Topbar({ mobileNavOpen, setMobileNavOpen }) {
             <span className="dot" style={{background:"var(--caution)", boxShadow:"none"}}/> Stale · polling stalled
           </button>
         ) : (
-          <button type="button" className="chip clk" data-live-chip="live" onClick={() => navigate("live")} title={feedCount != null ? `${feedCount} official APH feeds polled by the Parliament Pulse service` : "Official APH feeds; the Live page reads them directly"} style={{borderColor:"color-mix(in srgb, var(--gold) 55%, transparent)", color:"var(--gold)", background:"transparent"}}>
-            <span className="dot" style={{background:"var(--gold)", boxShadow:"none"}}/> Live beta{feedCount != null ? <span className="tb-feeds">{` · ${feedCount} feeds`}</span> : ""}
+          <button type="button" className="chip clk" data-live-chip="live" data-feeds-failing={failingFeeds.length} onClick={() => navigate("live")} title={feedsTitle} style={{borderColor:"color-mix(in srgb, var(--gold) 55%, transparent)", color:"var(--gold)", background:"transparent"}}>
+            <span className="dot" style={{background:"var(--gold)", boxShadow:"none"}}/> Live beta{feedsChip ? <span className="tb-feeds">{feedsChip}</span> : ""}
           </button>
         )}
         {fresh.known && !noLiveCache && (

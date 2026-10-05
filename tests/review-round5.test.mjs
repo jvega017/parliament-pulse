@@ -442,7 +442,8 @@ const CANARIES = [
   ["live: each feed keeps", ["pages-today", "return (a.t == null) - (b.t == null) || ((_a = b.t) != null ? _a : 0) - ((_b = a.t) != null ? _b : 0) || a.i - b.i;", "return 0;"]],
   ["live: the footer still says", ["pages-today", "This panel re-reads the APH feeds every 2 min, apart from the service's own poll", "Official APH RSS feeds \\xB7 refreshes every 2 min"]],
   ["live: registry labels", ["data", 'label: "Senate reports tabled"', 'label: "Senate Committee Reports Tabled"']],
-  ["threads: the range is not labelled", ["pages-workspace", '"first seen ", fmtSpanDate(t.firstSeenAt), " \\xB7 last seen "', 'fmtSpanDate(t.firstSeenAt), " \\u2192 "']],
+  // Round 6 moved the span text into threadSpan(); the ingest fallback keeps the labels.
+  ["threads: the range is not labelled", ["pages-workspace", "`first seen ${fmtSpanDate(t.firstSeenAt)} \\xB7 last seen ${fmtSpanDate(t.lastSeenAt)}`", "`${fmtSpanDate(t.firstSeenAt)} \\u2192 ${fmtSpanDate(t.lastSeenAt)}`"]],
   ["threads: the count does not say", ["pages-workspace", "`the ${threads.items.length} largest threads`", "`${threads.items.length} threads`"]],
   ["sources: the column is not", ["pages-reference", '{ className: "num" }, "Items in latest poll")', '{ className: "num" }, "Items parsed")']],
   ["sources: the row does not say", ["pages-reference", "const at = feedLastSeenAt(fresh, c.feedLabel);", "const at = null;"]],

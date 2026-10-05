@@ -349,6 +349,10 @@ function feedHealthSummary(blocks) {
   const st = feeds.map(feedHealthState);
   return { total: feeds.length, ok: st.filter((x) => x === "ok").length, failed: st.filter((x) => x === "failed").length, pending: st.filter((x) => x === "pending").length };
 }
+function failingFeedLabels(blocks) {
+  const items = blocks && blocks.connectors && Array.isArray(blocks.connectors.items) ? blocks.connectors.items : [];
+  return items.filter((c) => c && c.isFeed && feedHealthState(c) === "failed").map((c) => c.feedLabel).filter(Boolean);
+}
 function feedCheckFor(blocks, label) {
   const items = blocks && blocks.connectors && Array.isArray(blocks.connectors.items) ? blocks.connectors.items : [];
   return items.find((c) => c && c.isFeed && c.feedLabel === label) || null;
@@ -402,6 +406,21 @@ function useFeedCount() {
   const { liveState } = useStore();
   return configuredFeedCount(liveState && liveState.blocks);
 }
+function parseWorkerVersion(v) {
+  const m = typeof v === "string" ? /^(\d+)\.(\d+)\.(\d+)/.exec(v.trim()) : null;
+  return m ? [Number(m[1]), Number(m[2]), Number(m[3])] : null;
+}
+function workerVersionAtLeast(meta, want) {
+  const have = parseWorkerVersion(meta && meta.worker_version);
+  const need = parseWorkerVersion(want);
+  if (!have || !need) return false;
+  for (let i = 0; i < 3; i++) if (have[i] !== need[i]) return have[i] > need[i];
+  return true;
+}
+function useWorkerVersionAtLeast(want) {
+  const { liveState } = useStore();
+  return workerVersionAtLeast(liveState && liveState.meta, want);
+}
 function mapThreadItem(row) {
   return {
     id: row.thread_id,
@@ -409,6 +428,8 @@ function mapThreadItem(row) {
     itemCount: row.item_count,
     firstSeenAt: row.first_seen_at,
     lastSeenAt: row.last_seen_at,
+    firstPubDate: row.first_pub_date || null,
+    lastPubDate: row.last_pub_date || null,
     signalGuids: Array.isArray(row.signal_guids) ? row.signal_guids : []
   };
 }
@@ -424,6 +445,7 @@ function mapOneBlock(block, arrayKey, mapFn) {
     items: usable ? arr.map(mapFn) : null
   };
   if (block.note != null) out.note = block.note;
+  if (Number.isFinite(block.total)) out.total = block.total;
   return out;
 }
 function mapLiveBlocks(blocks, meta) {
@@ -555,6 +577,8 @@ function useLiveState(blockName) {
     note: (block == null ? void 0 : block.note) || null,
     referenceLinks: (block == null ? void 0 : block.referenceLinks) || null,
     // connectors only (FE-05)
+    total: Number.isFinite(block == null ? void 0 : block.total) ? block.total : null,
+    // threads only (Worker 0.16.3)
     isRefreshing: liveState.isRefreshing,
     liveStale,
     // cache older than 30 min AND a good cache exists
@@ -1081,4 +1105,4 @@ function migrateLegacyPageQuery(loc, hist) {
   return hash;
 }
 Object.assign(window, { ABOUT_SECTIONS, parseRoute, routeHash, routeLabel, routeTitle, migrateLegacyPageQuery });
-Object.assign(window, { StoreProvider, useStore, watchlistKeywords, watchlistMatches, useLiveState, useLiveBills, selectCounts, useCounts, COMMITTEE_STRIP_LABELS, liveStateDegradation, mapWorkerSignalToCard, mapLiveBlocks, fmtFetchedAt, fetchedClause, mapLiveFreshness, freshnessView, useFreshness, pollIsStale, configuredFeedCount, useFeedCount, feedHealthState, signalDateFields, fmtDayMonYear, fmtPollStamp, ATTENTION_DIMS_DEFAULT, scoringDims, attentionDisclosure, attentionWord, confidenceLabel, uniformScore, uniformScoreLine, buildSearchResults, brisbaneDayKey, signalDayKey, parseHearingDay, fmtHearingDay, feedDisplayName, committeeFromLink, heldOfAvailable, feedLastSeenAt, feedHealthSummary, feedCheckFor });
+Object.assign(window, { StoreProvider, useStore, watchlistKeywords, watchlistMatches, useLiveState, useLiveBills, selectCounts, useCounts, COMMITTEE_STRIP_LABELS, liveStateDegradation, mapWorkerSignalToCard, mapLiveBlocks, fmtFetchedAt, fetchedClause, mapLiveFreshness, freshnessView, useFreshness, pollIsStale, configuredFeedCount, useFeedCount, feedHealthState, signalDateFields, fmtDayMonYear, fmtPollStamp, ATTENTION_DIMS_DEFAULT, scoringDims, attentionDisclosure, attentionWord, confidenceLabel, uniformScore, uniformScoreLine, buildSearchResults, brisbaneDayKey, signalDayKey, parseHearingDay, fmtHearingDay, feedDisplayName, committeeFromLink, heldOfAvailable, feedLastSeenAt, feedHealthSummary, feedCheckFor, failingFeedLabels, parseWorkerVersion, workerVersionAtLeast, useWorkerVersionAtLeast });

@@ -56,6 +56,8 @@ function PageOverview() {
   // FE-05: ingest freshness and the configured feed count, both from /state.
   const fresh = useFreshness();
   const feedCount = useFeedCount();
+  const feedHealth = feedHealthSummary(liveState && liveState.blocks);
+  const failingFeeds = failingFeedLabels(liveState && liveState.blocks);
   // Local overview controls (F4): real state, not toast-only stubs.
   const [groupByTopic, setGroupByTopic] = useState(false);
   const [sortByAttention, setSortByAttention] = useState(false);
@@ -72,7 +74,13 @@ function PageOverview() {
   // they count toward the inbox total and never toward the 24-hour figure.
   const DAY_MS = 24 * 60 * 60 * 1000;
   const newest = sortSignalsNewestFirst(rest).slice(0, 3);
-  const restRecent = rest.filter(s => s.dateKind === "datetime" && typeof s.pubAt === "number" && Date.now() - s.pubAt <= DAY_MS).length;
+  // The rest line counts only signals NOT already on screen: with no priority
+  // item the three newest render above it, so they leave the "more" count and
+  // its 24-hour figure (review round 6: "35 more" while 3 of them were shown).
+  const newestShown = !!live.items && priority.length === 0 && newest.length > 0;
+  const shownIds = new Set(newestShown ? newest.map(s => s.id) : []);
+  const restMore = rest.filter(s => !shownIds.has(s.id));
+  const restRecent = restMore.filter(s => s.dateKind === "datetime" && typeof s.pubAt === "number" && Date.now() - s.pubAt <= DAY_MS).length;
   if (sortByAttention) {
     const rank = { high: 0, med: 1, low: 2 };
     rest = [...rest].sort((a, b) => (rank[a.attention] ?? 3) - (rank[b.attention] ?? 3));
@@ -210,7 +218,10 @@ function PageOverview() {
         </div>
         <div className="cs-secondary" data-source-health="">
           <div className="cs-stat-label">Source health</div>
-          <div className="cs-stat">{feedCount == null ? NO_VALUE : feedCount}<span className="unit">feeds</span></div>
+          {feedHealth && feedHealth.failed > 0
+            ? <div className="cs-stat" data-feeds-failing={feedHealth.failed}>{feedHealth.ok}<span className="unit">of {feedHealth.total} feeds healthy</span></div>
+            : <div className="cs-stat">{feedCount == null ? NO_VALUE : feedCount}<span className="unit">feeds</span></div>}
+          {failingFeeds.length > 0 && <div className="stat-meta" data-failing-feeds="" style={{color:"var(--caution)"}}>Failing: {failingFeeds.join(", ")}</div>}
           <div className="stat-meta" data-poll-line="" style={fresh.stale ? {color:"var(--caution)"} : undefined}>
             {fresh.known
               ? (fresh.stale ? fresh.stallText : fresh.pollLine)
@@ -265,7 +276,7 @@ function PageOverview() {
             </div>
             {rest.length > 0 && (
               <div className="panel-foot">
-                <span data-rest-line="" style={{color:"var(--ink-3)", fontSize:"var(--t-body-sm)"}}>{rest.length} more signal{rest.length !== 1 ? "s" : ""} in the inbox{restRecent > 0 ? `, ${restRecent} published in the last 24 hours` : ""}</span>
+                <span data-rest-line="" style={{color:"var(--ink-3)", fontSize:"var(--t-body-sm)"}}>{restMore.length > 0 ? `${restMore.length} more signal${restMore.length !== 1 ? "s" : ""} in the inbox${restRecent > 0 ? `, ${restRecent} published in the last 24 hours` : ""}` : "Every inbox signal is shown above"}</span>
                 <button className="btn ghost sm" style={{marginLeft:"auto"}} onClick={() => goto && goto("signals")}>Open Signal inbox →</button>
               </div>
             )}
