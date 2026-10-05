@@ -195,7 +195,75 @@ export function pickPerGuid(items: ParsedItem[], kind: string, today: string): {
   return { items: kept, dropped: items.length - kept.length };
 }
 
-const XML_NAMED_ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: "\"", apos: "'" };
+/**
+ * The guid an item is written under in this poll (0.16.5), or null when it
+ * must be skipped. Across feeds the first feed to carry a guid writes it.
+ * When a later feed's item has the same guid and that guid is its own link
+ * (the feed sent no <guid>) and it is dated, it is written under
+ * `${link}#${pubDate}`, the key pickPerGuid already gives an older dated
+ * repeat, so it is skipped only if that key is also taken. 0.16.4 skipped it
+ * outright: the newest Senate report at five links that a New Senate
+ * inquiries row also carries was dropped, so 129 of 134 reports were stored.
+ */
+export function guidForPoll(item: ParsedItem, seen: Set<string>): ParsedItem | null {
+  if (!seen.has(item.guid)) return item;
+  if (item.guid !== item.link || !item.pubDate) return null;
+  const guid = `${item.link}#${item.pubDate}`;
+  return seen.has(guid) ? null : { ...item, guid };
+}
+
+/**
+ * The guid (or link) Worker 0.16.3 and earlier stored for a value that
+ * 0.16.4 now entity-decodes. Those versions stored element text undecoded,
+ * so the feed's "&amp;" stayed in the row: the List of Senators link was
+ * stored as "...los.pdf?la=en&amp;hash=..." and 0.16.4 parses it as
+ * "...la=en&hash=...". Migration 0014 applies the same mapping to stored rows.
+ */
+export function legacyEntityForm(s: string): string {
+  return s.replace(/&/g, "&amp;");
+}
+
+/**
+ * Renames a row stored under the undecoded (pre-0.16.4) form of this item's
+ * guid to the decoded guid, before the upsert, so the upsert finds it and
+ * the item is re-seen, not new (0.16.5). Without this the first poll after
+ * the 0.16.5 deploy inserted "List of Senators as at 28 January 2026" a
+ * second time with a fresh first_seen_at, which reads as new and fires
+ * alerts. The thread mapping and alert events move with the row. Does
+ * nothing when the guid has no "&", when no legacy row exists, or when the
+ * decoded row already exists (migration 0014 removes that duplicate).
+ * Never throws: a failed rename leaves ingest to proceed as before.
+ */
+export async function adoptLegacyEntityRow(env: Env, item: ParsedItem): Promise<void> {
+  if (!item.guid.includes("&")) return;
+  const legacy = legacyEntityForm(item.guid);
+  try {
+    const found = await env.ARCHIVE.prepare(
+      `SELECT guid FROM signals WHERE guid IN (?, ?)`,
+    ).bind(legacy, item.guid).all<{ guid: string }>();
+    const have = new Set((found.results ?? []).map((r) => r.guid));
+    if (!have.has(legacy) || have.has(item.guid)) return;
+    const mapped = await env.ARCHIVE.prepare(
+      `SELECT thread_id FROM signal_threads WHERE signal_guid = ?`,
+    ).bind(legacy).first<{ thread_id: string }>();
+    // signal_threads references signals(guid) with no ON UPDATE action, so
+    // the mapping row is removed before the rename and written back after.
+    const stmts = [
+      env.ARCHIVE.prepare(`DELETE FROM signal_threads WHERE signal_guid = ?`).bind(legacy),
+      env.ARCHIVE.prepare(`UPDATE signals SET guid = ?, link = ? WHERE guid = ?`).bind(item.guid, item.link, legacy),
+      env.ARCHIVE.prepare(`UPDATE OR IGNORE alert_events SET signal_guid = ?, link = ? WHERE signal_guid = ?`).bind(item.guid, item.link, legacy),
+      env.ARCHIVE.prepare(`DELETE FROM alert_events WHERE signal_guid = ?`).bind(legacy),
+    ];
+    if (mapped?.thread_id) {
+      stmts.push(env.ARCHIVE.prepare(`INSERT OR IGNORE INTO signal_threads (signal_guid, thread_id) VALUES (?, ?)`).bind(item.guid, mapped.thread_id));
+    }
+    await env.ARCHIVE.batch(stmts);
+  } catch (err) {
+    console.warn("legacy entity rename failed", item.guid, err instanceof Error ? err.message : err);
+  }
+}
+
+const XML_NAMED_ENTITIES: Record<string, string> ={ amp: "&", lt: "<", gt: ">", quot: "\"", apos: "'" };
 
 /**
  * Decode XML character references in element text (0.16.4): the five named
@@ -342,8 +410,17 @@ async function threadItem(
 // signal_threads yet, so it is safe to call repeatedly (e.g. in a loop until
 // `processed` comes back 0) to work through a large backlog in bounded
 // batches.
+//
+// 0.16.5: one row's failure no longer ends the batch. Before, a row whose
+// assignment threw (the 0.16.3 LIKE limit did this to most keyed rows)
+// aborted the loop, and because rows are taken oldest first the same row led
+// every later batch, so the per-poll heal step threaded nothing ever again.
+// Each row is now assigned on its own; a failure is logged, counted in
+// `failed`, and the rest of the batch proceeds. `processed` counts rows
+// threaded, so "repeat until processed is 0" still ends.
 export async function backfillThreads(env: Env, limit = 500): Promise<{
   processed: number;
+  failed: number;
   threadsCreated: number;
   threadsJoined: number;
 }> {
@@ -360,12 +437,18 @@ export async function backfillThreads(env: Env, limit = 500): Promise<{
   const candidates = await loadThreadCandidates(env, 1000);
   let threadsCreated = 0;
   let threadsJoined = 0;
+  let failed = 0;
   for (const row of rows) {
-    const assignment = await threadItem(env, candidates, row, row.first_seen_at);
-    if (assignment.created) threadsCreated += 1; else threadsJoined += 1;
+    try {
+      const assignment = await threadItem(env, candidates, row, row.first_seen_at);
+      if (assignment.created) threadsCreated += 1; else threadsJoined += 1;
+    } catch (err) {
+      failed += 1;
+      console.warn("thread backfill failed", row.guid, err instanceof Error ? err.message : err);
+    }
   }
 
-  return { processed: rows.length, threadsCreated, threadsJoined };
+  return { processed: rows.length - failed, failed, threadsCreated, threadsJoined };
 }
 
 // ---- Feed health (DATA-08) ---------------------------------------------------
@@ -564,9 +647,11 @@ export async function pollAndArchive(env: Env): Promise<{
       let added = 0;
       let dedupSkipped = picked.dropped;
       const nowDate = new Date(now);
-      for (const item of items) {
-        if (seenGuids.has(item.guid)) { dedupSkipped += 1; continue; }
+      for (const picked of items) {
+        const item = guidForPoll(picked, seenGuids);
+        if (!item) { dedupSkipped += 1; continue; }
         seenGuids.add(item.guid);
+        await adoptLegacyEntityRow(env, item);
         const sourceGroup = sourceGroupForItem(item.link, feed.label);
         const momentumHint = momentumMap.get(feed.kind) ?? 0.5;
         const scored = scoreForArchive(item.title, feed.kind, item.pubDate, nowDate, momentumHint, now);

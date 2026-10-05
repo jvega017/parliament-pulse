@@ -3,7 +3,7 @@
 // probe can tell the new Worker from the old one. tests/version.test.mjs
 // asserts both served values equal package.json "version"; bump the two
 // together.
-export const WORKER_VERSION = "0.16.4";
+export const WORKER_VERSION = "0.16.5";
 
 // The /state KV cache key carries the version, so a body cached by the
 // previous Worker (TTL 5 minutes) is never served, with the old version in
