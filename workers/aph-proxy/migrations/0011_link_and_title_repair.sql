@@ -25,6 +25,39 @@
 -- NOT YET APPLIED REMOTELY. Applying needs owner approval:
 --   wrangler d1 migrations apply parliament-pulse-archive --remote
 
+-- 0.16.8: a www twin is the same item. When an aphcms row is dropped, the
+-- twin takes the older first_seen_at, so the item keeps the date it was
+-- first archived (a twin a poll inserted before this file runs has
+-- first_seen_at = that poll and would read as a fresh arrival), and the
+-- twin takes the dropped row's thread. The twin leaves its own thread only
+-- when the dropped row had one; a thread the twin's poll created for it
+-- ('t2:' || guid) that is left with no mapping row is removed. Edited before
+-- any remote apply (remote was at 0009 on 5 Oct 2026). Same pattern as 0014.
+UPDATE signals
+   SET first_seen_at = (SELECT MIN(o.first_seen_at) FROM signals o
+                         WHERE o.guid = 'https://aphcms.aph.gov.au/' || substr(signals.guid, 24))
+ WHERE guid LIKE 'https://www.aph.gov.au/%'
+   AND EXISTS (SELECT 1 FROM signals o
+                WHERE o.guid = 'https://aphcms.aph.gov.au/' || substr(signals.guid, 24)
+                  AND o.first_seen_at < signals.first_seen_at);
+
+DELETE FROM signal_threads
+ WHERE signal_guid LIKE 'https://www.aph.gov.au/%'
+   AND EXISTS (SELECT 1 FROM signal_threads o
+                WHERE o.signal_guid = 'https://aphcms.aph.gov.au/' || substr(signal_threads.signal_guid, 24));
+
+INSERT OR IGNORE INTO signal_threads (signal_guid, thread_id)
+SELECT 'https://www.aph.gov.au/' || substr(o.signal_guid, 27), o.thread_id
+  FROM signal_threads o
+ WHERE o.signal_guid LIKE 'https://aphcms.aph.gov.au/%'
+   AND ('https://www.aph.gov.au/' || substr(o.signal_guid, 27)) IN (SELECT guid FROM signals);
+
+DELETE FROM threads
+ WHERE thread_id LIKE 't2:https://www.aph.gov.au/%'
+   AND substr(thread_id, 4) IN (SELECT 'https://www.aph.gov.au/' || substr(guid, 27) FROM signals
+                                 WHERE guid LIKE 'https://aphcms.aph.gov.au/%')
+   AND NOT EXISTS (SELECT 1 FROM signal_threads st WHERE st.thread_id = threads.thread_id);
+
 DELETE FROM signal_threads WHERE signal_guid LIKE 'https://aphcms.aph.gov.au/%';
 
 DELETE FROM signals

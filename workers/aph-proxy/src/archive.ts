@@ -293,8 +293,7 @@ export function chooseGuid(
  * not new) and the old one could alert twice (a second guid).
  *
  * For each link L stored for THIS feed, the item that is the stored row's
- * document, matched in order on title and pub_date, then title, then
- * pub_date, keeps L, and the newest item moves to L#pubDate, so it is stored
+ * document keeps L, and the newest item moves to L#pubDate, so it is stored
  * as a new row with first_seen_at = now and alerts if it is a fresh arrival.
  * When no listed item matches, a report feed's dated item with a different
  * date is a new report (it moves to L#pubDate and the stored row is left
@@ -302,6 +301,20 @@ export function chooseGuid(
  * daily program keeps one link and changes its title and date each sitting
  * day) and rewrites L, as before. Only keys are changed here; chooseGuid then
  * applies the stored-owner rules. Pure.
+ *
+ * Match order (0.16.8): title AND pub_date, then pub_date alone, then title
+ * alone, except in the Senate reports feed (kind "report", the only feed of
+ * that kind) when the stored row has a pub_date. Worker 0.16.1 rewrote a
+ * report row's title from whichever item reached the row last but kept its
+ * pub_date, so a stored report's pub_date names its document and its title
+ * may not. Production TripleZero48P (5 Oct 2026) carries the third progress
+ * report's title with the aviation report's date; 0.16.7 matched on title
+ * first, so it re-dated the row to the third progress report, kept the
+ * April first_seen_at, and inserted the aviation report as a new row. In the
+ * reports feed a title-only match would also absorb a NEW report that reuses
+ * the stored title (a bill report and its later report often share one) and
+ * suppress its alert. A stored report with no pub_date can only be matched
+ * on its title, so the title step still applies to it.
  */
 export function keepStoredIdentity(
   items: ParsedItem[],
@@ -323,8 +336,8 @@ export function keepStoredIdentity(
     const newest = group.find((it) => it.guid === link);
     if (!newest || !newest.pubDate) continue;
     const match = group.find((it) => it.title === owner.title && it.pubDate === owner.pub_date)
-      ?? group.find((it) => it.title === owner.title)
       ?? (owner.pub_date ? group.find((it) => it.pubDate === owner.pub_date) : undefined)
+      ?? (kind === "report" && owner.pub_date ? undefined : group.find((it) => it.title === owner.title))
       ?? null;
     if (match === newest) continue;
     if (match === null && !(kind === "report" && owner.pub_date && newest.pubDate !== owner.pub_date)) continue;
@@ -381,25 +394,46 @@ export function legacyEntityForm(s: string): string {
 }
 
 /**
+ * Every guid an earlier Worker may have stored for this canonical guid
+ * (0.16.8): the undecoded form (pre-0.16.4, see legacyEntityForm) and the
+ * aphcms.aph.gov.au host form (pre-0.16.3, see canonicalAphUrl). Production
+ * holds two Upcoming Senate hearings rows on the aphcms host, first seen
+ * 10 Aug 2026 with no pub_date. Without the host form, the first 0.16.8 poll
+ * inserted each one again at its www guid with first_seen_at = now, which
+ * reads as a fresh arrival (an undated row is fresh) and alerted; migration
+ * 0011 then dropped the older row and its history.
+ */
+const WWW_APH = "https://www.aph.gov.au/";
+export function legacyForms(guid: string): string[] {
+  const out: string[] = [];
+  if (guid.includes("&")) out.push(legacyEntityForm(guid));
+  if (guid.startsWith(WWW_APH)) out.push(`https://aphcms.aph.gov.au/${guid.slice(WWW_APH.length)}`);
+  return out;
+}
+
+/**
  * Renames a row stored under the undecoded (pre-0.16.4) form of this item's
  * guid to the decoded guid, before the upsert, so the upsert finds it and
  * the item is re-seen, not new (0.16.5). Without this the first poll after
  * the 0.16.5 deploy inserted "List of Senators as at 28 January 2026" a
  * second time with a fresh first_seen_at, which reads as new and fires
- * alerts. The thread mapping and alert events move with the row. Does
- * nothing when the guid has no "&", when no legacy row exists, or when the
- * decoded row already exists (migration 0014 removes that duplicate).
+ * alerts. The thread mapping and alert events move with the row. 0.16.8
+ * applies the same rename to a row stored on the aphcms host (legacyForms).
+ * Does nothing when no legacy row exists, or when the canonical row already
+ * exists (migrations 0011 and 0014 merge that duplicate).
  * Never throws: a failed rename leaves ingest to proceed as before.
  */
 export async function adoptLegacyEntityRow(env: Env, item: ParsedItem): Promise<void> {
-  if (!item.guid.includes("&")) return;
-  const legacy = legacyEntityForm(item.guid);
+  const forms = legacyForms(item.guid);
+  if (forms.length === 0) return;
   try {
     const found = await env.ARCHIVE.prepare(
-      `SELECT guid FROM signals WHERE guid IN (?, ?)`,
-    ).bind(legacy, item.guid).all<{ guid: string }>();
+      `SELECT guid FROM signals WHERE guid IN (${["?", ...forms.map(() => "?")].join(", ")})`,
+    ).bind(item.guid, ...forms).all<{ guid: string }>();
     const have = new Set((found.results ?? []).map((r) => r.guid));
-    if (!have.has(legacy) || have.has(item.guid)) return;
+    if (have.has(item.guid)) return;
+    const legacy = forms.find((f) => have.has(f));
+    if (!legacy) return;
     const mapped = await env.ARCHIVE.prepare(
       `SELECT thread_id FROM signal_threads WHERE signal_guid = ?`,
     ).bind(legacy).first<{ thread_id: string }>();

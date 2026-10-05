@@ -132,8 +132,19 @@ test("fix-1: production-shaped shared links are stable across both, inquiry gone
   // Report-owned rows keep the bare link and a report title; the inquiry is a
   // row of its own.
   assert.equal(byGuid[L.zero].feed_label, F.reports.label);
-  assert.equal(byGuid[L.zero].title, "Triple Zero service outage [Third progress report]");
+  // 0.16.8: the stored row's pub_date (2026-02-17) names its document, the
+  // aviation report; its 0.16.1 title does not. The row keeps that date and
+  // first_seen_at and takes the aviation title back; the third progress
+  // report is a row of its own at L#pubDate. 0.16.7 matched on title first
+  // and re-dated the row to 2026-08-05 instead.
+  const aviation = reportItems.find((i) => i.link === L.zero && i.pubDate === "2026-02-17T13:00:00.000Z");
+  assert.match(aviation.title, /^State of Australia.s aviation sector/);
+  assert.equal(byGuid[L.zero].title, aviation.title);
+  assert.equal(rows(e, `SELECT pub_date FROM signals WHERE guid = ?`, L.zero)[0].pub_date, "2026-02-17T13:00:00.000Z");
   assert.equal(byGuid[L.zero].first_seen_at, "2026-04-25T21:30:22.602Z", "the report row is not re-inserted");
+  assert.equal(byGuid[`${L.zero}#2026-08-05T14:00:00.000Z`].title, "Triple Zero service outage [Third progress report]");
+  assert.equal(byGuid[`${L.zero}#2026-08-05T14:00:00.000Z`].feed_label, F.reports.label);
+  assert.equal(byGuid[`${L.zero}#2026-02-17T13:00:00.000Z`], undefined, "the aviation report is not stored twice");
   assert.equal(byGuid[L.ffs].feed_label, F.reports.label);
   assert.equal(byGuid[`${L.zero}#2025-10-27T13:00:00.000Z`].title, "Triple Zero service outage");
   assert.equal(byGuid[`${L.zero}#2025-10-27T13:00:00.000Z`].feed_label, F.inquiries.label);

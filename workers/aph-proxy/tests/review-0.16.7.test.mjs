@@ -12,6 +12,11 @@
 //      written with no expiry, and a missing key falls back to the latest
 //      first_seen_at stored before the poll.
 //
+// 0.16.8 adds the keepStoredIdentity match-order tests (pub_date before
+// title; no title-only match for a dated stored report) and recheck8's
+// probes P1, P2b, P2c and P2d here; the aphcms and watermark probes are in
+// review-0.16.8.test.mjs.
+//
 // Run: node --experimental-strip-types --experimental-sqlite tests/review-0.16.7.test.mjs
 
 import { register } from "node:module";
@@ -152,6 +157,160 @@ test("fix-2: keepStoredIdentity keys from the stored row's document", () => {
   both.set(older.guid, { feed_url: "rep", title: "A", description: null, pub_date: older.pubDate });
   assert.deepEqual(keys(keepStoredIdentity([newest, older], "rep", "report", both)), [`B=${L}`, `A=${L}#2026-09-01T00:00:00.000Z`]);
 });
+
+// ---- 0.16.8: match order in keepStoredIdentity ---------------------------------
+// Title AND pub_date, then pub_date, then title (title alone never in the
+// Senate reports feed for a dated stored row). Each step is pinned by a case
+// only that step decides.
+
+test("0.16.8 step 1: title AND pub_date beats an item matching on pub_date alone", () => {
+  // Two items share the stored date; only one also has the stored title.
+  const own = new Map([[L, { feed_url: "rep", description: null, title: "A", pub_date: "2026-09-01T00:00:00.000Z" }]]);
+  const newest = { title: "B", link: L, pubDate: "2026-09-02T00:00:00.000Z", guid: L, description: null };
+  const sameDate = { title: "C", link: L, pubDate: "2026-09-01T00:00:00.000Z", guid: `${L}#2026-09-01T00:00:00.000Z`, description: null };
+  const exact = { title: "A", link: L, pubDate: "2026-09-01T00:00:00.000Z", guid: `${L}#2026-09-01T00:00:00.000Z`, description: null };
+  const out = keepStoredIdentity([newest, sameDate, exact], "rep", "report", own);
+  assert.equal(out[2].guid, L, "the exact match keeps L");
+  assert.equal(out[1].guid, `${L}#2026-09-01T00:00:00.000Z`, "the date-only match is not chosen");
+  assert.equal(out[0].guid, `${L}#2026-09-02T00:00:00.000Z`);
+});
+
+test("0.16.8 step 1: title AND pub_date beats an item matching on title alone (non-report feed)", () => {
+  const own = new Map([[L, { feed_url: "prog", description: null, title: "A", pub_date: "2026-09-01T00:00:00.000Z" }]]);
+  const newest = { title: "A", link: L, pubDate: "2026-09-03T00:00:00.000Z", guid: L, description: null };
+  const exact = { title: "A", link: L, pubDate: "2026-09-01T00:00:00.000Z", guid: `${L}#2026-09-01T00:00:00.000Z`, description: null };
+  const out = keepStoredIdentity([newest, exact], "prog", "program", own);
+  assert.equal(out[1].guid, L, "the exact match keeps L, not the newest same-titled item");
+  assert.equal(out[0].guid, `${L}#2026-09-03T00:00:00.000Z`);
+});
+
+test("0.16.8 step 2: pub_date beats title (the production TripleZero48P shape)", () => {
+  // Stored row: 0.16.1 gave it the NEWEST report's title but kept the older
+  // report's date. The dated item is the row's document.
+  const own = new Map([[L, { feed_url: "rep", description: null, title: "Third", pub_date: "2026-02-17T13:00:00.000Z" }]]);
+  const third = { title: "Third", link: L, pubDate: "2026-08-05T14:00:00.000Z", guid: L, description: null };
+  const aviation = { title: "Aviation", link: L, pubDate: "2026-02-17T13:00:00.000Z", guid: `${L}#2026-02-17T13:00:00.000Z`, description: null };
+  const progress = { title: "Progress", link: L, pubDate: "2025-12-09T13:00:00.000Z", guid: `${L}#2025-12-09T13:00:00.000Z`, description: null };
+  for (const kind of ["report", "program"]) {
+    const out = keepStoredIdentity([third, aviation, progress], "rep", kind, own);
+    assert.deepEqual(out.map((i) => `${i.title}=${i.guid}`),
+      [`Third=${L}#2026-08-05T14:00:00.000Z`, `Aviation=${L}`, `Progress=${L}#2025-12-09T13:00:00.000Z`], kind);
+  }
+});
+
+test("0.16.8 step 3: title alone matches outside the reports feed, and for an undated stored report", () => {
+  const newest = { title: "B", link: L, pubDate: "2026-09-02T00:00:00.000Z", guid: L, description: null };
+  const older = { title: "A", link: L, pubDate: "2026-09-01T00:00:00.000Z", guid: `${L}#2026-09-01T00:00:00.000Z`, description: null };
+  const keys = (out) => out.map((i) => `${i.title}=${i.guid}`);
+  // Stored row A with a date no item carries: other feeds match on title.
+  const dated = new Map([[L, { feed_url: "f", description: null, title: "A", pub_date: "2026-08-01T00:00:00.000Z" }]]);
+  assert.deepEqual(keys(keepStoredIdentity([newest, older], "f", "program", dated)), [`B=${L}#2026-09-02T00:00:00.000Z`, `A=${L}`]);
+  // The reports feed does not: no item matches, the newest is a new report
+  // and the older item keeps its own L#pubDate key.
+  assert.deepEqual(keys(keepStoredIdentity([newest, older], "f", "report", dated)),
+    [`B=${L}#2026-09-02T00:00:00.000Z`, `A=${L}#2026-09-01T00:00:00.000Z`]);
+  // An undated stored report has only its title to go on.
+  const undated = new Map([[L, { feed_url: "f", description: null, title: "A", pub_date: null }]]);
+  assert.deepEqual(keys(keepStoredIdentity([newest, older], "f", "report", undated)), [`B=${L}#2026-09-02T00:00:00.000Z`, `A=${L}`]);
+});
+
+test("0.16.8 (probe P2b): a new SAME-titled report at a link whose stored report has left the feed is a new row and alerts", async () => {
+  const e = env();
+  anyRule(e);
+  const T = "National Disability Insurance Scheme Amendment Bill 2026";
+  const old = { guid: L, link: L, title: T, pub: iso(T0 - 50 * DAY), first: iso(T0 - 49 * DAY), feed: F.reports, description: "first report" };
+  insert(e, old);
+  await e.CACHE.put("alert:watermark", iso(T0 - 1000));
+  mockFetch({ [F.reports.url]: rss([{ title: T, link: L, pubDate: rfc(T0 - DAY), description: "second report" }]) });
+  await pollAndArchive(e);
+  const s = rows(e, `SELECT guid, title, pub_date, first_seen_at, description FROM signals ORDER BY guid`);
+  assert.equal(s.length, 2, "the new report is a new row");
+  assert.deepEqual(s[0], { guid: L, title: T, pub_date: old.pub, first_seen_at: old.first, description: "first report" }, "stored row unchanged");
+  assert.equal(s[1].guid, `${L}#${iso(T0 - DAY)}`);
+  assert.deepEqual(rows(e, `SELECT signal_guid FROM alert_events`).map((r) => r.signal_guid), [`${L}#${iso(T0 - DAY)}`], "the new report alerts once");
+  // Re-polled, nothing changes and nothing re-alerts.
+  await pollAndArchive(e);
+  assert.equal(rows(e, `SELECT COUNT(*) AS n FROM signals`)[0].n, 2);
+  assert.equal(rows(e, `SELECT COUNT(*) AS n FROM alert_events`)[0].n, 1);
+});
+
+test("0.16.8 restraint (P2b in the House daily program): a re-dated same-titled item still rewrites L", async () => {
+  const e = env();
+  const P = "https://www.aph.gov.au/House_of_Representatives/House_of_Representatives_Daily_Program";
+  insert(e, { guid: P, link: P, title: "Daily Program", pub: iso(T0 - 20 * DAY), first: iso(T0 - 20 * DAY), feed: F.program });
+  mockFetch({ [F.program.url]: rss([{ title: "Daily Program", link: P, pubDate: rfc(T0 - DAY) }]) });
+  await pollAndArchive(e);
+  assert.deepEqual(rows(e, `SELECT guid, pub_date FROM signals`), [{ guid: P, pub_date: iso(T0 - DAY) }]);
+});
+
+test("0.16.8 (probe P2d): a 0.16.1-flipped stored report keeps its date and first_seen_at, and a 4th report alone alerts", async () => {
+  const e = env();
+  anyRule(e);
+  const A = { title: "Aviation sector report", link: L, pubDate: rfc(T0 - 230 * DAY) };
+  const P = { title: "Triple Zero [Progress report]", link: L, pubDate: rfc(T0 - 300 * DAY) };
+  const Th = { title: "Triple Zero [Third progress report]", link: L, pubDate: rfc(T0 - 60 * DAY) };
+  const seeded = { guid: L, link: L, title: Th.title, pub: iso(T0 - 230 * DAY), first: iso(T0 - 160 * DAY), feed: F.reports };
+  insert(e, seeded);
+  await e.CACHE.put("alert:watermark", iso(T0 - 1000));
+  mockFetch({ [F.reports.url]: rss([Th, A, P]) });
+  await pollAndArchive(e);
+  const [row] = rows(e, `SELECT title, pub_date, first_seen_at FROM signals WHERE guid = ?`, L);
+  assert.deepEqual(row, { title: A.title, pub_date: seeded.pub, first_seen_at: seeded.first });
+  assert.equal(rows(e, `SELECT title FROM signals WHERE guid = ?`, `${L}#${iso(T0 - 60 * DAY)}`)[0]?.title, Th.title);
+  mockFetch({ [F.reports.url]: rss([{ title: "Triple Zero [Final report]", link: L, pubDate: rfc(T0 - DAY) }, Th, A, P]) });
+  await pollAndArchive(e);
+  assert.equal(rows(e, `SELECT COUNT(*) AS n FROM signals`)[0].n, 4);
+  assert.deepEqual(rows(e, `SELECT feed_url, link, pub_date, COUNT(*) n FROM signals GROUP BY feed_url, link, pub_date HAVING n > 1`), []);
+  assert.deepEqual(rows(e, `SELECT title FROM alert_events`).map((r) => r.title), ["Triple Zero [Final report]"]);
+});
+
+test("0.16.8 (probe P2c): a new SAME-titled report while the old one is still listed is a new row; the stored row is unchanged", async () => {
+  const e = env();
+  anyRule(e);
+  const T = "National Disability Insurance Scheme Amendment Bill 2026";
+  const old = { guid: L, link: L, title: T, pub: iso(T0 - 50 * DAY), first: iso(T0 - 49 * DAY), feed: F.reports };
+  insert(e, old);
+  await e.CACHE.put("alert:watermark", iso(T0 - 1000));
+  mockFetch({ [F.reports.url]: rss([{ title: T, link: L, pubDate: rfc(T0 - DAY) }, { title: T, link: L, pubDate: rfc(T0 - 50 * DAY) }]) });
+  await pollAndArchive(e);
+  assert.deepEqual(rows(e, `SELECT pub_date, first_seen_at FROM signals WHERE guid = ?`, L), [{ pub_date: old.pub, first_seen_at: old.first }]);
+  assert.equal(rows(e, `SELECT COUNT(*) AS n FROM signals`)[0].n, 2);
+  assert.equal(rows(e, `SELECT COUNT(*) AS n FROM alert_events`)[0].n, 1);
+});
+
+// ---- 0.16.8 (probe P1): shared-link ownership across feed presence cycles -----
+const PL = "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Economics/ProbeShared";
+for (const start of ["empty", "owner-inquiries", "owner-reports", "owner-inquiries-flipped"]) {
+  test(`0.16.8 (probe P1) shared link, start=${start}: inquiry present, absent, present, absent, present`, async () => {
+    const e = env();
+    anyRule(e);
+    const inq = { title: "Inquiry into probes", link: PL, pubDate: rfc(T0 - 60 * DAY) };
+    const rep = { title: "Interim report: probes", link: PL, pubDate: rfc(T0 - 30 * DAY) };
+    if (start === "owner-inquiries") insert(e, { guid: PL, link: PL, title: inq.title, pub: iso(T0 - 60 * DAY), first: iso(T0 - 59 * DAY), feed: F.inquiries });
+    if (start === "owner-reports") insert(e, { guid: PL, link: PL, title: rep.title, pub: iso(T0 - 30 * DAY), first: iso(T0 - 29 * DAY), feed: F.reports });
+    // 0.16.1 flip: an inquiries row carrying the report's title, with the inquiry's date.
+    if (start === "owner-inquiries-flipped") insert(e, { guid: PL, link: PL, title: rep.title, pub: iso(T0 - 60 * DAY), first: iso(T0 - 59 * DAY), feed: F.inquiries });
+    await e.CACHE.put("alert:watermark", iso(T0 - 1000));
+    const snap = () => rows(e, `SELECT guid, title, pub_date, feed_label, first_seen_at FROM signals ORDER BY guid`);
+    const seeded = snap();
+    const both = { [F.inquiries.url]: rss([inq]), [F.reports.url]: rss([rep]) };
+    const repOnly = { [F.reports.url]: rss([rep]) };
+    const states = [];
+    for (const b of [both, repOnly, both, repOnly, both]) { mockFetch(b); await pollAndArchive(e); states.push(snap()); }
+    for (const s of seeded) {
+      const now = states.at(-1).find((r) => r.guid === s.guid);
+      assert.ok(now, `seeded row ${s.guid} still present`);
+      assert.equal(now.feed_label, s.feed_label, "seeded row keeps its feed");
+      assert.equal(now.pub_date, s.pub_date, "seeded row keeps its pub_date");
+      assert.equal(now.first_seen_at, s.first_seen_at, "seeded row keeps first_seen_at");
+    }
+    for (let i = 1; i < states.length; i += 1) assert.deepEqual(states[i], states[0], `poll ${i + 1} identical to poll 1`);
+    assert.equal(states[0].filter((r) => r.feed_label === F.reports.label).length, 1, "one reports row");
+    assert.equal(states[0].find((r) => r.feed_label === F.reports.label).title, rep.title);
+    assert.equal(states[0].filter((r) => r.feed_label === F.inquiries.label).length, 1, "one inquiries row");
+    assert.equal(rows(e, `SELECT COUNT(*) AS n FROM alert_events`)[0].n, 0, "no alerts for items older than 7 days");
+  });
+}
 
 // ---- Fix 3 -------------------------------------------------------------------
 
