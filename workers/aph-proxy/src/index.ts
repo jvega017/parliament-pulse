@@ -98,7 +98,10 @@ function summarisePoll(r: Awaited<ReturnType<typeof pollAndArchive>>): JobSummar
     counts: {
       feeds: r.perFeed.length,
       feeds_failed: failed,
-      new_items: r.perFeed.reduce((a, f) => a + (f.new || 0), 0),
+      // 0.16.6: new_items counts fresh arrivals; rows stored this run that
+      // APH dated more than FRESH_ARRIVAL_DAYS earlier are backfilled_items.
+      new_items: r.perFeed.reduce((a, f) => a + (f.new || 0) - (f.backfilled || 0), 0),
+      backfilled_items: r.perFeed.reduce((a, f) => a + (f.backfilled || 0), 0),
       seen_items: r.perFeed.reduce((a, f) => a + (f.seen || 0), 0),
     },
   };

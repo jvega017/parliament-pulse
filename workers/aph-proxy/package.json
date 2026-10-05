@@ -1,6 +1,6 @@
 {
   "name": "aph-proxy",
-  "version": "0.16.5",
+  "version": "0.16.6",
   "private": true,
   "description": "Cloudflare Worker: CORS-enabled, cached proxy for Australian Parliament House RSS feeds.",
   "scripts": {
@@ -8,7 +8,7 @@
     "build": "tsc --noEmit",
     "deploy": "wrangler deploy",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types tests/threads.test.mjs && node --experimental-strip-types tests/archive.test.mjs && node --experimental-strip-types tests/scoring.test.mjs && node --experimental-strip-types --experimental-sqlite tests/hardening.test.mjs && node --experimental-strip-types --experimental-sqlite tests/ingest.test.mjs && node --experimental-strip-types --experimental-sqlite tests/state-quota.test.mjs && node --experimental-strip-types --experimental-sqlite tests/health.test.mjs && node --experimental-sqlite tests/restore.test.mjs && node --experimental-strip-types --experimental-sqlite tests/unavailable.test.mjs && node --experimental-strip-types --experimental-sqlite tests/version.test.mjs && node --experimental-strip-types --experimental-sqlite tests/source-group.test.mjs && node --experimental-strip-types --experimental-sqlite tests/hearing-date.test.mjs && node --experimental-strip-types --experimental-sqlite tests/review-2026-10-05.test.mjs && node --experimental-strip-types --experimental-sqlite tests/review-0.16.4.test.mjs && node --experimental-strip-types --experimental-sqlite tests/review-0.16.5.test.mjs && node tests/feeds-table.test.mjs",
+    "test": "node --experimental-strip-types tests/threads.test.mjs && node --experimental-strip-types tests/archive.test.mjs && node --experimental-strip-types tests/scoring.test.mjs && node --experimental-strip-types --experimental-sqlite tests/hardening.test.mjs && node --experimental-strip-types --experimental-sqlite tests/ingest.test.mjs && node --experimental-strip-types --experimental-sqlite tests/state-quota.test.mjs && node --experimental-strip-types --experimental-sqlite tests/health.test.mjs && node --experimental-sqlite tests/restore.test.mjs && node --experimental-strip-types --experimental-sqlite tests/unavailable.test.mjs && node --experimental-strip-types --experimental-sqlite tests/version.test.mjs && node --experimental-strip-types --experimental-sqlite tests/source-group.test.mjs && node --experimental-strip-types --experimental-sqlite tests/hearing-date.test.mjs && node --experimental-strip-types --experimental-sqlite tests/review-2026-10-05.test.mjs && node --experimental-strip-types --experimental-sqlite tests/review-0.16.4.test.mjs && node --experimental-strip-types --experimental-sqlite tests/review-0.16.5.test.mjs && node --experimental-strip-types --experimental-sqlite tests/review-0.16.6.test.mjs && node tests/feeds-table.test.mjs",
     "docs:feeds": "node scripts/feeds-table.mjs --write",
     "docs:feeds:check": "node scripts/feeds-table.mjs --check",
     "backup:export": "node scripts/d1-export.mjs --remote",

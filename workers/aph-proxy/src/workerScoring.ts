@@ -237,3 +237,25 @@ export function matchAlertRules(
   }
   return events;
 }
+
+// Fresh arrivals (0.16.6). A row stored for the first time is "new" for
+// alerts, the digest and the poll's new_items count only when APH dated it
+// within FRESH_ARRIVAL_DAYS of the moment it was stored, or did not date it
+// at all (Upcoming Senate hearings carries no pubDate). The first 0.16.5+
+// poll stores about 66 Senate reports that 0.16.1 never kept, tabled weeks or
+// months earlier; each is stored and threaded, but it is a backfill, not
+// news, so it fires no alert rule and enters no digest. isFreshArrival and
+// FRESH_ARRIVAL_SQL apply the same test, one in code and one in SQL (both
+// compare ISO-8601 UTC text, which is what the archive stores).
+export const FRESH_ARRIVAL_DAYS = 7;
+
+export function isFreshArrival(pubDate: string | null, storedAt: string): boolean {
+  if (!pubDate) return true;
+  const pub = Date.parse(pubDate);
+  const at = Date.parse(storedAt);
+  if (!Number.isFinite(pub) || !Number.isFinite(at)) return true;
+  return pub >= at - FRESH_ARRIVAL_DAYS * 24 * 3600 * 1000;
+}
+
+export const FRESH_ARRIVAL_SQL =
+  `(pub_date IS NULL OR pub_date >= strftime('%Y-%m-%dT%H:%M:%fZ', first_seen_at, '-${FRESH_ARRIVAL_DAYS} days'))`;

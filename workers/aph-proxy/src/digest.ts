@@ -11,7 +11,7 @@
 // be collected before the email integration is wired.
 
 import type { Env } from "./archive";
-import { scoreForArchive } from "./workerScoring";
+import { scoreForArchive, FRESH_ARRIVAL_SQL } from "./workerScoring";
 
 interface EnvWithSecrets extends Env {
   RESEND_API_KEY?: string;
@@ -69,11 +69,15 @@ export async function sendDailyDigest(env: EnvWithSecrets): Promise<DigestResult
     return { delivered: 0, skipped: 0, reason: "RESEND_API_KEY not set" };
   }
 
+  // 0.16.6: a row stored in the last 24 hours enters the digest only when it
+  // is a fresh arrival (workerScoring FRESH_ARRIVAL_SQL), never a backfill of
+  // an item APH dated weeks earlier.
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const items = await env.ARCHIVE.prepare(
     `SELECT guid, title, link, pub_date, feed_label, source_group, kind, attention
        FROM signals
        WHERE first_seen_at >= ?
+         AND ${FRESH_ARRIVAL_SQL}
        ORDER BY COALESCE(pub_date, first_seen_at) DESC
        LIMIT 50`,
   )
