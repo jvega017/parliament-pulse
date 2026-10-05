@@ -94,10 +94,13 @@ test("data-1 + data-7: every Senate report in the live feed is archived, past po
   mockFetch({ [F.reports.url]: REPORTS_XML });
   const parsed = parseFeed(REPORTS_XML, F.reports);
   assert.equal(parsed.length, 134, "the parser reads all 134 items");
-  const distinct = new Set(parsed.map((p) => p.guid)).size;
+  // 0.16.4 (defect 4): one row per distinct report, link plus pubDate, not per
+  // link: 130 links carry 134 dated reports, and all 134 are archived.
+  const distinct = new Set(parsed.map((p) => `${p.guid} ${p.pubDate}`)).size;
+  assert.equal(distinct, 134);
   await pollAndArchive(e);
   const stored = rows(e, `SELECT COUNT(*) AS n FROM signals WHERE feed_url = ?`, F.reports.url)[0].n;
-  assert.equal(stored, distinct, "one row per distinct report link");
+  assert.equal(stored, distinct, "one row per distinct report");
   assert.ok(stored > 50, `more than the old 50-item cap (${stored})`);
   const annual = rows(e, `SELECT COUNT(*) AS n FROM signals WHERE title = 'Annual reports (No. 2 of 2026)'`)[0].n;
   assert.equal(annual, 8, "all eight committees' Annual reports (No. 2 of 2026)");

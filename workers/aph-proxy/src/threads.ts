@@ -60,6 +60,11 @@ export function buildTokenSet(title: string, _summary?: string | null): Set<stri
 export const KEY_PREFIX = "key:";
 
 const INQUIRY_PATH_RE = /\/Committees\/(House|Joint|Senate)\/([^/?#]+)\/([^/?#]+)/i;
+// 0.16.4: Senate estimates pages, /Senate_estimates/<committee>/<round>
+// (e.g. .../Senate_estimates/legcon/2026-27_Budget_estimates). Their titles
+// are only the round ("Budget Estimates 2026-27"), so before this key five
+// committees' rounds merged into one word-overlap thread.
+const ESTIMATES_PATH_RE = /\/Senate_estimates\/([^/?#]+)\/([^/?#]+)/i;
 const DIVISION_ID_RE = /\/divisions\/Details\?id=(\d+)/i;
 const DIVISION_PREFIX_RE = /^Division\s+\d+\s+-\s+/i;
 const BILL_NAME_RE = /^(.*?\bBill\s+\d{4})\b/i;
@@ -72,6 +77,7 @@ function normKeyText(t: string): string {
 /**
  * The canonical thread key for an item, or null when it has none.
  *  - a committee link: the inquiry path /Committees/<chamber>/<committee>/<inquiry>
+ *  - a Senate estimates link: estimates/<committee>/<round>
  *  - a division: the bill named before ":" when it is a bill, else the division itself
  *  - a Bills Digest (or any title that is a bill name): the bill name
  */
@@ -79,6 +85,8 @@ export function canonicalThreadKey(title: string, link: string | null | undefine
   const l = link ?? "";
   const inquiry = INQUIRY_PATH_RE.exec(l);
   if (inquiry) return `${KEY_PREFIX}inquiry/${inquiry[1]}/${inquiry[2]}/${inquiry[3]}`.toLowerCase();
+  const estimates = ESTIMATES_PATH_RE.exec(l);
+  if (estimates) return `${KEY_PREFIX}estimates/${estimates[1]}/${estimates[2]}`.toLowerCase();
   const t = (title ?? "").trim();
   if (kind === "division" || DIVISION_PREFIX_RE.test(t)) {
     const subject = t.replace(DIVISION_PREFIX_RE, "").split(":")[0];

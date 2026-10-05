@@ -37,8 +37,49 @@ class Stmt {
   }
 }
 
+// D1 caps a LIKE or GLOB pattern at 50 bytes (SQLITE_LIMIT_LIKE_PATTERN_LENGTH
+// = 50) and fails the whole statement with "LIKE or GLOB pattern too complex".
+// Stock SQLite allows 50,000, so before 0.16.4 this stand-in passed queries
+// that production rejected: a thread key or search term over about 48 bytes
+// (review of 5 Oct 2026: 153 of 178 signals failed to thread locally, and
+// /archive?q=<long> returned 503). like() is overridden here so every LIKE,
+// bound or literal, is held to D1's limit, then evaluated with SQLite's own
+// semantics: % any run, _ one character, ASCII-only case folding, optional
+// single-character ESCAPE.
+export const D1_LIKE_PATTERN_MAX_BYTES = 50;
+
+function asciiLower(s) {
+  return s.replace(/[A-Z]/g, (c) => c.toLowerCase());
+}
+
+function likeToRegExp(pattern, escape) {
+  let re = "";
+  const chars = [...pattern];
+  for (let i = 0; i < chars.length; i++) {
+    const c = chars[i];
+    if (escape !== null && c === escape && i + 1 < chars.length) {
+      re += chars[++i].replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    } else if (c === "%") re += "[\\s\\S]*";
+    else if (c === "_") re += "[\\s\\S]";
+    else re += c.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+  return new RegExp(`^${re}$`, "u");
+}
+
+export function d1Like(pattern, value, escape = null) {
+  if (pattern === null || value === null || pattern === undefined || value === undefined) return null;
+  const p = String(pattern);
+  if (Buffer.byteLength(p, "utf8") > D1_LIKE_PATTERN_MAX_BYTES) {
+    throw new Error("LIKE or GLOB pattern too complex");
+  }
+  const esc = escape === null || escape === undefined ? null : String(escape);
+  return likeToRegExp(asciiLower(p), esc === null ? null : asciiLower(esc)).test(asciiLower(String(value))) ? 1 : 0;
+}
+
 export function sqliteD1({ migrations = true } = {}) {
   const db = new DatabaseSync(":memory:");
+  db.function("like", { deterministic: true }, (p, v) => d1Like(p, v));
+  db.function("like", { deterministic: true }, (p, v, e) => d1Like(p, v, e));
   if (migrations) {
     for (const f of readdirSync(MIGRATIONS_DIR).filter((n) => n.endsWith(".sql")).sort()) {
       db.exec(readFileSync(join(MIGRATIONS_DIR, f), "utf8"));

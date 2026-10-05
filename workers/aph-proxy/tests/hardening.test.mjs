@@ -264,7 +264,7 @@ test("analytics: 11 terms return 400 and run no query", async () => {
   assert.equal(d1.calls.length, 0);
 });
 
-test("analytics: 10 terms run exactly one D1 query with escaped LIKE", async () => {
+test("analytics: 10 terms run exactly one D1 query with a literal instr() per term", async () => {
   const first = {};
   for (let i = 0; i < 10; i++) { first[`n${i}`] = i; first[`l${i}`] = i ? `2026-09-0${i}` : null; }
   const d1 = mockD1(first);
@@ -278,7 +278,7 @@ test("analytics: 10 terms run exactly one D1 query with escaped LIKE", async () 
   assert.equal(res2.status, 200);
   assert.equal(d1b.calls.length, 1);
   const { sql, binds } = d1b.calls[0];
-  assert.equal((sql.match(/SUM\(CASE WHEN LOWER\(title\) LIKE \? ESCAPE '\\' THEN 1 ELSE 0 END\)/g) ?? []).length, 10, sql);
+  assert.equal((sql.match(/SUM\(CASE WHEN instr\(LOWER\(title\), \?\) > 0 THEN 1 ELSE 0 END\)/g) ?? []).length, 10, sql);
   assert.equal(binds.length, 21);
   assert.equal(binds[20], "2026-01-01");
   const body = await res2.json();
@@ -287,11 +287,12 @@ test("analytics: 10 terms run exactly one D1 query with escaped LIKE", async () 
   assert.deepEqual(body.series[0], { term: "t0", count: 0, last_seen: null });
 });
 
-test("analytics: LIKE wildcards in a term are escaped", async () => {
+// 0.16.4: instr() has no wildcards, so the term is bound as typed (lowercased).
+test("analytics: LIKE wildcards in a term are bound literally", async () => {
   const d1 = mockD1({ n0: 0, l0: null });
-  const res = await call(`/archive/analytics?terms=${encodeURIComponent("100%_ok")}`, env({ ARCHIVE: d1 }));
+  const res = await call(`/archive/analytics?terms=${encodeURIComponent("100%_OK")}`, env({ ARCHIVE: d1 }));
   assert.equal(res.status, 200);
-  assert.equal(d1.calls[0].binds[0], "%100\\%\\_ok%");
+  assert.equal(d1.calls[0].binds[0], "100%_ok");
 });
 
 // ================================================================ WK-06
@@ -444,11 +445,14 @@ test("WK-06 (c) watchlist-trend: a term containing % matches literally", async (
   assert.equal(days.reduce((n, d) => n + d.count, 0), 1, JSON.stringify(days));
 });
 
-test("WK-06 (c) source: every LIKE ? on user input carries ESCAPE", () => {
+// 0.16.4: superseded. D1 rejects a LIKE pattern over 50 bytes, so no bound
+// LIKE may remain; every user search is instr(LOWER(col), ?) > 0.
+test("WK-06 (c) source: no bound LIKE remains; user input goes through instr()", () => {
   const src = srcText("src/archive.ts");
   const likes = src.match(/LIKE \?[^`"\n]{0,20}/g) ?? [];
-  assert.ok(likes.length >= 8, `found ${likes.length}`);
-  for (const l of likes) assert.match(l, /^LIKE \? ESCAPE/, l);
+  assert.deepEqual(likes, []);
+  const instrs = src.match(/instr\(LOWER\(\w+\), \?\) > 0/g) ?? [];
+  assert.ok(instrs.length >= 8, `found ${instrs.length}`);
 });
 
 // ---------------------------------------------------------------- (d)(e) dormant digest

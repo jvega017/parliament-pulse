@@ -49,6 +49,8 @@ import {
   backfillThreads,
   AnalyticsInputError,
   MAX_ANALYTICS_TERMS,
+  QueryInputError,
+  MAX_QUERY_CHARS,
   clampLimit,
   type Env,
 } from "./archive";
@@ -65,6 +67,12 @@ const TTL_SECONDS = 300; // 5 minutes
 // ALLOWED_HOSTS is used only to re-check redirect targets. Not an open relay.
 const ALLOWED_HOSTS = new Set<string>(APH_ALLOWED_HOSTS);
 const FEED_ALLOWLIST = buildFeedAllowlist(APH_FEEDS.map((f) => f.url));
+
+// 0.16.4: a search term over MAX_QUERY_CHARS is a client error (400), never
+// the 503 that a D1 failure on it used to produce.
+function queryTooLong(err: QueryInputError, cors: HeadersInit): Response {
+  return jsonResponse({ error: `${err.param} too long: at most ${MAX_QUERY_CHARS} characters`, code: "query_too_long", param: err.param, max_chars: MAX_QUERY_CHARS }, 400, cors);
+}
 
 // Per-minute budgets for read endpoints limited centrally at the top of fetch.
 // /archive, /bills, /qons, /members and /state keep their own inline limits.
@@ -253,6 +261,7 @@ export default {
         const result = await queryArchive(env, url.searchParams);
         return jsonResponse(result, 200, cors);
       } catch (err) {
+        if (err instanceof QueryInputError) return queryTooLong(err, cors);
         console.error({ endpoint: "/archive", error: err instanceof Error ? err.message : err, ts: new Date().toISOString() });
         return jsonResponse({ error: "archive temporarily unavailable" }, 503, cors);
       }
@@ -263,6 +272,7 @@ export default {
         const result = await watchlistAnalytics(env, url.searchParams);
         return jsonResponse(result, 200, cors);
       } catch (err) {
+        if (err instanceof QueryInputError) return queryTooLong(err, cors);
         if (err instanceof AnalyticsInputError) {
           return jsonResponse({ error: `too many terms, at most ${MAX_ANALYTICS_TERMS} allowed`, code: "analytics_too_many_terms", max_terms: MAX_ANALYTICS_TERMS }, 400, cors);
         }
@@ -286,6 +296,7 @@ export default {
         const result = await watchlistTrend(env, url.searchParams);
         return jsonResponse(result, 200, { ...cors, "cache-control": READ_CACHE });
       } catch (err) {
+        if (err instanceof QueryInputError) return queryTooLong(err, cors);
         console.error({ endpoint: "/archive/watchlist-trend", error: err instanceof Error ? err.message : err, ts: new Date().toISOString() });
         return jsonResponse({ days: [] }, 200, cors);
       }
@@ -400,6 +411,7 @@ export default {
         const result = await queryBills(env, url.searchParams);
         return jsonResponse(result, 200, { ...cors, "cache-control": READ_CACHE });
       } catch (err) {
+        if (err instanceof QueryInputError) return queryTooLong(err, cors);
         console.error({ endpoint: "/bills", error: err instanceof Error ? err.message : err });
         return jsonResponse({ error: "bills temporarily unavailable" }, 503, cors);
       }
@@ -413,6 +425,7 @@ export default {
         // DATA-09: additive provenance + note, so an empty pipeline says why.
         return jsonResponse({ ...result, ...(await tableProvenance(env, "qons", result.total)) }, 200, cors);
       } catch (err) {
+        if (err instanceof QueryInputError) return queryTooLong(err, cors);
         console.error({ endpoint: "/qons", error: err instanceof Error ? err.message : err });
         return jsonResponse({ error: "qons temporarily unavailable" }, 503, cors);
       }
@@ -425,6 +438,7 @@ export default {
         const result = await queryMembers(env, url.searchParams);
         return jsonResponse({ ...result, ...(await tableProvenance(env, "members", result.total)) }, 200, cors);
       } catch (err) {
+        if (err instanceof QueryInputError) return queryTooLong(err, cors);
         console.error({ endpoint: "/members", error: err instanceof Error ? err.message : err });
         return jsonResponse({ error: "members temporarily unavailable" }, 503, cors);
       }

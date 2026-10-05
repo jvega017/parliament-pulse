@@ -105,7 +105,7 @@ export function parseFeed(xml: string, feed: FeedMeta): ParsedItem[] {
     let link = pluck(block, "link");
     if (!link) {
       const hrefMatch = block.match(/<link[^>]*href="([^"]+)"/);
-      if (hrefMatch && hrefMatch[1]) link = hrefMatch[1];
+      if (hrefMatch && hrefMatch[1]) link = decodeXmlEntities(hrefMatch[1]);
     }
     if (link) link = canonicalAphUrl(link.trim());
     const pubText = pluck(block, "pubDate") ?? pluck(block, "updated") ?? pluck(block, "published");
@@ -137,8 +137,19 @@ export function brisbaneToday(now: Date = new Date()): string {
  * inquiry's link. For a hearing feed the representative is the NEXT hearing
  * (earliest date on or after today in Brisbane), else the most recent past
  * one, so the stored description, and the hearing_date read from it, is the
- * date a reader needs. For every other feed the first listed item is kept.
- * Returns the kept items and how many repeats were dropped.
+ * date a reader needs.
+ *
+ * Every other feed (0.16.4): the item with the NEWEST pubDate keeps the
+ * guid, so a re-seen row is refreshed to the latest document rather than the
+ * first one listed. The Senate reports feed has no <guid> and lists 134
+ * items under 130 links (measured 5 Oct 2026): an inquiry's interim and final
+ * reports share its link, and keeping the first listed stored the 23 Jun
+ * interim NDIS report and dropped the 14 Aug final one. Where the guid is the
+ * link itself (the feed sent no <guid>), each OLDER dated item is kept as
+ * well, under `${link}#${pubDate}`, which no existing row carries, so only
+ * new rows are added and every stored guid keeps its meaning. Ties and
+ * undated repeats fall back to the first listed, and an undated older repeat
+ * is dropped. Returns the kept items and how many repeats were dropped.
  */
 export function pickPerGuid(items: ParsedItem[], kind: string, today: string): { items: ParsedItem[]; dropped: number } {
   const byGuid = new Map<string, ParsedItem[]>();
@@ -147,8 +158,32 @@ export function pickPerGuid(items: ParsedItem[], kind: string, today: string): {
     if (list) list.push(it); else byGuid.set(it.guid, [it]);
   }
   const kept: ParsedItem[] = [];
+  const keptGuids = new Set(items.map((it) => it.guid));
   for (const group of byGuid.values()) {
-    if (group.length === 1 || kind !== "hearing") { kept.push(group[0]); continue; }
+    if (group.length === 1) { kept.push(group[0]); continue; }
+    if (kind !== "hearing") {
+      // Stable sort: newest pubDate first, undated last, ties in feed order.
+      const ordered = group
+        .map((it, i) => ({ it, i }))
+        .sort((a, b) => {
+          const ad = a.it.pubDate, bd = b.it.pubDate;
+          if (ad && bd && ad !== bd) return bd.localeCompare(ad);
+          if (ad && !bd) return -1;
+          if (!ad && bd) return 1;
+          return a.i - b.i;
+        })
+        .map((x) => x.it);
+      const [newest, ...older] = ordered;
+      kept.push(newest);
+      for (const it of older) {
+        if (it.guid !== it.link || !it.pubDate || it.pubDate === newest.pubDate) continue;
+        const guid = `${it.link}#${it.pubDate}`;
+        if (keptGuids.has(guid)) continue;
+        keptGuids.add(guid);
+        kept.push({ ...it, guid });
+      }
+      continue;
+    }
     const dated = group
       .map((it) => ({ it, d: parseHearingDate(it.description) }))
       .filter((x): x is { it: ParsedItem; d: string } => x.d !== null);
@@ -160,13 +195,36 @@ export function pickPerGuid(items: ParsedItem[], kind: string, today: string): {
   return { items: kept, dropped: items.length - kept.length };
 }
 
+const XML_NAMED_ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: "\"", apos: "'" };
+
+/**
+ * Decode XML character references in element text (0.16.4): the five named
+ * entities and numeric &#NNN; / &#xHH; references. One pass, so "&amp;lt;"
+ * becomes "&lt;", never "<". An unknown name, or a code point outside
+ * Unicode, is left as written. Before 0.16.4 the "List of Senators" link was
+ * stored and served with "&amp;hash=" in it.
+ */
+export function decodeXmlEntities(s: string): string {
+  return s.replace(/&(?:#(\d{1,7})|#[xX]([0-9a-fA-F]{1,6})|([a-zA-Z]+));/g, (whole, dec, hex, name) => {
+    if (name !== undefined) return XML_NAMED_ENTITIES[name] ?? whole;
+    const cp = dec !== undefined ? parseInt(dec, 10) : parseInt(hex, 16);
+    return cp > 0 && cp <= 0x10ffff ? String.fromCodePoint(cp) : whole;
+  });
+}
+
+// Element text. Markup outside CDATA is stripped and its entities decoded;
+// CDATA content is literal XML text, so it is only tag-stripped (as before),
+// never entity-decoded.
 function pluck(block: string, tag: string): string | null {
   const re = new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)<\\/${tag}>`, "i");
   const m = block.match(re);
   if (!m || !m[1]) return null;
-  return m[1]
-    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
-    .replace(/<[^>]+>/g, "")
+  const parts = m[1].split(/(<!\[CDATA\[[\s\S]*?\]\]>)/);
+  return parts
+    .map((p) => p.startsWith("<![CDATA[")
+      ? p.slice(9, -3).replace(/<[^>]+>/g, "")
+      : decodeXmlEntities(p.replace(/<[^>]+>/g, "")))
+    .join("")
     .trim();
 }
 
@@ -235,12 +293,21 @@ export const THREAD_HEAL_PER_POLL = 25;
 // A keyed item whose thread fell outside the in-memory candidate window is
 // found by its key, which leads its fingerprint, so it never starts a second
 // thread for the same inquiry or bill.
-async function findKeyedThread(env: Env, key: string): Promise<ThreadCandidate | null> {
+//
+// 0.16.4: the lookup compares the fingerprint's first token (everything
+// before its first comma) for equality. 0.16.3 matched `LIKE '<key>,%'`, and
+// D1 rejects any LIKE pattern over 50 bytes ("LIKE or GLOB pattern too
+// complex"), which most inquiry keys exceed, so most keyed items failed to
+// thread. THREAD_KEY_EXPR is the exact expression migration 0013 indexes
+// (idx_threads_key); the two must stay byte-identical for SQLite to use the
+// index. Without the index the query is still correct, only a scan.
+export const THREAD_KEY_EXPR = "substr(fingerprint, 1, instr(fingerprint || ',', ',') - 1)";
+export async function findKeyedThread(env: Env, key: string): Promise<ThreadCandidate | null> {
   const row = await env.ARCHIVE.prepare(
     `SELECT thread_id, fingerprint FROM threads
-      WHERE fingerprint = ? OR fingerprint LIKE ? ESCAPE '\\'
+      WHERE ${THREAD_KEY_EXPR} = ?
       ORDER BY last_seen_at DESC LIMIT 1`,
-  ).bind(key, `${escapeLike(key)},%`).first<{ thread_id: string; fingerprint: string }>();
+  ).bind(key).first<{ thread_id: string; fingerprint: string }>();
   return row ? { thread_id: row.thread_id, fingerprint: row.fingerprint.split(",").filter(Boolean) } : null;
 }
 
@@ -675,9 +742,32 @@ export function clampLimit(raw: string | null, dflt: number, max: number): numbe
   return Math.min(n, max);
 }
 
-function escapeLike(s: string): string {
-  // Escape SQLite LIKE special chars so user input is treated as literal.
-  return s.replace(/[%_\\]/g, "\\$&");
+// ---- Search terms (0.16.4) ---------------------------------------------------
+// Every user search is a literal substring test, instr(LOWER(col), ?) > 0,
+// never LIKE. D1 rejects a LIKE pattern over 50 bytes ("LIKE or GLOB pattern
+// too complex"), so under 0.16.3 any q over about 48 bytes made /archive,
+// /bills, /qons and /members answer 503. instr() has no pattern limit and no
+// wildcards, so "%", "_" and a backslash need no escaping. Matching is as
+// before: the term is lowercased here and the column with LOWER(), which
+// folds ASCII only, exactly as the LIKE did.
+//
+// A term longer than MAX_QUERY_CHARS is refused with QueryInputError, which
+// the router answers 400.
+export const MAX_QUERY_CHARS = 200;
+
+export class QueryInputError extends Error {
+  readonly param: string;
+  constructor(param: string) {
+    super(`${param} too long: at most ${MAX_QUERY_CHARS} characters`);
+    this.param = param;
+  }
+}
+
+/** The lowercased search term, or null when absent; throws when too long. */
+export function searchTerm(raw: string | null, param = "q"): string | null {
+  if (raw === null || raw === "") return null;
+  if ([...raw].length > MAX_QUERY_CHARS) throw new QueryInputError(param);
+  return raw.toLowerCase();
 }
 
 export async function queryArchive(env: Env, params: URLSearchParams): Promise<{
@@ -689,7 +779,7 @@ export async function queryArchive(env: Env, params: URLSearchParams): Promise<{
   const to = params.get("to");
   const kind = params.get("kind");
   const group = params.get("source_group");
-  const q = params.get("q");
+  const q = searchTerm(params.get("q"));
   const limit = clampLimit(params.get("limit"), 100, 500);
   const offset = Math.max(parseInt(params.get("offset") ?? "0", 10) || 0, 0);
 
@@ -703,8 +793,8 @@ export async function queryArchive(env: Env, params: URLSearchParams): Promise<{
   if (group) { where.push("source_group = ?"); binds.push(group); }
   if (attention) { where.push("attention = ?"); binds.push(attention); }
   if (q) {
-    where.push("LOWER(title) LIKE ? ESCAPE '\\'");
-    binds.push(`%${escapeLike(q.toLowerCase())}%`);
+    where.push("instr(LOWER(title), ?) > 0");
+    binds.push(q);
   }
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
@@ -764,7 +854,7 @@ export async function watchlistAnalytics(env: Env, params: URLSearchParams): Pro
   const from = params.get("from");
   const to = params.get("to");
   const termsCsv = params.get("terms") ?? "";
-  const terms = termsCsv.split(",").map((t) => t.trim().toLowerCase()).filter(Boolean);
+  const terms = termsCsv.split(",").map((t) => t.trim()).filter(Boolean).map((t) => searchTerm(t, "terms") as string);
   if (terms.length === 0) return { series: [] };
 
   const uniqueTerms = [...new Set(terms)];
@@ -777,10 +867,9 @@ export async function watchlistAnalytics(env: Env, params: URLSearchParams): Pro
   const cols: string[] = [];
   const binds: unknown[] = [];
   uniqueTerms.forEach((term, i) => {
-    const pattern = `%${escapeLike(term)}%`;
-    cols.push(`SUM(CASE WHEN LOWER(title) LIKE ? ESCAPE '\\' THEN 1 ELSE 0 END) AS n${i}`);
-    cols.push(`MAX(CASE WHEN LOWER(title) LIKE ? ESCAPE '\\' THEN pub_date END) AS l${i}`);
-    binds.push(pattern, pattern);
+    cols.push(`SUM(CASE WHEN instr(LOWER(title), ?) > 0 THEN 1 ELSE 0 END) AS n${i}`);
+    cols.push(`MAX(CASE WHEN instr(LOWER(title), ?) > 0 THEN pub_date END) AS l${i}`);
+    binds.push(term, term);
   });
   const where: string[] = [];
   if (from) { where.push("pub_date >= ?"); binds.push(from); }
@@ -899,15 +988,15 @@ export async function queryBills(env: Env, params: URLSearchParams): Promise<{
   rows: Array<{ guid: string; title: string; link: string; pub_date: string | null; description: string | null; attention: string | null; confidence: number | null }>;
   total: number;
 }> {
-  const q = params.get("q");
+  const q = searchTerm(params.get("q"));
   const limit = clampLimit(params.get("limit"), 100, 500);
   const offset = Math.max(parseInt(params.get("offset") ?? "0", 10) || 0, 0);
 
   const where: string[] = ["kind = 'digest'"];
   const binds: unknown[] = [];
   if (q) {
-    where.push("LOWER(title) LIKE ? ESCAPE '\\'");
-    binds.push(`%${escapeLike(q.toLowerCase())}%`);
+    where.push("instr(LOWER(title), ?) > 0");
+    binds.push(q);
   }
   const whereSql = `WHERE ${where.join(" AND ")}`;
 
@@ -951,7 +1040,7 @@ export async function queryQons(env: Env, params: URLSearchParams): Promise<{
   rows: QonRow[];
   total: number;
 }> {
-  const q = params.get("q");
+  const q = searchTerm(params.get("q"));
   const chamber = params.get("chamber");
   const limit = clampLimit(params.get("limit"), 100, 500);
   const offset = Math.max(parseInt(params.get("offset") ?? "0", 10) || 0, 0);
@@ -959,9 +1048,8 @@ export async function queryQons(env: Env, params: URLSearchParams): Promise<{
   const where: string[] = [];
   const binds: unknown[] = [];
   if (q) {
-    where.push("(LOWER(member) LIKE ? ESCAPE '\\' OR LOWER(question) LIKE ? ESCAPE '\\')");
-    const pat = `%${escapeLike(q.toLowerCase())}%`;
-    binds.push(pat, pat);
+    where.push("(instr(LOWER(member), ?) > 0 OR instr(LOWER(question), ?) > 0)");
+    binds.push(q, q);
   }
   if (chamber) { where.push("chamber = ?"); binds.push(chamber); }
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
@@ -1065,7 +1153,7 @@ export async function queryMembers(env: Env, params: URLSearchParams): Promise<{
   members: MemberRow[];
   total: number;
 }> {
-  const q = params.get("q");
+  const q = searchTerm(params.get("q"));
   const party = params.get("party");
   const chamber = params.get("chamber");
   const limit = clampLimit(params.get("limit"), 200, 500);
@@ -1073,7 +1161,7 @@ export async function queryMembers(env: Env, params: URLSearchParams): Promise<{
 
   const where: string[] = [];
   const binds: unknown[] = [];
-  if (q) { where.push("LOWER(name) LIKE ? ESCAPE '\\'"); binds.push(`%${escapeLike(q.toLowerCase())}%`); }
+  if (q) { where.push("instr(LOWER(name), ?) > 0"); binds.push(q); }
   if (party) { where.push("party = ?"); binds.push(party); }
   if (chamber) { where.push("chamber = ?"); binds.push(chamber); }
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
@@ -1175,9 +1263,29 @@ function byScoreThenRecency(a: Rescored, b: Rescored): number {
   return bKey.localeCompare(aKey); // ISO-8601 strings sort correctly lexically
 }
 
+/**
+ * Hearing-feed order for the per-feed quota (0.16.4). Hearing rows carry no
+ * pubDate, so ranking them by score then recency compared equal timestamps
+ * and the quota kept an arbitrary 10 of 13 (5 Oct 2026: the 16 Oct aviation
+ * sector hearing was dropped, and Committees said 2 dated today or later
+ * when 3 were). Order: upcoming hearings (on or after `today`, Brisbane)
+ * soonest first, then past hearings most recent first, then rows with no
+ * parseable date by score then recency.
+ */
+export function byHearingDate(today: string) {
+  return (a: Rescored & { hearing: string | null }, b: Rescored & { hearing: string | null }): number => {
+    const tier = (d: string | null) => (d === null ? 2 : d >= today ? 0 : 1);
+    const ta = tier(a.hearing), tb = tier(b.hearing);
+    if (ta !== tb) return ta - tb;
+    if (ta === 0 && a.hearing !== b.hearing) return (a.hearing as string).localeCompare(b.hearing as string);
+    if (ta === 1 && a.hearing !== b.hearing) return (b.hearing as string).localeCompare(a.hearing as string);
+    return byScoreThenRecency(a, b);
+  };
+}
+
 export async function queryStateSignals(
   env: Env,
-  opts: { perFeed?: number; cap?: number; feeds?: string[] } = {},
+  opts: { perFeed?: number; cap?: number; feeds?: string[]; now?: Date } = {},
 ): Promise<StateSignals> {
   const perFeed = opts.perFeed ?? PER_FEED_QUOTA;
   const cap = opts.cap ?? STATE_SIGNAL_CAP;
@@ -1191,13 +1299,17 @@ export async function queryStateSignals(
   // One query for every feed. Candidates are ranked by RECENCY only, never by
   // the stored `attention` column (the LB-03 half: ordering by a frozen value
   // is what let a stale item pin the inbox). guid breaks recency ties so the
-  // window is deterministic.
+  // window is deterministic. A hearing row without a pubDate is windowed by
+  // last_seen_at (0.16.4), so every hearing the feed still lists is a
+  // candidate; first_seen_at would rank a long-listed hearing below old ones.
   const placeholders = labels.map(() => "?").join(", ");
   const res = await env.ARCHIVE.prepare(
     `SELECT guid, title, link, pub_date, feed_label, source_group, kind, first_seen_at, description, feed_available
        FROM (
          SELECT guid, title, link, pub_date, feed_label, source_group, kind, first_seen_at, description,
-                ROW_NUMBER() OVER (PARTITION BY feed_label ORDER BY COALESCE(pub_date, first_seen_at) DESC, guid) AS feed_rank,
+                ROW_NUMBER() OVER (PARTITION BY feed_label ORDER BY
+                  CASE WHEN kind = 'hearing' AND pub_date IS NULL THEN last_seen_at
+                       ELSE COALESCE(pub_date, first_seen_at) END DESC, guid) AS feed_rank,
                 COUNT(*) OVER (PARTITION BY feed_label) AS feed_available
            FROM signals
           WHERE feed_label IN (${placeholders})
@@ -1210,20 +1322,24 @@ export async function queryStateSignals(
   // same instant. Captured here, after the D1 query above has already forced
   // the isolate to perform I/O, so it cannot read back the frozen epoch
   // clock (do not hoist this above the query or to module scope).
-  const now = new Date();
+  const now = opts.now ?? new Date();
+  const today = brisbaneToday(now);
 
-  const byFeed = new Map<string, Rescored[]>();
+  const byFeed = new Map<string, Array<Rescored & { hearing: string | null }>>();
   for (const row of candidates) {
     const scored = scoreForArchive(row.title, row.kind, row.pub_date, now, 0, row.first_seen_at);
     const list = byFeed.get(row.feed_label) ?? [];
-    list.push({ row, overallPct: scored.overallPct, attention: scored.attention, confidence: scored.confidence, explanation: scored.explanation });
+    list.push({
+      row, overallPct: scored.overallPct, attention: scored.attention, confidence: scored.confidence, explanation: scored.explanation,
+      hearing: row.kind === "hearing" ? parseHearingDate(row.description) : null,
+    });
     byFeed.set(row.feed_label, list);
     signal_counts[row.feed_label].available = Number(row.feed_available);
   }
 
   const merged: Rescored[] = [];
   for (const list of byFeed.values()) {
-    list.sort(byScoreThenRecency);
+    list.sort(list.some((r) => r.hearing !== null) ? byHearingDate(today) : byScoreThenRecency);
     merged.push(...list.slice(0, perFeed));
   }
   merged.sort(byScoreThenRecency);
@@ -1259,14 +1375,14 @@ export async function watchlistTrend(env: Env, params: URLSearchParams): Promise
   days: Array<{ day: string; count: number }>;
 }> {
   const rawTerms = params.get("terms") ?? "";
-  const terms = rawTerms.split(",").map(t => t.trim()).filter(Boolean).slice(0, 5);
+  const terms = rawTerms.split(",").map(t => t.trim()).filter(Boolean).slice(0, 5).map((t) => searchTerm(t, "terms") as string);
   if (terms.length === 0) return { days: buildEmptyWeek() };
 
-  // SEC-16: escapeLike marks % _ and \ with a backslash, which SQLite only
-  // honours when the LIKE carries an ESCAPE clause. Without it a term such
-  // as "50%" was searched for with a literal backslash and matched nothing.
-  const termConditions = terms.map(() => `LOWER(title) LIKE ? ESCAPE '\\'`).join(" OR ");
-  const termBinds = terms.map(t => `%${escapeLike(t.toLowerCase())}%`);
+  // SEC-16, then 0.16.4: a literal substring test (see searchTerm), so "50%"
+  // matches only a title containing "50%", and a long term cannot hit D1's
+  // 50-byte LIKE limit.
+  const termConditions = terms.map(() => `instr(LOWER(title), ?) > 0`).join(" OR ");
+  const termBinds = terms;
 
   const rows = await env.ARCHIVE.prepare(
     `SELECT DATE(pub_date) AS day, COUNT(*) AS count
