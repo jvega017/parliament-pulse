@@ -176,16 +176,29 @@ test("fix-1 guard: an undated item from another feed at a stored link cannot rew
   assert.equal(r.perFeed.find((f) => f.feed === F.inquiries.url).new, 0);
 });
 
-test("fix-1 heal: a flipped inquiry row whose inquiry has left its feed is re-split to the report", async () => {
+// 0.16.7: the 0.16.6 re-split heal is removed. On the full production seed
+// it moved 24 of 75 New Senate inquiries rows into Senate reports tabled and
+// overwrote their pub_date. A flipped inquiry row now stays an inquiry row.
+test("fix-1 (0.16.7): a flipped inquiry row whose inquiry has left its feed STAYS an inquiry row; the report is stored at L#pubDate", async () => {
   const e = env();
   seed(e, PROD.filter((r) => r.link === L.prod));
   // The inquiries feed is fetched and lists other inquiries, not this one.
   const others = rss([{ title: "Another inquiry", link: `${BASE}Economics/Another`, pubDate: "Thu, 01 Oct 2026 00:00:00 +1000" }]);
   mockFetch({ [F.inquiries.url]: others, [F.reports.url]: REPORTS_XML });
   await pollAndArchive(e);
-  const at = () => rows(e, `SELECT guid, feed_label, kind, title, first_seen_at FROM signals WHERE guid = ? OR substr(guid, 1, length(?) + 1) = ? || '#'`, L.prod, L.prod, L.prod);
+  const at = () => rows(e, `SELECT guid, feed_label, kind, title, pub_date, first_seen_at FROM signals WHERE guid = ? OR substr(guid, 1, length(?) + 1) = ? || '#' ORDER BY guid`, L.prod, L.prod, L.prod);
   const after = at();
-  assert.deepEqual(after, [{ guid: L.prod, feed_label: F.reports.label, kind: "report", title: "Interim report: Housing", first_seen_at: "2026-08-11T02:00:28.193Z" }]);
+  assert.equal(after.length, 2);
+  assert.deepEqual(after[0], {
+    guid: L.prod, feed_label: F.inquiries.label, kind: "inquiry", title: "Interim report: Housing",
+    pub_date: "2025-11-03T13:00:00.000Z", first_seen_at: "2026-08-11T02:00:28.193Z",
+  }, "the inquiry row keeps its feed, kind and pub_date");
+  assert.equal(after[1].guid, `${L.prod}#2026-08-10T14:00:00.000Z`);
+  assert.equal(after[1].feed_label, F.reports.label);
+  assert.equal(after[1].kind, "report");
+  assert.equal(after[1].title, "Interim report: Housing");
+  assert.equal(after[1].pub_date, "2026-08-10T14:00:00.000Z");
+  assert.equal(rows(e, `SELECT COUNT(*) AS n FROM signals WHERE feed_url = ?`, F.inquiries.url)[0].n, 2, "the inquiries feed still holds its rows");
   assert.equal(rows(e, `SELECT COUNT(*) AS n FROM signals WHERE feed_url = ?`, F.reports.url)[0].n, 134);
   await pollAndArchive(e);
   assert.deepEqual(at(), after, "stable on the next poll");
@@ -217,19 +230,17 @@ test("fix-1 heal restraint: no re-split when the owning feed failed, or the row 
 
 test("fix-1: chooseGuid keys from the stored owner", () => {
   const it = { title: "T", link: "https://x/L", pubDate: "2026-09-01T00:00:00.000Z", guid: "https://x/L", description: null };
-  const never = () => false;
-  const own = (feed_url) => ({ feed_url, title: "S", description: null });
+  const own = (feed_url) => ({ feed_url, title: "S", description: null, pub_date: null });
   // L stored by this feed: L.
-  assert.equal(chooseGuid(it, "rep", new Set(), new Map([["https://x/L", own("rep")]]), never).item.guid, "https://x/L");
-  // L stored by another feed: L#pubDate.
-  assert.equal(chooseGuid(it, "rep", new Set(), new Map([["https://x/L", own("inq")]]), never).item.guid, "https://x/L#2026-09-01T00:00:00.000Z");
+  assert.equal(chooseGuid(it, "rep", new Set(), new Map([["https://x/L", own("rep")]])).item.guid, "https://x/L");
+  // L stored by another feed: L#pubDate, never a hand-over (0.16.7).
+  const other = chooseGuid(it, "rep", new Set(), new Map([["https://x/L", own("inq")]]));
+  assert.equal(other.item.guid, "https://x/L#2026-09-01T00:00:00.000Z");
+  assert.equal(other.adoptFrom, undefined);
   // L#pubDate stored by this feed wins even when L is free.
-  assert.equal(chooseGuid(it, "rep", new Set(), new Map([["https://x/L#2026-09-01T00:00:00.000Z", own("rep")]]), never).item.guid, "https://x/L#2026-09-01T00:00:00.000Z");
+  assert.equal(chooseGuid(it, "rep", new Set(), new Map([["https://x/L#2026-09-01T00:00:00.000Z", own("rep")]])).item.guid, "https://x/L#2026-09-01T00:00:00.000Z");
   // Nothing stored, nothing seen: L.
-  assert.equal(chooseGuid(it, "rep", new Set(), new Map(), never).item.guid, "https://x/L");
-  // Adoptable: L, with adoptFrom.
-  const ad = chooseGuid(it, "rep", new Set(), new Map([["https://x/L", own("inq")]]), () => true);
-  assert.deepEqual([ad.item.guid, ad.adoptFrom], ["https://x/L", "inq"]);
+  assert.equal(chooseGuid(it, "rep", new Set(), new Map()).item.guid, "https://x/L");
 });
 
 // ---- Fix 2 -------------------------------------------------------------------

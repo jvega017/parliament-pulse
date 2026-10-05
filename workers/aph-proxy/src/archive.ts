@@ -217,13 +217,13 @@ export interface StoredOwner {
   feed_url: string;
   title: string;
   description: string | null;
+  pub_date: string | null;
 }
 
 /**
  * The guid an item is written under (0.16.6), chosen from the STORED owner
  * of the key, not only from this poll. Returns null when the item must be
- * skipped. `adoptFrom` is set when the bare-link row must first be handed to
- * this feed (see below).
+ * skipped.
  *
  * 0.16.5 decided per poll (guidForPoll): the first feed in a poll to carry a
  * link wrote the bare link L, so whichever feed held L depended on what was
@@ -241,18 +241,19 @@ export interface StoredOwner {
  *   4. L stored for THIS feed: write L.
  *   5. L stored for ANOTHER feed: write L#pubDate (undated: write L, and the
  *      upsert's same-feed guard leaves the other feed's row unchanged except
- *      last_seen_at), unless the row is adoptable.
+ *      last_seen_at).
  *
- * Adoptable (the documented heal for the 0.16.1 title flip): 0.16.1 updated a
- * re-seen row's title and description from whichever feed listed its guid,
- * so three New Senate inquiries rows carry a Senate report's title. While the
- * inquiry is still listed, rule 4 rewrites that row from the inquiries feed.
- * If the inquiry has left its feed before then, its own title is gone from
- * every source, and the row holds the report's text, so it is re-split: the
- * row is handed to the reports feed. `adoptable` decides this; pollAndArchive
- * allows it only when the owning feed was fetched this poll and no longer
- * lists L, the row's title and description equal this item's, and this item
- * is the newest at L in its feed (rule 1 has already found no L#pubDate row).
+ * A row is never handed from one feed to another (0.16.7). 0.16.6 re-split a
+ * New Senate inquiries row to the reports feed when the inquiry had left its
+ * feed and the row's text equalled a report's; on the full production seed
+ * (419 rows) that moved 24 of 75 inquiry rows into Senate reports tabled and
+ * overwrote their pub_date. A 0.16.1-flipped inquiry row whose inquiry has
+ * left its feed now stays an inquiry row, and the report is stored at
+ * L#pubDate (rule 5). While the inquiry is still listed, rule 4 rewrites the
+ * row from the inquiries feed.
+ *
+ * Which item at L is the stored row's document is settled first, by
+ * keepStoredIdentity, before this runs.
  *
  * Any other guid (the feed sent its own <guid>) is written as is unless this
  * poll already wrote it; the upsert's same-feed guard keeps another feed's
@@ -263,8 +264,7 @@ export function chooseGuid(
   feedUrl: string,
   seen: Set<string>,
   stored: Map<string, StoredOwner>,
-  adoptable: (owner: StoredOwner, item: ParsedItem) => boolean,
-): { item: ParsedItem; adoptFrom?: string } | null {
+): { item: ParsedItem } | null {
   const link = item.link;
   const dated = item.pubDate ? `${link}#${item.pubDate}` : null;
   const linkKeyed = item.guid === link || (dated !== null && item.guid === dated);
@@ -279,9 +279,66 @@ export function chooseGuid(
     return chosen ? { item: chosen } : null;
   }
   if (owner.feed_url === feedUrl) return seen.has(link) ? null : { item };
-  if (!seen.has(link) && adoptable(owner, item)) return { item, adoptFrom: owner.feed_url };
   if (dated) return seen.has(dated) ? null : { item: { ...item, guid: dated } };
   return seen.has(link) ? null : { item };
+}
+
+/**
+ * Keeps a stored row's identity when a feed lists a new document at its link
+ * (0.16.7). pickPerGuid gives the bare link L to the NEWEST item at L. When
+ * L is already stored for this feed and holds an older document, 0.16.6 let
+ * the newest item rewrite that row (title, pub_date, description) while it
+ * kept the old first_seen_at, and the older document, now keyed L#pubDate,
+ * was inserted as if new. The new report then fired no alert (its row was
+ * not new) and the old one could alert twice (a second guid).
+ *
+ * For each link L stored for THIS feed, the item that is the stored row's
+ * document, matched in order on title and pub_date, then title, then
+ * pub_date, keeps L, and the newest item moves to L#pubDate, so it is stored
+ * as a new row with first_seen_at = now and alerts if it is a fresh arrival.
+ * When no listed item matches, a report feed's dated item with a different
+ * date is a new report (it moves to L#pubDate and the stored row is left
+ * unchanged); in any other feed it is the same item re-dated (the House
+ * daily program keeps one link and changes its title and date each sitting
+ * day) and rewrites L, as before. Only keys are changed here; chooseGuid then
+ * applies the stored-owner rules. Pure.
+ */
+export function keepStoredIdentity(
+  items: ParsedItem[],
+  feedUrl: string,
+  kind: string,
+  stored: Map<string, StoredOwner>,
+): ParsedItem[] {
+  const groups = new Map<string, ParsedItem[]>();
+  for (const it of items) {
+    const linkKeyed = it.guid === it.link || (it.pubDate !== null && it.guid === `${it.link}#${it.pubDate}`);
+    if (!linkKeyed) continue;
+    const g = groups.get(it.link);
+    if (g) g.push(it); else groups.set(it.link, [it]);
+  }
+  const rekey = new Map<ParsedItem, string>();
+  for (const [link, group] of groups) {
+    const owner = stored.get(link);
+    if (!owner || owner.feed_url !== feedUrl) continue;
+    const newest = group.find((it) => it.guid === link);
+    if (!newest || !newest.pubDate) continue;
+    const match = group.find((it) => it.title === owner.title && it.pubDate === owner.pub_date)
+      ?? group.find((it) => it.title === owner.title)
+      ?? (owner.pub_date ? group.find((it) => it.pubDate === owner.pub_date) : undefined)
+      ?? null;
+    if (match === newest) continue;
+    if (match === null && !(kind === "report" && owner.pub_date && newest.pubDate !== owner.pub_date)) continue;
+    // The matched older item already has a stored L#pubDate row: leave the
+    // keys alone rather than write the document twice.
+    if (match && match.pubDate && stored.get(`${link}#${match.pubDate}`)?.feed_url === feedUrl) continue;
+    if (match) rekey.set(match, link);
+    rekey.set(newest, `${link}#${newest.pubDate}`);
+  }
+  if (rekey.size === 0) return items;
+  return items.map((it) => {
+    const g = rekey.get(it);
+    return g === undefined ? it : { ...it, guid: g };
+  });
 }
 
 /**
@@ -301,9 +358,11 @@ export async function storedOwners(env: Env, items: ParsedItem[]): Promise<Map<s
   for (let i = 0; i < all.length; i += STORED_LOOKUP_CHUNK) {
     const chunk = all.slice(i, i + STORED_LOOKUP_CHUNK);
     const res = await env.ARCHIVE.prepare(
-      `SELECT guid, feed_url, title, description FROM signals WHERE guid IN (${chunk.map(() => "?").join(", ")})`,
+      `SELECT guid, feed_url, title, description, pub_date FROM signals WHERE guid IN (${chunk.map(() => "?").join(", ")})`,
     ).bind(...chunk).all<{ guid: string } & StoredOwner>();
-    for (const r of res.results ?? []) out.set(r.guid, { feed_url: r.feed_url, title: r.title, description: r.description ?? null });
+    for (const r of res.results ?? []) {
+      out.set(r.guid, { feed_url: r.feed_url, title: r.title, description: r.description ?? null, pub_date: r.pub_date ?? null });
+    }
   }
   return out;
 }
@@ -731,12 +790,9 @@ export async function pollAndArchive(env: Env): Promise<{
   const seenGuids = new Set<string>();
   const today = brisbaneToday(new Date(now));
 
-  // Every fetched feed is parsed before any is written (0.16.6), so the
-  // re-split heal in chooseGuid can ask whether a row's owning feed still
-  // lists its link in THIS poll. A feed that failed to fetch or parse is
-  // absent from `carried`, so its rows are never handed to another feed.
+  // Every fetched feed is parsed before any is written. 0.16.7 removed the
+  // 0.16.6 re-split heal that needed this (see chooseGuid); the order is kept.
   const prepared = new Map<string, { parsed: ParsedItem[]; items: ParsedItem[]; dropped: number } | { error: unknown }>();
-  const carried = new Map<string, Set<string>>();
   for (const fr of feedResults) {
     if (!fr.ok) continue;
     try {
@@ -744,17 +800,10 @@ export async function pollAndArchive(env: Env): Promise<{
       const picked = pickPerGuid(parsed, fr.meta.kind, today);
       const items = picked.items.slice(0, MAX_INGEST_PER_FEED);
       prepared.set(fr.meta.url, { parsed, items, dropped: picked.dropped });
-      carried.set(fr.meta.url, new Set(items.map((it) => it.guid)));
     } catch (err) {
       prepared.set(fr.meta.url, { error: err });
     }
   }
-  const adoptable = (owner: StoredOwner, it: ParsedItem): boolean => {
-    const lists = carried.get(owner.feed_url);
-    return !!lists && !lists.has(it.link)
-      && owner.title === it.title
-      && (owner.description ?? null) === (it.description ?? null);
-  };
 
   for (const feedResult of feedResults) {
     if (!feedResult.ok) {
@@ -775,20 +824,12 @@ export async function pollAndArchive(env: Env): Promise<{
       // Owners are read after every earlier feed in this poll has written,
       // so a link an earlier feed inserted this poll reads as stored.
       const stored = await storedOwners(env, items);
-      for (const picked of items) {
-        const chosen = chooseGuid(picked, feed.url, seenGuids, stored, adoptable);
+      for (const picked of keepStoredIdentity(items, feed.url, feed.kind, stored)) {
+        const chosen = chooseGuid(picked, feed.url, seenGuids, stored);
         if (!chosen) { dedupSkipped += 1; continue; }
         const item = chosen.item;
         seenGuids.add(item.guid);
         const sourceGroup = sourceGroupForItem(item.link, feed.label);
-        if (chosen.adoptFrom) {
-          // Re-split (see chooseGuid): the row holds this item's text under
-          // another feed that no longer lists it, so it becomes this feed's.
-          await env.ARCHIVE.prepare(
-            `UPDATE signals SET feed_url = ?, feed_label = ?, kind = ?, source_group = ? WHERE guid = ? AND feed_url = ?`,
-          ).bind(feed.url, feed.label, feed.kind, sourceGroup, item.guid, chosen.adoptFrom).run();
-          console.log("shared-link row re-split", item.guid);
-        }
         await adoptLegacyEntityRow(env, item);
         const momentumHint = momentumMap.get(feed.kind) ?? 0.5;
         const scored = scoreForArchive(item.title, feed.kind, item.pubDate, nowDate, momentumHint, now);
@@ -893,9 +934,21 @@ export async function pollAndArchive(env: Env): Promise<{
 
   // Evaluate alert rules against items seen in this poll window.
   // Watermark stored in KV prevents re-firing on re-poll of the same items.
+  //
+  // 0.16.7: the watermark is written with no expiry, and when it is missing
+  // (a new namespace, an evicted key, or a key written by 0.16.6 and earlier
+  // with a 7-day TTL and then a polling gap longer than 7 days) it is derived
+  // from D1: the latest first_seen_at stored BEFORE this poll. Falling back to
+  // the epoch made every fresh row in the archive match again.
   try {
     const wmKey = "alert:watermark";
-    const watermark = (await env.CACHE.get(wmKey)) ?? new Date(0).toISOString();
+    let watermark = await env.CACHE.get(wmKey);
+    if (!watermark) {
+      const prior = await env.ARCHIVE.prepare(
+        `SELECT MAX(first_seen_at) AS wm FROM signals WHERE first_seen_at < ?`,
+      ).bind(now).first<{ wm: string | null }>();
+      watermark = prior?.wm ?? new Date(0).toISOString();
+    }
     const rulesRes = await env.ARCHIVE.prepare(
       `SELECT id, name, terms, attention_min, source_group, kind, active FROM alert_rules WHERE active = 1`,
     ).all<AlertRule>();
@@ -919,7 +972,7 @@ export async function pollAndArchive(env: Env): Promise<{
         }
       }
     }
-    await env.CACHE.put(wmKey, now, { expirationTtl: 60 * 60 * 24 * 7 });
+    await env.CACHE.put(wmKey, now);
   } catch (alertErr) {
     console.warn("alert evaluation failed", alertErr instanceof Error ? alertErr.message : alertErr);
   }
