@@ -66,6 +66,7 @@ state was not queried in this session.
 | WK-07 | D1 export with a manifest and a tested restore drill (`RESTORE.md`) | No surface change |
 | WK-08 | Empty QON and member surfaces keep provenance `fixture` and carry a plain reason in `note`; `/qons` and `/members` add `provenance` and `note`; feed tables generated from `src/jurisdictions.json` | Empty desks say why they are empty |
 | 0.16.1 | Feeds whose label contains "joint" are grouped `Joint` (previously `Custom`); migration 0009 relabels stored `signals` and `alert_rules` rows | Activity by source and the drawer Source group read `Joint` |
+| 0.16.2 | `/state` signal items add `hearing_date` (YYYY-MM-DD civil date, or null), parsed at read time from the stored APH description of `hearing` rows; no migration. The Upcoming Senate hearings feed has no `<pubDate>`, so `pub_date` stays null there. One row per inquiry is stored, so the date is the feed's first-listed hearing for that inquiry, not always the next one | Upcoming Senate hearings can show a real hearing date once the frontend reads the field |
 
 On the branch the QON and member surfaces stay **empty**. The crons keep
 running and record their zero-row outcomes as counts in `job_runs.detail`

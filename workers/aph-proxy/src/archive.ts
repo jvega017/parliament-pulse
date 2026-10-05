@@ -4,6 +4,7 @@
 import { APH_FEEDS, type FeedMeta, sourceGroupFor, APH_BROWSER_HEADERS } from "./feeds";
 import { scoreForArchive, matchAlertRules, type AlertRule, type NewItem } from "./workerScoring";
 import { assignThread, buildTokenSet, type ThreadCandidate, type ThreadAssignment } from "./threads";
+import { parseHearingDate } from "./hearingDate";
 
 export interface Env {
   CACHE: KVNamespace;
@@ -1005,6 +1006,10 @@ export interface TopSignalRow {
   attention: string | null;
   confidence: number | null;
   scoring_explanation: string | null;
+  // 0.16.2: the hearing's civil date (YYYY-MM-DD) parsed at read time from
+  // the stored description (see hearingDate.ts). null for every non-hearing
+  // row and for a hearing row whose description carries no parseable date.
+  hearing_date: string | null;
 }
 
 /** held = rows served in the block; available = rows archived for the feed. */
@@ -1024,6 +1029,7 @@ interface TopSignalCandidate {
   source_group: string;
   kind: string;
   first_seen_at: string;
+  description: string | null;
   feed_available: number;
 }
 
@@ -1061,9 +1067,9 @@ export async function queryStateSignals(
   // window is deterministic.
   const placeholders = labels.map(() => "?").join(", ");
   const res = await env.ARCHIVE.prepare(
-    `SELECT guid, title, link, pub_date, feed_label, source_group, kind, first_seen_at, feed_available
+    `SELECT guid, title, link, pub_date, feed_label, source_group, kind, first_seen_at, description, feed_available
        FROM (
-         SELECT guid, title, link, pub_date, feed_label, source_group, kind, first_seen_at,
+         SELECT guid, title, link, pub_date, feed_label, source_group, kind, first_seen_at, description,
                 ROW_NUMBER() OVER (PARTITION BY feed_label ORDER BY COALESCE(pub_date, first_seen_at) DESC, guid) AS feed_rank,
                 COUNT(*) OVER (PARTITION BY feed_label) AS feed_available
            FROM signals
@@ -1109,6 +1115,10 @@ export async function queryStateSignals(
     attention,
     confidence,
     scoring_explanation: explanation,
+    // Parsed at read time, so it needs no column or migration and always
+    // tracks the description the latest poll wrote. The description itself is
+    // not served.
+    hearing_date: row.kind === "hearing" ? parseHearingDate(row.description) : null,
   }));
   return { items, signal_counts };
 }

@@ -60,6 +60,15 @@ export interface SignalItem {
   attention: string | null;
   confidence: number | null;
   scoring_explanation: string | null;
+  // Additive, 0.16.2 (5 Oct 2026). The hearing's civil date, YYYY-MM-DD, as
+  // printed at the start of the APH item description ("Thursday, 1 October
+  // 2026 - venue"). The feed states no time zone: this is the local day at
+  // the venue, never shifted through UTC. Set only on kind "hearing" rows
+  // whose description parses with a weekday that agrees with the calendar;
+  // null otherwise. No time of day is served: no APH hearing description
+  // observed so far carries one. pub_date is unchanged (null for the
+  // Upcoming Senate hearings feed, which has no <pubDate>).
+  hearing_date: string | null;
 }
 
 // One row per configured RSS feed, derived from the 30-minute poll

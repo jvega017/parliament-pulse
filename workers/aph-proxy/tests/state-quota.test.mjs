@@ -33,6 +33,7 @@ console.log = () => {};
 const ITEM_FIELDS = [
   "guid", "title", "link", "pub_date", "feed_label", "source_group", "kind",
   "first_seen_at", "attention", "confidence", "scoring_explanation",
+  "hearing_date", // additive, 0.16.2
 ];
 
 function env() {

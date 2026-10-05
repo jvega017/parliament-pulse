@@ -1,0 +1,187 @@
+{
+  "source": "https://www.aph.gov.au/senate/rss/upcoming_hearings",
+  "captured_at": "2026-10-05",
+  "note": "Verbatim <description> text of every item in the live feed, as parseFeed stores it (trimmed, first 600 chars). The feed carried no <pubDate>, no <guid> and no time of day. hearing_date is the printed day, month and year read by hand.",
+  "items": [
+    {
+      "title": "Income management - review 2",
+      "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Community_Affairs/Incomemanagementr2/Public_Hearings",
+      "description": "Friday, 18 September 2026 - Committee Room 2S1 Parliament House, Canberra ACT",
+      "hearing_date": "2026-09-18"
+    },
+    {
+      "title": "Support at Home Program",
+      "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Community_Affairs/SupportatHomeProgram/Public_Hearings",
+      "description": "Tuesday, 22 September 2026 - Venue TBC, Canberra, ACT",
+      "hearing_date": "2026-09-22"
+    },
+    {
+      "title": "Defence Amendment (Sexual Assault Prevention, Intervention and Response Commission) Bill 2025",
+      "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Foreign_Affairs_Defence_and_Trade/Defence_SAPIRC_BIll2025/Public_Hearings",
+      "description": "Monday, 21 September 2026 - Committee Room 2S3, Parliament House, Canberra ACT",
+      "hearing_date": "2026-09-21"
+    },
+    {
+      "title": "Artificial intelligence and data centres",
+      "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Environment_and_Communications/AIdatacentres48P/Public_Hearings",
+      "description": "Thursday, 1 October 2026 - Committee Room 2S3, Parliament House, Canberra",
+      "hearing_date": "2026-10-01"
+    },
+    {
+      "title": "Private Health Insurance Amendment (Modernising the Private Health Insurance Rebate) Bill 2026",
+      "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Community_Affairs/PvteHealthIns/Public_Hearings",
+      "description": "Wednesday, 23 September 2026 - Doubletree Northbridge 100 James Street , Northbridge, Western Australia",
+      "hearing_date": "2026-09-23"
+    },
+    {
+      "title": "Artificial intelligence and data centres",
+      "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Environment_and_Communications/AIdatacentres48P/Public_Hearings",
+      "description": "Tuesday, 22 September 2026 - 7 Waterview Drive, Lane Cove NSW",
+      "hearing_date": "2026-09-22"
+    },
+    {
+      "title": "Support at Home Program",
+      "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Community_Affairs/SupportatHomeProgram/Public_Hearings",
+      "description": "Monday, 24 August 2026 - Venue TBC, Adelaide, SA",
+      "hearing_date": "2026-08-24"
+    },
+    {
+      "title": "Aspects of the NACC's performance of its functions",
+      "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/Joint/National_Anti-Corruption_Commission/NACCperformance2026",
+      "description": "Friday, 18 September 2026 - Main Committee Room, Parliament House, Canberra ACT",
+      "hearing_date": "2026-09-18"
+    },
+    {
+      "title": "Epilepsy in Australia",
+      "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Community_Affairs/EpilepsyinAustralia/Public_Hearings",
+      "description": "Monday, 24 August 2026 - Venue TBC, Adelaide, SA",
+      "hearing_date": "2026-08-24"
+    },
+    {
+      "title": "Support at Home Program",
+      "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Community_Affairs/SupportatHomeProgram/Public_Hearings",
+      "description": "Tuesday, 25 August 2026 - Venue TBC, Alice Springs, NT",
+      "hearing_date": "2026-08-25"
+    },
+    {
+      "title": "Artificial intelligence and data centres",
+      "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Environment_and_Communications/AIdatacentres48P/Public_Hearings",
+      "description": "Wednesday, 23 September 2026 - 59 Francis Street, Yarraville, Victoria",
+      "hearing_date": "2026-09-23"
+    },
+    {
+      "title": "Epilepsy in Australia",
+      "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Community_Affairs/EpilepsyinAustralia/Public_Hearings",
+      "description": "Tuesday, 25 August 2026 - Venue TBC, Alice Springs, NT",
+      "hearing_date": "2026-08-25"
+    },
+    {
+      "title": "Joint Select Committee on Artificial Intelligence",
+      "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/Joint/Artificial_Intelligence/ArtificialIntelligence/Public_Hearings",
+      "description": "Friday, 18 September 2026 - Committee Room 1S4, Parliament House, Canberra, ACT",
+      "hearing_date": "2026-09-18"
+    },
+    {
+      "title": "Epilepsy in Australia",
+      "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Community_Affairs/EpilepsyinAustralia/Public_Hearings",
+      "description": "Thursday, 27 August 2026 - Venue TBC, Perth, WA",
+      "hearing_date": "2026-08-27"
+    },
+    {
+      "title": "Private Health Insurance Amendment (Modernising the Private Health Insurance Rebate) Bill 2026",
+      "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Community_Affairs/PvteHealthIns/Public_Hearings",
+      "description": "Thursday, 3 September 2026 - Venue TBC, Gold Coast, QLD",
+      "hearing_date": "2026-09-03"
+    },
+    {
+      "title": "Private Health Insurance Amendment (Modernising the Private Health Insurance Rebate) Bill 2026",
+      "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Community_Affairs/PvteHealthIns/Public_Hearings",
+      "description": "Friday, 4 September 2026 - Venue TBC, Sydney, NSW",
+      "hearing_date": "2026-09-04"
+    },
+    {
+      "title": "Private Health Insurance Amendment (Modernising the Private Health Insurance Rebate) Bill 2026",
+      "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Community_Affairs/PvteHealthIns/Public_Hearings",
+      "description": "Friday, 11 September 2026 - Main Committee Room, Parliament House, Canberra, ACT",
+      "hearing_date": "2026-09-11"
+    },
+    {
+      "title": "Support at Home Program",
+      "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Community_Affairs/SupportatHomeProgram/Public_Hearings",
+      "description": "Thursday, 27 August 2026 - Venue TBC, Perth, WA",
+      "hearing_date": "2026-08-27"
+    },
+    {
+      "title": "Universities Accord (Opening the Doors of Opportunity) Bill 2026",
+      "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Education_and_Employment/OpeningDoors/Public_Hearings",
+      "description": "Monday, 24 August 2026 - Committee Room 2S3, Parliament House, Canberra",
+      "hearing_date": "2026-08-24"
+    },
+    {
+      "title": "Defence Legislation Amendment (RCDVS Implementation  and Related Measures No. 2) Bill 2026",
+      "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Foreign_Affairs_Defence_and_Trade/DefenceEstates/Public_Hearings",
+      "description": "Thursday, 20 August 2026 - Committee Room 2S3 Australia Parliament House, Canberra ACT",
+      "hearing_date": "2026-08-20"
+    },
+    {
+      "title": "Management of Defence estate assets",
+      "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Foreign_Affairs_Defence_and_Trade/DefenceEstates/Public_Hearings",
+      "description": "Monday, 24 August 2026 - Queenscliff Town Hall 50 Learmonth Street, Queenscliff, VIC",
+      "hearing_date": "2026-08-24"
+    },
+    {
+      "title": "Management of Defence estate assets",
+      "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Foreign_Affairs_Defence_and_Trade/DefenceEstates/Public_Hearings",
+      "description": "Thursday, 27 August 2026 - Venue TBC, Launceston, Tasmania",
+      "hearing_date": "2026-08-27"
+    },
+    {
+      "title": "State of Australia’s aviation sector and its ability to deliver reliable and affordable services to rural, regional and remote communities",
+      "link": "https://aphcms.aph.gov.au/Parliamentary_Business/Committees/Senate/Rural_and_Regional_Affairs_and_Transport/Aviationsector_48/Public_Hearings",
+      "description": "Friday, 16 October2026 - Committee Room 2S3, Parliament House Canberra, ACT",
+      "hearing_date": "2026-10-16"
+    },
+    {
+      "title": "State of Australia’s aviation sector and its ability to deliver reliable and affordable services to rural, regional and remote communities",
+      "link": "https://aphcms.aph.gov.au/Parliamentary_Business/Committees/Senate/Rural_and_Regional_Affairs_and_Transport/Aviationsector_48/Public_Hearings",
+      "description": "Friday, 11 September 2026 - Committee Room 2S3, Parliament House Canberra, ACT",
+      "hearing_date": "2026-09-11"
+    },
+    {
+      "title": "Oversight of ASIC, the Takeovers Panel and the Corporations Legislation",
+      "link": "https://aphcms.aph.gov.au/Parliamentary_Business/Committees/Joint/Corporations_and_Financial_Services/OversightASIC/Public_Hearings",
+      "description": "Friday, 4 September 2026 - Venue TBC, Sydney, NSW",
+      "hearing_date": "2026-09-04"
+    },
+    {
+      "title": "Annual Report No. 2 of the 48th Parliament",
+      "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/Joint/National_Disability_Insurance_Scheme/AnnualReport_2_48th/Public_Hearings",
+      "description": "Friday, 11 September 2026 - Senate Committee Room 2S1, Australian Parliament House , Canberra",
+      "hearing_date": "2026-09-11"
+    },
+    {
+      "title": "Oversight of ASIC, the Takeovers Panel and the Corporations Legislation",
+      "link": "https://aphcms.aph.gov.au/Parliamentary_Business/Committees/Joint/Corporations_and_Financial_Services/OversightASIC/Public_Hearings",
+      "description": "Thursday, 10 September 2026 - Senate Committee Room 2S1, Australian Parliament House , Canberra",
+      "hearing_date": "2026-09-10"
+    },
+    {
+      "title": "Oversight of ASIC, the Takeovers Panel and the Corporations Legislation",
+      "link": "https://aphcms.aph.gov.au/Parliamentary_Business/Committees/Joint/Corporations_and_Financial_Services/OversightASIC/Public_Hearings",
+      "description": "Thursday, 12 November 2026 - Venue TBC, Melbourne, VIC",
+      "hearing_date": "2026-11-12"
+    },
+    {
+      "title": "Annual Report No. 2 of the 48th Parliament",
+      "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/Joint/National_Disability_Insurance_Scheme/AnnualReport_2_48th/Public_Hearings",
+      "description": "Tuesday, 6 October 2026 - DoubleTree by Hilton Waterfront, Perth WA",
+      "hearing_date": "2026-10-06"
+    },
+    {
+      "title": "Annual Report No. 2 of the 48th Parliament",
+      "link": "https://www.aph.gov.au/Parliamentary_Business/Committees/Joint/National_Disability_Insurance_Scheme/AnnualReport_2_48th/Public_Hearings",
+      "description": "Wednesday, 7 October 2026 - The Stamford Plaza, Adelaide SA",
+      "hearing_date": "2026-10-07"
+    }
+  ]
+}
