@@ -228,7 +228,9 @@ export default {
     if (url.pathname === "/healthz/deep") {
       // WK-05 (ARCH-06): readiness for an external monitor. 200 only when the
       // last ok poll is inside POLL_MAX_AGE_MS and each daily job is inside
-      // DAILY_MAX_AGE_MS; otherwise 503 with the same body and ok:false.
+      // DAILY_MAX_AGE_MS, and no job has a run open past JOB_BUDGET_MS
+      // (0.16.9, jobs[job].stuck); otherwise 503 with the same body and
+      // ok:false.
       const noStore = { ...cors, "cache-control": "no-store" };
       try {
         const health = await deepHealth(env);

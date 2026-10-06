@@ -5,6 +5,11 @@
 
 import type { Env } from "./archive";
 import { APH_BROWSER_HEADERS, APH_PARLINFO_SEARCH_BASE } from "./feeds";
+import { fetchWithDeadline } from "./rssProxy";
+
+// A ParlInfo results page is HTML, not a feed, and its size has not been
+// measured, so the cap (which only bounds memory) is set high.
+export const QON_MAX_BYTES = 8 * 1024 * 1024;
 
 const PARLINFO_BASE = APH_PARLINFO_SEARCH_BASE;
 
@@ -54,17 +59,15 @@ export async function ingestQons(env: Env, sinceIso?: string): Promise<{
   });
   const url = `${PARLINFO_BASE}?${params.toString()}`;
 
-  let html = "";
-  try {
-    const res = await fetch(url, {
-      headers: APH_BROWSER_HEADERS,
-      cf: { cacheTtl: 3600, cacheEverything: true },
-    });
-    if (!res.ok) return { added: 0, attempted: 0 };
-    html = await res.text();
-  } catch {
-    return { added: 0, attempted: 0 };
-  }
+  // 0.16.9: one deadline over headers and body, and a capped read. 0.16.8
+  // awaited res.text() with no limit, the same stall that left polls
+  // unfinished.
+  const r = await fetchWithDeadline(url, {
+    headers: APH_BROWSER_HEADERS,
+    cf: { cacheTtl: 3600, cacheEverything: true },
+  }, { readBody: true, maxBytes: QON_MAX_BYTES, logLabel: "qon fetch failed" });
+  if (!r.ok) return { added: 0, attempted: 0 };
+  const html = r.text ?? "";
 
   // Extract result blocks — ParlInfo wraps each result in a <div class="resultDiv"> or similar.
   // Fallback: collect every parlInfo document link.

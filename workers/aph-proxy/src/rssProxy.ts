@@ -52,8 +52,18 @@ export class BodyTooLargeError extends Error {
   }
 }
 
-/** Reads a response body as text, aborting once it passes maxBytes. */
-export async function readCappedText(res: Response, maxBytes: number = RSS_MAX_BYTES): Promise<string> {
+/**
+ * Reads a response body as text, aborting once it passes maxBytes. With a
+ * signal (0.16.9), an abort during the read cancels the reader and throws,
+ * so a body that stops arriving cannot hold the caller past its deadline.
+ * The runtime also errors the body stream when the fetch's own signal
+ * aborts; the explicit cancel does not depend on that.
+ */
+export async function readCappedText(
+  res: Response,
+  maxBytes: number = RSS_MAX_BYTES,
+  signal?: AbortSignal,
+): Promise<string> {
   const declared = parseInt(res.headers.get("content-length") ?? "", 10);
   if (Number.isFinite(declared) && declared > maxBytes) {
     try { await res.body?.cancel(); } catch { /* ignore */ }
@@ -61,10 +71,38 @@ export async function readCappedText(res: Response, maxBytes: number = RSS_MAX_B
   }
   if (!res.body) return "";
   const reader = res.body.getReader();
+  const onAbort = () => { reader.cancel().catch(() => { /* ignore */ }); };
+  if (signal) {
+    if (signal.aborted) onAbort();
+    else signal.addEventListener("abort", onAbort, { once: true });
+  }
+  try {
+    return await readAll(reader, maxBytes, signal);
+  } finally {
+    signal?.removeEventListener("abort", onAbort);
+  }
+}
+
+function abortedError(signal: AbortSignal): Error {
+  const r: unknown = signal.reason;
+  if (r instanceof Error) return r;
+  const e = new Error("The operation was aborted");
+  e.name = "AbortError";
+  return e;
+}
+
+async function readAll(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  maxBytes: number,
+  signal?: AbortSignal,
+): Promise<string> {
   const chunks: Uint8Array[] = [];
   let total = 0;
   for (;;) {
     const { done, value } = await reader.read();
+    // A cancelled reader resolves done: true; that is an abort, not the end
+    // of the body, so the partial text is never returned as if complete.
+    if (signal?.aborted) throw abortedError(signal);
     if (done) break;
     if (!value) continue;
     total += value.byteLength;
@@ -81,4 +119,56 @@ export async function readCappedText(res: Response, maxBytes: number = RSS_MAX_B
     offset += c.byteLength;
   }
   return new TextDecoder().decode(joined);
+}
+
+/** Per-request deadline for scheduled upstream fetches (0.16.9). */
+export const UPSTREAM_TIMEOUT_MS = 8_000;
+
+export type DeadlineFetch =
+  | { ok: true; status: number; headers: Headers; text: string | null }
+  | { ok: false; status: number; headers: Headers | null; error: string };
+
+/**
+ * One upstream GET with a deadline that covers the WHOLE exchange (0.16.9):
+ * headers and, when readBody is set, the body, read through readCappedText.
+ * 0.16.8 cleared its abort timer once headers arrived, so a body APH stopped
+ * sending mid-response held res.text() with no limit and the scheduled run
+ * never finished (production, from 30 Sep 2026). An unread body (a non-ok
+ * status, or readBody false) is cancelled rather than left open for the
+ * runtime to drain. Never throws. The error is a fixed
+ * string ("fetch timed out", "fetch failed", "body too large" or
+ * "HTTP <status>"); the raw message goes to the log only (SEC-11).
+ */
+export async function fetchWithDeadline(
+  url: string,
+  init: RequestInit,
+  opts: { timeoutMs?: number; readBody: boolean; maxBytes?: number; logLabel: string },
+): Promise<DeadlineFetch> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), opts.timeoutMs ?? UPSTREAM_TIMEOUT_MS);
+  let headers: Headers | null = null;
+  let status = 0;
+  try {
+    const res = await fetch(url, { ...init, signal: controller.signal });
+    headers = res.headers;
+    status = res.status;
+    if (!res.ok || !opts.readBody) {
+      try { await res.body?.cancel(); } catch { /* ignore */ }
+      return res.ok
+        ? { ok: true, status, headers, text: null }
+        : { ok: false, status, headers, error: `HTTP ${status}` };
+    }
+    const text = await readCappedText(res, opts.maxBytes ?? RSS_MAX_BYTES, controller.signal);
+    return { ok: true, status, headers, text };
+  } catch (err) {
+    console.warn(opts.logLabel, url, err instanceof Error ? err.message : err);
+    const error = controller.signal.aborted
+      ? "fetch timed out"
+      : err instanceof BodyTooLargeError ? "body too large" : "fetch failed";
+    // status 0: no usable response (the stored feed_health status for a
+    // failed fetch has always been 0).
+    return { ok: false, status: 0, headers, error };
+  } finally {
+    clearTimeout(timer);
+  }
 }

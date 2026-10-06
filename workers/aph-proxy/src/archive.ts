@@ -5,6 +5,7 @@ import { APH_FEEDS, type FeedMeta, sourceGroupForItem, APH_BROWSER_HEADERS } fro
 import { scoreForArchive, matchAlertRules, isFreshArrival, FRESH_ARRIVAL_SQL, type AlertRule, type NewItem } from "./workerScoring";
 import { assignThreadKeyed, buildTokenSet, canonicalThreadKey, type ThreadCandidate, type ThreadAssignment } from "./threads";
 import { parseHearingDate } from "./hearingDate";
+import { fetchWithDeadline, UPSTREAM_TIMEOUT_MS } from "./rssProxy";
 
 export interface Env {
   CACHE: KVNamespace;
@@ -411,6 +412,49 @@ export function legacyForms(guid: string): string[] {
   return out;
 }
 
+/** Which legacy-form rows exist for a feed's candidate keys (0.16.9). */
+export interface LegacyPresence {
+  /** Every candidate key the lookup covered: guid, link and link#pubDate. */
+  keys: Set<string>;
+  /** The legacy-form guids among them that are stored. */
+  present: Set<string>;
+}
+
+/**
+ * One chunked lookup per feed of every legacy form (legacyForms) of every
+ * key an item can be written under: its guid, its link and link#pubDate,
+ * the same keys storedOwners reads (chooseGuid and keepStoredIdentity pick
+ * among them). 0.16.8 ran a SELECT from adoptLegacyEntityRow for every
+ * item with a www or "&" guid, nearly every APH item, while production held
+ * no legacy row (0 aphcms and 0 "&amp;" guids, 6 Oct 2026). This Worker
+ * never writes a legacy form, so a form absent here stays absent for the
+ * rest of the poll.
+ * Returns null on a D1 error; adoptLegacyEntityRow then queries per item.
+ */
+export async function legacyRowsPresent(env: Env, items: ParsedItem[]): Promise<LegacyPresence | null> {
+  const keys = new Set<string>();
+  for (const it of items) {
+    keys.add(it.guid);
+    keys.add(it.link);
+    if (it.pubDate) keys.add(`${it.link}#${it.pubDate}`);
+  }
+  const forms = [...new Set([...keys].flatMap(legacyForms))];
+  const present = new Set<string>();
+  try {
+    for (let i = 0; i < forms.length; i += STORED_LOOKUP_CHUNK) {
+      const chunk = forms.slice(i, i + STORED_LOOKUP_CHUNK);
+      const res = await env.ARCHIVE.prepare(
+        `SELECT guid FROM signals WHERE guid IN (${chunk.map(() => "?").join(", ")})`,
+      ).bind(...chunk).all<{ guid: string }>();
+      for (const r of res.results ?? []) present.add(r.guid);
+    }
+  } catch (err) {
+    console.warn("legacy lookup failed", err instanceof Error ? err.message : err);
+    return null;
+  }
+  return { keys, present };
+}
+
 /**
  * Renames a row stored under the undecoded (pre-0.16.4) form of this item's
  * guid to the decoded guid, before the upsert, so the upsert finds it and
@@ -423,9 +467,13 @@ export function legacyForms(guid: string): string[] {
  * exists (migrations 0011 and 0014 merge that duplicate).
  * Never throws: a failed rename leaves ingest to proceed as before.
  */
-export async function adoptLegacyEntityRow(env: Env, item: ParsedItem): Promise<void> {
+export async function adoptLegacyEntityRow(env: Env, item: ParsedItem, pre?: LegacyPresence | null): Promise<void> {
   const forms = legacyForms(item.guid);
   if (forms.length === 0) return;
+  // 0.16.9: the per-feed lookup (legacyRowsPresent) already answered for
+  // this key, and no legacy row exists, so there is nothing to rename and no
+  // query. A key it did not cover, or a failed lookup, takes the path below.
+  if (pre && pre.keys.has(item.guid) && !forms.some((f) => pre.present.has(f))) return;
   try {
     const found = await env.ARCHIVE.prepare(
       `SELECT guid FROM signals WHERE guid IN (${["?", ...forms.map(() => "?")].join(", ")})`,
@@ -624,6 +672,9 @@ export async function backfillThreads(env: Env, limit = 500): Promise<{
       LIMIT ?`,
   ).bind(limit).all<{ guid: string; title: string; link: string | null; kind: string | null; first_seen_at: string }>();
   const rows = res.results ?? [];
+  // 0.16.9: nothing to heal, so no candidate load. Every poll calls this, and
+  // 0.16.8 read up to 1,000 thread rows each time to thread nothing.
+  if (rows.length === 0) return { processed: 0, failed: 0, threadsCreated: 0, threadsJoined: 0 };
 
   const candidates = await loadThreadCandidates(env, 1000);
   let threadsCreated = 0;
@@ -736,47 +787,41 @@ export async function queryFeedHealth(env: Env): Promise<FeedHealthCheck[]> {
   });
 }
 
+/** Per-feed deadline for the poll, headers and body together (0.16.9). */
+export const FEED_FETCH_TIMEOUT_MS = UPSTREAM_TIMEOUT_MS;
 export async function pollAndArchive(env: Env): Promise<{
   perFeed: Array<{ feed: string; ok: boolean; new: number; seen: number; dedup: number; backfilled?: number; error?: string }>;
 }> {
   const now = new Date().toISOString();
   const perFeed: Array<{ feed: string; ok: boolean; new: number; seen: number; dedup: number; backfilled?: number; error?: string }> = [];
 
-  // Fetch all feeds concurrently with an 8-second per-feed timeout to prevent
-  // a slow upstream from blocking the entire cron. Results are collected and
-  // inserted into D1 after all fetches complete.
-  const FETCH_TIMEOUT_MS = 8_000;
+  // Fetch all feeds concurrently with an 8-second deadline per feed, so a
+  // slow upstream cannot block the cron. Results are collected and inserted
+  // into D1 after all fetches complete.
+  //
+  // 0.16.9: the deadline covers the body read (fetchWithDeadline). 0.16.8
+  // cleared the timer when headers arrived and then awaited res.text() with
+  // no limit, so one APH response that stalled mid-body left the poll, and
+  // its job_runs row, unfinished. Fetches stay unthrottled: a Worker may have
+  // six fetches waiting for headers and queues the rest, and with six feeds
+  // that never answer the queued seven still archived
+  // (tests/review-0.16.9.test.mjs), so no concurrency limit was added.
   type FetchOk = { ok: true; meta: FeedMeta; xml: string; status: number };
   type FetchErr = { ok: false; meta: FeedMeta; status: number; error: string };
-  const feedResults = await Promise.all(
-    APH_FEEDS.map(async (feedMeta): Promise<FetchOk | FetchErr> => {
-      try {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-        const res = await fetch(feedMeta.url, {
-          signal: controller.signal,
-          headers: APH_BROWSER_HEADERS,
-          cf: { cacheTtl: 60, cacheEverything: true },
-        }).finally(() => clearTimeout(timer));
-        if (res.status === 429) {
-          const retryAfter = res.headers.get("retry-after");
-          console.warn("APH returned 429", { feed: feedMeta.url, retryAfter });
-          return { ok: false, meta: feedMeta, status: 429, error: "HTTP 429 Too Many Requests" };
-        }
-        if (!res.ok) {
-          return { ok: false, meta: feedMeta, status: res.status, error: `HTTP ${res.status}` };
-        }
-        const xml = await res.text();
-        return { ok: true, meta: feedMeta, xml, status: res.status };
-      } catch (err) {
-        // SEC-11: the raw message stays in the log. The stored and served
-        // error (feed_health, /admin/poll-now, /state) is a fixed string.
-        console.warn("feed fetch failed", feedMeta.url, err instanceof Error ? err.message : err);
-        const timedOut = err instanceof Error && err.name === "AbortError";
-        return { ok: false, meta: feedMeta, status: 0, error: timedOut ? "fetch timed out" : "fetch failed" };
-      }
-    }),
-  );
+  const feedResults = await Promise.all(APH_FEEDS.map(async (feedMeta): Promise<FetchOk | FetchErr> => {
+    const r = await fetchWithDeadline(feedMeta.url, {
+      headers: APH_BROWSER_HEADERS,
+      cf: { cacheTtl: 60, cacheEverything: true },
+    }, { timeoutMs: FEED_FETCH_TIMEOUT_MS, readBody: true, logLabel: "feed fetch failed" });
+    // SEC-11: the stored and served error (feed_health, /admin/poll-now,
+    // /state) is a fixed string; fetchWithDeadline logs the raw message.
+    if (r.ok) return { ok: true, meta: feedMeta, xml: r.text ?? "", status: r.status };
+    if (r.status === 429) {
+      console.warn("APH returned 429", { feed: feedMeta.url, retryAfter: r.headers?.get("retry-after") ?? null });
+      return { ok: false, meta: feedMeta, status: 429, error: "HTTP 429 Too Many Requests" };
+    }
+    return { ok: false, meta: feedMeta, status: r.status, error: r.error };
+  }));
 
   // Compute kind-level momentum from D1 history before scoring.
   // One query: count each kind in the recent 7 days vs the prior 7 days.
@@ -858,13 +903,14 @@ export async function pollAndArchive(env: Env): Promise<{
       // Owners are read after every earlier feed in this poll has written,
       // so a link an earlier feed inserted this poll reads as stored.
       const stored = await storedOwners(env, items);
+      const legacy = await legacyRowsPresent(env, items);
       for (const picked of keepStoredIdentity(items, feed.url, feed.kind, stored)) {
         const chosen = chooseGuid(picked, feed.url, seenGuids, stored);
         if (!chosen) { dedupSkipped += 1; continue; }
         const item = chosen.item;
         seenGuids.add(item.guid);
         const sourceGroup = sourceGroupForItem(item.link, feed.label);
-        await adoptLegacyEntityRow(env, item);
+        await adoptLegacyEntityRow(env, item, legacy);
         const momentumHint = momentumMap.get(feed.kind) ?? 0.5;
         const scored = scoreForArchive(item.title, feed.kind, item.pubDate, nowDate, momentumHint, now);
         // NOTE: attention, confidence and scoring_explanation below are an
@@ -1014,40 +1060,37 @@ export async function pollAndArchive(env: Env): Promise<{
   return { perFeed };
 }
 
+/** Per-link deadline for the daily connector check (0.16.9). */
+export const CONNECTOR_TIMEOUT_MS = UPSTREAM_TIMEOUT_MS;
+
 export async function checkConnectors(env: Env, urls: string[]): Promise<{
   results: Array<{ url: string; ok: boolean; status: number; error?: string }>;
 }> {
   const now = new Date().toISOString();
   const results: Array<{ url: string; ok: boolean; status: number; error?: string }> = [];
   for (const url of urls) {
-    try {
-      // GET (not HEAD) with the same browser UA/accept headers as the working
-      // /rss proxy path — the APH edge WAF 403s both HEAD requests and the
-      // bot-identifying UA this check previously sent. Response body is never
-      // read below, so this costs nothing extra over a HEAD request.
-      const res = await fetch(url, {
-        method: "GET",
-        headers: APH_BROWSER_HEADERS,
-        redirect: "follow",
-        cf: { cacheTtl: 0 },
-      });
-      const ok = res.ok;
-      results.push({ url, ok, status: res.status });
-      await env.ARCHIVE.prepare(
-        `INSERT INTO connector_checks (url, status, ok, checked_at, error) VALUES (?, ?, ?, ?, ?)`,
-      )
-        .bind(url, res.status, ok ? 1 : 0, now, ok ? null : `HTTP ${res.status}`)
-        .run();
-    } catch (err) {
-      console.warn("connector check failed", url, err instanceof Error ? err.message : err);
-      const msg = "fetch failed";
-      results.push({ url, ok: false, status: 0, error: msg });
-      await env.ARCHIVE.prepare(
-        `INSERT INTO connector_checks (url, status, ok, checked_at, error) VALUES (?, ?, ?, ?, ?)`,
-      )
-        .bind(url, 0, 0, now, msg)
-        .run();
-    }
+    // GET (not HEAD) with the same browser UA/accept headers as the working
+    // /rss proxy path: the APH edge WAF 403s both HEAD requests and the
+    // bot-identifying UA this check previously sent. The body is never read;
+    // fetchWithDeadline cancels it (0.16.9), so it holds no connection open.
+    //
+    // 0.16.9: each link has an 8-second deadline. 0.16.8 had none, so one
+    // link APH never answered held the daily job open until the platform
+    // ended it, with no finish row written.
+    const r = await fetchWithDeadline(url, {
+      method: "GET",
+      headers: APH_BROWSER_HEADERS,
+      redirect: "follow",
+      cf: { cacheTtl: 0 },
+    }, { timeoutMs: CONNECTOR_TIMEOUT_MS, readBody: false, logLabel: "connector check failed" });
+    const error = r.ok ? null : r.error;
+    if (r.ok) results.push({ url, ok: true, status: r.status });
+    else results.push(r.status === 0 ? { url, ok: false, status: 0, error: r.error } : { url, ok: false, status: r.status });
+    await env.ARCHIVE.prepare(
+      `INSERT INTO connector_checks (url, status, ok, checked_at, error) VALUES (?, ?, ?, ?, ?)`,
+    )
+      .bind(url, r.status, r.ok ? 1 : 0, now, error)
+      .run();
   }
   return { results };
 }

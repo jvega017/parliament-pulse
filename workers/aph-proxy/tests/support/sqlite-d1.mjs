@@ -19,18 +19,42 @@ function norm(args) {
   return args.map((a) => (a === undefined ? null : typeof a === "boolean" ? (a ? 1 : 0) : a));
 }
 
+// D1 platform limits this stand-in enforces (developers.cloudflare.com/d1/
+// platform/limits, read 6 Oct 2026). Stock SQLite allows far more of each, so
+// without these a query production rejects passes here (see the LIKE limit
+// below). 0.16.9 adds the first two; the per-invocation query count is
+// exposed as `queries` because one shim instance often serves several
+// simulated invocations, so tests assert it per invocation rather than the
+// shim failing at 1,000.
+export const D1_MAX_BOUND_PARAMS = 100;
+export const D1_MAX_SQL_BYTES = 100_000;
+export const D1_MAX_QUERIES_PER_INVOCATION = 1000;
+
+function checkLimits(sql, args) {
+  if (args.length > D1_MAX_BOUND_PARAMS) {
+    throw new Error(`too many SQL variables: ${args.length} bound, D1 allows ${D1_MAX_BOUND_PARAMS}`);
+  }
+  if (Buffer.byteLength(sql, "utf8") > D1_MAX_SQL_BYTES) {
+    throw new Error("SQL statement too long");
+  }
+}
+
 class Stmt {
-  constructor(db, sql, args = []) { this.db = db; this.sql = sql; this.args = args; }
-  bind(...args) { return new Stmt(this.db, this.sql, norm(args)); }
+  constructor(db, sql, args = [], counter = null) { this.db = db; this.sql = sql; this.args = args; this.counter = counter; }
+  bind(...args) { return new Stmt(this.db, this.sql, norm(args), this.counter); }
+  count() { checkLimits(this.sql, this.args); if (this.counter) this.counter.queries += 1; }
   async run() {
+    this.count();
     const r = this.db.prepare(this.sql).run(...this.args);
     return { success: true, results: [], meta: { changes: Number(r.changes), last_row_id: Number(r.lastInsertRowid) } };
   }
   async all() {
+    this.count();
     const rows = this.db.prepare(this.sql).all(...this.args).map((r) => ({ ...r }));
     return { success: true, results: rows, meta: {} };
   }
   async first(col) {
+    this.count();
     const row = this.db.prepare(this.sql).get(...this.args);
     if (!row) return null;
     return col ? row[col] ?? null : { ...row };
@@ -85,9 +109,13 @@ export function sqliteD1({ migrations = true } = {}) {
       db.exec(readFileSync(join(MIGRATIONS_DIR, f), "utf8"));
     }
   }
+  const counter = { queries: 0 };
   return {
     raw: db,
-    prepare(sql) { return new Stmt(db, sql); },
+    /** Statements executed through prepare() (each batch member counts, as on D1). */
+    get queries() { return counter.queries; },
+    resetQueries() { counter.queries = 0; },
+    prepare(sql) { return new Stmt(db, sql, [], counter); },
     async batch(stmts) { const out = []; for (const s of stmts) out.push(await s.run()); return out; },
     async exec(sql) { db.exec(sql); return { count: 1, duration: 0 }; },
   };

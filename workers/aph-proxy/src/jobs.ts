@@ -56,12 +56,56 @@ function errMsg(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
+/**
+ * Wall-clock budget for one scheduled job (0.16.9). A run still going at
+ * this point is recorded as error {"timed_out":1} and recordJobRun returns,
+ * so the finish row is written while the invocation is still alive. 0.16.8
+ * wrote the finish row only after fn() settled; a run the platform ended
+ * first (the poll stalled on an APH body from 30 Sep 2026) kept a NULL
+ * outcome for good.
+ */
+export const JOB_BUDGET_MS = 10 * 60 * 1000;
+/** An unfinished row older than this is abandoned (reapAbandoned). */
+export const ABANDONED_AFTER_MS = 20 * 60 * 1000;
+export const TIMED_OUT_DETAIL = countsDetail({ timed_out: 1 });
+export const ABANDONED_DETAIL = countsDetail({ abandoned: 1 });
+
+class JobBudgetExceeded extends Error {
+  constructor() {
+    super("job budget exceeded");
+  }
+}
+
+/**
+ * Closes run-log rows a killed invocation left open (0.16.9): finished_at
+ * NULL and started_at older than ABANDONED_AFTER_MS become outcome error,
+ * detail {"abandoned":1}, finished at `now`. Runs at the start of every job,
+ * so one is closed within a poll interval. No live run can be that old: the
+ * JOB_BUDGET_MS race finishes every run that is still being awaited sooner.
+ * Never throws.
+ */
+export async function reapAbandoned(env: Env, now = Date.now()): Promise<number> {
+  try {
+    const cutoff = new Date(now - ABANDONED_AFTER_MS).toISOString();
+    const r = await env.ARCHIVE.prepare(
+      `UPDATE job_runs SET finished_at = ?, outcome = 'error', detail = ?
+        WHERE finished_at IS NULL AND started_at < ?`,
+    ).bind(new Date(now).toISOString(), ABANDONED_DETAIL, cutoff).run();
+    return Number(r?.meta?.changes ?? 0);
+  } catch (err) {
+    console.warn({ event: "job_runs.reap_failed", error: errMsg(err) });
+    return 0;
+  }
+}
+
 export async function recordJobRun<T>(
   env: Env,
   job: JobName,
   fn: () => Promise<T>,
   summarise: (result: T) => JobSummary,
+  budgetMs: number = JOB_BUDGET_MS,
 ): Promise<void> {
+  await reapAbandoned(env);
   let runId: number | null = null;
   try {
     const row = await env.ARCHIVE.prepare(
@@ -76,8 +120,13 @@ export async function recordJobRun<T>(
 
   let outcome: JobOutcome;
   let detail: string;
+  let budgetTimer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_, reject) => {
+    budgetTimer = setTimeout(() => reject(new JobBudgetExceeded()), budgetMs);
+  });
   try {
-    const result = await fn();
+    // fn() is started inside the try, so a synchronous throw is an error run.
+    const result = await Promise.race([Promise.resolve().then(fn), deadline]);
     try {
       const s = summarise(result);
       outcome = s.outcome;
@@ -87,11 +136,19 @@ export async function recordJobRun<T>(
       detail = countsDetail({});
     }
   } catch (err) {
-    // The error message can carry upstream text, so it goes to the log only;
-    // the stored detail stays counts-only.
-    console.error({ event: "job.failed", job, error: errMsg(err), ts: new Date().toISOString() });
-    outcome = "error";
-    detail = countsDetail({ errors: 1 });
+    if (err instanceof JobBudgetExceeded) {
+      console.error({ event: "job.timed_out", job, budget_ms: budgetMs, ts: new Date().toISOString() });
+      outcome = "error";
+      detail = TIMED_OUT_DETAIL;
+    } else {
+      // The error message can carry upstream text, so it goes to the log only;
+      // the stored detail stays counts-only.
+      console.error({ event: "job.failed", job, error: errMsg(err), ts: new Date().toISOString() });
+      outcome = "error";
+      detail = countsDetail({ errors: 1 });
+    }
+  } finally {
+    if (budgetTimer !== undefined) clearTimeout(budgetTimer);
   }
 
   try {
@@ -134,10 +191,41 @@ export async function pruneJobRuns(env: Env, now = Date.now()): Promise<void> {
 // /healthz/connectors. An "error" run (nothing succeeded) never counts.
 export const SUCCESS_OUTCOMES: readonly JobOutcome[] = ["ok", "partial"];
 
-export type JobHealth = { last_ok_at: string | null; last_outcome: JobOutcome | null; overdue: boolean };
+/**
+ * 0.16.9 fields. running_since: started_at of the oldest unfinished run, or
+ * null. stuck: that run has been going longer than JOB_BUDGET_MS, which no
+ * live run can (the budget race closes it), so the invocation was ended and
+ * its row is waiting for reapAbandoned. last_failure: why the latest
+ * finished run failed when the run log knows: "abandoned" (reaped) or
+ * "timed_out" (hit JOB_BUDGET_MS). 0.16.8 read only finished rows, so a run
+ * left open by a killed invocation was invisible here.
+ */
+export type JobHealth = {
+  last_ok_at: string | null;
+  last_outcome: JobOutcome | null;
+  overdue: boolean;
+  running_since: string | null;
+  stuck: boolean;
+  last_failure: "abandoned" | "timed_out" | null;
+};
 export type DeepHealth = { ok: boolean; jobs: Record<JobName, JobHealth>; feeds_failed: number | null };
 
-/** Reads job_runs. Throws on a D1 error; the route maps that to a generic 503. */
+function failureOf(outcome: JobOutcome | null, detail: string | null): JobHealth["last_failure"] {
+  if (outcome !== "error" || !detail) return null;
+  try {
+    const d = JSON.parse(detail);
+    if (d?.abandoned === 1) return "abandoned";
+    if (d?.timed_out === 1) return "timed_out";
+  } catch {
+    // counts-only detail that does not parse: no named failure
+  }
+  return null;
+}
+
+/**
+ * Reads job_runs. Throws on a D1 error; the route maps that to a generic 503.
+ * ok is false when any job is overdue or stuck (0.16.9).
+ */
 export async function deepHealth(env: Env, now = Date.now()): Promise<DeepHealth> {
   const { results } = await env.ARCHIVE.prepare(
     `SELECT j.job AS job,
@@ -145,9 +233,16 @@ export async function deepHealth(env: Env, now = Date.now()): Promise<DeepHealth
             (SELECT outcome FROM job_runs WHERE job = j.job AND outcome IS NOT NULL
                ORDER BY finished_at DESC, id DESC LIMIT 1) AS last_outcome,
             (SELECT detail FROM job_runs WHERE job = j.job AND outcome IS NOT NULL
-               ORDER BY finished_at DESC, id DESC LIMIT 1) AS last_detail
+               ORDER BY finished_at DESC, id DESC LIMIT 1) AS last_detail,
+            (SELECT MIN(started_at) FROM job_runs WHERE job = j.job AND finished_at IS NULL) AS running_since
        FROM (SELECT DISTINCT job FROM job_runs) j`,
-  ).all<{ job: string; last_ok_at: string | null; last_outcome: JobOutcome | null; last_detail: string | null }>();
+  ).all<{
+    job: string;
+    last_ok_at: string | null;
+    last_outcome: JobOutcome | null;
+    last_detail: string | null;
+    running_since: string | null;
+  }>();
   const byJob = new Map((results ?? []).map((r) => [r.job, r]));
   let feeds_failed: number | null = null;
   try {
@@ -164,8 +259,18 @@ export async function deepHealth(env: Env, now = Date.now()): Promise<DeepHealth
     const lastOk = r?.last_ok_at ?? null;
     const lastOkMs = lastOk ? Date.parse(lastOk) : NaN;
     const overdue = !Number.isFinite(lastOkMs) || now - lastOkMs > maxAge;
-    if (overdue) ok = false;
-    jobs[job] = { last_ok_at: lastOk, last_outcome: r?.last_outcome ?? null, overdue };
+    const runningSince = r?.running_since ?? null;
+    const runningMs = runningSince ? Date.parse(runningSince) : NaN;
+    const stuck = Number.isFinite(runningMs) && now - runningMs > JOB_BUDGET_MS;
+    if (overdue || stuck) ok = false;
+    jobs[job] = {
+      last_ok_at: lastOk,
+      last_outcome: r?.last_outcome ?? null,
+      overdue,
+      running_since: runningSince,
+      stuck,
+      last_failure: failureOf(r?.last_outcome ?? null, r?.last_detail ?? null),
+    };
   }
   return { ok, jobs, feeds_failed };
 }
