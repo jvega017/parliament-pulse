@@ -789,26 +789,82 @@ export async function queryFeedHealth(env: Env): Promise<FeedHealthCheck[]> {
 
 /** Per-feed deadline for the poll, headers and body together (0.16.9). */
 export const FEED_FETCH_TIMEOUT_MS = UPSTREAM_TIMEOUT_MS;
+
+/**
+ * Feed fetches in flight at once (0.16.10). A Worker invocation may have six
+ * connections open at once and queues any further fetch until one closes
+ * (developers.cloudflare.com/workers/platform/limits). Five keeps every feed
+ * fetch out of that platform queue, with one connection to spare.
+ */
+export const FEED_FETCH_CONCURRENCY = 5;
+
+/**
+ * Upper bound on the poll's fetch phase: every feed takes its full deadline,
+ * FEED_FETCH_CONCURRENCY at a time. 13 feeds: ceil(13 / 5) x 8 s = 24 s.
+ */
+export const FEED_FETCH_WORST_CASE_MS = Math.ceil(APH_FEEDS.length / FEED_FETCH_CONCURRENCY) * FEED_FETCH_TIMEOUT_MS;
+
+/**
+ * Maps `fn` over `items` with at most `limit` calls in flight, preserving
+ * order. A call starts only when a slot is free, so anything `fn` times
+ * starts when its own work begins, never while it waits for a slot.
+ */
+export async function mapConcurrent<T, R>(items: readonly T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const out = new Array<R>(items.length);
+  let next = 0;
+  const lane = async () => {
+    while (next < items.length) {
+      const i = next++;
+      out[i] = await fn(items[i]);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.max(1, Math.min(limit, items.length)) }, lane));
+  return out;
+}
+
+/**
+ * New rows one poll writes at most (0.16.10). A new row costs up to six D1
+ * queries (upsert, keyed-thread lookup, thread writes), and D1 allows 1,000
+ * queries per invocation, shared with the members job that runs in the same
+ * scheduled invocation. On an empty or freshly restored archive every listed
+ * item is new. Measured with no cap (tests/review-0.16.10.test.mjs): 208
+ * synthetic items took 883 queries, and the real 5 Oct 2026 Senate reports
+ * fixture (134 reports, with 130 inquiries at their links: 264 items) took
+ * 1,216, so the queries past 1,000 would fail. With this cap the same polls
+ * take at most 644. Items past this cap are left for the next poll: they are
+ * not written, so they are still new then. Feeds are written in order, so
+ * the first new items in feed order are written first, as one unbounded poll
+ * would key them. Re-seen items are not capped.
+ */
+export const MAX_NEW_PER_POLL = 120;
+
 export async function pollAndArchive(env: Env): Promise<{
-  perFeed: Array<{ feed: string; ok: boolean; new: number; seen: number; dedup: number; backfilled?: number; error?: string }>;
+  perFeed: Array<{ feed: string; ok: boolean; new: number; seen: number; dedup: number; backfilled?: number; deferred?: number; error?: string }>;
 }> {
   const now = new Date().toISOString();
-  const perFeed: Array<{ feed: string; ok: boolean; new: number; seen: number; dedup: number; backfilled?: number; error?: string }> = [];
+  const perFeed: Array<{ feed: string; ok: boolean; new: number; seen: number; dedup: number; backfilled?: number; deferred?: number; error?: string }> = [];
 
-  // Fetch all feeds concurrently with an 8-second deadline per feed, so a
-  // slow upstream cannot block the cron. Results are collected and inserted
-  // into D1 after all fetches complete.
+  // Fetch the feeds FEED_FETCH_CONCURRENCY at a time, each with an 8-second
+  // deadline, so a slow upstream cannot block the cron. Results are
+  // collected and inserted into D1 after all fetches complete.
   //
   // 0.16.9: the deadline covers the body read (fetchWithDeadline). 0.16.8
   // cleared the timer when headers arrived and then awaited res.text() with
   // no limit, so one APH response that stalled mid-body left the poll, and
-  // its job_runs row, unfinished. Fetches stay unthrottled: a Worker may have
-  // six fetches waiting for headers and queues the rest, and with six feeds
-  // that never answer the queued seven still archived
-  // (tests/review-0.16.9.test.mjs), so no concurrency limit was added.
+  // its job_runs row, unfinished.
+  //
+  // 0.16.10: 0.16.9 started all 13 fetches, and their 8 s timers, at once.
+  // The platform holds a seventh fetch until one of six open connections
+  // closes, so with six feeds that never answer, the queued seven only began
+  // when the dead six timed out at 8 s, which is when their own timers fired:
+  // every feed failed. 0.16.9's test missed this because its fake answered a
+  // queued fetch in the same macrotask as the abort that freed its slot; a
+  // real answer takes network time (tests/review-0.16.10.test.mjs). Each
+  // deadline now starts when its fetch starts, and no fetch waits in the
+  // platform queue. Worst case for the fetch phase: FEED_FETCH_WORST_CASE_MS.
   type FetchOk = { ok: true; meta: FeedMeta; xml: string; status: number };
   type FetchErr = { ok: false; meta: FeedMeta; status: number; error: string };
-  const feedResults = await Promise.all(APH_FEEDS.map(async (feedMeta): Promise<FetchOk | FetchErr> => {
+  const feedResults = await mapConcurrent(APH_FEEDS, FEED_FETCH_CONCURRENCY, async (feedMeta): Promise<FetchOk | FetchErr> => {
     const r = await fetchWithDeadline(feedMeta.url, {
       headers: APH_BROWSER_HEADERS,
       cf: { cacheTtl: 60, cacheEverything: true },
@@ -821,7 +877,7 @@ export async function pollAndArchive(env: Env): Promise<{
       return { ok: false, meta: feedMeta, status: 429, error: "HTTP 429 Too Many Requests" };
     }
     return { ok: false, meta: feedMeta, status: r.status, error: r.error };
-  }));
+  });
 
   // Compute kind-level momentum from D1 history before scoring.
   // One query: count each kind in the recent 7 days vs the prior 7 days.
@@ -868,6 +924,7 @@ export async function pollAndArchive(env: Env): Promise<{
   // per guid, and across feeds the first feed to carry a guid writes it.
   const seenGuids = new Set<string>();
   const today = brisbaneToday(new Date(now));
+  let newBudget = MAX_NEW_PER_POLL;
 
   // Every fetched feed is parsed before any is written. 0.16.7 removed the
   // 0.16.6 re-split heal that needed this (see chooseGuid); the order is kept.
@@ -898,6 +955,7 @@ export async function pollAndArchive(env: Env): Promise<{
       const { parsed, items } = prep;
       let added = 0;
       let backfilled = 0;
+      let deferred = 0;
       let dedupSkipped = prep.dropped;
       const nowDate = new Date(now);
       // Owners are read after every earlier feed in this poll has written,
@@ -909,6 +967,18 @@ export async function pollAndArchive(env: Env): Promise<{
         if (!chosen) { dedupSkipped += 1; continue; }
         const item = chosen.item;
         seenGuids.add(item.guid);
+        // MAX_NEW_PER_POLL (0.16.10): a key with no stored row, and no
+        // legacy-form row a rename would adopt, is a new row. Past the cap it
+        // is left for the next poll. Its key stays in seenGuids. Once the cap
+        // is reached every later new item is deferred too, so no later feed
+        // could write that key anyway; holding it is a guard against a future
+        // change to that order, and no test can tell it apart. A failed
+        // legacy lookup counts the item as new, so the cap still holds.
+        const legacyStored = legacy !== null && legacyForms(item.guid).some((f) => legacy.present.has(f));
+        if (!stored.has(item.guid) && !legacyStored) {
+          if (newBudget <= 0) { deferred += 1; continue; }
+          newBudget -= 1;
+        }
         const sourceGroup = sourceGroupForItem(item.link, feed.label);
         await adoptLegacyEntityRow(env, item, legacy);
         const momentumHint = momentumMap.get(feed.kind) ?? 0.5;
@@ -991,7 +1061,7 @@ export async function pollAndArchive(env: Env): Promise<{
           }
         }
       }
-      perFeed.push({ feed: feed.url, ok: true, new: added, seen: items.length, dedup: dedupSkipped, backfilled });
+      perFeed.push({ feed: feed.url, ok: true, new: added, seen: items.length, dedup: dedupSkipped, backfilled, ...(deferred ? { deferred } : {}) });
       // items_parsed is the feed's true item count, not the ingest window.
       await recordFeedHealth(env, feed, feedResult.status, parsed.length, null, now, true);
     } catch (err) {

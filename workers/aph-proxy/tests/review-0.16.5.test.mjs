@@ -93,9 +93,15 @@ test("fix-1: all 134 reports are stored when New Senate inquiries carries every 
     [F.inquiries.url]: rss(links.map((link, i) => ({ title: `Inquiry ${i}`, link, pubDate: "Mon, 01 Jun 2026 00:00:00 +1000" }))),
     [F.reports.url]: REPORTS_XML,
   });
-  const r = await pollAndArchive(e);
+  // 0.16.10: an empty archive takes more than one poll (MAX_NEW_PER_POLL);
+  // poll until nothing is deferred. No report may be dropped in any poll.
+  for (let i = 0; i < 5; i++) {
+    e.ARCHIVE.resetQueries(); // each poll is its own invocation
+    const r = await pollAndArchive(e);
+    assert.equal(r.perFeed.find((f) => f.feed === F.reports.url).dedup, 0);
+    if (!r.perFeed.some((f) => f.deferred)) break;
+  }
   assert.equal(count(e, `SELECT COUNT(*) AS n FROM signals WHERE feed_url = ?`, F.reports.url), 134, "no report dropped");
-  assert.equal(r.perFeed.find((f) => f.feed === F.reports.url).dedup, 0);
   assert.equal(count(e, `SELECT COUNT(*) AS n FROM signals WHERE feed_url = ?`, F.inquiries.url), links.length);
 });
 

@@ -128,7 +128,11 @@ function within(p, ms, what) {
   ]);
 }
 
-const ITEM = (n, p) => `<item><title>Item ${p} ${n}</title><link>https://www.aph.gov.au/${p}/${n}</link><pubDate>${new Date().toUTCString()}</pubDate></item>`;
+// 0.16.10: one fixed pubDate. A per-call new Date() changed between polls
+// that straddled a second, and the Senate reports feed then read every item
+// as a new report at its link, so a re-poll was not a re-poll.
+const PUB = new Date(Date.now() - 3_600_000).toUTCString();
+const ITEM = (n, p) => `<item><title>Item ${p} ${n}</title><link>https://www.aph.gov.au/${p}/${n}</link><pubDate>${PUB}</pubDate></item>`;
 const RSS = (n, p = "x") => `<?xml version="1.0"?><rss version="2.0"><channel><title>t</title>${Array.from({ length: n }, (_, i) => ITEM(i, p)).join("")}</channel></rss>`;
 const slug = (url) => url.replace(/[^a-z0-9]+/gi, "_");
 
@@ -202,13 +206,17 @@ test("1. a body over RSS_MAX_BYTES is a failed feed, not a hung or crashed poll"
   assert.equal(r.perFeed.filter((p) => p.ok).length, APH_FEEDS.length - 1);
 });
 
-// ---- 8. Fetch concurrency (no limit added) ---------------------------------------
-// Item 8 was conditional on a test showing queued fetches timing out. Under
-// the fake platform's six-awaiting-headers limit they do not: as each dead
-// feed's deadline frees its slot, a queued feed is answered before its own
-// deadline fires. Kept as a guard; it passes with and without a limiter.
+// ---- 8. Fetch concurrency ----------------------------------------------------------
+// Corrected in 0.16.10. This test passed on 0.16.9 only because the fake
+// above answers a queued fetch in the same macrotask as the abort that frees
+// its slot, so the answer lands before the queued feed's own timer, armed at
+// the same moment, fires. On the platform the answer takes network time and
+// the queued feeds time out with the dead ones: six dead feeds failed all 13.
+// This fake cannot show that; tests/review-0.16.10.test.mjs gives answers
+// latency and fails on 0.16.9. 0.16.10 caps feed fetches at
+// FEED_FETCH_CONCURRENCY (5), so here the peak is 5, not the platform's 6.
 
-test("8. six feeds that never answer do not time out the feeds queued behind them", async () => {
+test("8. six feeds that never answer do not time out the other feeds (no fetch waits in the platform queue)", async () => {
   const dead = new Set(APH_FEEDS.slice(0, 6).map((f) => f.url));
   const f = platformFetch((url) => (dead.has(url) ? { hangHeaders: true } : { body: RSS(1) }));
   const r = await withFetch(f.impl, () => within(pollAndArchive(env()), 30_000, "poll"));
@@ -216,7 +224,7 @@ test("8. six feeds that never answer do not time out the feeds queued behind the
   assert.deepEqual(failed.map((p) => p.feed).sort(), [...dead].sort());
   for (const p of failed) assert.equal(p.error, "fetch timed out");
   assert.equal(r.perFeed.filter((p) => p.ok).length, APH_FEEDS.length - 6, "every answering feed archived");
-  assert.equal(f.state.peak, 6, "the platform limit was reached");
+  assert.equal(f.state.peak, archive.FEED_FETCH_CONCURRENCY, "at most FEED_FETCH_CONCURRENCY fetches await headers, below the platform's 6");
 });
 
 // ---- 2. Connectors -----------------------------------------------------------------
@@ -418,8 +426,14 @@ test("7. a 13-feed, 195-item re-poll stays well under D1's 1,000 queries per inv
   e.ARCHIVE.resetQueries();
   await withFetch(f.impl, () => pollAndArchive(e));
   const first = e.ARCHIVE.queries;
+  // 0.16.10: the empty archive fills MAX_NEW_PER_POLL rows per poll, so the
+  // rest arrive on a second poll; the re-poll measured below is the third.
   e.ARCHIVE.resetQueries();
   await withFetch(f.impl, () => pollAndArchive(e));
+  assert.ok(e.ARCHIVE.queries < 1000);
+  e.ARCHIVE.resetQueries();
+  const re = await withFetch(f.impl, () => pollAndArchive(e));
+  assert.equal(re.perFeed.reduce((a, p) => a + p.new + (p.deferred ?? 0), 0), 0, "a true re-poll");
   const second = e.ARCHIVE.queries;
   console.info?.(`queries: first poll ${first}, re-poll ${second}`);
   assert.ok(first < 1000 && second < 1000, `polls used ${first} and ${second} queries`);

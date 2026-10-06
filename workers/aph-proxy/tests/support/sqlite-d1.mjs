@@ -12,6 +12,7 @@ import { DatabaseSync } from "node:sqlite";
 import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
+import { AsyncLocalStorage } from "node:async_hooks";
 
 const MIGRATIONS_DIR = fileURLToPath(new URL("../../migrations/", import.meta.url));
 
@@ -22,13 +23,26 @@ function norm(args) {
 // D1 platform limits this stand-in enforces (developers.cloudflare.com/d1/
 // platform/limits, read 6 Oct 2026). Stock SQLite allows far more of each, so
 // without these a query production rejects passes here (see the LIKE limit
-// below). 0.16.9 adds the first two; the per-invocation query count is
-// exposed as `queries` because one shim instance often serves several
-// simulated invocations, so tests assert it per invocation rather than the
-// shim failing at 1,000.
+// below). 0.16.9 added the first two.
+//
+// 0.16.10 enforces the third: "Queries per Worker invocation ... 1000
+// (Workers Paid)", and each statement in a batch counts. The count is per
+// SIMULATED INVOCATION. One shim instance often serves several invocations
+// (a test seeds through one request and reads through another), so the
+// count is kept per invocation, never per instance:
+//   - inside `invocation(fn)`, every query fn makes, including work it hands
+//     to ctx.waitUntil, counts against that call's own counter
+//     (AsyncLocalStorage, so two invocations running at once do not share
+//     one);
+//   - outside it, queries count against the instance counter, which
+//     `resetQueries()` restarts; a test marks an invocation boundary with it.
+// The 1,001st query of an invocation throws, as production would refuse it.
 export const D1_MAX_BOUND_PARAMS = 100;
 export const D1_MAX_SQL_BYTES = 100_000;
 export const D1_MAX_QUERIES_PER_INVOCATION = 1000;
+export const D1_QUERY_LIMIT_MESSAGE = "Too many queries by single Worker invocation";
+
+const invocationStore = new AsyncLocalStorage();
 
 function checkLimits(sql, args) {
   if (args.length > D1_MAX_BOUND_PARAMS) {
@@ -42,7 +56,16 @@ function checkLimits(sql, args) {
 class Stmt {
   constructor(db, sql, args = [], counter = null) { this.db = db; this.sql = sql; this.args = args; this.counter = counter; }
   bind(...args) { return new Stmt(this.db, this.sql, norm(args), this.counter); }
-  count() { checkLimits(this.sql, this.args); if (this.counter) this.counter.queries += 1; }
+  count() {
+    checkLimits(this.sql, this.args);
+    if (!this.counter) return;
+    const c = invocationStore.getStore()?.get(this.counter) ?? this.counter;
+    if (c.queries >= D1_MAX_QUERIES_PER_INVOCATION) {
+      c.refused += 1;
+      throw new Error(`${D1_QUERY_LIMIT_MESSAGE}: D1 allows ${D1_MAX_QUERIES_PER_INVOCATION}`);
+    }
+    c.queries += 1;
+  }
   async run() {
     this.count();
     const r = this.db.prepare(this.sql).run(...this.args);
@@ -109,12 +132,26 @@ export function sqliteD1({ migrations = true } = {}) {
       db.exec(readFileSync(join(MIGRATIONS_DIR, f), "utf8"));
     }
   }
-  const counter = { queries: 0 };
+  const counter = { queries: 0, refused: 0 };
   return {
     raw: db,
-    /** Statements executed through prepare() (each batch member counts, as on D1). */
+    /** Statements executed through prepare() outside invocation() since the last reset (each batch member counts, as on D1). */
     get queries() { return counter.queries; },
-    resetQueries() { counter.queries = 0; },
+    /** Queries refused at the per-invocation limit outside invocation() since the last reset. */
+    get refused() { return counter.refused; },
+    resetQueries() { counter.queries = 0; counter.refused = 0; },
+    /**
+     * Runs fn as one simulated Worker invocation with its own query count.
+     * Resolves to { result, queries, refused } once fn settles; pass the
+     * promises fn hands to ctx.waitUntil back through fn so they count too.
+     */
+    async invocation(fn) {
+      const own = { queries: 0, refused: 0 };
+      const map = new Map(invocationStore.getStore() ?? []);
+      map.set(counter, own);
+      const result = await invocationStore.run(map, fn);
+      return { result, queries: own.queries, refused: own.refused };
+    },
     prepare(sql) { return new Stmt(db, sql, [], counter); },
     async batch(stmts) { const out = []; for (const s of stmts) out.push(await s.run()); return out; },
     async exec(sql) { db.exec(sql); return { count: 1, duration: 0 }; },

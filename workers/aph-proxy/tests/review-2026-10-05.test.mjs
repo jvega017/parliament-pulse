@@ -71,6 +71,20 @@ function ctx() {
 }
 const rows = (e, sql, ...args) => e.ARCHIVE.raw.prepare(sql).all(...args).map((r) => ({ ...r }));
 
+/**
+ * 0.16.10: a poll writes at most MAX_NEW_PER_POLL new rows (D1's 1,000
+ * queries per invocation), so the full 134-report feed on an empty archive
+ * takes two polls. Polls until nothing is deferred; each is its own invocation.
+ */
+async function pollUntilSettled(e) {
+  for (let i = 0; i < 5; i++) {
+    e.ARCHIVE.resetQueries();
+    const r = await pollAndArchive(e);
+    if (!r.perFeed.some((f) => f.deferred)) return r;
+  }
+  throw new Error("poll did not settle in 5 polls");
+}
+
 // ---- Data 1: no title dedup across feeds -------------------------------------
 
 test("data-1: a Bills Digest that shares its bill's title with a Senate inquiry is archived", async () => {
@@ -98,7 +112,7 @@ test("data-1 + data-7: every Senate report in the live feed is archived, past po
   // link: 130 links carry 134 dated reports, and all 134 are archived.
   const distinct = new Set(parsed.map((p) => `${p.guid} ${p.pubDate}`)).size;
   assert.equal(distinct, 134);
-  await pollAndArchive(e);
+  await pollUntilSettled(e);
   const stored = rows(e, `SELECT COUNT(*) AS n FROM signals WHERE feed_url = ?`, F.reports.url)[0].n;
   assert.equal(stored, distinct, "one row per distinct report");
   assert.ok(stored > 50, `more than the old 50-item cap (${stored})`);
@@ -285,7 +299,7 @@ test("data-6: procedural divisions are separate threads; divisions on one bill s
 test("data-6: same-title Annual reports from different committees are separate threads", async () => {
   const e = env();
   mockFetch({ [F.reports.url]: REPORTS_XML });
-  await pollAndArchive(e);
+  await pollUntilSettled(e);
   const n = rows(e, `SELECT COUNT(DISTINCT st.thread_id) AS n FROM signals s JOIN signal_threads st ON st.signal_guid = s.guid
                       WHERE s.title = 'Annual reports (No. 2 of 2026)'`)[0].n;
   assert.equal(n, 8);

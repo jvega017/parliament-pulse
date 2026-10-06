@@ -93,6 +93,7 @@ const READ_LIMITS: Record<string, [string, number]> = {
 // addresses or upstream bodies reach the job_runs.detail column.
 function summarisePoll(r: Awaited<ReturnType<typeof pollAndArchive>>): JobSummary {
   const failed = r.perFeed.filter((f) => !f.ok).length;
+  const deferred = r.perFeed.reduce((a, f) => a + (f.deferred || 0), 0);
   return {
     outcome: outcomeFromFailures(r.perFeed.length, failed),
     counts: {
@@ -103,6 +104,9 @@ function summarisePoll(r: Awaited<ReturnType<typeof pollAndArchive>>): JobSummar
       new_items: r.perFeed.reduce((a, f) => a + (f.new || 0) - (f.backfilled || 0), 0),
       backfilled_items: r.perFeed.reduce((a, f) => a + (f.backfilled || 0), 0),
       seen_items: r.perFeed.reduce((a, f) => a + (f.seen || 0), 0),
+      // 0.16.10: new items left for the next poll by MAX_NEW_PER_POLL.
+      // Present only when some were, so an ordinary run's detail is unchanged.
+      ...(deferred > 0 ? { deferred_items: deferred } : {}),
     },
   };
 }

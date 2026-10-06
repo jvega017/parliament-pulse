@@ -43,6 +43,20 @@ const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, 
 const rss = (items) => `<?xml version="1.0"?><rss version="2.0"><channel><title>t</title>${items.map((i) =>
   `<item><title>${esc(i.title)}</title><link>${esc(i.link)}</link>${i.description ? `<description>${esc(i.description)}</description>` : ""}<pubDate>${i.pubDate}</pubDate></item>`).join("\n")}</channel></rss>`;
 
+/**
+ * 0.16.10: a poll writes at most MAX_NEW_PER_POLL new rows (D1's 1,000
+ * queries per invocation), so filling the 134-report feed takes more than one
+ * poll. Polls until nothing is deferred; each is its own invocation.
+ */
+async function pollUntilSettled(e) {
+  for (let i = 0; i < 5; i++) {
+    e.ARCHIVE.resetQueries();
+    const r = await pollAndArchive(e);
+    if (!r.perFeed.some((f) => f.deferred)) return r;
+  }
+  throw new Error("poll did not settle in 5 polls");
+}
+
 function mockFetch(bodies) {
   globalThis.fetch = async (input) => {
     const url = typeof input === "string" ? input : input.url;
@@ -110,7 +124,7 @@ test("fix-1: production-shaped shared links are stable across both, inquiry gone
   const gone = { [F.inquiries.url]: EMPTY, [F.reports.url]: REPORTS_XML };
 
   mockFetch(both);
-  await pollAndArchive(e);
+  await pollUntilSettled(e);
   const s1 = sharedRows(e);
 
   // Each feed's items at each shared link are stored exactly once.
@@ -152,6 +166,7 @@ test("fix-1: production-shaped shared links are stable across both, inquiry gone
 
   for (const [label, bodies] of [["inquiry gone", gone], ["gone again", gone], ["inquiry back", both]]) {
     mockFetch(bodies);
+    e.ARCHIVE.resetQueries();
     const r = await pollAndArchive(e);
     assert.deepEqual(sharedRows(e), s1, `rows unchanged after poll: ${label}`);
     assert.equal(r.perFeed.reduce((a, f) => a + f.new, 0), 0, `nothing new after poll: ${label}`);
@@ -196,7 +211,7 @@ test("fix-1 (0.16.7): a flipped inquiry row whose inquiry has left its feed STAY
   // The inquiries feed is fetched and lists other inquiries, not this one.
   const others = rss([{ title: "Another inquiry", link: `${BASE}Economics/Another`, pubDate: "Thu, 01 Oct 2026 00:00:00 +1000" }]);
   mockFetch({ [F.inquiries.url]: others, [F.reports.url]: REPORTS_XML });
-  await pollAndArchive(e);
+  await pollUntilSettled(e);
   const at = () => rows(e, `SELECT guid, feed_label, kind, title, pub_date, first_seen_at FROM signals WHERE guid = ? OR substr(guid, 1, length(?) + 1) = ? || '#' ORDER BY guid`, L.prod, L.prod, L.prod);
   const after = at();
   assert.equal(after.length, 2);

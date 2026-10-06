@@ -217,6 +217,13 @@ test("defect-2: a term over 200 characters is a 400 on every search route, not a
 test("defect-4: the NDIS final report (14 Aug) is stored, and the interim (23 Jun) is kept beside it", async () => {
   const e = env();
   mockFetch({ [F.reports.url]: REPORTS_XML });
+  // 0.16.10: an empty archive is filled MAX_NEW_PER_POLL rows per poll
+  // (D1's 1,000 queries per invocation), so 134 reports take two polls.
+  const r0 = await pollAndArchive(e);
+  const first = r0.perFeed.find((f) => f.feed === F.reports.url);
+  assert.equal(first.new, archive.MAX_NEW_PER_POLL);
+  assert.equal(first.deferred, 134 - archive.MAX_NEW_PER_POLL);
+  e.ARCHIVE.resetQueries();
   const r1 = await pollAndArchive(e);
   const link = "https://www.aph.gov.au/Parliamentary_Business/Committees/Senate/Community_Affairs/NDISFutureGenBill";
   const main = rows(e, `SELECT pub_date, description FROM signals WHERE guid = ?`, link)[0];
@@ -226,7 +233,9 @@ test("defect-4: the NDIS final report (14 Aug) is stored, and the interim (23 Ju
   assert.ok(interim, "the interim report is archived under link#pubDate");
   assert.match(interim.description, /interim report/);
   assert.equal(rows(e, `SELECT COUNT(*) AS n FROM signals WHERE feed_url = ?`, F.reports.url)[0].n, 134, "all 134 reports");
-  assert.equal(r1.perFeed.find((f) => f.feed === F.reports.url).new, 134);
+  assert.equal(r1.perFeed.find((f) => f.feed === F.reports.url).new, 134 - archive.MAX_NEW_PER_POLL);
+  assert.equal(r1.perFeed.find((f) => f.feed === F.reports.url).deferred, undefined);
+  e.ARCHIVE.resetQueries();
   const r2 = await pollAndArchive(e);
   assert.equal(r2.perFeed.find((f) => f.feed === F.reports.url).new, 0, "a re-poll adds nothing");
   const ndisThreads = rows(e, `SELECT COUNT(DISTINCT st.thread_id) AS n FROM signal_threads st JOIN signals s ON s.guid = st.signal_guid WHERE s.link = ?`, link)[0].n;
