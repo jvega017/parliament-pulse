@@ -288,7 +288,7 @@ test("(e) canary: a scratch Worker hard-coded to ok:true fails the stale-poll ch
     cpSync(srcDir, dst, { recursive: true });
     const jobsPath = join(dst, "jobs.ts");
     const original = readFileSync(jobsPath, "utf8");
-    const mutated = original.replace("return { ok, jobs, feeds_failed };", "return { ok: true, jobs, feeds_failed };");
+    const mutated = original.replace("return { ok, jobs, feeds_failed, feeds_blocked };", "return { ok: true, jobs, feeds_failed, feeds_blocked };");
     assert.notEqual(mutated, original, "canary mutation must apply");
     writeFileSync(jobsPath, mutated);
     const { default: broken } = await import(pathToFileURL(join(dst, "index.ts")).href);

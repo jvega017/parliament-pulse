@@ -45,8 +45,20 @@ function cell(s) {
 export function renderFeedsTable(config, jurisdiction = "aph") {
   const j = config[jurisdiction];
   if (!j || !Array.isArray(j.feeds)) throw new Error(`jurisdictions.json: no feeds for "${jurisdiction}"`);
+  const hours = (m) => (m % 60 === 0 ? `${m / 60} hours` : `${m} minutes`);
+  const cadence = j.feeds
+    .filter((f) => f.pollEveryMinutes !== undefined || f.blockedBackoffMinutes !== undefined)
+    .map((f) => {
+      const parts = [];
+      if (f.pollEveryMinutes !== undefined) parts.push(`at most every ${hours(f.pollEveryMinutes)}`);
+      if (f.blockedBackoffMinutes !== undefined) {
+        parts.push(`every ${hours(f.blockedBackoffMinutes)} after the host refuses the Worker (reported as source blocked)`);
+      }
+      return `${cell(f.label)}: ${parts.join("; ")}.`;
+    });
   const lines = [
     `${j.feeds.length} configured feeds (${j.label}), polled every 30 minutes by the \`*/30\` cron.`,
+    ...(cadence.length ? ["", "Feeds with their own cadence (0.16.11):", "", ...cadence.map((c) => `- ${c}`)] : []),
     "",
     "| # | Feed label | Kind | URL |",
     "|---|---|---|---|",

@@ -87,7 +87,16 @@ export interface ConnectorCheck {
   items_parsed: number | null;
   parse_error: string | null;
   last_success_at: string | null;
+  // 0.16.11: "ok" | "failed" | "source_blocked" | "not_polled". A
+  // source_blocked feed answered 403/429 to the Worker (the host refused it)
+  // and is retried on its backoff; it is not counted as a failed feed.
+  state: FeedState;
+  // 0.16.11: earliest time the scheduled poll fetches this feed again, for a
+  // feed with its own cadence (jurisdictions.json); null for an every-poll feed.
+  next_poll_at: string | null;
 }
+
+export type FeedState = "ok" | "failed" | "source_blocked" | "not_polled";
 
 export interface AlertEventItem {
   id: number;

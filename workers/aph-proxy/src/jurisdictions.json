@@ -25,7 +25,9 @@
       {
         "url": "https://parlinfo.aph.gov.au/parlInfo/feeds/rss.w3p;adv=yes;orderBy=date-eFirst;page=0;query=Date%3AthisYear%20Dataset%3Abillsdgs;resCount=100",
         "label": "Bills Digests",
-        "kind": "digest"
+        "kind": "digest",
+        "pollEveryMinutes": 360,
+        "blockedBackoffMinutes": 1440
       },
       { "url": "https://www.aph.gov.au/house/rss/divisions", "label": "House divisions", "kind": "division" },
       { "url": "https://www.aph.gov.au/house/rss/daily_program", "label": "House daily program", "kind": "program" },

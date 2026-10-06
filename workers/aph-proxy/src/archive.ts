@@ -6,6 +6,7 @@ import { scoreForArchive, matchAlertRules, isFreshArrival, FRESH_ARRIVAL_SQL, ty
 import { assignThreadKeyed, buildTokenSet, canonicalThreadKey, type ThreadCandidate, type ThreadAssignment } from "./threads";
 import { parseHearingDate } from "./hearingDate";
 import { fetchWithDeadline, UPSTREAM_TIMEOUT_MS } from "./rssProxy";
+import type { FeedState } from "./stateContract";
 
 export interface Env {
   CACHE: KVNamespace;
@@ -752,6 +753,72 @@ export interface FeedHealthCheck {
   items_parsed: number | null;
   parse_error: string | null;
   last_success_at: string | null;
+  state: FeedState;
+  next_poll_at: string | null;
+}
+
+// ---- Source-blocked feeds and per-feed cadence (0.16.11) ---------------------
+// parlinfo.aph.gov.au sits behind an Azure WAF that answered the Worker's
+// Bills Digests fetch with HTTP 403 on every poll from at least 2 Oct 2026 to
+// 19:30 UTC 6 Oct 2026, then 200 again from 20:01 UTC (job_runs, D1). Measured
+// from a home PC on 7 Oct 2026 AEST: the Worker's browser headers get 200 and
+// a bot user-agent gets 403 with the "Azure WAF JS Challenge" page, and the
+// live Worker's /rss proxy also got 200 (Cloudflare egress). 0.16.10's
+// deploy at 13:41 UTC was not the cause: polls stayed blocked until 19:30. So
+// the refusal is the host's, it comes and goes, and no other official
+// Bills Digests feed exists (aph.gov.au/Help/RSS_feeds lists only parlinfo).
+// A feed with blockedBackoffMinutes records such a refusal as "source
+// blocked": its row keeps the real HTTP status and its last_success_at, the
+// poll does not count it as a failed feed, and the scheduled poll retries it
+// only after the backoff. pollEveryMinutes spaces its normal polls: Bills
+// Digests are published a few a sitting week, so 30-minute polling bought
+// nothing and put 48 requests a day in front of the WAF.
+export const SOURCE_BLOCKED_ERROR = "source blocked";
+
+/** Slack so a cron that fires a few seconds early still counts as due. */
+export const FEED_DUE_SLACK_MS = 5 * 60_000;
+
+/** True when this response is the host refusing the Worker on a blockable feed. */
+export function isSourceBlocked(feed: FeedMeta, status: number): boolean {
+  return feed.blockedBackoffMinutes !== undefined && (status === 403 || status === 429);
+}
+
+type FeedCadenceRow = Pick<FeedHealthRow, "last_polled_at" | "parse_error">;
+
+/** Minutes the scheduled poll waits after this row's poll, or null for every poll. */
+function waitMinutes(feed: FeedMeta, row: FeedCadenceRow | undefined): number | null {
+  if (row?.parse_error === SOURCE_BLOCKED_ERROR && feed.blockedBackoffMinutes !== undefined) {
+    return feed.blockedBackoffMinutes;
+  }
+  return feed.pollEveryMinutes ?? null;
+}
+
+/** Earliest time the scheduled poll fetches this feed again, or null. */
+export function nextPollAt(feed: FeedMeta, row: FeedCadenceRow | undefined): string | null {
+  const wait = waitMinutes(feed, row);
+  if (wait === null || !row?.last_polled_at) return null;
+  const at = Date.parse(row.last_polled_at);
+  return Number.isFinite(at) ? new Date(at + wait * 60_000).toISOString() : null;
+}
+
+/**
+ * True when the scheduled poll should fetch this feed now. A feed never
+ * polled, with an unreadable or future last_polled_at, or with no cadence of
+ * its own is always due.
+ */
+export function feedDue(feed: FeedMeta, row: FeedCadenceRow | undefined, nowMs: number): boolean {
+  const wait = waitMinutes(feed, row);
+  if (wait === null || !row?.last_polled_at) return true;
+  const age = nowMs - Date.parse(row.last_polled_at);
+  if (!Number.isFinite(age) || age < 0) return true;
+  return age >= wait * 60_000 - FEED_DUE_SLACK_MS;
+}
+
+function feedState(r: FeedHealthRow | undefined): FeedState {
+  if (!r) return "not_polled";
+  const status = r.last_http_status;
+  if (status !== null && status >= 200 && status < 300 && !r.parse_error) return "ok";
+  return r.parse_error === SOURCE_BLOCKED_ERROR ? "source_blocked" : "failed";
 }
 
 export const FEED_HEALTH_SQL =
@@ -783,6 +850,8 @@ export async function queryFeedHealth(env: Env): Promise<FeedHealthCheck[]> {
       items_parsed: r?.items_parsed ?? null,
       parse_error: r?.parse_error ?? null,
       last_success_at: r?.last_success_at ?? null,
+      state: feedState(r),
+      next_poll_at: nextPollAt(feed, r),
     };
   });
 }
@@ -838,11 +907,60 @@ export async function mapConcurrent<T, R>(items: readonly T[], limit: number, fn
  */
 export const MAX_NEW_PER_POLL = 120;
 
-export async function pollAndArchive(env: Env): Promise<{
-  perFeed: Array<{ feed: string; ok: boolean; new: number; seen: number; dedup: number; backfilled?: number; deferred?: number; error?: string }>;
+export type PollFeedResult = {
+  feed: string;
+  ok: boolean;
+  new: number;
+  seen: number;
+  dedup: number;
+  backfilled?: number;
+  deferred?: number;
+  error?: string;
+  /** 0.16.11: the host refused the Worker (isSourceBlocked); not a failed feed. */
+  blocked?: boolean;
+  /** 0.16.11: not fetched this poll, its own cadence says not yet (feedDue). */
+  not_due?: boolean;
+};
+
+/**
+ * One archive poll. `scheduled` (the 30-minute cron) honours each feed's own
+ * cadence (pollEveryMinutes, blockedBackoffMinutes); a manual /admin/poll-now
+ * and the tests fetch every feed.
+ */
+export async function pollAndArchive(env: Env, opts: { scheduled?: boolean } = {}): Promise<{
+  perFeed: PollFeedResult[];
 }> {
   const now = new Date().toISOString();
-  const perFeed: Array<{ feed: string; ok: boolean; new: number; seen: number; dedup: number; backfilled?: number; deferred?: number; error?: string }> = [];
+  const perFeed: PollFeedResult[] = [];
+
+  // 0.16.11: which feeds this poll fetches. Fails open: a feed_health read
+  // that fails fetches every feed, since the cadence only saves upstream load.
+  let due: (feed: FeedMeta) => boolean = () => true;
+  if (opts.scheduled && APH_FEEDS.some((f) => f.pollEveryMinutes !== undefined || f.blockedBackoffMinutes !== undefined)) {
+    try {
+      // A previous poll that left new items for later (MAX_NEW_PER_POLL, a
+      // restore) may have left them in a cadence feed, so the poll after it
+      // fetches every feed until nothing is deferred.
+      const last = await env.ARCHIVE.prepare(
+        `SELECT detail FROM job_runs WHERE job = 'poll' AND outcome IS NOT NULL ORDER BY id DESC LIMIT 1`,
+      ).first<{ detail: string | null }>();
+      let lastDeferred = 0;
+      try {
+        const d = JSON.parse(last?.detail ?? "null");
+        if (d && typeof d.deferred_items === "number") lastDeferred = d.deferred_items;
+      } catch {
+        lastDeferred = 0;
+      }
+      if (lastDeferred === 0) {
+        const res = await env.ARCHIVE.prepare(FEED_HEALTH_SQL).all<FeedHealthRow>();
+        const byUrl = new Map((res.results ?? []).map((r) => [r.feed_url, r]));
+        const nowMs = Date.parse(now);
+        due = (feed) => feedDue(feed, byUrl.get(feed.url), nowMs);
+      }
+    } catch (err) {
+      console.warn("feed cadence read failed; fetching every feed", err instanceof Error ? err.message : err);
+    }
+  }
 
   // Fetch the feeds FEED_FETCH_CONCURRENCY at a time, each with an 8-second
   // deadline, so a slow upstream cannot block the cron. Results are
@@ -863,8 +981,9 @@ export async function pollAndArchive(env: Env): Promise<{
   // deadline now starts when its fetch starts, and no fetch waits in the
   // platform queue. Worst case for the fetch phase: FEED_FETCH_WORST_CASE_MS.
   type FetchOk = { ok: true; meta: FeedMeta; xml: string; status: number };
-  type FetchErr = { ok: false; meta: FeedMeta; status: number; error: string };
+  type FetchErr = { ok: false; meta: FeedMeta; status: number; error: string; notDue?: boolean };
   const feedResults = await mapConcurrent(APH_FEEDS, FEED_FETCH_CONCURRENCY, async (feedMeta): Promise<FetchOk | FetchErr> => {
+    if (!due(feedMeta)) return { ok: false, meta: feedMeta, status: 0, error: "not due", notDue: true };
     const r = await fetchWithDeadline(feedMeta.url, {
       headers: APH_BROWSER_HEADERS,
       cf: { cacheTtl: 60, cacheEverything: true },
@@ -943,6 +1062,16 @@ export async function pollAndArchive(env: Env): Promise<{
 
   for (const feedResult of feedResults) {
     if (!feedResult.ok) {
+      // 0.16.11: a feed not due this poll keeps its health row untouched.
+      if (feedResult.notDue) {
+        perFeed.push({ feed: feedResult.meta.url, ok: true, new: 0, seen: 0, dedup: 0, not_due: true });
+        continue;
+      }
+      if (isSourceBlocked(feedResult.meta, feedResult.status)) {
+        perFeed.push({ feed: feedResult.meta.url, ok: false, new: 0, seen: 0, dedup: 0, error: SOURCE_BLOCKED_ERROR, blocked: true });
+        await recordFeedHealth(env, feedResult.meta, feedResult.status, null, SOURCE_BLOCKED_ERROR, now, false);
+        continue;
+      }
       perFeed.push({ feed: feedResult.meta.url, ok: false, new: 0, seen: 0, dedup: 0, error: feedResult.error });
       await recordFeedHealth(env, feedResult.meta, feedResult.status, null, feedResult.error, now, false);
       continue;

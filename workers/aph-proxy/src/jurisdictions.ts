@@ -20,6 +20,27 @@ export interface JurisdictionFeedMeta {
   url: string;
   label: string;
   kind: FeedKind;
+  /**
+   * 0.16.11: the scheduled poll fetches this feed only when its last poll
+   * (feed_health.last_polled_at) is at least this many minutes old. Absent:
+   * every 30-minute poll. A manual /admin/poll-now ignores it.
+   */
+  pollEveryMinutes?: number;
+  /**
+   * 0.16.11: set on a feed whose host may refuse the Worker (HTTP 403 or 429)
+   * while the source itself is fine. Such a refusal is recorded as "source
+   * blocked", not as a failed feed, and the scheduled poll then retries it
+   * only after this many minutes. Absent: a 403 or 429 is an ordinary failure.
+   */
+  blockedBackoffMinutes?: number;
+}
+
+function asMinutes(v: unknown, field: string, url: string): number | undefined {
+  if (v === undefined) return undefined;
+  if (typeof v !== "number" || !Number.isInteger(v) || v <= 0) {
+    throw new Error(`jurisdictions.json: ${field} for ${url} must be a positive integer`);
+  }
+  return v;
 }
 
 export interface SourceGroupRule {
@@ -53,7 +74,7 @@ function asFeedKind(kind: string): FeedKind {
 
 const DEFAULT_JURISDICTION_ID = "aph";
 const RAW = jurisdictionsData as Record<string, Omit<JurisdictionConfig, "feeds"> & {
-  feeds: Array<{ url: string; label: string; kind: string }>;
+  feeds: Array<{ url: string; label: string; kind: string; pollEveryMinutes?: number; blockedBackoffMinutes?: number }>;
 }>;
 
 /**
@@ -81,6 +102,10 @@ export function getJurisdiction(id: string = DEFAULT_JURISDICTION_ID): Jurisdict
       url: f.url,
       label: f.label.replace("{year}", year).trim(),
       kind: asFeedKind(f.kind),
+      ...(f.pollEveryMinutes !== undefined ? { pollEveryMinutes: asMinutes(f.pollEveryMinutes, "pollEveryMinutes", f.url) } : {}),
+      ...(f.blockedBackoffMinutes !== undefined
+        ? { blockedBackoffMinutes: asMinutes(f.blockedBackoffMinutes, "blockedBackoffMinutes", f.url) }
+        : {}),
     })),
   };
 }

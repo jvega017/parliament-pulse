@@ -208,7 +208,12 @@ export type JobHealth = {
   stuck: boolean;
   last_failure: "abandoned" | "timed_out" | null;
 };
-export type DeepHealth = { ok: boolean; jobs: Record<JobName, JobHealth>; feeds_failed: number | null };
+export type DeepHealth = {
+  ok: boolean;
+  jobs: Record<JobName, JobHealth>;
+  feeds_failed: number | null;
+  feeds_blocked: number | null;
+};
 
 function failureOf(outcome: JobOutcome | null, detail: string | null): JobHealth["last_failure"] {
   if (outcome !== "error" || !detail) return null;
@@ -245,11 +250,18 @@ export async function deepHealth(env: Env, now = Date.now()): Promise<DeepHealth
   }>();
   const byJob = new Map((results ?? []).map((r) => [r.job, r]));
   let feeds_failed: number | null = null;
+  // 0.16.11: feeds the host refused (source blocked), from the same detail.
+  // A poll detail with feeds_failed and no feeds_blocked had none blocked.
+  let feeds_blocked: number | null = null;
   try {
     const d = JSON.parse(byJob.get("poll")?.last_detail ?? "null");
-    if (d && typeof d.feeds_failed === "number") feeds_failed = d.feeds_failed;
+    if (d && typeof d.feeds_failed === "number") {
+      feeds_failed = d.feeds_failed;
+      feeds_blocked = typeof d.feeds_blocked === "number" ? d.feeds_blocked : 0;
+    }
   } catch {
     feeds_failed = null;
+    feeds_blocked = null;
   }
 
   const jobs = {} as Record<JobName, JobHealth>;
@@ -272,5 +284,5 @@ export async function deepHealth(env: Env, now = Date.now()): Promise<DeepHealth
       last_failure: failureOf(r?.last_outcome ?? null, r?.last_detail ?? null),
     };
   }
-  return { ok, jobs, feeds_failed };
+  return { ok, jobs, feeds_failed, feeds_blocked };
 }

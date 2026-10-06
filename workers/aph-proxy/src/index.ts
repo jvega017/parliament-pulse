@@ -92,13 +92,21 @@ const READ_LIMITS: Record<string, [string, number]> = {
 // Run-log summaries (WK-05). Counts only: no feed URLs, error text, email
 // addresses or upstream bodies reach the job_runs.detail column.
 function summarisePoll(r: Awaited<ReturnType<typeof pollAndArchive>>): JobSummary {
-  const failed = r.perFeed.filter((f) => !f.ok).length;
+  // 0.16.11: a source-blocked feed (the host refused the Worker) is counted
+  // as feeds_blocked, not feeds_failed, and a feed not due this poll is
+  // feeds_not_due; neither makes the run partial. The outcome is judged on
+  // the feeds this poll actually fetched.
+  const blocked = r.perFeed.filter((f) => f.blocked).length;
+  const notDue = r.perFeed.filter((f) => f.not_due).length;
+  const failed = r.perFeed.filter((f) => !f.ok && !f.blocked).length;
   const deferred = r.perFeed.reduce((a, f) => a + (f.deferred || 0), 0);
   return {
-    outcome: outcomeFromFailures(r.perFeed.length, failed),
+    outcome: outcomeFromFailures(r.perFeed.length - notDue, failed),
     counts: {
       feeds: r.perFeed.length,
       feeds_failed: failed,
+      ...(blocked > 0 ? { feeds_blocked: blocked } : {}),
+      ...(notDue > 0 ? { feeds_not_due: notDue } : {}),
       // 0.16.6: new_items counts fresh arrivals; rows stored this run that
       // APH dated more than FRESH_ARRIVAL_DAYS earlier are backfilled_items.
       new_items: r.perFeed.reduce((a, f) => a + (f.new || 0) - (f.backfilled || 0), 0),
@@ -653,7 +661,7 @@ export default {
     // /healthz/deep and never rejects, so no job can throw out of scheduled().
     if (event.cron === "*/30 * * * *") {
       ctx.waitUntil(recordJobRun(env, "poll", async () => {
-        const r = await pollAndArchive(env);
+        const r = await pollAndArchive(env, { scheduled: true });
         console.log("archive poll", JSON.stringify(r));
         return r;
       }, summarisePoll));
