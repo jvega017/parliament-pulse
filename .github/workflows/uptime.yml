@@ -1,0 +1,85 @@
+name: Uptime
+
+# Every 30 minutes: GET the Worker's /healthz/deep and the Pages site
+# (workers/aph-proxy/scripts/uptime-check.mjs). Added 7 Oct 2026.
+#
+# Down: a target that fails twice, 60 s apart. For /healthz/deep that is no
+# answer, a non-JSON body, or HTTP 503 (a job overdue or stuck). Feed counts
+# never count: Bills Digests "source blocked" (0.16.11) and feeds_failed are
+# listed in the issue as notes only.
+#
+# On down: opens one issue labelled "uptime", or comments on the open one
+# when the reasons change. On recovery: comments and closes it.
+# Credentials: only the built-in GITHUB_TOKEN, with issues: write.
+#
+# Runs at :07 and :37, clear of the Worker's own :00 and :30 poll. GitHub
+# disables scheduled workflows in a public repository after 60 days with no
+# repository activity; re-enable from the Actions tab if that happens.
+
+on:
+  schedule:
+    - cron: "7,37 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: uptime
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Probe Worker and Pages
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          sparse-checkout: workers/aph-proxy/scripts
+          persist-credentials: false
+
+      - name: Probe
+        id: probe
+        run: node workers/aph-proxy/scripts/uptime-check.mjs --retry-ms 60000
+
+      - name: Open, update or close the uptime issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          DOWN: ${{ steps.probe.outputs.down }}
+          SIGNATURE: ${{ steps.probe.outputs.signature }}
+          SUMMARY: ${{ steps.probe.outputs.summary }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          TITLE="[uptime] Parliament Pulse is down or degraded"
+          MARK="<!-- uptime-sig: ${SIGNATURE} -->"
+          BODY="$(printf '%s\n\n%s\n\nRun: %s\n\n%s' "$TITLE" "$SUMMARY" "$RUN_URL" "$MARK")"
+          gh label create uptime --color B60205 --description "Opened by the Uptime workflow" >/dev/null 2>&1 || true
+          ISSUE="$(gh issue list --state open --label uptime --json number --jq '.[0].number // empty')"
+          if [ -z "$ISSUE" ]; then
+            ISSUE="$(gh issue list --state open --search "in:title \"[uptime]\"" --json number --jq '.[0].number // empty')"
+          fi
+          if [ "$DOWN" = "true" ]; then
+            if [ -z "$ISSUE" ]; then
+              gh issue create --title "$TITLE" --body "$BODY" --label uptime || gh issue create --title "$TITLE" --body "$BODY"
+              echo "opened a new uptime issue"
+            else
+              LAST="$(gh issue view "$ISSUE" --json body,comments --jq '[.body] + [.comments[].body] | last')"
+              if printf '%s' "$LAST" | grep -qF -- "$MARK"; then
+                echo "issue #$ISSUE already reports this; no new comment"
+              else
+                gh issue comment "$ISSUE" --body "$BODY"
+                echo "commented on #$ISSUE: the reasons changed"
+              fi
+            fi
+          elif [ -n "$ISSUE" ]; then
+            gh issue comment "$ISSUE" --body "$(printf 'Recovered.\n\n%s\n\nRun: %s' "$SUMMARY" "$RUN_URL")"
+            gh issue close "$ISSUE" --reason completed
+            echo "closed #$ISSUE"
+          else
+            echo "up; no open uptime issue"
+          fi

@@ -71,6 +71,24 @@ the workflow passes `--exclude-table digest_subscribers`: no email address
 enters the artefact. A restore from a CI artefact therefore has an empty
 subscriber list; restore subscribers from an owner-local full export.
 
+**Owner-local, weekly (since 7 Oct 2026):** the Windows task
+Workspace-Backup-Weekly (Sunday 02:30, `Claude-Workspace/tools/backup-all-weekly.ps1`)
+runs the full remote export with the owner's wrangler login into
+`Claude-Workspace/08_Outputs/backups/parliament-pulse-d1/`, keeps the newest 8,
+and checks each with a local restore drill:
+
+```bash
+pnpm backup:verify:dump -- --manifest <dir>/archive-<UTC stamp>.manifest.json [--min-signals <n>]
+```
+
+`scripts/d1-verify-dump.mjs` checks the dump's size and sha256 against the
+manifest, imports it into an in-memory SQLite and compares every table count
+(`compareCounts`). The weekly step passes a signals floor of 90 per cent of the
+previous export. Outcome: `08_Outputs/run-logs/pp-d1-backup.log` and
+`last-run.json` beside the exports. A failure never fails the other weekly
+backups; read the log. If the export fails with an auth error, run
+`npx wrangler login` in `workers/aph-proxy`.
+
 Cloudflare states that a running export blocks other requests to the
 database (developers.cloudflare.com/d1/best-practices/import-export-data/,
 read 29 Sep 2026). Run exports away from the :00 and :30 poll.
