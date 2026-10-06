@@ -16,7 +16,10 @@
 //       "Representative data", "(representative)" or "qons: 14";
 //   the About page lists every SITE_CONFIG.unavailable entry with its reason and
 //   an https://www.aph.gov.au/ link; the contact line renders the interim sentence
-//   while SITE_CONFIG.contact is null and a mailto: link once it is set; the
+//   while SITE_CONFIG.contact is null and a mailto: link once it is set, in the
+//   corrections paragraph, the accessibility statement and the footer, with no
+//   "being set up" sentence left beside it; the shipped contact is
+//   info@prometheuspolicylab.com (Juan, 7 Oct 2026); the
 //   privacy text names every localStorage key the bundle uses; the search
 //   palette's member source is empty and MemberDetail links to the APH Senators
 //   and Members page; and, with no live data, every desk renders a reason and an
@@ -171,6 +174,7 @@ function run(overrides = {}) {
       sidebar: () => h(ctx.Sidebar, { page: "overview", onNavigate: () => {}, mobileOpen: false }),
       member: () => h(ctx.MemberDetail, { id: "any-member" }),
       committee: () => h(ctx.CommitteeDetail, { id: "econ" }),
+      footer: () => h(ctx.SiteFooter, {}),
     };
     for (const [k, fn] of Object.entries(extra)) {
       try { out[k] = renderToString(fn(), React); }
@@ -228,10 +232,22 @@ function assertions(out) {
     }
   }
 
-  // Contact: interim sentence while null; nothing else claims a channel.
+  // Contact: interim sentence while null; nothing else claims a channel. Once set,
+  // the corrections paragraph, the accessibility statement and the footer all
+  // link to it, and no "being set up" sentence survives anywhere.
+  const footer = out.live.footer || "";
   if (cfg && cfg.contact == null) {
     if (!about.includes("A public corrections address is being set up. Until it is published, check any item against the linked official APH source.")) f.push("About does not render the interim contact sentence while SITE_CONFIG.contact is null");
     if (/mailto:/.test(about)) f.push("About renders a mailto: link although SITE_CONFIG.contact is null");
+    if (/mailto:|data-site-contact/.test(footer)) f.push("footer names a contact channel although SITE_CONFIG.contact is null");
+  } else if (cfg && typeof cfg.contact === "string") {
+    const href = /^https:\/\//i.test(cfg.contact) ? cfg.contact : "mailto:" + cfg.contact;
+    const hrefCount = about.split(`href="${href}"`).length - 1;
+    if (hrefCount < 2) f.push(`contact: About links to ${href} ${hrefCount} time(s); the corrections paragraph and the accessibility statement must both link to it`);
+    if (!footer.includes(`href="${href}"`)) f.push(`contact: footer does not link to ${href}`);
+    for (const [name, html] of [["About", about], ["footer", footer]]) {
+      if (/being set up|no channel for reporting/i.test(readable(html))) f.push(`contact: ${name} still says the contact address is being set up although SITE_CONFIG.contact is set`);
+    }
   }
 
   // Privacy: every localStorage key the bundle uses is named, and no streak claim.
@@ -299,10 +315,36 @@ console.log(`Canary self-test PASSED: ${canaries.length} scratch-copy regression
 
 // ---- behaviour: a configured contact renders as a link ---------------------------
 {
-  const withMail = run({ data: dataSrc.replace(/contact: null/, 'contact: "corrections@example.org"') });
+  // The contact value is swapped on a scratch copy of the built data.js; the
+  // regex matches either a null or a string literal, so it applies whatever is set.
+  const CONTACT_RE = /contact: (?:null|"[^"]*")/;
+  const withContact = v => {
+    const d = dataSrc.replace(CONTACT_RE, `contact: ${v}`);
+    if (d === dataSrc && v !== "null") { console.error(`FAIL  contact mutation to ${v} did not apply; the source moved`); failures++; }
+    return run({ data: d });
+  };
+  const withMail = withContact('"corrections@example.org"');
   if (!withMail.live.desks.about.includes('href="mailto:corrections@example.org"')) { console.error("FAIL  a configured email contact does not render as a mailto: link"); failures++; }
-  const withUrl = run({ data: dataSrc.replace(/contact: null/, 'contact: "https://example.org/corrections"') });
+  if (!withMail.live.footer.includes('href="mailto:corrections@example.org"')) { console.error("FAIL  a configured email contact does not render in the footer"); failures++; }
+  const withUrl = withContact('"https://example.org/corrections"');
   if (!withUrl.live.desks.about.includes('href="https://example.org/corrections"')) { console.error("FAIL  a configured https contact does not render as a link"); failures++; }
+  if (!withUrl.live.footer.includes('href="https://example.org/corrections"')) { console.error("FAIL  a configured https contact does not render in the footer"); failures++; }
+  // Restraint for the unset state: with contact null, About shows the interim
+  // sentence and the footer names no channel (the assertions above enforce both).
+  const unset = assertions(withContact("null"));
+  for (const m of unset) { console.error(`FAIL  (contact null) ${m}`); failures++; }
+  // Canary: a "being set up" sentence left beside a configured contact must fail.
+  const stale = assertions(run({ data: dataSrc.replace(CONTACT_RE, 'contact: "corrections@example.org"'), pages: pagesSrc.replace(/(email Prometheus Policy Lab at )/, "A public corrections address is being set up. $1") }));
+  if (!stale.some(m => m.includes("still says the contact address is being set up"))) { console.error("CANARY MISS: a stale 'being set up' sentence beside a configured contact was not caught"); failures++; }
+  // Canary: a footer that drops the contact link must fail.
+  const noFoot = assertions(run({ data: dataSrc.replace(CONTACT_RE, 'contact: "corrections@example.org"'), shell: shellSrc.replace("const contact = siteContactLink();", "const contact = null;") }));
+  if (!noFoot.some(m => m.includes("footer does not link"))) { console.error("CANARY MISS: a footer without the contact link was not caught"); failures++; }
+}
+
+// ---- the shipped contact is the Prometheus Policy Lab address (Juan, 7 Oct 2026) ----
+{
+  const cfg = run().live.siteConfig;
+  if (!cfg || cfg.contact !== "info@prometheuspolicylab.com") { console.error(`FAIL  SITE_CONFIG.contact is ${JSON.stringify(cfg && cfg.contact)}, expected "info@prometheuspolicylab.com"`); failures++; }
 }
 
 // ---- (d) restraint: the honest build must pass ------------------------------------

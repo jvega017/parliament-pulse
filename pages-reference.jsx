@@ -288,12 +288,12 @@ const LOCAL_STORAGE_KEYS = [
 // email address renders as a mailto: link and an https URL as a link; while it is
 // unset the text says so and points the reader at the official source.
 function ContactLine({ purpose = "To report a correction or ask a privacy question", pending = "A public corrections address is being set up. Until it is published, check any item against the linked official APH source." }) {
-  const c = SITE_CONFIG.contact;
-  if (typeof c === "string" && /^https:\/\//i.test(c)) {
-    return <>{purpose}, contact Prometheus Policy Lab at <a href={c} target="_blank" rel="noopener noreferrer" style={{ color: "var(--link)" }}>{c.replace(/^https:\/\//i, "")}</a>.</>;
+  const link = siteContactLink();
+  if (link && link.external) {
+    return <>{purpose}, contact Prometheus Policy Lab at <a href={link.href} target="_blank" rel="noopener noreferrer" style={{ color: "var(--link)" }}>{link.text}</a>.</>;
   }
-  if (typeof c === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c)) {
-    return <>{purpose}, email Prometheus Policy Lab at <a href={"mailto:" + c} style={{ color: "var(--link)" }}>{c}</a>.</>;
+  if (link) {
+    return <>{purpose}, email Prometheus Policy Lab at <a href={link.href} style={{ color: "var(--link)" }}>{link.text}</a>.</>;
   }
   return <>{pending}</>;
 }
@@ -378,7 +378,7 @@ function NotYetAvailablePanel() {
 // The date the privacy, terms and disclaimer text above last changed. It moves
 // only when that text moves: tests/finalise.test.mjs records a hash of the text
 // beside this date and fails when one changes without the other.
-const PRIVACY_UPDATED = "29 September 2026";
+const PRIVACY_UPDATED = "7 October 2026";
 function LegalNoticePanel() {
   return (
     <div className="panel" style={{ marginTop: "var(--gap-section)" }} id="about-legal">

@@ -624,6 +624,9 @@
   /* FE-08 (LEG-13): legal, privacy and licence links on every desk. */
   .site-foot-links { display: flex; flex-wrap: wrap; gap: 0 18px; margin-top: 6px; }
   .site-foot-links a { display: inline-block; padding: 4px 0; min-height: 24px; }
+  /* SITE_CONFIG.contact (data.jsx), on its own line so it never crowds the legal links. */
+  .site-foot .site-foot-contact { display: flex; flex-wrap: wrap; align-items: center; column-gap: .35em; }
+  .site-foot .site-foot-contact a { display: inline-block; padding: 4px 0; min-height: 24px; overflow-wrap: anywhere; }
   .page-title:focus { outline: none; }
   .page-title:focus-visible { outline: 1px solid var(--accent-glow); outline-offset: 6px; border-radius: 2px; width: fit-content; }
   .page-head {

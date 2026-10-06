@@ -1147,6 +1147,9 @@ function Drawer() {
 // APH_ATTRIBUTION constant) so the release gate can prove the shell carries it;
 // tests/attribution-check.mjs fails the build if it goes missing.
 function SiteFooter() {
+  // The contact channel comes from SITE_CONFIG.contact only (data.jsx); while it
+  // is unset the footer names no channel rather than inventing one.
+  const contact = siteContactLink();
   return (
     <footer className="site-foot" role="contentinfo">
       <p>
@@ -1156,11 +1159,22 @@ function SiteFooter() {
       </p>
       {/* FE-08 (LEG-13): the legal surface is one click from every desk. */}
       <nav className="site-foot-links" aria-label="Legal">
-        <a href="#/about/legal">Legal and disclaimer</a>
-        <a href="#/about/privacy">Privacy</a>
-        <a href="#/about/licence">Licence and attribution</a>
-        <a href="#/about/accessibility">Accessibility</a>
+        {/* className opts these out of the global classless-link rule (index.html),
+            whose margin-block: -4px stacked wrapped rows 18px apart so the 26px
+            targets overlapped (axe target-size). */}
+        <a className="site-foot-link" href="#/about/legal">Legal and disclaimer</a>
+        <a className="site-foot-link" href="#/about/privacy">Privacy</a>
+        <a className="site-foot-link" href="#/about/licence">Licence and attribution</a>
+        <a className="site-foot-link" href="#/about/accessibility">Accessibility</a>
       </nav>
+      {contact && (
+        <p className="site-foot-contact">
+          Contact and corrections:{" "}
+          {contact.external
+            ? <a className="site-foot-link" href={contact.href} target="_blank" rel="noopener noreferrer" data-site-contact="">{contact.text}</a>
+            : <a className="site-foot-link" href={contact.href} data-site-contact="">{contact.text}</a>}
+        </p>
+      )}
     </footer>
   );
 }

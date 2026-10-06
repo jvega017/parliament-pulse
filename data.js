@@ -6,7 +6,8 @@ const APH_LICENCE_URL = "https://creativecommons.org/licenses/by-nc-nd/4.0/";
 const APH_ATTRIBUTION = "Source material: Parliament of Australia website, licensed under CC BY-NC-ND 4.0 (" + APH_LICENCE_URL + "). Titles reproduced unmodified; scores and summaries are Parliament Pulse analysis.";
 const SITE_CONFIG = {
   showUnsourcedSurfaces: false,
-  contact: null,
+  // The Prometheus Policy Lab contact address, confirmed by Juan on 7 October 2026.
+  contact: "info@prometheuspolicylab.com",
   unavailable: [
     {
       id: "qon",
@@ -45,6 +46,11 @@ const SITE_CONFIG = {
     }
   ]
 };
+function siteContactLink(c = SITE_CONFIG.contact) {
+  if (typeof c === "string" && /^https:\/\//i.test(c)) return { href: c, text: c.replace(/^https:\/\//i, ""), external: true };
+  if (typeof c === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c)) return { href: "mailto:" + c, text: c, external: false };
+  return null;
+}
 const SOURCE_REGISTRY = [
   {
     id: "h-media",
@@ -215,6 +221,7 @@ Object.assign(window, {
   APH_LICENCE_URL,
   APH_LICENCE_NAME,
   SITE_CONFIG,
+  siteContactLink,
   SOURCE_REGISTRY,
   sourceCounts,
   DATASET_FLAGS,

@@ -49,8 +49,10 @@ by which gate, is listed below.
    (LEG-07 in the review questions this).
 
 ## Open items
-- `SITE_CONFIG.contact` is null: the public corrections address is an owner decision.
-- `pulse.prometheuspolicylab.com` does not resolve (owner DNS decision).
+- `SITE_CONFIG.contact` is `info@prometheuspolicylab.com` (Juan, 7 October 2026), linked from
+  the About corrections paragraph, the accessibility statement and the footer.
+- No custom domain yet (Juan, 7 October 2026: the app is still a beta). The site lives at
+  parliament-pulse.pages.dev; `pulse.prometheuspolicylab.com` does not resolve.
 - A real axe-core run is still owed (`tests/README.md`).
 - Monitoring and D1 backups (review ARCH-06, ARCH-07, PR-10) need owner-approved accounts.
 

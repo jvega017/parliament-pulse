@@ -5,8 +5,10 @@ Prometheus Policy Lab. It reads official Parliament of Australia (APH) feeds thr
 Cloudflare Worker, groups and scores the items, and links every item back to aph.gov.au.
 It is not affiliated with the Parliament of Australia.
 
-- Public entry: https://parliament-pulse.pages.dev/ (the custom domain
-  pulse.prometheuspolicylab.com does not resolve; DNS is an open owner decision).
+- Public entry: https://parliament-pulse.pages.dev/ (no custom domain while the app is a beta,
+  Juan's decision of 7 October 2026; pulse.prometheuspolicylab.com does not resolve).
+- Contact and corrections: info@prometheuspolicylab.com, set once in `SITE_CONFIG.contact`
+  (`data.jsx`) and shown on About and in the footer.
 - Worker: https://aph-proxy.jvega019.workers.dev, source in the separate monorepo
   `C:\Users\jvega\parliament-pulse\workers\aph-proxy`.
 

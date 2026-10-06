@@ -48,8 +48,9 @@ const SOURCES = Object.fromEntries(JSX_FILES.map(f => [f, readJs(f)]));
 // When the text changes on purpose: set PRIVACY_UPDATED in pages-reference.jsx
 // to the date of the change, run this test, and copy the new hash it prints here.
 const PRIVACY_RECORD = {
-  date: "29 September 2026",
-  sha256: "c42ff31957b0f431312f5568d8e4be6665803a86e4da67fcb87c5009ff46fc72",
+  // 7 Oct 2026: the corrections paragraph now names info@prometheuspolicylab.com.
+  date: "7 October 2026",
+  sha256: "e31a61d78047df7af970832f403d762f6e26072924bbd2b03fc06f49116f56a5",
 };
 
 // ---- fixtures ------------------------------------------------------------------
@@ -295,7 +296,7 @@ const CANARIES = [
   { why: "the false-positive column restored", expect: "cadence:", m: mut("pages-reference", "\"Today\"), /* @__PURE__ */ React.createElement(\"th\", null, \"Check\")", "\"Today\"), /* @__PURE__ */ React.createElement(\"th\", null, \"False positives, measured after 30 days\"), /* @__PURE__ */ React.createElement(\"th\", null, \"Check\")") },
   { why: "Official feeds cell kept with no feed count", expect: "about: Official feeds cell renders", m: mut("pages-reference", "...typeof feedCount === \"number\" ? [{ label: \"Official feeds\", value: feedCount,", "...true ? [{ label: \"Official feeds\", value: feedCount == null ? NO_VALUE : feedCount,") },
   { why: "privacy text edited without moving the date", expect: "about: privacy text changed", m: mut("pages-reference", "and the site sets no cookies.", "and the site sets only essential cookies.") },
-  { why: "privacy date moved without a text change", expect: "about: privacy reads", m: mut("pages-reference", "const PRIVACY_UPDATED = \"29 September 2026\";", "const PRIVACY_UPDATED = \"23 July 2026\";") },
+  { why: "privacy date moved without a text change", expect: "about: privacy reads", m: mut("pages-reference", "const PRIVACY_UPDATED = \"7 October 2026\";", "const PRIVACY_UPDATED = \"23 July 2026\";") },
   { why: "a locale month formatter in the shared date helper", expect: "months:", m: mut("store", "return withYear ? fmtDayMonYear(t) : fmtDayMon(t);", "return new Date(t).toLocaleDateString(\"en-AU\", { day: \"numeric\", month: \"short\" });") },
   { why: "the Add feed URL prefilled", expect: "addfeed:", m: mut("pages-reference", "const [newUrl, setNewUrl] = useState(\"\");", "const [newUrl, setNewUrl] = useState(\"https://www.aph.gov.au/.../FlagPost/Blog_entries\");") },
   { why: "the ParlInfo refusal claim restored", expect: "qon:", m: mut("data", "\"Parliament Pulse's search of ParlInfo returns no questions on notice, so none are held here.\"", "\"ParlInfo's questions on notice search refuses automated access, so no machine-readable feed can be fetched.\"") },

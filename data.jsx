@@ -60,14 +60,16 @@ const APH_ATTRIBUTION = "Source material: Parliament of Australia website, licen
 //     fails the gate if a surface of that kind renders while it is false.
 //   contact: the public corrections and privacy address, as an email address or an
 //     https URL. SITE_CONFIG.contact is the only place a contact channel may be
-//     written; LegalNoticePanel (pages.jsx) renders it, or an honest interim
-//     sentence while it is null.
+//     written; siteContactLink() parses it, and LegalNoticePanel, the
+//     accessibility statement (pages-reference.jsx) and SiteFooter (shell.jsx)
+//     render it, or an honest interim sentence while it is null.
 //   unavailable: coverage Parliament Pulse does not hold, listed on the About page
 //     with the reason and the official APH page to use instead. Every aphUrl was
 //     checked to return HTTP 200 to a Chrome user-agent on 29 September 2026.
 const SITE_CONFIG = {
   showUnsourcedSurfaces: false,
-  contact: null /* [OWNER] set the monitored public corrections and privacy address before launch */,
+  // The Prometheus Policy Lab contact address, confirmed by Juan on 7 October 2026.
+  contact: "info@prometheuspolicylab.com",
   unavailable: [
     {
       id: "qon",
@@ -106,6 +108,16 @@ const SITE_CONFIG = {
     },
   ],
 };
+
+// The one parser for SITE_CONFIG.contact, shared by the About page (ContactLine)
+// and the site footer: an https URL stays a link, an email address becomes a
+// mailto: link, and anything else (null included) yields null so no surface
+// claims a channel that does not exist.
+function siteContactLink(c = SITE_CONFIG.contact) {
+  if (typeof c === "string" && /^https:\/\//i.test(c)) return { href: c, text: c.replace(/^https:\/\//i, ""), external: true };
+  if (typeof c === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c)) return { href: "mailto:" + c, text: c, external: false };
+  return null;
+}
 
 // Labels match the Worker's feed_label exactly (jurisdictions.json), so the Live
 // page names each feed as every other desk does.
@@ -340,6 +352,6 @@ const DATASET_FLAGS = {
 QON_PATTERN.representative = true;
 
 Object.assign(window, {
-  WORKER_BASE_URL, APH_ATTRIBUTION, APH_LICENCE_URL, APH_LICENCE_NAME, SITE_CONFIG, SOURCE_REGISTRY, sourceCounts, DATASET_FLAGS, APH_FEEDS,
+  WORKER_BASE_URL, APH_ATTRIBUTION, APH_LICENCE_URL, APH_LICENCE_NAME, SITE_CONFIG, siteContactLink, SOURCE_REGISTRY, sourceCounts, DATASET_FLAGS, APH_FEEDS,
   SIGNALS, COMMITTEE_ITEMS, BILLS, DIVISIONS, WATCHLISTS, RADAR, QON_PATTERN, BRIEFING_QUEUE
 });
