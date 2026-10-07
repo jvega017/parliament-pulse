@@ -2,7 +2,7 @@
 <!doctype html>
 <html lang="en-AU">
 <head>
-<!-- Register b (Fire House editorial-terminal), Parliament desk, Dashboard surface. Tokens: 04_Templates/brand-tokens.json v2.6.4, see the tokens:begin block below. -->
+<!-- Register b (Fire House editorial-terminal), Parliament desk, Dashboard surface, Ledger Instrument variant (DS-043). Tokens: 04_Templates/brand-tokens.json v2.7.0 and the brand-manifest.json register-b palettes, see the tokens:begin block below. -->
 <!-- Design review: juan-design-critic, Claude pass, 29 Sep 2026 (FE-09): 28 Pass, 0 Concern, 0 Fail. Pending Juan's visual sign-off (his standing rule routes design to GPT with visuals). -->
 <meta charset="utf-8" />
 <title>Parliament Pulse · Prometheus Policy Lab</title>
@@ -24,7 +24,7 @@
 <link rel="preload" href="assets/fonts/IBMPlexMono-600.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="assets/fonts/IBMPlexSerif-600.woff2" as="font" type="font/woff2" crossorigin>
 <meta name="theme-color" content="#06070d" media="(prefers-color-scheme: dark)" />
-<meta name="theme-color" content="#F1ECE0" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#EFEFF0" media="(prefers-color-scheme: light)" />
 <meta name="description" content="Parliament Pulse: Australian federal parliamentary intelligence for policy officers. It watches official APH feeds, sorts the signals, tracks committees and bills, and drafts briefs." />
 <meta name="author" content="Prometheus Policy Lab" />
 <meta property="og:title" content="Parliament Pulse · Prometheus Policy Lab" />
@@ -54,11 +54,12 @@
   }
   /* tokens:begin
      ============================================================
-     Parliament Pulse tokens: register b (Fire House editorial-terminal),
+     Parliament Pulse tokens: register b, Ledger Instrument variant (DS-043),
      Parliament desk. Every colour literal in this block is a value from
-     04_Templates/brand-tokens.json v2.6.4; tests/copy-gates.test.mjs checks
-     each one against tests/brand-hex-allowlist.json (generated from that file
-     by scripts/sync-brand-hex.mjs) and fails on any hex outside this block,
+     04_Templates/brand-tokens.json v2.7.0 or a register-b palette in
+     brand-manifest.json; tests/copy-gates.test.mjs checks each one against
+     tests/brand-hex-allowlist.json (generated from both by
+     scripts/sync-brand-hex.mjs) and fails on any hex outside this block,
      #fff and #000 excepted. Everything else derives from these with
      color-mix(), so no other literal ships. FE-09 executes DS-018: the
      off-token oranges and the teal retire; the desk accent is
@@ -79,18 +80,20 @@
             ok (active)      #4ade80   11.54       10.95     10.41
             control-edge     #626476    3.45        3.28      3.11  (non-text, 3:1)
             primary button: bg.primary on brass 5.23
-     Light: ground paper.panel #F1ECE0, panel paper.base #F8F5EE, bg-2 panel-3 #ECE6D8
-            ink.primary      #1B1812   15.02 on bg, 16.26 on panel
-            ink.tertiary     #5C5547    6.26 / 6.78
-            ink.quaternary   #6E6757    4.76 / 5.16 (4.51 on bg-2)
-            ember.accent     #A23B1C    5.60 / 6.07
-            ember.oxide      #7C2E18    7.88 / 8.53 (link)
-            semantic warn    #8A5E14    4.83 / 5.22
-            semantic neg     #B23A2A    5.04 / 5.46
-            semantic pos     #1B5E40    6.55 / 7.09
-            slate.rail       #4A515C    6.79 / 7.35
-            control-edge = ink.quaternary (FE-10): 4.18 on the watchlist card, the lowest light surface (non-text, 3:1)
-            primary button: paper.base on ember.accent 6.07
+     Light (DS-043, 7 Oct 2026): ground surface, panel sheet, sidebar bg-2
+     (rule 30% into surface). Ratios on panel / ground / sidebar; the full
+     table, tints and chips included, is tests/light-theme-contrast.test.mjs.
+            ink              ink       19.45 / 17.51 / 16.39
+            ink-2            iron      11.37 / 10.23 /  9.58
+            ink-3, info      secondary  8.22 /  7.39 /  6.92
+            ink-4            meta       5.91 /  5.32 /  4.98
+            brass, gold      bronze 85% + ink  7.13 / 6.41 / 6.00
+            link             copper 85% + ink  6.77 / 6.09 / 5.70
+            caution          warn       5.50 /  4.95 /  4.63
+            escalate         neg        5.75 /  5.17 /  4.84
+            ok               pos        7.46 /  6.71 /  6.29
+            control-edge = meta: 4.98 or better on every light surface (non-text, 3:1)
+            primary button: sheet on brass 7.13
      ============================================================ */
   :root {
     /* brand-tokens.json literals (dark) */
@@ -114,21 +117,24 @@
     --t-warm:         #d4a017;
     --t-risk:         #f87171;
     --t-flash:        #e0534b;
-    /* brand-tokens.json literals (light paper, and the brief preview) */
-    --t-paper-base:   #F8F5EE;
-    --t-paper-panel:  #F1ECE0;
-    --t-paper-panel-3: #ECE6D8;
-    --t-paper-hair:   #D7CFBE;
-    --t-paper-rule:   #B7AF9C;
-    --t-ink-primary:  #1B1812;
-    --t-ink-secondary: #433E35;
-    --t-ink-tertiary: #5C5547;
-    --t-ink-quaternary: #6E6757;
-    --t-ember-accent: #A23B1C;
+    /* Cool sheet family (DS-043, brand-manifest.json Prometheus light palette;
+       brand book 4.2): the light theme and the brief preview. Warm cream paper
+       and the rust accent on it are banned (brand book 4.8). */
+    --t-sheet:        #FBFBFC;
+    --t-surface:      #EFEFF0;
+    --t-rule:         #D5D7DB;
+    --t-meta:         #5E626B;
+    --t-secondary:    #484D56;
+    --t-iron:         #343840;
+    --t-steel:        #8E9197;
+    --t-ink:          #06070D;
+    --t-bronze:       #7D5F24;
+    --t-copper:       #925A3C;
+    /* Functional colour on light (brand-tokens.json color.semantic-light; brand
+       book 4.9): always carried with a word or sign. */
     --t-light-warn:   #8A5E14;
     --t-light-neg:    #B23A2A;
     --t-light-pos:    #1B5E40;
-    --t-slate-rail:   #4A515C;
 
     /* Surfaces */
     --bg:           var(--t-bg-primary);
@@ -194,11 +200,11 @@
     --scroll-thumb: color-mix(in srgb, var(--control-edge) 70%, transparent);
     --toast-err-bg: color-mix(in srgb, var(--escalate) 8%, var(--panel));
 
-    /* Brief preview: light paper in both themes (ppl-press literals). */
-    --brief-bg:     var(--t-paper-base);
-    --brief-ink:    var(--t-ink-primary);
-    --brief-accent: var(--t-light-warn);
-    --brief-link:   var(--t-oxide);
+    /* Brief preview: cool sheet in both themes (the publication page). */
+    --brief-bg:     var(--t-sheet);
+    --brief-ink:    var(--t-ink);
+    --brief-accent: var(--t-bronze);
+    --brief-link:   var(--t-copper);
 
     /* Native form controls, scrollbars and inputs follow the app theme. */
     color-scheme: dark;
@@ -259,51 +265,54 @@
   }
 
   :root[data-theme="light"] {
-    /* Warm paper light theme: the ppl-press paper and ink literals. */
+    /* Cool sheet light theme (DS-043, Ledger Instrument variant): sheet panels
+       on a surface ground, ink text, bronze as the desk accent, copper for
+       links. Ember is the finding mark only and no theme token carries it.
+       tests/light-theme-contrast.test.mjs measures every pair below. */
     color-scheme: light;
-    --bg:       var(--t-paper-panel);
-    --bg-2:     var(--t-paper-panel-3);
-    --panel:    var(--t-paper-base);
-    --panel-2:  var(--t-paper-panel);
-    --panel-hi: color-mix(in srgb, var(--t-ink-primary) 4%, transparent);
-    --ink:      var(--t-ink-primary);
-    --ink-2:    var(--t-ink-secondary);
-    --ink-3:    var(--t-ink-tertiary);
-    --ink-4:    var(--t-ink-quaternary);
-    --line:     color-mix(in srgb, var(--t-ink-primary) 11%, transparent);
-    --line-2:   color-mix(in srgb, var(--t-ink-primary) 7%, transparent);
-    --line-bright: color-mix(in srgb, var(--t-ink-primary) 18%, transparent);
-    --control-edge: var(--t-ink-quaternary);  /* FE-10: 4.18:1 or better on every light surface (paper.rule was 2.00:1) */
-    --shadow:   0 1px 0 color-mix(in srgb, var(--t-ink-primary) 5%, transparent), 0 12px 36px -20px color-mix(in srgb, var(--t-ink-primary) 20%, transparent);
-    --brass:    var(--t-ember-accent);
-    --brass-2:  var(--t-oxide);
-    --brass-soft: color-mix(in srgb, var(--t-ember-accent) 22%, transparent);
-    --brass-ink: var(--t-paper-base);
-    --gold:     var(--t-light-warn);
-    --link:     var(--t-oxide);
+    --bg:       var(--t-surface);
+    --bg-2:     color-mix(in srgb, var(--t-rule) 30%, var(--t-surface));
+    --panel:    var(--t-sheet);
+    --panel-2:  var(--t-surface);
+    --panel-hi: color-mix(in srgb, var(--t-ink) 4%, transparent);
+    --ink:      var(--t-ink);
+    --ink-2:    var(--t-iron);
+    --ink-3:    var(--t-secondary);
+    --ink-4:    var(--t-meta);
+    --line:     color-mix(in srgb, var(--t-ink) 11%, transparent);
+    --line-2:   color-mix(in srgb, var(--t-ink) 7%, transparent);
+    --line-bright: color-mix(in srgb, var(--t-ink) 18%, transparent);
+    --control-edge: var(--t-meta);  /* 3:1 or better on every light surface, measured by the contrast canary */
+    --shadow:   0 1px 0 color-mix(in srgb, var(--t-ink) 5%, transparent), 0 12px 36px -20px color-mix(in srgb, var(--t-ink) 20%, transparent);
+    --brass:    color-mix(in srgb, var(--t-bronze) 85%, var(--t-ink));  /* bronze held at 4.5:1 on its own tints and the sidebar (axe, 7 Oct) */
+    --brass-2:  color-mix(in srgb, var(--t-bronze) 70%, var(--t-ink));  /* text on a bronze tint */
+    --brass-soft: color-mix(in srgb, var(--t-bronze) 22%, transparent);
+    --brass-ink: var(--t-sheet);
+    --gold:     var(--brass);
+    --link:     color-mix(in srgb, var(--t-copper) 85%, var(--t-ink));  /* copper held at 4.5:1 on hover rows */
     --ember-flash: var(--t-light-neg);
     --ok:       var(--t-light-pos);
     --escalate: var(--t-light-neg);
     --att-high: var(--t-light-neg);
     --caution:  var(--t-light-warn);
-    --info:     var(--t-slate-rail);
-    --side-start: var(--t-paper-panel-3);
-    --side-end: var(--t-paper-panel-3);
-    --topbar-bg: color-mix(in srgb, var(--t-paper-panel) 90%, transparent);
-    --scrim: color-mix(in srgb, var(--t-ink-primary) 36%, transparent);
-    --scrim-strong: color-mix(in srgb, var(--t-ink-primary) 46%, transparent);
-    --overlay-shadow: color-mix(in srgb, var(--t-ink-primary) 22%, transparent);
-    --search-shadow: color-mix(in srgb, var(--t-ink-primary) 16%, transparent);
+    --info:     var(--t-secondary);
+    --side-start: var(--bg-2);
+    --side-end: var(--bg-2);
+    --topbar-bg: color-mix(in srgb, var(--t-surface) 90%, transparent);
+    --scrim: color-mix(in srgb, var(--t-ink) 36%, transparent);
+    --scrim-strong: color-mix(in srgb, var(--t-ink) 46%, transparent);
+    --overlay-shadow: color-mix(in srgb, var(--t-ink) 22%, transparent);
+    --search-shadow: color-mix(in srgb, var(--t-ink) 16%, transparent);
     --brand-core: color-mix(in srgb, var(--brass) 10%, var(--panel));
     --brand-glow: color-mix(in srgb, var(--brass) 6%, var(--panel));
     --accent-ring: color-mix(in srgb, var(--brass) 22%, transparent);
     --accent-glow: color-mix(in srgb, var(--brass) 24%, transparent);
     --topbar-underglow: color-mix(in srgb, var(--brass) 14%, transparent);
-    --ember-wash: color-mix(in srgb, var(--brass) 6%, var(--panel));
-    --hover-surface: color-mix(in srgb, var(--t-ink-primary) 5%, transparent);
-    --active-surface: color-mix(in srgb, var(--t-ink-primary) 7%, transparent);
-    --soft-surface: color-mix(in srgb, var(--t-ink-primary) 3%, transparent);
-    --scroll-thumb: var(--t-paper-rule);
+    --ember-wash: color-mix(in srgb, var(--brass) 4%, var(--panel));
+    --hover-surface: color-mix(in srgb, var(--t-ink) 5%, transparent);
+    --active-surface: color-mix(in srgb, var(--t-ink) 6%, transparent);
+    --soft-surface: color-mix(in srgb, var(--t-ink) 3%, transparent);
+    --scroll-thumb: var(--t-steel);
     --toast-err-bg: color-mix(in srgb, var(--escalate) 6%, var(--panel));
   }
   /* tokens:end */
@@ -323,7 +332,7 @@
   [data-theme="light"] .nav-item .count {
     background: var(--active-surface);
   }
-  /* Active nav count: a darker brown on light paper so the badge clears AA
+  /* Active nav count: bronze darkened with ink on the light sheet so the badge clears AA
      (the shared brass over a translucent-orange fill measured 3.98:1). */
   [data-theme="light"] .nav-item.active .count { color: var(--brass-2); background: color-mix(in srgb, var(--brass) 12%, transparent); }
   [data-theme="light"] table.ds th {
@@ -354,13 +363,14 @@
     background: linear-gradient(90deg, var(--ember-wash) 0%, var(--bg) 60%, var(--bg) 100%);
   }
   [data-theme="light"] ::-webkit-scrollbar-thumb { background: var(--scroll-thumb); }
+  /* The active desk lifts to the sheet with its bronze rule, so every label and live count on it reads at full contrast. */
   [data-theme="light"] .nav-item.active {
-    background: var(--active-surface);
+    background: var(--panel);
   }
   [data-theme="light"] .sr-item:focus-within {
     background: var(--active-surface);
   }
-  /* High-attention signal card: base rule hardcodes a dark gradient; warm-paper override (design bug). */
+  /* High-attention signal card: base rule hardcodes a dark gradient; light-sheet override (design bug). */
   [data-theme="light"] .signal[data-att="high"] {
     background: linear-gradient(160deg, color-mix(in srgb, var(--ember-flash) 7%, var(--panel)) 0%, var(--panel) 100%);
   }
@@ -1036,12 +1046,12 @@
   .att.med::before { background: var(--caution); }
   .att.low { color: var(--info); background: color-mix(in srgb, var(--info) 10%, transparent); border: 1px solid color-mix(in srgb, var(--info) 25%, transparent); }
   .att.low::before { background: var(--info); }
-  /* Light theme: --att-high is semantic-light.neg on paper (5.04:1 on bg, A11Y-9). */
-  /* FE-10: over the high card's ember wash the neg text measured 4.16:1; ember.oxide is 6.50:1 there. The dot keeps the neg hue. */
-  [data-theme="light"] .att.high { color: var(--t-oxide); background: color-mix(in srgb, var(--att-high) 10%, transparent); border-color: color-mix(in srgb, var(--att-high) 30%, transparent); }
+  /* Light theme: --att-high is semantic-light.neg on sheet (A11Y-9). Over the high card's neg wash the
+     chip text is neg darkened with ink, so it clears 4.5:1 there (tests/light-theme-contrast.test.mjs). The dot keeps the neg hue. */
+  [data-theme="light"] .att.high { color: color-mix(in srgb, var(--t-light-neg) 75%, var(--t-ink)); background: color-mix(in srgb, var(--att-high) 10%, transparent); border-color: color-mix(in srgb, var(--att-high) 30%, transparent); }
   [data-theme="light"] .att.high::before { background: var(--att-high); }
-  /* FE-10: semantic warn measured 4.02:1 on a tinted table row; 80% warn with ink.primary is 5.12:1 there and 6.65:1 on paper. The dot keeps the warn hue. */
-  [data-theme="light"] .att.med { color: color-mix(in srgb, var(--t-light-warn) 80%, var(--t-ink-primary)); }
+  /* FE-10: semantic warn alone sits near 4.5:1 on a tinted table row; 80% warn with ink clears it (measured by the contrast canary). The dot keeps the warn hue. */
+  [data-theme="light"] .att.med { color: color-mix(in srgb, var(--t-light-warn) 80%, var(--t-ink)); }
 
   /* confidence bar — 5-segment ember-to-gold gradient */
   .conf {
@@ -1193,7 +1203,7 @@
     font-family: var(--mono); font-size: var(--t-micro);
   }
 
-  /* ---------- Brief preview — warm paper, gold accent ---------- */
+  /* ---------- Brief preview: cool sheet, bronze accent ---------- */
   /* --brief-* are defined in the token block. */
   .brief {
     background: var(--brief-bg); color: var(--brief-ink);

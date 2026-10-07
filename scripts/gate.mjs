@@ -19,6 +19,7 @@ const GATES = [
   "tests/freshness.test.mjs",
   "tests/analytics-honesty.test.mjs",
   "tests/copy-gates.test.mjs",
+  "tests/light-theme-contrast.test.mjs",
   "tests/finalise.test.mjs",
   "tests/product-truth.test.mjs",
   "tests/review-round5.test.mjs",
